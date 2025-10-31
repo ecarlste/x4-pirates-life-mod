@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<god>
+  <!-- A Pirate's Life Mod: Doubled bail rate from vanilla 0.02 to 0.04 -->
+  <!-- This makes NPCs abandon ship twice as frequently -->
+  <replace sel="//god/bail/@value">0.04</replace>
+</god>

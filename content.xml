@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<content id="apirateslife" name="A Pirate's Life" description="Increases bail rate to make ship abandonment twice as frequent as vanilla" author="X4 Modder" version="100" date="2025-10-31" save="false" enabled="true">
+  <text language="44" name="A Pirate's Life" description="Increases bail rate to make ship abandonment twice as frequent as vanilla" author="X4 Modder"/>
+</content>
