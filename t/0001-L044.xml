@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<language id="44">
+  <page id="20001" title="A Pirate's Life" descr="Mod text and descriptions" voice="yes">
+    <t id="100">A Pirate's Life</t>
+    <t id="101">Bail Rate Multiplier</t>
+    <t id="102">Direct Input (0.0 - 1.0)</t>
+    <t id="103">Adjusts how frequently NPCs will abandon their ships when damaged or disabled. Default is 0.04 (2x vanilla rate of 0.02). Set to 1.0 for testing to see immediate bailing. Changes take effect after reloading your save.</t>
+    <t id="104">Reset to Default (0.04)</t>
+  </page>
+</language>

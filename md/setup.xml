@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="APiratesLife_Setup" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    
+    <!-- Initialize on game load -->
+    <cue name="Init" instantiate="true">
+      <conditions>
+        <event_game_loaded />
+      </conditions>
+      <actions>
+        <!-- Load bail rate from config or use default (0.04 = 2x vanilla) -->
+        <set_value name="global.$apirateslife_bailrate" exact="[0.04].{1}" />
+        
+        <!-- Try to load saved value from user config -->
+        <do_if value="@player.entity.var.$apirateslife_bailrate">
+          <set_value name="global.$apirateslife_bailrate" exact="player.entity.var.$apirateslife_bailrate" />
+        </do_if>
+        
+        <debug_text text="'A Pirate\'s Life: Bail rate set to ' + global.$apirateslife_bailrate" chance="100" filter="general" />
+      </actions>
+    </cue>
+
+    <!-- Function to get current bail rate -->
+    <cue name="GetBailRate" instantiate="true">
+      <conditions>
+        <check_any>
+          <event_cue_signalled />
+        </check_any>
+      </conditions>
+      <actions>
+        <do_if value="not global.$apirateslife_bailrate?">
+          <set_value name="global.$apirateslife_bailrate" exact="0.04" />
+        </do_if>
+        <signal_cue_instantly cue="this" param="global.$apirateslife_bailrate" />
+      </actions>
+    </cue>
+
+    <!-- Function to set bail rate -->
+    <cue name="SetBailRate" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="$newrate" exact="event.param" />
+        
+        <!-- Clamp value between 0.0 and 1.0 -->
+        <do_if value="$newrate lt 0.0">
+          <set_value name="$newrate" exact="0.0" />
+        </do_if>
+        <do_if value="$newrate gt 1.0">
+          <set_value name="$newrate" exact="1.0" />
+        </do_if>
+        
+        <!-- Update global variable -->
+        <set_value name="global.$apirateslife_bailrate" exact="$newrate" />
+        
+        <!-- Save to player entity for persistence -->
+        <set_value name="player.entity.var.$apirateslife_bailrate" exact="$newrate" />
+        
+        <debug_text text="'A Pirate\'s Life: Bail rate updated to ' + $newrate" chance="100" filter="general" />
+      </actions>
+    </cue>
+
+    <!-- Function to reset to default -->
+    <cue name="ResetToDefault" instantiate="true">
+      <conditions>
+        <event_cue_signalled />
+      </conditions>
+      <actions>
+        <set_value name="global.$apirateslife_bailrate" exact="0.04" />
+        <set_value name="player.entity.var.$apirateslife_bailrate" exact="0.04" />
+        <debug_text text="'A Pirate\'s Life: Bail rate reset to default (0.04)'" chance="100" filter="general" />
+      </actions>
+    </cue>
+
+  </cues>
+</mdscript>

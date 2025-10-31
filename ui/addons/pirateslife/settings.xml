@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<diff>
+  
+  <!-- Add settings menu entry in Extensions menu -->
+  <add sel="/optionsmenu/box/rows[@id='extensions_options']//*[@id='extension_options_rows']" pos="after">
+    <row id="apirateslife_settings">
+      <text width="100" height="30" fontsize="16" fontstyle="bold" color="[255,255,255,255]">
+        <text text="{20001,100}" />
+      </text>
+    </row>
+    
+    <!-- Bail Rate Slider Section -->
+    <row id="apirateslife_bailrate_row">
+      <table width="100%">
+        <tr>
+          <td width="40%">
+            <text fontsize="14" color="[200,200,200,255]">
+              <text text="{20001,101}" />
+            </text>
+          </td>
+          <td width="40%">
+            <slidercell id="apirateslife_bailrate_slider" width="300" active="1" 
+                        min="0" max="100" start="4" pagesize="1" step="1"
+                        valuefontsize="12" showvalue="0"
+                        script="md.APiratesLife_Setup.SetBailRate">
+              <value>
+                <!-- Convert slider value (0-100) to decimal (0.0-1.0) and set -->
+                <set_value name="$slidervalue" exact="event.param" />
+                <set_value name="$decimalvalue" exact="$slidervalue / 100.0" />
+                <signal_cue_instantly cue="md.APiratesLife_Setup.SetBailRate" param="$decimalvalue" />
+              </value>
+            </slidercell>
+          </td>
+          <td width="20%">
+            <editbox id="apirateslife_bailrate_input" width="80" height="25" 
+                     fontsize="12" active="1" text="0.04" description="{20001,102}">
+              <value>
+                <!-- When text input changes, update slider and setting -->
+                <set_value name="$textvalue" exact="event.param" />
+                <set_value name="$numvalue" exact="$textvalue" />
+                <do_if value="$numvalue lt 0.0">
+                  <set_value name="$numvalue" exact="0.0" />
+                </do_if>
+                <do_if value="$numvalue gt 1.0">
+                  <set_value name="$numvalue" exact="1.0" />
+                </do_if>
+                <set_value name="$sliderpos" exact="($numvalue * 100.0)i" />
+                <set_slider_value slider="apirateslife_bailrate_slider" value="$sliderpos" />
+                <signal_cue_instantly cue="md.APiratesLife_Setup.SetBailRate" param="$numvalue" />
+              </value>
+            </editbox>
+          </td>
+        </tr>
+      </table>
+    </row>
+    
+    <!-- Description text -->
+    <row id="apirateslife_description_row">
+      <text width="95%" height="60" fontsize="11" color="[150,150,150,255]" wordwrap="1">
+        <text text="{20001,103}" />
+      </text>
+    </row>
+    
+    <!-- Reset button -->
+    <row id="apirateslife_reset_row">
+      <button width="150" height="30" active="1">
+        <text text="{20001,104}" />
+        <clicked>
+          <signal_cue_instantly cue="md.APiratesLife_Setup.ResetToDefault" />
+          <set_slider_value slider="apirateslife_bailrate_slider" value="4" />
+          <set_editbox_value editbox="apirateslife_bailrate_input" value="'0.04'" />
+        </clicked>
+      </button>
+    </row>
+    
+    <!-- Spacing -->
+    <row height="20" />
+  </add>
+
+</diff>

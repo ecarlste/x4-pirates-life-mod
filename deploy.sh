@@ -54,5 +54,33 @@ else
     exit 1
 fi
 
+# Copy md directory (Mission Director scripts)
+if [ -d "md" ]; then
+    cp -r md "$X4_EXTENSIONS_PATH/"
+    echo "  ✓ Copied md/"
+else
+    echo -e "${RED}  ✗ md/ directory not found${NC}"
+    exit 1
+fi
+
+# Copy ui directory
+if [ -d "ui" ]; then
+    cp -r ui "$X4_EXTENSIONS_PATH/"
+    echo "  ✓ Copied ui/"
+else
+    echo -e "${RED}  ✗ ui/ directory not found${NC}"
+    exit 1
+fi
+
+# Copy t directory (localization)
+if [ -d "t" ]; then
+    cp -r t "$X4_EXTENSIONS_PATH/"
+    echo "  ✓ Copied t/"
+else
+    echo -e "${RED}  ✗ t/ directory not found${NC}"
+    exit 1
+fi
+
 echo -e "${GREEN}Deployment successful!${NC}"
 echo "Mod 'A Pirate's Life' has been deployed to X4 Foundations"
+echo -e "${YELLOW}Remember to reload your save for changes to take effect${NC}"
