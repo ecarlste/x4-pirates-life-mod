@@ -88,7 +88,8 @@ fi
 
 [ -f "$STAGE/mod/content.xml" ] || die "content.xml missing from the deployed files"
 MOD_ID=$(sed -n 's/.*<content[^>]* id="\([^"]*\)".*/\1/p' "$STAGE/mod/content.xml" | head -n 1)
-[[ "$MOD_ID" =~ ^[A-Za-z0-9_.-]+$ ]] || die "couldn't read a valid extension id from content.xml"
+# The id names a folder we mirror into with deletes, so it must not escape extensions/
+[[ "$MOD_ID" =~ ^[A-Za-z0-9_-][A-Za-z0-9_.-]*$ ]] || die "couldn't read a valid extension id from content.xml"
 TARGET="$X4_PATH/extensions/$MOD_ID"
 
 echo -e "${GREEN}Deploying $SOURCE${NC}"

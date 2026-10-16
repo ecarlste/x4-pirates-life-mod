@@ -107,7 +107,10 @@ try {
         $tarFile = Join-Path $stage 'mod.tar'
         # Ship files exactly as committed (Windows git may otherwise convert them to CRLF)
         Invoke-Git -c core.autocrlf=false archive --format=tar -o $tarFile $Ref -- @paths
-        & tar -xf $tarFile -C $stageMod
+        # Prefer Windows' own tar: Git's GNU tar, if first on PATH, reads "C:\..." as a remote host
+        $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
+        if (-not ($env:SystemRoot -and (Test-Path $tar))) { $tar = 'tar' }
+        & $tar -xf $tarFile -C $stageMod
         if ($LASTEXITCODE -ne 0) { throw "tar failed with exit code $LASTEXITCODE" }
         $source = "$Ref @ $(Invoke-Git log -1 --format='%h %s' $Ref)"
     }
@@ -115,7 +118,8 @@ try {
     $contentXml = Join-Path $stageMod 'content.xml'
     if (-not (Test-Path $contentXml)) { throw "content.xml missing from the deployed files" }
     $modId = ([xml](Get-Content $contentXml -Raw)).content.id
-    if ($modId -notmatch '^[A-Za-z0-9_.-]+$') { throw "couldn't read a valid extension id from content.xml" }
+    # The id names a folder we mirror into with deletes, so it must not escape extensions\
+    if ($modId -notmatch '^[A-Za-z0-9_-][A-Za-z0-9_.-]*$') { throw "couldn't read a valid extension id from content.xml" }
     $target = Join-Path (Join-Path $x4Path 'extensions') $modId
 
     Write-Host "Deploying $source" -ForegroundColor Green
