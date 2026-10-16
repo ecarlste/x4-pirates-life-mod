@@ -1,0 +1,12 @@
+# Paths that make up the mod, relative to the repo root. Read by deploy.sh and deploy.ps1.
+# Only these are copied into the game's extensions folder; anything else in the repo
+# (docs, tools, dev config) never ships. Entries that don't exist yet are skipped.
+content.xml
+aiscripts
+assets
+index
+libraries
+maps
+md
+t
+ui
