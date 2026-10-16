@@ -105,7 +105,8 @@ try {
         if (-not $paths) { throw "nothing to deploy at $Ref" }
 
         $tarFile = Join-Path $stage 'mod.tar'
-        Invoke-Git archive --format=tar -o $tarFile $Ref -- @paths
+        # Ship files exactly as committed (Windows git may otherwise convert them to CRLF)
+        Invoke-Git -c core.autocrlf=false archive --format=tar -o $tarFile $Ref -- @paths
         & tar -xf $tarFile -C $stageMod
         if ($LASTEXITCODE -ne 0) { throw "tar failed with exit code $LASTEXITCODE" }
         $source = "$Ref @ $(Invoke-Git log -1 --format='%h %s' $Ref)"
