@@ -1,8 +1,14 @@
-# X4 Foundations Extensions Path Configuration
-# Copy this file to deploy.config and update with your actual X4 installation path
-# Example paths:
-#   Linux: /home/username/.steam/steam/steamapps/common/X4 Foundations/extensions/pirateslife
-#   Windows (WSL): /mnt/c/Program Files (x86)/Steam/steamapps/common/X4 Foundations/extensions/pirateslife
-#   macOS: /Users/username/Library/Application Support/Steam/steamapps/common/X4 Foundations/extensions/pirateslife
+# X4 Foundations deploy configuration
+# Copy this file to deploy.config (or run `make setup`) and set your X4 install folder.
+# The mod is synced into <X4_PATH>/extensions/<id from content.xml>.
+#
+# The same file works from WSL and PowerShell: a Windows path (E:\...) is converted
+# automatically under WSL. Quotes are optional. The X4_PATH environment variable
+# overrides this file.
+#
+# Examples:
+#   Windows / WSL: E:\SteamLibrary\steamapps\common\X4 Foundations
+#   Linux:         /home/username/.steam/steam/steamapps/common/X4 Foundations
+#   macOS:         /Users/username/Library/Application Support/Steam/steamapps/common/X4 Foundations
 
-X4_EXTENSIONS_PATH=/mnt/c/Program Files (x86)/Steam/steamapps/common/X4 Foundations/extensions/pirateslife
+X4_PATH="E:\SteamLibrary\steamapps\common\X4 Foundations"

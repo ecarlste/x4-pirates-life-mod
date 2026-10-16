@@ -1,0 +1,66 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck deploy.sh tests/run.sh
+      - run: shellcheck -s bash tests/*.bash tests/*.bats
+
+  bash:
+    name: bats (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+          # Stock macOS bash is 3.2 and rsync may be openrsync; test what developers actually have
+          - name: macOS, bash 3.2
+            os: macos-latest
+            stock_bash: true
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Put /bin/bash first on PATH
+        if: matrix.stock_bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/stock-bash"
+          ln -s /bin/bash "$RUNNER_TEMP/stock-bash/bash"
+          echo "$RUNNER_TEMP/stock-bash" >> "$GITHUB_PATH"
+      - run: bash --version | head -n 1
+      - run: tests/run.sh --bash-only
+
+  pester:
+    name: Pester (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Windows PowerShell 5.1, os: windows-latest, shell: powershell }
+          - { name: PowerShell 7 on Windows, os: windows-latest, shell: pwsh }
+          - { name: PowerShell 7 on Linux, os: ubuntu-latest, shell: pwsh }
+          - { name: PowerShell 7 on macOS, os: macos-latest, shell: pwsh }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./tests/run.ps1 -CI
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: pester-results-${{ matrix.os }}-${{ matrix.shell }}
+          path: tests/results.xml

@@ -32,7 +32,13 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 
 ## Workflow
 
-- `make setup` once (creates `deploy.config`), then `make deploy` to copy the mod into the extensions folder.
+- `make setup` once (creates `deploy.config` with the X4 install path), then deploy:
+  - **"Deploy" means `make deploy`:** fetch and sync the latest `origin/main` into `extensions/apirateslife`, deleting files that left the mod. It deploys `main` no matter which branch is checked out.
+  - `make deploy-local` syncs the working tree (uncommitted changes included) for in-game testing before a PR; `./deploy.sh --ref <branch>` deploys a pushed branch; `make deploy-dry-run` previews.
+  - PowerShell equivalent: `.\deploy.ps1` (`-WorkingTree`, `-Ref <branch>`, `-DryRun`).
+  - Only the paths in `deploy.include` ship; add new top-level mod folders there. Restart X4 after deploying.
+- **Test scripts before a PR:** `make test` (or `tests/run.sh`) runs the bats suites, shellcheck when installed, and the Pester suites when PowerShell is available, including Windows PowerShell from WSL. `.\tests\run.ps1` runs just the Pester suites. Test frameworks are fetched on first run (bats into `.tools/`, Pester into `.tools/` or `%LOCALAPPDATA%` when the repo is on `\\wsl.localhost`). CI (`.github/workflows/tests.yml`) runs everything on Linux, macOS (stock bash 3.2) and Windows (PowerShell 5.1 and 7) for every PR.
+  - Every script change needs a test; `deploy.sh` and `deploy.ps1` share one behavior spec, so a case added to `tests/deploy.bats` belongs in `tests/Deploy.Tests.ps1` too.
 - Never commit game data or unpacked reference files.
 - Research notes go in `docs/research/`; decisions get reflected back into the design doc.
 - Design discussions happen in the design doc; build work happens locally in WSL. GitHub is the hub between them, so commit and push often.

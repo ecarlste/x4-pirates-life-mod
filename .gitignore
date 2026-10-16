@@ -1,2 +1,6 @@
 # Personal deployment configuration
 deploy.config
+
+# Test tooling fetched by tests/run.sh and tests/run.ps1
+.tools/
+tests/results.xml

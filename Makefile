@@ -1,12 +1,17 @@
-.PHONY: setup deploy help
+.PHONY: setup deploy deploy-local deploy-dry-run test help
 
 help:
 	@echo "X4 Foundations - A Pirate's Life Mod"
 	@echo ""
 	@echo "Available commands:"
-	@echo "  make setup  - Create deploy.config from example"
-	@echo "  make deploy - Deploy mod to X4 extensions directory"
-	@echo "  make help   - Show this help message"
+	@echo "  make setup          - Create deploy.config from example"
+	@echo "  make deploy         - Sync the latest origin/main into the X4 extensions folder"
+	@echo "  make deploy-local   - Sync your working tree instead (uncommitted changes included)"
+	@echo "  make deploy-dry-run - Show what 'make deploy' would change"
+	@echo "  make test           - Run the bats and Pester test suites"
+	@echo "  make help           - Show this help message"
+	@echo ""
+	@echo "Other refs: ./deploy.sh --ref <branch>  (PowerShell: .\\deploy.ps1 -Ref <branch>)"
 
 setup:
 	@if [ -f deploy.config ]; then \
@@ -19,5 +24,13 @@ setup:
 	fi
 
 deploy:
-	@chmod +x deploy.sh
 	@./deploy.sh
+
+deploy-local:
+	@./deploy.sh --working-tree
+
+deploy-dry-run:
+	@./deploy.sh --dry-run
+
+test:
+	@tests/run.sh
