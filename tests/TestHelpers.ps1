@@ -87,7 +87,7 @@ function Push-FromOtherClone($s, [string] $Path, [string] $Value) {
 function Invoke-Script([string] $Script, [string[]] $Arguments) {
     $ErrorActionPreference = 'Continue'
     $out = & $script:PowerShellExe -NoProfile -ExecutionPolicy Bypass -File $Script @Arguments 2>&1 |
-           ForEach-Object { "$_" }
+           ForEach-Object { "$_" -replace "\x1b\[[0-9;]*m", '' }  # pwsh 7 colors errors; ANSI codes break the JUnit XML
     [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = ($out -join "`n") }
 }
 

@@ -108,8 +108,10 @@ try {
         # Ship files exactly as committed (Windows git may otherwise convert them to CRLF)
         Invoke-Git -c core.autocrlf=false archive --format=tar -o $tarFile $Ref -- @paths
         # Prefer Windows' own tar: Git's GNU tar, if first on PATH, reads "C:\..." as a remote host
-        $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
-        if (-not ($env:SystemRoot -and (Test-Path $tar))) { $tar = 'tar' }
+        $tar = 'tar'
+        if ($env:SystemRoot -and (Test-Path (Join-Path $env:SystemRoot 'System32\tar.exe'))) {
+            $tar = Join-Path $env:SystemRoot 'System32\tar.exe'
+        }
         & $tar -xf $tarFile -C $stageMod
         if ($LASTEXITCODE -ne 0) { throw "tar failed with exit code $LASTEXITCODE" }
         $source = "$Ref @ $(Invoke-Git log -1 --format='%h %s' $Ref)"
