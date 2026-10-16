@@ -41,15 +41,9 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 
 ## Planning docs
 
-| Doc | Role |
-| --- | --- |
-| [`DESIGN.md`](DESIGN.md) | High-level design, exported from the living design doc |
-| [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) | **The tracker:** every agreed piece of work, by phase, with checkboxes |
-| [`specs/`](specs/) | One spec per feature once its design is agreed: low-level design plus tasks, enough for one session to build it |
-
-- Agreed new work goes into the plan straight away, even if it's far off.
-- The PR that finishes an item ticks it off in the plan (and marks its spec Done).
-- Before starting a feature, read its spec; if it has none, write one from `specs/_template.md` first.
+- [`DESIGN.md`](DESIGN.md): the high-level design.
+- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md): the tracker. Add agreed work there, and tick items off in the PR that finishes them.
+- [`specs/`](specs/): one short spec per agreed feature. Read it before building, or write one from the template if there isn't one yet.
 
 ## Current status
 

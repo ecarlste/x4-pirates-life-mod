@@ -1,13 +1,6 @@
 # Implementation Plan
 
-Everything we know we want to do, phase by phase. This file is the tracker: tick an item off in the PR that finishes it. The design behind each phase lives in [`DESIGN.md`](DESIGN.md), and features get a spec in [`specs/`](specs/) before they're built.
-
-**Conventions**
-
-- `[ ]` to do, `[x]` done. Link the PR once one is open, and keep the link after merging so there's a trail.
-- A feature item links its spec once written, e.g. `[ ] Wingman forces a bail ([spec](specs/wingman-bail.md))`.
-- New work gets added here when we agree to it, even if it's far off. Unsure items go under "Ideas and maybe" at the end.
-- Later phases are predictions: reorder and reword them freely as we learn.
+Everything we've agreed to do, by phase. Tick items off in the PR that finishes them, and link the PR. Feature items link their spec in [`specs/`](specs/) once one exists. Later phases are guesses: reorder them freely.
 
 ## Phase 0: Dev setup and tooling
 
