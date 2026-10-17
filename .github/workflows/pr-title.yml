@@ -1,7 +1,8 @@
 name: PR title
 
 # PRs are squash-merged with the PR title as the commit title, so the title must follow
-# Conventional Commits: type(optional-scope)!: summary
+# Conventional Commits (type(optional-scope)!: summary) and fit in 72 characters, the most
+# GitHub shows before cutting a commit title off.
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
@@ -19,9 +20,12 @@ jobs:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
           pattern='^(feat|fix|docs|test|ci|build|refactor|perf|style|chore|revert)(\([a-z0-9._/-]+\))?!?: [^ ].*'
-          if [[ "$TITLE" =~ $pattern ]]; then
-            echo "OK: $TITLE"
-          else
+          if ! [[ "$TITLE" =~ $pattern ]]; then
             echo "::error::PR title must follow Conventional Commits, e.g. 'feat(md): add smoke test script'. Got: $TITLE"
             exit 1
           fi
+          if [ "${#TITLE}" -gt 72 ]; then
+            echo "::error::PR title is ${#TITLE} characters; keep it to 72 so GitHub doesn't cut it off. Put details in the description."
+            exit 1
+          fi
+          echo "OK (${#TITLE} characters): $TITLE"
