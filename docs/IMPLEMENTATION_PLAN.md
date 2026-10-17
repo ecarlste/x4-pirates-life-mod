@@ -23,7 +23,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [ ] bats and Pester test suites for all scripts, run locally and in CI on Linux, macOS and Windows (feature/deploy-sync)
 - [ ] Autoformat scripts on commit: shfmt and PSScriptAnalyzer's formatter, through a pre-commit hook enabled by `make setup`
 - [ ] `make release`: lint (shellcheck, PSScriptAnalyzer default rules, format check), run the tests, build the release zip from a clean `origin/main`; drop linting from `make test` and PR CI
-- [ ] Repo README: what the mod is, prerequisites, setup, deploy, test
+- [x] Repo README: what the mod is, prerequisites, setup, deploy, test, coming back after a break (docs/readme)
 
 **In-game dev tooling** (from DESIGN.md: "Dev tooling, early")
 
