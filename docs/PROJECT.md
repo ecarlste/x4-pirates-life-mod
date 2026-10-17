@@ -46,8 +46,8 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
 - Research notes go in `docs/research/`; decisions get reflected back into the design doc.
 - Design discussions happen in the design doc; build work happens locally in WSL. GitHub is the hub between them, so commit and push often.
 - **All changes go through a feature branch and a pull request**, never straight to `main`. Erik reviews every PR, and an automated PR reviewer runs on it too. Branch names: `feature/…`, `fix/…`, `docs/…`, `spike/…`.
-- **PRs are squash-merged** (the only merge option): the PR title becomes the commit title on `main` and the PR description becomes its body. Commits inside a branch can be informal.
-- **PR titles follow [Conventional Commits](https://www.conventionalcommits.org/):** `type(scope): summary`, checked by CI (`.github/workflows/pr-title.yml`).
+- **PRs are squash-merged** (the only merge option): the PR title becomes the commit title on `main` and the PR description becomes its body. Commits inside a branch can be informal. Merged branches are deleted automatically.
+- **PR titles follow [Conventional Commits](https://www.conventionalcommits.org/):** `type(scope): summary`, checked by CI (`.github/workflows/pr-title.yml`). The check is required by branch protection on `main`, for admins too.
   - Types: `feat`, `fix`, `docs`, `test`, `ci`, `build`, `refactor`, `perf`, `style`, `chore`, `revert`. Add `!` for breaking changes, e.g. `feat(deploy)!: …`.
   - Scope is optional and names the area: `deploy`, `tests`, `tools`, `md`, `plan`, `research`, …
   - The summary names what changed, using the terms someone would search for (file, command, feature).
