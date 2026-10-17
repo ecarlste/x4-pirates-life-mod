@@ -22,6 +22,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 
 - [x] `make deploy` syncs the latest `origin/main` into the game; working-tree and branch deploys; PowerShell twin ([PR #3](https://github.com/ecarlste/x4-pirates-life-mod/pull/3))
 - [x] bats and Pester test suites for all scripts, run locally and in CI on Linux, macOS and Windows ([PR #3](https://github.com/ecarlste/x4-pirates-life-mod/pull/3))
+- [x] Squash-only merges using the PR title and description; Conventional Commits PR titles checked in CI
 - [ ] Autoformat scripts on commit: shfmt and PSScriptAnalyzer's formatter, through a pre-commit hook enabled by `make setup`
 - [ ] `make release`: lint (shellcheck, PSScriptAnalyzer default rules, format check), run the tests, build the release zip from a clean `origin/main`; drop linting from `make test` and PR CI
 - [x] Repo README: what the mod is, prerequisites, setup, deploy, test, coming back after a break ([PR #5](https://github.com/ecarlste/x4-pirates-life-mod/pull/5))

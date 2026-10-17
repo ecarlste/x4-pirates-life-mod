@@ -1,0 +1,27 @@
+name: PR title
+
+# PRs are squash-merged with the PR title as the commit title, so the title must follow
+# Conventional Commits: type(optional-scope)!: summary
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  conventional:
+    name: Conventional Commits title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the PR title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|docs|test|ci|build|refactor|perf|style|chore|revert)(\([a-z0-9._/-]+\))?!?: [^ ].*'
+          if [[ "$TITLE" =~ $pattern ]]; then
+            echo "OK: $TITLE"
+          else
+            echo "::error::PR title must follow Conventional Commits, e.g. 'feat(md): add smoke test script'. Got: $TITLE"
+            exit 1
+          fi
