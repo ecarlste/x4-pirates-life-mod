@@ -1,9 +1,9 @@
 name: PR title
 
 # PRs are squash-merged with the PR title as the commit title, so the title must follow
-# Conventional Commits (type(optional-scope)!: summary). The squash commit on main gets
-# " (#123)" appended, and GitHub cuts commit titles off at about 72 characters, so PR titles
-# are capped at 65: the commit list on main stays readable without hovering.
+# Conventional Commits (type(optional-scope)!: summary). Titles are capped at 72 characters,
+# about where GitHub cuts commit titles off, so the commit list on main reads without hovering.
+# The " (#123)" GitHub appends when squashing may get cut off; nobody needs it while scanning.
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
@@ -25,8 +25,8 @@ jobs:
             echo "::error::PR title must follow Conventional Commits, e.g. 'feat(md): add smoke test script'. Got: $TITLE"
             exit 1
           fi
-          if [ "${#TITLE}" -gt 65 ]; then
-            echo "::error::PR title is ${#TITLE} characters; keep it to 65 so the squash commit on main (title plus \" (#123)\") isn't cut off by GitHub. Put details in the description."
+          if [ "${#TITLE}" -gt 72 ]; then
+            echo "::error::PR title is ${#TITLE} characters; keep it to 72 so GitHub doesn't cut it off. Put details in the description."
             exit 1
           fi
           echo "OK (${#TITLE} characters): $TITLE"
