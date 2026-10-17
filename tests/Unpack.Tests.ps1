@@ -4,16 +4,40 @@ BeforeAll {
     . (Join-Path $PSScriptRoot 'TestHelpers.ps1')
     $script:Unpack = Join-Path $script:RepoRoot 'tools/unpack-x4.ps1'
 
-    # A fake XRCatTool: appends its arguments (one call per line) to $env:FAKE_LOG and exits $env:FAKE_EXIT
+    # A fake XRCatTool: appends its arguments (one call per line) to $env:FAKE_LOG and exits $env:FAKE_EXIT.
+    # Like the real tool, it fails with exit code 2 when the -out folder doesn't exist.
     function New-FakeTool([string] $Dir, [string] $Name = 'fakecat') {
         New-Item -ItemType Directory -Force -Path $Dir | Out-Null
         if ($script:OnWindows) {
             $tool = Join-Path $Dir "$Name.cmd"
-            Set-Content $tool "@echo off`r`necho %*>>`"%FAKE_LOG%`"`r`nexit /b %FAKE_EXIT%`r`n" -Encoding Ascii
+            $body = @'
+@echo off
+echo %*>>"%FAKE_LOG%"
+:next
+if "%~1"=="" exit /b %FAKE_EXIT%
+if "%~1"=="-out" if not exist "%~2\" (
+    echo Output %~2 is neither a catalog nor a folder, aborting
+    exit /b 2
+)
+shift
+goto next
+'@
+            Set-Content $tool ($body -replace "`r?`n", "`r`n") -Encoding Ascii
         }
         else {
             $tool = Join-Path $Dir $Name
-            Write-LfFile $tool "#!/bin/sh`necho `"`$*`" >> `"`$FAKE_LOG`"`nexit `"`${FAKE_EXIT:-0}`"`n"
+            Write-LfFile $tool @'
+#!/bin/sh
+echo "$*" >> "$FAKE_LOG"
+while [ $# -gt 0 ]; do
+    if [ "$1" = -out ] && [ ! -d "$2" ]; then
+        echo "Output $2 is neither a catalog nor a folder, aborting"
+        exit 2
+    fi
+    shift
+done
+exit "${FAKE_EXIT:-0}"
+'@
             & chmod +x $tool
         }
         $tool
@@ -63,10 +87,16 @@ Describe 'unpack-x4.ps1' {
         $r.Output | Should -Match 'XRCatTool\.exe not found'
     }
 
-    It 'finds XRCatTool.exe elsewhere in the Steam library' {
+    # The fake .exe files below can't run, so these only check which tool was picked
+    It 'finds XRCatTool.exe in the X Tools folder of the Steam library' {
         $found = Join-Path $root 'steamapps/common/X Tools/XRCatTool.exe'
         Write-LfFile $found ''
-        # The fake .exe can't run, so only check which tool was picked
+        (Invoke-Unpack $base).Output | Should -Match ([regex]::Escape("XRCatTool: $found"))
+    }
+
+    It 'falls back to searching the Steam library for XRCatTool.exe' {
+        $found = Join-Path $root 'steamapps/common/Renamed Tools/bin/XRCatTool.exe'
+        Write-LfFile $found ''
         (Invoke-Unpack $base).Output | Should -Match ([regex]::Escape("XRCatTool: $found"))
     }
 

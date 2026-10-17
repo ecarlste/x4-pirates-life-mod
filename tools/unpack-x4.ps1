@@ -49,8 +49,12 @@ if (-not (Test-Path (Join-Path $X4Path 'X4.exe'))) {
 
 if (-not $ToolPath) {
     $steamCommon = Split-Path $X4Path -Parent
-    $ToolPath = Get-ChildItem $steamCommon -Recurse -Filter XRCatTool.exe -ErrorAction SilentlyContinue |
-                Select-Object -First 1 -ExpandProperty FullName
+    $ToolPath = Join-Path $steamCommon 'X Tools\XRCatTool.exe'
+    if (-not (Test-Path $ToolPath)) {
+        # Not in the usual place: search the whole Steam library, which can be slow
+        $ToolPath = Get-ChildItem $steamCommon -Recurse -Filter XRCatTool.exe -ErrorAction SilentlyContinue |
+                    Select-Object -First 1 -ExpandProperty FullName
+    }
 }
 if (-not $ToolPath -or -not (Test-Path $ToolPath)) {
     throw 'XRCatTool.exe not found. Install "X Tools" from your Steam library (Tools section) or pass -ToolPath.'
@@ -78,6 +82,8 @@ function Invoke-Unpack {
     $toolArgs += '-out', $Dest
 
     Write-Host "Unpacking $($cats.Count) catalog(s) from $Dir -> $Dest"
+    # XRCatTool refuses to write to an output folder that doesn't exist yet
+    New-Item -ItemType Directory -Force -Path $Dest | Out-Null
     Push-Location $X4Path
     try {
         & $ToolPath @toolArgs
