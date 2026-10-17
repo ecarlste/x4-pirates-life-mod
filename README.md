@@ -2,7 +2,7 @@
 
 A piracy overhaul for **X4: Foundations**. The goal is a full career from small-time raider to pirate lord, playable as piracy alone. It's built on vanilla X4 9.x first, and designed so total conversions such as Star Wars Interworlds can plug in later.
 
-**Status:** early development. The mod currently makes NPC crews bail out about twice as often as vanilla; the real systems are planned in [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
+**Status:** early development. The mod doesn't change gameplay yet; the real systems are planned in [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
 
 ## Requirements
 
@@ -52,7 +52,7 @@ This gives each X4 version its own profile folder, holding its saves, settings a
 
 | Path | What |
 | --- | --- |
-| `content.xml`, `libraries/` | The mod itself; `deploy.include` lists everything that ships |
+| `content.xml`, `md/` | The mod itself; `deploy.include` lists everything that ships |
 | `deploy.sh`, `deploy.ps1` | Sync the mod into the game |
 | `tools/` | Dev scripts, such as unpacking the game files ([`tools/README.md`](tools/README.md)) |
 | `tests/` | bats and Pester suites; CI runs them on Linux, macOS and Windows |

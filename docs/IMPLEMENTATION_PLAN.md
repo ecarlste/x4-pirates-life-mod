@@ -41,7 +41,8 @@ Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.
 - [ ] Bailing (S/M): triggers, player vs. NPC attackers, what happens to the ship afterward, whether wingmen and fleets can cause and claim bails
 - [ ] Boarding (L/XL): the full flow, `parameters.xml` tuning vs. engine behavior, NPC boarding, how the boarding UI talks to MD
 - [ ] Adjacent: cargo drop demands, faction reactions to theft, the Yaki IFF disguise
-- [ ] Find where the bail chance actually lives, then fix `libraries/god.xml`: wrap the patch in `<diff>` and correct the selector. Confirmed while unpacking: 9.00's base `libraries/god.xml` has no `<bail>` element, so the current patch matches nothing and the mod has no effect in game yet
+- [x] Find where the bail chance actually lives: `PlayerOwnedShipAttacks` in `md/notifications.xml` ([research note](research/spike-1-bailing-boarding.md)). The old `libraries/god.xml` patch was removed: 9.00 has no bail value there, and X4 merged the non-`<diff>` file as god data, logging errors on every new game
+- [ ] Bring back the mod's 2x bail rate as an MD diff patch on `PlayerOwnedShipAttacks` (the candidate hook in the research note)
 - [ ] Reflect findings back into the design doc, then confirm the order of the Phase 2 slices
 
 ## Phase 2: Core loop vertical slices

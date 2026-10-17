@@ -84,5 +84,5 @@ When one of these happens, update the matching docs in the same PR.
 
 ## Current status
 
-- Existing: a bail-rate tweak in `libraries/` (abandonment ~2x vanilla), plus the deploy tooling.
+- Existing: the deploy and test tooling, plus an in-game smoke test script (`md/`). No gameplay changes yet.
 - Next: see the first unticked items in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) (Phase 0 setup, then spike 1).
