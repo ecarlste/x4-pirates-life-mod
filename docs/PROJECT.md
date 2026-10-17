@@ -28,7 +28,10 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 | X4 install | `E:\SteamLibrary\steamapps\common\X4 Foundations` → `/mnt/e/SteamLibrary/steamapps/common/X4 Foundations` |
 | Deployed mod | `.../X4 Foundations/extensions/apirateslife` |
 | Unpacked reference data (not in git) | `E:\x4-dev\reference\x4-9.xx\` → `/mnt/e/x4-dev/reference/x4-9.xx/` |
-| Debug log | X4 documents folder, `debuglog.txt` (launch with `-logfile debuglog.txt -scriptlogfiles`) |
+| Game profile per X4 version (saves, config, `debuglog.txt`) | `C:\Users\ecarl\OneDrive\Documents\Egosoft\X4\save_<version>\`, e.g. `save_9.00` (`save_7.60` is the frozen 7.60 copy for SWI) |
+| X4 9.00 launch options (Steam) | `-personalfolderid "C:\Users\ecarl\OneDrive\Documents\Egosoft\X4\save_9.00" -skipintro -debug all -logfile debuglog.txt -scriptlogfiles` |
+
+When X4 updates to a new version: re-unpack the game files into a new `x4-<version>` folder, point the launch options at a new `save_<version>` profile, and update this table.
 
 ## Workflow
 
