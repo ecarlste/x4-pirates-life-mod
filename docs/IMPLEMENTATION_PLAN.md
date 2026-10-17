@@ -12,11 +12,11 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] Move WSL off C: (fresh Ubuntu 26.04 at `E:\wsl\Ubuntu-26.04`)
 - [x] Install `gh` in WSL and `gh auth login`
 - [x] Install `make` in WSL
-- [ ] Install X Tools from Steam (XRCatTool, WorkshopTool)
+- [x] Install X Tools from Steam (XRCatTool, WorkshopTool)
 - [x] Script to unpack the base game and DLCs: `tools/unpack-x4.ps1` ([PR #2](https://github.com/ecarlste/x4-pirates-life-mod/pull/2))
-- [ ] Unpack 9.x into `E:\x4-dev\reference\x4-9.xx\`
+- [x] Unpack 9.00 into `E:\x4-dev\reference\x4-9.00\`; the first run found and fixed a script bug ([PR #6](https://github.com/ecarlste/x4-pirates-life-mod/pull/6))
 - [ ] Point VS Code at `md.xsd` and `aiscripts.xsd` for MD and AI script validation
-- [ ] Add `-logfile debuglog.txt -scriptlogfiles` to the X4 launch options
+- [x] Launch options for 9.00: a per-version profile (`save_9.00`) plus debug and script logging (see PROJECT.md, "Paths")
 
 **Deploy and test tooling**
 
@@ -39,7 +39,7 @@ Research before building. Deliverable: `docs/research/spike-1-bailing-boarding.m
 - [ ] Bailing (S/M): triggers, player vs. NPC attackers, what happens to the ship afterward, whether wingmen and fleets can cause and claim bails
 - [ ] Boarding (L/XL): the full flow, `parameters.xml` tuning vs. engine behavior, NPC boarding, how the boarding UI talks to MD
 - [ ] Adjacent: cargo drop demands, faction reactions to theft, the Yaki IFF disguise
-- [ ] Find where the bail chance actually lives, then fix `libraries/god.xml`: wrap the patch in `<diff>` and correct the selector
+- [ ] Find where the bail chance actually lives, then fix `libraries/god.xml`: wrap the patch in `<diff>` and correct the selector. Confirmed while unpacking: 9.00's base `libraries/god.xml` has no `<bail>` element, so the current patch matches nothing and the mod has no effect in game yet
 - [ ] Reflect findings back into the design doc, then confirm the order of the Phase 2 slices
 
 ## Phase 2: Core loop vertical slices
