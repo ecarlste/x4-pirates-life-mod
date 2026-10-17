@@ -64,6 +64,7 @@ This gives each X4 version its own profile folder, holding its saves, settings a
 - [`docs/DESIGN.md`](docs/DESIGN.md): the high-level design.
 - [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md): every agreed piece of work, with checkboxes.
 - [`docs/specs/`](docs/specs/): one spec per feature, written before it's built.
+- [`docs/research/`](docs/research/README.md): what we've learned about how vanilla X4 works.
 
 ## Coming back after a break
 
