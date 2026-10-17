@@ -54,6 +54,7 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
 - [`DESIGN.md`](DESIGN.md): the high-level design, exported from the living design doc. Don't edit it here; it gets overwritten on the next export.
 - [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md): the tracker for all agreed work.
 - [`specs/`](specs/): one short spec per agreed feature.
+- When one doc refers to another, link the exact section (`DESIGN.md#roadmap`), not just the file.
 
 ## Keeping docs in sync
 
