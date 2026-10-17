@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Smoke test: proves the extension loads and can see the events our piracy features build on.
+     Every line it logs to debuglog.txt starts with "[apirateslife]". -->
+<mdscript name="APiratesLife_SmokeTest" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <!-- On every new game and every load: a log line plus an on-screen notification -->
+    <cue name="Loaded" instantiate="true">
+      <conditions>
+        <check_any>
+          <event_cue_signalled cue="md.Setup.GameStart"/>
+          <event_game_loaded/>
+        </check_any>
+      </conditions>
+      <actions>
+        <debug_text text="'[apirateslife] smoke test: extension loaded (' + event.name + ')'"/>
+        <show_notification text="'A Pirates Life: smoke test loaded'"/>
+      </actions>
+    </cue>
+
+    <!-- Remembers what the player's ships attack, then reports when one of those targets bails -->
+    <cue name="WatchTargets">
+      <actions>
+        <create_group groupname="$Targets"/>
+      </actions>
+      <cues>
+        <cue name="PlayerAttacked" instantiate="true">
+          <conditions>
+            <event_player_owned_attacked_object/>
+          </conditions>
+          <actions>
+            <!-- The event fires on every hit, so only log the first one per target -->
+            <do_if value="not $Targets.indexof.{event.param2}">
+              <add_to_group groupname="$Targets" object="event.param2"/>
+              <debug_text text="'[apirateslife] smoke test: ' + event.param.knownname + ' attacked ' + event.param2.knownname"/>
+            </do_if>
+          </actions>
+        </cue>
+
+        <cue name="TargetAbandoned" instantiate="true">
+          <conditions>
+            <event_object_abandoned group="$Targets"/>
+          </conditions>
+          <actions>
+            <debug_text text="'[apirateslife] smoke test: ' + event.object.knownname + ' was abandoned by its crew'"/>
+            <show_notification text="'A Pirates Life: target bailed - ' + event.object.knownname"/>
+            <remove_from_group group="$Targets" object="event.object"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+  </cues>
+</mdscript>
