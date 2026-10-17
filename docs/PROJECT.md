@@ -48,9 +48,28 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 
 ## Planning docs
 
-- [`DESIGN.md`](DESIGN.md): the high-level design.
-- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md): the tracker. Add agreed work there, and tick items off in the PR that finishes them.
-- [`specs/`](specs/): one short spec per agreed feature. Read it before building, or write one from the template if there isn't one yet.
+- [`DESIGN.md`](DESIGN.md): the high-level design, exported from the living design doc. Don't edit it here; it gets overwritten on the next export.
+- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md): the tracker for all agreed work.
+- [`specs/`](specs/): one short spec per agreed feature.
+
+## Keeping docs in sync
+
+When one of these happens, update the matching docs in the same PR.
+
+| When | Update |
+| --- | --- |
+| We agree to new work, however small or far off | Add it to `IMPLEMENTATION_PLAN.md` |
+| A PR is opened for a plan item | Link the PR from the item |
+| A PR finishes a plan item | Tick it off; if it has a spec, mark the spec Done in the spec and in `specs/README.md` |
+| A feature's design is agreed | Write a spec from `specs/_template.md`, add it to `specs/README.md`, link it from the plan item |
+| Building a feature changes its design | Update its spec |
+| A design decision changes, or research changes the design | List the changes for the living design doc in the PR description (Erik updates it, then re-exports `DESIGN.md`) |
+| A research spike finishes | Notes in `docs/research/`; update the plan's order and items to match |
+| A key decision changes (target version, DLC, architecture) | "Key decisions" above, and the design doc as in the row above |
+| A setup step, command, or path changes | "Workflow" or "Paths" above |
+| A script changes | Its tests in `tests/` (and `tools/README.md` for anything in `tools/`) |
+| A new top-level mod folder is added (`md/`, `aiscripts/`, …) | `deploy.include`, or it won't ship |
+| `deploy.config` gains or changes a setting | `deploy.config.example` |
 
 ## Current status
 
