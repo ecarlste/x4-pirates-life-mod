@@ -35,7 +35,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 
 ## Phase 1: Spike 1, how bailing and boarding work in vanilla
 
-Research before building. Deliverable: `docs/research/spike-1-bailing-boarding.md`, covering call flow, tuning knobs, what we can hook vs. patch, and blockers for wingman bails and Raid Sector. See DESIGN.md, "Spike 1".
+Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.md`](research/spike-1-bailing-boarding.md) (WIP: bailing partly mapped), covering call flow, tuning knobs, what we can hook vs. patch, and blockers for wingman bails and Raid Sector. See DESIGN.md, "Spike 1".
 
 - [ ] Bailing (S/M): triggers, player vs. NPC attackers, what happens to the ship afterward, whether wingmen and fleets can cause and claim bails
 - [ ] Boarding (L/XL): the full flow, `parameters.xml` tuning vs. engine behavior, NPC boarding, how the boarding UI talks to MD
