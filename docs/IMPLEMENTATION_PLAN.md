@@ -11,7 +11,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] Check Windows version (Windows 11 25H2, build 26200)
 - [x] Move WSL off C: (fresh Ubuntu 26.04 at `E:\wsl\Ubuntu-26.04`)
 - [x] Install `gh` in WSL and `gh auth login`
-- [ ] Install `make` in WSL (`sudo apt install make`)
+- [x] Install `make` in WSL
 - [ ] Install X Tools from Steam (XRCatTool, WorkshopTool)
 - [x] Script to unpack the base game and DLCs: `tools/unpack-x4.ps1` ([PR #2](https://github.com/ecarlste/x4-pirates-life-mod/pull/2))
 - [ ] Unpack 9.x into `E:\x4-dev\reference\x4-9.xx\`
