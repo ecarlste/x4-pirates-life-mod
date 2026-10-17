@@ -43,7 +43,7 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
 - **Test scripts before a PR:** `make test` (or `tests/run.sh`) runs the bats suites, shellcheck when installed, and the Pester suites when PowerShell is available, including Windows PowerShell from WSL. `.\tests\run.ps1` runs just the Pester suites. Test frameworks are fetched on first run (bats into `.tools/`, Pester into `.tools/` or `%LOCALAPPDATA%` when the repo is on `\\wsl.localhost`). CI (`.github/workflows/tests.yml`) runs everything on Linux, macOS (stock bash 3.2) and Windows (PowerShell 5.1 and 7) for every PR.
   - Every script change needs a test; `deploy.sh` and `deploy.ps1` share one behavior spec, so a case added to `tests/deploy.bats` belongs in `tests/Deploy.Tests.ps1` too.
 - Never commit game data or unpacked reference files.
-- Research notes go in `docs/research/`; decisions get reflected back into the design doc.
+- Research notes go in `docs/research/`, listed in its README; decisions get reflected back into the design doc.
 - Design discussions happen in the design doc; build work happens locally in WSL. GitHub is the hub between them, so commit and push often.
 - **All changes go through a feature branch and a pull request**, never straight to `main`. Erik reviews every PR, and an automated PR reviewer runs on it too. Branch names: `feature/…`, `fix/…`, `docs/…`, `spike/…`.
 - **PRs are squash-merged** (the only merge option): the PR title becomes the commit title on `main` and the PR description becomes its body. Commits inside a branch can be informal. Merged branches are deleted automatically.
@@ -59,6 +59,8 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
 - [`DESIGN.md`](DESIGN.md): the high-level design, exported from the living design doc. Don't edit it here; it gets overwritten on the next export.
 - [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md): the tracker for all agreed work.
 - [`specs/`](specs/): one short spec per agreed feature.
+- [`research/`](research/README.md): what we've learned about vanilla X4 (call flows, hooks, tuning). Check its index before digging through game files.
+- When one doc refers to another, link the exact section (`DESIGN.md#roadmap`), not just the file.
 
 ## Keeping docs in sync
 
@@ -72,6 +74,7 @@ When one of these happens, update the matching docs in the same PR.
 | A feature's design is agreed | Write a spec from `specs/_template.md`, add it to `specs/README.md`, link it from the plan item |
 | Building a feature changes its design | Update its spec |
 | A design decision changes, or research changes the design | List the changes for the living design doc in the PR description (Erik updates it, then re-exports `DESIGN.md`) |
+| A research note is added or changes status | Its row in `docs/research/README.md` |
 | A research spike finishes | Notes in `docs/research/`; update the plan's order and items to match |
 | A key decision changes (target version, DLC, architecture) | "Key decisions" above, and the design doc as in the row above |
 | A setup step, command, or path changes | "Workflow" or "Paths" above |

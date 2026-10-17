@@ -27,7 +27,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [ ] `make release`: lint (shellcheck, PSScriptAnalyzer default rules, format check), run the tests, build the release zip from a clean `origin/main`; drop linting from `make test` and PR CI
 - [x] Repo README: what the mod is, prerequisites, setup, deploy, test, coming back after a break ([PR #5](https://github.com/ecarlste/x4-pirates-life-mod/pull/5))
 
-**In-game dev tooling** (from DESIGN.md: "Dev tooling, early")
+**In-game dev tooling** (from [DESIGN.md, Roadmap](DESIGN.md#roadmap): "Dev tooling, early")
 
 - [ ] Smoke test proving the mod runs in game, and the first real `make deploy`: an MD script that writes to `debuglog.txt` (`debug_text`) and shows an on-screen notification (`show_notification`) on `event_game_started` / `event_game_loaded`, plus a log line when a ship is abandoned (`event_object_abandoned`) or attacked (`event_object_attacked`)
 - [ ] Showcase/test gamestart
@@ -36,7 +36,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 
 ## Phase 1: Spike 1, how bailing and boarding work in vanilla
 
-Research before building. Deliverable: `docs/research/spike-1-bailing-boarding.md`, covering call flow, tuning knobs, what we can hook vs. patch, and blockers for wingman bails and Raid Sector. See DESIGN.md, "Spike 1".
+Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.md`](research/spike-1-bailing-boarding.md) (WIP: bailing partly mapped), covering call flow, tuning knobs, what we can hook vs. patch, and blockers for wingman bails and Raid Sector. See [DESIGN.md, Roadmap](DESIGN.md#roadmap): "Spike 1".
 
 - [ ] Bailing (S/M): triggers, player vs. NPC attackers, what happens to the ship afterward, whether wingmen and fleets can cause and claim bails
 - [ ] Boarding (L/XL): the full flow, `parameters.xml` tuning vs. engine behavior, NPC boarding, how the boarding UI talks to MD
@@ -61,7 +61,7 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
 ## Phase 3: Late career and story (predicted)
 
 - [ ] XL capture set pieces
-- [ ] Fear vs. honor reputation (settle the open questions in DESIGN.md first)
+- [ ] Fear vs. honor reputation ([design](DESIGN.md#notoriety-heat-and-fear-vs-honor); settle its [open questions](DESIGN.md#open-questions) first)
 - [ ] Pirate lord systems: protection rackets, lane taxes, blockades
 - [ ] Redemption arc, per faction
 - [ ] Prison break custom start
