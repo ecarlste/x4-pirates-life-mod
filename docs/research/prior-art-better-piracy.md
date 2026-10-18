@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | Better piracy (original) | [GitHub](https://github.com/AlbertoRota/x4-Better-piracy), [Workshop 2056100433](https://steamcommunity.com/sharedfiles/filedetails/?id=2056100433), [Nexus 491](https://www.nexusmods.com/x4foundations/mods/491) | 3.x | By AlbertoRota. Author declared it dead (Mar 2025). |
 | Better Piracy Reforged | [Nexus 2046](https://www.nexusmods.com/x4foundations/mods/2046) | 8.00 | Fork, v8.00.3 (Apr 2026). Now hidden by its author as unsupported. |
-| **Better Piracy Reborn** | Steam Workshop 3816572322 | **9.x** | By Jayseun, v14.10 (2026-10-09). Ports fixes from a 7.0 maintenance fork. Requires SirNukes' Mod Support APIs. |
+| **Better Piracy Reborn** | [Workshop 3816572322](https://steamcommunity.com/sharedfiles/filedetails/?id=3816572322) | **9.x** | By Jayseun, v14.10 (2026-10-09). Ports fixes from a 7.0 maintenance fork. Requires SirNukes' Mod Support APIs. |
 
 Local snapshots (not in git): `E:\x4-dev\reference\mods\better-piracy-original\` (git clone) and `…\better-piracy-reborn-14.10\unpacked\` (Workshop catalog unpacked with XRCatTool). X4 installs Workshop mods straight into the game's `extensions\` folder, and Reborn ships as `ext_01.cat`/`.dat`.
 
