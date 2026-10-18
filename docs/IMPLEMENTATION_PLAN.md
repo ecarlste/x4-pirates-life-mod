@@ -16,7 +16,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] Script to unpack the base game and DLCs: `tools/unpack-x4.ps1` ([PR #2](https://github.com/ecarlste/x4-pirates-life-mod/pull/2))
 - [x] Unpack 9.00 into `E:\x4-dev\reference\x4-9.00\`; the first run found and fixed a script bug ([PR #6](https://github.com/ecarlste/x4-pirates-life-mod/pull/6))
 - [ ] Point VS Code at `md.xsd` and `aiscripts.xsd` for MD and AI script validation
-- [x] Launch options for 9.00: a per-version profile (`save_9.00`) plus debug and script logging (see PROJECT.md, "Paths")
+- [x] Launch options for 9.00: debug and script logging; 9.00 uses the Steam profile folder, since `-personalfolderid` didn't give a separate profile (see [PROJECT.md, Paths](PROJECT.md#paths-eriks-machine))
 
 **Deploy and test tooling**
 

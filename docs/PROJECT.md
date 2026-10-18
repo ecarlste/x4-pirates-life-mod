@@ -28,10 +28,13 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 | X4 install | `E:\SteamLibrary\steamapps\common\X4 Foundations` → `/mnt/e/SteamLibrary/steamapps/common/X4 Foundations` |
 | Deployed mod | `.../X4 Foundations/extensions/apirateslife` |
 | Unpacked reference data (not in git) | `E:\x4-dev\reference\x4-9.xx\` → `/mnt/e/x4-dev/reference/x4-9.xx/` |
-| Game profile per X4 version (saves, config, `debuglog.txt`) | `C:\Users\ecarl\OneDrive\Documents\Egosoft\X4\save_<version>\`, e.g. `save_9.00` (`save_7.60` is the frozen 7.60 copy for SWI) |
-| X4 9.00 launch options (Steam) | `-personalfolderid "C:\Users\ecarl\OneDrive\Documents\Egosoft\X4\save_9.00" -skipintro -debug all -logfile debuglog.txt -scriptlogfiles` |
+| X4 9.00 profile (saves, config, `debuglog.txt`) | Steam profile: `C:\Users\ecarl\OneDrive\Documents\Egosoft\X4\28456535\` (folder named after the Steam account ID). The in-game menu shows save slots 1–10 |
+| X4 7.60 copy for SWI | Profile is the root folder `…\Egosoft\X4\`. Its desktop shortcut's `-personalfolderid` falls back there, which is where its saves have always been |
+| X4 9.00 launch options (Steam) | `-skipintro -debug all -logfile debuglog.txt -scriptlogfiles` |
 
-When X4 updates to a new version: re-unpack the game files into a new `x4-<version>` folder, point the launch options at a new `save_<version>` profile, and update this table.
+Don't use `-personalfolderid` for separate profiles: with a full path or a plain folder name (tested 2026-10-17/18), X4 falls back to the root folder, which is the 7.60 profile.
+
+When X4 updates to a new version: re-unpack the game files into a new `x4-<version>` folder and update this table.
 
 ## Workflow
 
