@@ -27,7 +27,8 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 | Repo (WSL, Ubuntu 26.04) | `~/workspace/x4-pirates-life-mod` |
 | X4 install | `E:\SteamLibrary\steamapps\common\X4 Foundations` → `/mnt/e/SteamLibrary/steamapps/common/X4 Foundations` |
 | Deployed mod | `.../X4 Foundations/extensions/apirateslife` |
-| Unpacked reference data (not in git) | `E:\x4-dev\reference\x4-9.xx\` → `/mnt/e/x4-dev/reference/x4-9.xx/` |
+| Unpacked reference data (not in git) | `E:\x4-dev\reference\x4-9.xx\` → `/mnt/e/x4-dev/reference/x4-9.xx/`; other mods for study in `E:\x4-dev\reference\mods\` |
+| Steam Workshop mods | X4 installs them into the game's `extensions\` folder itself (not Steam's workshop folder), syncing when the game starts |
 | X4 9.00 profile (saves, config, `debuglog.txt`) | Steam profile: `C:\Users\ecarl\OneDrive\Documents\Egosoft\X4\28456535\` (folder named after the Steam account ID). The in-game menu shows save slots 1–10 |
 | X4 7.60 copy for SWI | Profile is the root folder `…\Egosoft\X4\`. Its desktop shortcut's `-personalfolderid` falls back there, which is where its saves have always been |
 | X4 9.00 launch options (Steam) | `-skipintro -debug all -logfile debuglog.txt -scriptlogfiles` |
