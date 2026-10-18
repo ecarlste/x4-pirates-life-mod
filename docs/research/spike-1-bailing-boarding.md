@@ -36,6 +36,15 @@ One cue makes every bail decision: `PlayerOwnedShipAttacks` in `md/notifications
 
 - Player-owned ships scan for abandoned ships (`aiscripts/interrupt.foundabandonedship.xml`) and respond according to each ship's **"found abandoned ship" setting** (`aiscripts/lib.respond.foundabandonedship.xml`); claiming runs `aiscripts/move.claim.xml`.
 - That same setting feeds the pilot-bail condition above, so it affects whether a ship becomes claimable at all, not only who claims it.
+- **The setting is a faction "signal" response** defined in `libraries/factions.xml`: `foundabandonedship`, with responses `claim`, `ignore` (the default), `mark` and `protect`. These are the per-ship and global behavior settings in the game's menus.
+- **Scripts can set it per ship:** `<set_object_signal_response object="…" signal="'foundabandonedship'" response="'claim'"/>`. Vanilla uses the same action for other signals (e.g. `policehalt`). A pirating order can switch its fleet to `claim`, which both lets target pilots fully bail and gets the ship claimed.
+- **`iscapturable`** (engine property, `libraries/scriptproperties.xml`): "Can this defensible be captured, either via signalleak (S/M sized) or via boarding (L+ sized). Additionally, for S-ships the pilot will not eject if it is not capturable." Scripts can change it with `set_object_capturable`, which vanilla story missions use.
+
+### NPC-vs-NPC bails
+
+NPC fights do run the bail check. When a ship is attacked by anything **not** player-owned, its AI (`interrupt.attacked.xml`, ~line 276) signals `'shouldwebail'` if it reacts (flees, fights back or calls for help). Player-owned attackers reach the cue directly through `event_player_owned_attacked_object`. The cue only needs attacker and target to have different owners, the attacker to be operational and not a spacesuit, and the target to be eligible.
+
+The attacked ship's AI only reacts if its `attacked` signal response isn't `ignore`, it has a non-priority, non-critical order, and it isn't docked or on a highway. Every NPC attacker gets the ÷4, and the pilot only fully bails if the NPC attacker's `foundabandonedship` response is `claim`.
 
 ### Play-tested technique (Erik)
 
@@ -58,8 +67,7 @@ Learned from the first in-game run (X4 9.00, 2026-10-17):
 
 ## Open questions
 
-- Do NPC-vs-NPC attacks reach this cue, or only attacks involving the player? (The `shouldwebail` signal is sent for every attack, but the cue's name and comments suggest player-owned attackers.)
-- Where is the "found abandoned ship" setting stored and set, and can an order set it per ship?
-- Does the ÷4 for non-player-flown attackers make delegated raiding impractical without our multiplier?
-- Exact behavior of `iscapturable`: which ships can never bail?
-- Boarding (L/XL), cargo drop demands, faction reactions to theft, Yaki IFF disguise: not started.
+- Does the ÷4 for non-player-flown attackers make delegated raiding impractical without our multiplier? (A design call once the bail hook exists.)
+- Which ships are uncapturable by default? `iscapturable` is engine-side; we only know scripts can change it.
+- Cargo drop demands: the vanilla `piratehalt` signal (`libraries/factions.xml`, default response `attack`) is how *player* ships respond to pirates' demands. Not yet traced.
+- Boarding (L/XL), faction reactions to theft, Yaki IFF disguise: not started.

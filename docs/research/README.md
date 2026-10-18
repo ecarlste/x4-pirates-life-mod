@@ -4,4 +4,4 @@ What we've learned about how vanilla X4 works, for designing and building agains
 
 | Note | Covers | Status |
 | --- | --- | --- |
-| [spike-1-bailing-boarding.md](spike-1-bailing-boarding.md) | Bail checks, eject chance, capture hooks; boarding to come | WIP: bailing partly mapped |
+| [spike-1-bailing-boarding.md](spike-1-bailing-boarding.md) | Bail checks, eject chance, NPC-vs-NPC bails, capture hooks; boarding to come | WIP: bailing mostly mapped |
