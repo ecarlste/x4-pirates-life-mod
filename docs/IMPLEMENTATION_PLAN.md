@@ -29,7 +29,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 
 **In-game dev tooling** (from [DESIGN.md, Roadmap](DESIGN.md#roadmap): "Dev tooling, early")
 
-- [ ] Smoke test proving the mod runs in game, and the first real `make deploy`: an MD script that writes to `debuglog.txt` (`debug_text`) and shows an on-screen notification (`show_notification`) on `event_game_started` / `event_game_loaded`, plus a log line when a ship is abandoned (`event_object_abandoned`) or attacked (`event_object_attacked`)
+- [x] Smoke test proving the mod runs in game, and the first real `make deploy` ([PR #11](https://github.com/ecarlste/x4-pirates-life-mod/pull/11)): an MD script that writes to `debuglog.txt` (`debug_text`) and shows an on-screen notification (`show_notification`) on `event_game_started` / `event_game_loaded`, plus a log line when a ship is abandoned (`event_object_abandoned`) or attacked (`event_object_attacked`)
 - [ ] Showcase/test gamestart
 - [ ] Dev menu, stripped from release builds
 - [ ] Versioned showcase saves, one per feature
