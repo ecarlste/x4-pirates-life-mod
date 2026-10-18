@@ -46,7 +46,15 @@ Get the target's hull below 75%, then keep its shields under 20% with ion cannon
 - **One small diff patch** on `PlayerOwnedShipAttacks`, inserted after `$ejectchance` is computed: call our own library cue (`run_actions` with attacker, target and the vanilla chance, returning the new chance). All modifiers live in our code, and the vanilla patch stays small and stable.
 - **The same patch raises our own MD signals** for "crew bailed" and "ship abandoned", with attacker and target. That gives every feature a galaxy-wide bail event; vanilla's `event_object_abandoned` needs a specific ship or group. These signals would become part of the integration contract.
 - **Delegated capture** relies on the vanilla "found abandoned ship" response (set to claim) rather than reimplementing claiming.
-- **Doubling the bail rate** (the mod's current goal) belongs in this patch too. `libraries/god.xml` has no bail value in 9.00, so the existing patch does nothing.
+- **Doubling the bail rate** (the mod's original goal) belongs in this patch too. The old `libraries/god.xml` patch has been removed; see "Extension loading" below.
+
+## Extension loading
+
+Learned from the first in-game run (X4 9.00, 2026-10-17):
+
+- **A library file without a `<diff>` root is merged, not ignored or swapped in.** The old `libraries/god.xml` (root `<god>`, containing a `<replace sel=…>`) was read as extra god data. Universe generation still completed normally, but every new game logged `The key name "replace" is not recognized in lookup GodDBXML` (and the same for `sel`). Library changes must be `<diff>` patches.
+- **Unsigned files log signature warnings** (`Could not find signature file …\god.xml.sig`, `Failed to verify the file signature … (error: 14)`). This is normal for any mod and harmless.
+- **`md.Setup.GameStart` fires twice when a new game starts** (two smoke test log lines, one per instance). Probably once for the main menu's background game and once for the real start; not confirmed.
 
 ## Open questions
 
