@@ -14,7 +14,7 @@
 
 Local snapshots (not in git): `E:\x4-dev\reference\mods\better-piracy-original\` (git clone) and `…\better-piracy-reborn-14.10\unpacked\` (Workshop catalog unpacked with XRCatTool). X4 installs Workshop mods straight into the game's `extensions\` folder, and Reborn ships as `ext_01.cat`/`.dat`.
 
-Reborn credits two more mods as inspiration, which are worth studying too: **True Capture** (vx) and **FixBailChance** (Kevrlet).
+Reborn credits two more mods as inspiration: **True Capture** (vx) and **FixBailChance** (Kevrlet, published as "Fix Bail Logic"). See "Related mods" below.
 
 ## Features
 
@@ -68,7 +68,20 @@ About 75 changed lines in total; a maintenance port, not a rewrite:
 - Clearing the bailed ship's orders so it doesn't fly off, and a crew-bailed notification.
 - Marines claiming without extra damage.
 
+## Related mods
+
+Found while researching Better Piracy. The descriptions come from search results and haven't been checked against the mods' files yet.
+
+| Mod | What it does | Status |
+| --- | --- | --- |
+| True Capture ([Nexus 97](https://www.nexusmods.com/x4foundations/mods/97)), vx | Inspiration for Better Piracy | Reported broken since 7.0 |
+| Fix Bail Logic ([Nexus 87](https://www.nexusmods.com/x4foundations/mods/87)), Kevrlet | Bail based on relative hull health, attacker vs. target class difference and target morale; 5% base; L/XL can bail at 50% of the normal rate. Install folder `fixbailchance` | Last updated May 2021 |
+| Enhanced Bailing ([Nexus 741](https://www.nexusmods.com/x4foundations/mods/741)) | Credits Fix Bail Logic. A 9.x variant (`enhanced_bailing_9x`) reportedly covers NPC-vs-NPC abandonment and surrender demands for any ship size | **Most relevant to check next** |
+| Better Capture ([Nexus 1406](https://www.nexusmods.com/x4foundations/mods/1406)), Gryzli100 | No hull or component damage from bailing crew or marine claims | Made after True Capture broke |
+| No Bailing Penalty ([Nexus 1725](https://www.nexusmods.com/x4foundations/mods/1725)) | Not checked | |
+| Bail and Board ([Nexus 1828](https://www.nexusmods.com/x4foundations/mods/1828)) | Not checked | |
+
 ## Open questions
 
 - How exactly Corsair hands a target to Harass (signal through `player.entity`), and its reported "flies around but does nothing" bug.
-- What True Capture and FixBailChance do differently.
+- What the related mods do in detail, starting with Enhanced Bailing's 9.x variant (NPC-vs-NPC bails and surrender for any ship size overlap with our design).
