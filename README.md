@@ -43,10 +43,10 @@ Start X4 and check that **A Pirate's Life** is enabled under Extensions. For now
 Restart X4 after each deploy. For debugging, set X4's launch options (Steam: Properties → General) to
 
 ```
--personalfolderid "<Documents>\Egosoft\X4\save_<version>" -skipintro -debug all -logfile debuglog.txt -scriptlogfiles
+-skipintro -debug all -logfile debuglog.txt -scriptlogfiles
 ```
 
-This gives each X4 version its own profile folder, holding its saves, settings and `debuglog.txt`.
+The log is written to your X4 profile folder, `<Documents>\Egosoft\X4\<Steam account ID>\debuglog.txt` for the Steam version.
 
 ## Repo layout
 
@@ -71,5 +71,5 @@ This gives each X4 version its own profile folder, holding its saves, settings a
 1. `git switch main && git pull`
 2. Check open PRs and their CI runs on GitHub.
 3. Read the first unticked items in [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md); that's where work picks up.
-4. If X4 updated, re-unpack the game files (`tools/unpack-x4.ps1 -Version <new version>`), point the launch options at a new `save_<version>` profile, and note anything that broke.
+4. If X4 updated, re-unpack the game files (`tools/unpack-x4.ps1 -Version <new version>`) and note anything that broke.
 5. `make test`, then `make deploy` and check the mod still loads in game.
