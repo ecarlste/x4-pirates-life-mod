@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bail hook: md/notifications.xml (our diff patch) calls into this script from vanilla's
+     PlayerOwnedShipAttacks, the cue that makes every bail decision. See docs/specs/bail-hook.md. -->
+<mdscript name="APiratesLife_Bail" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <!-- Called just before vanilla rolls for a bail, with its final chance (after its own modifiers).
+         Returns the chance vanilla should roll with. -->
+    <library name="AdjustEjectChance" purpose="run_actions">
+      <params>
+        <param name="EjectChance"/>
+        <param name="Attacker"/>
+        <param name="Target"/>
+      </params>
+      <actions>
+        <!-- Bail rate doubled for now; notoriety and difficulty modifiers will plug in here -->
+        <set_value name="$Chance" exact="[($EjectChance * 2)i, 100].min"/>
+        <debug_text text="'[apirateslife] bail check: %s attacking %s: chance %s -> %s'.[@$Attacker.knownname, @$Target.knownname, $EjectChance, $Chance]"/>
+        <return value="$Chance"/>
+      </actions>
+    </library>
+
+    <!-- Signalled by our patch whenever crew bail, with table[$attacker, $target, $crew, $pilot] -->
+    <cue name="Bailed" instantiate="true">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <debug_text text="'[apirateslife] bailed: %s crew from %s (attacker %s), pilot bailed: %s'.[event.param.$crew, @event.param.$target.knownname, @event.param.$attacker.knownname, event.param.$pilot]"/>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>
