@@ -7,3 +7,4 @@ If the build changes the plan, update the spec in the same PR.
 | Spec | Status |
 | --- | --- |
 | [bail-hook.md](bail-hook.md) | Done |
+| [claim-no-damage.md](claim-no-damage.md) | Done |
