@@ -4,5 +4,5 @@ What we've learned about how vanilla X4 works, for designing and building agains
 
 | Note | Covers | Status |
 | --- | --- | --- |
-| [prior-art-better-piracy.md](prior-art-better-piracy.md) | Better Piracy (original, Reforged, Reborn for 9.x): features, vanilla hooks, 9.x port, how we differ | WIP: mapped; Harass and Corsair only skimmed |
+| [prior-art-better-piracy.md](prior-art-better-piracy.md) | Better Piracy (original, Reforged, Reborn for 9.x): every feature and how it's built, config, bugs, how we'd do better; related mods | Done for Better Piracy Reborn; related mods unstudied |
 | [spike-1-bailing-boarding.md](spike-1-bailing-boarding.md) | Bail checks, eject chance, NPC-vs-NPC bails, capture hooks; boarding to come | WIP: bailing mostly mapped |
