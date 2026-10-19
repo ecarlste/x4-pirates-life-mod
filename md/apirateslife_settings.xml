@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Settings: applies the values from md/apirateslife_config.xml on every game start and load, so
+     edits to the config file take effect after a restart, even in existing saves. In-game settings
+     (through kuertee's UI Extensions) will layer on top of this. See docs/specs/capture-settings.md. -->
+<mdscript name="APiratesLife_Settings" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <cue name="OnLoad" instantiate="true">
+      <conditions>
+        <check_any>
+          <event_cue_signalled cue="md.Setup.GameStart"/>
+          <event_game_loaded/>
+        </check_any>
+      </conditions>
+      <actions>
+        <run_actions ref="md.APiratesLife_Config.Defaults"/>
+        <debug_text text="'[apirateslife] settings: config applied (intact on eject %s, intact on claim %s)'.[global.$APiratesLife_IntactOnEject, global.$APiratesLife_IntactOnClaim]"/>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>
