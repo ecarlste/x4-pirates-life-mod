@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Diff patch for vanilla md/notifications.xml: routes every bail check and bail through
+     md/apirateslife_bail.xml. Inserts only; vanilla's logic is left intact. See docs/specs/bail-hook.md. -->
+<diff>
+  <!-- Let our code adjust the final eject chance just before vanilla rolls it -->
+  <add sel="//cue[@name='PlayerOwnedShipAttacks']//do_if[@chance='if not $testcheat? then $ejectchance else 100']" pos="before">
+    <run_actions ref="md.APiratesLife_Bail.AdjustEjectChance" result="$ejectchance">
+      <param name="EjectChance" value="$ejectchance"/>
+      <param name="Attacker" value="$attacker"/>
+      <param name="Target" value="$target"/>
+    </run_actions>
+  </add>
+
+  <!-- Announce every bail (crew and pilot) before vanilla discards the crew count -->
+  <add sel="//cue[@name='PlayerOwnedShipAttacks']//do_if[@value='$eject?']/remove_value[@name='$numcrewbailing']" pos="before">
+    <signal_cue_instantly cue="md.APiratesLife_Bail.Bailed" param="table[$attacker = $attacker, $target = $target, $crew = $numcrewbailing, $pilot = $pilotbail?]"/>
+  </add>
+</diff>

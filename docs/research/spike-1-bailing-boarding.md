@@ -57,6 +57,15 @@ Get the target's hull below 75%, then keep its shields under 20% with ion cannon
 - **Delegated capture** relies on the vanilla "found abandoned ship" response (set to claim) rather than reimplementing claiming.
 - **Doubling the bail rate** (the mod's original goal) belongs in this patch too. The old `libraries/god.xml` patch has been removed; see "Extension loading" below.
 
+## Confirmed in game
+
+From running the bail hook ([spec](../specs/bail-hook.md)) on X4 9.00, 2026-10-18:
+
+- **NPC fights reach the bail check:** 72 checks were logged in one session, mostly NPC vs. NPC (e.g. `XEN Raiding Party N attacking HOP Fighter Squadron …: chance 10`).
+- **Stations effectively never force bails.** Every check with a station as the attacker (defence platforms, factories) had chance 0, because the target-hull ÷ attacker-hull factor is tiny.
+- **A player-flown attack:** the player's ship vs. an SCA Kestrel (S) got a vanilla chance of 38 (no ÷4); doubled to 76, the first roll succeeded about 64 s into the fight. One crew left and the pilot bailed, leaving the ship ownerless.
+- **Scale Plate Pact as targets** (player reports, matching the game's station placement): SCA reputation is locked at −5, so attacking them costs nothing. Their ships disguise as other factions until scanned, and attacking an unscanned one costs reputation with the faction it's posing as. Players hunt them in Silent Witness XI/XII, Hewa's Twin V and Nopileos' Fortune. Ties into the Yaki IFF disguise and the design's forged-ID idea.
+
 ## Extension loading
 
 Learned from the first in-game run (X4 9.00, 2026-10-17):
