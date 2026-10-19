@@ -45,6 +45,7 @@ Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.
 - [ ] Prior art: study the related bail and capture mods listed in the note, starting with Enhanced Bailing's 9.x variant
 - [x] Find where the bail chance actually lives: `PlayerOwnedShipAttacks` in `md/notifications.xml` ([research note](research/spike-1-bailing-boarding.md)). The old `libraries/god.xml` patch was removed: 9.00 has no bail value there, and X4 merged the non-`<diff>` file as god data, logging errors on every new game
 - [x] Bring back the mod's 2x bail rate as an MD diff patch on `PlayerOwnedShipAttacks` (the candidate hook in the research note): [spec](specs/bail-hook.md)
+- [ ] Marines claim ships without damaging them (no hull loss or destroyed equipment): [spec](specs/claim-no-damage.md)
 - [ ] Reflect findings back into the design doc, then confirm the order of the Phase 2 slices
 
 ## Phase 2: Core loop vertical slices

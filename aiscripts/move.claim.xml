@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Diff patch for vanilla aiscripts/move.claim.xml: marines claim ships without damaging them.
+     Vanilla damages hull and destroys weapons/turrets/shields in proportion to (100 - marine skill),
+     guarded by "$damagemaxpercent gt 0". We zero that value right after vanilla computes it, in both
+     attention levels, so vanilla's own check skips the damage. See docs/specs/claim-no-damage.md. -->
+<diff>
+  <add sel="/aiscript/attention[@min='visible']/actions//set_value[@name='$damagemaxpercent']" pos="after">
+    <debug_text text="'[apirateslife] claim: %s claimed without damage (vanilla max damage %s)'.[$target.knownname, $damagemaxpercent]"/>
+    <set_value name="$damagemaxpercent" exact="0"/>
+  </add>
+  <add sel="/aiscript/attention[@min='unknown']/actions//set_value[@name='$damagemaxpercent']" pos="after">
+    <debug_text text="'[apirateslife] claim (out of sight): %s claimed without damage (vanilla max damage %s)'.[$target.knownname, $damagemaxpercent]"/>
+    <set_value name="$damagemaxpercent" exact="0"/>
+  </add>
+</diff>
