@@ -41,7 +41,8 @@ Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.
 - [ ] Bailing (S/M): triggers, player vs. NPC attackers, what happens to the ship afterward, whether wingmen and fleets can cause and claim bails
 - [ ] Boarding (L/XL): the full flow, `parameters.xml` tuning vs. engine behavior, NPC boarding, how the boarding UI talks to MD
 - [ ] Adjacent: cargo drop demands, faction reactions to theft, the Yaki IFF disguise
-- [ ] Prior art: study Better Piracy (the original on [GitHub](https://github.com/AlbertoRota/x4-Better-piracy) and the 9.x version on Steam Workshop): its features, how it implements them, and where we differentiate. Read only; its code has no license, so nothing is copied. WIP: [research note](research/prior-art-better-piracy.md)
+- [x] Prior art: study Better Piracy (the original on [GitHub](https://github.com/AlbertoRota/x4-Better-piracy) and the 9.x version on Steam Workshop): its features, how it implements them, and where we differentiate. Read only; its code has no license, so nothing is copied. [research note](research/prior-art-better-piracy.md), every feature and bug catalogued
+- [ ] Prior art: study the related bail and capture mods listed in the note, starting with Enhanced Bailing's 9.x variant
 - [x] Find where the bail chance actually lives: `PlayerOwnedShipAttacks` in `md/notifications.xml` ([research note](research/spike-1-bailing-boarding.md)). The old `libraries/god.xml` patch was removed: 9.00 has no bail value there, and X4 merged the non-`<diff>` file as god data, logging errors on every new game
 - [x] Bring back the mod's 2x bail rate as an MD diff patch on `PlayerOwnedShipAttacks` (the candidate hook in the research note): [spec](specs/bail-hook.md)
 - [ ] Reflect findings back into the design doc, then confirm the order of the Phase 2 slices
