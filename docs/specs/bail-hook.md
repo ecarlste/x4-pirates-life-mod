@@ -1,6 +1,6 @@
 # Spec: Bail hook
 
-Plan item: Phase 1, "Bring back the mod's 2x bail rate as an MD diff patch" · Status: Agreed
+Plan item: Phase 1, "Bring back the mod's 2x bail rate as an MD diff patch" · Status: Done
 
 ## Goal
 
@@ -25,14 +25,14 @@ Every bail check in the game passes through our code, which can change the chanc
 
 ## Tasks
 
-- [ ] `md/apirateslife_bail.xml`: `AdjustEjectChance` library and `Bailed` listener, both logging with the `[apirateslife]` prefix
-- [ ] `md/notifications.xml` diff: hook before the roll, signal before `$numcrewbailing` is removed
-- [ ] Check both selectors match exactly one element in 9.00, and validate our script against `md.xsd`
-- [ ] Deploy with `make deploy-local` and test in game
+- [x] `md/apirateslife_bail.xml`: `AdjustEjectChance` library and `Bailed` listener, both logging with the `[apirateslife]` prefix
+- [x] `md/notifications.xml` diff: hook before the roll, signal before `$numcrewbailing` is removed
+- [x] Check both selectors match exactly one element in 9.00, and validate our script against `md.xsd`
+- [x] Deploy with `make deploy-local` and test in game
 
 ## Done when
 
-- `debuglog.txt` shows `[apirateslife] bail check: … N% -> 2N%` for bail checks, and `[apirateslife] bailed: …` when crew or a pilot bail.
+- `debuglog.txt` shows `[apirateslife] bail check: … chance N -> 2N` for bail checks, and `[apirateslife] bailed: …` when crew or a pilot bail.
 - No diff-patch errors for `md/notifications.xml` in the log.
 - In game: harassing a target past the gates (hull < 75%, shields < 20%) produces bails, and the smoke test's "target bailed" notification still fires on a pilot bail.
 

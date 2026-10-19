@@ -6,4 +6,4 @@ If the build changes the plan, update the spec in the same PR.
 
 | Spec | Status |
 | --- | --- |
-| [bail-hook.md](bail-hook.md) | Agreed, in progress |
+| [bail-hook.md](bail-hook.md) | Done |
