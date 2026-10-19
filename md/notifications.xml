@@ -12,11 +12,13 @@
   </add>
 
   <!-- When the pilot bails, vanilla drops the hull to about (100 - pilot skill)% and the pilot
-       sabotages up to (pilot skill / 10) weapons, turrets and shield generators. Zero both so a
-       captured ship arrives as the player left it; vanilla's own checks then skip the damage.
-       See docs/specs/claim-no-damage.md. -->
+       sabotages up to (pilot skill / 10) weapons, turrets and shield generators. We stop both so a
+       captured ship arrives as the player left it. See docs/specs/claim-no-damage.md.
+       $damageminpercent must be 100, NOT 0: vanilla sets the hull to min(current, value), so 100
+       keeps the current hull, while 0 takes vanilla's do_else, which DESTROYS the ship (meant for
+       a perfect-skill pilot scuttling it). -->
   <add sel="//cue[@name='PlayerOwnedShipAttacks']//set_value[@name='$damageminpercent']" pos="after">
-    <set_value name="$damageminpercent" exact="0"/>
+    <set_value name="$damageminpercent" exact="100"/>
   </add>
   <add sel="//cue[@name='PlayerOwnedShipAttacks']//set_value[@name='$scuttle']" pos="after">
     <debug_text text="'[apirateslife] pilot bail: %s keeps its hull and equipment (vanilla sabotage: %s, pilot skill %s)'.[@$target.knownname, $scuttle, $targetpilotskill]"/>
