@@ -2,7 +2,7 @@
 
 A piracy overhaul for **X4: Foundations**. The goal is a full career from small-time raider to pirate lord, playable as piracy alone. It's built on vanilla X4 9.x first, and designed so total conversions such as Star Wars Interworlds can plug in later.
 
-**Status:** early development. So far the mod doubles the chance that a ship's crew bails when attacked; the real systems are planned in [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
+**Status:** early development. So far the mod doubles the chance that a ship's crew bails when attacked, and captured ships arrive intact (no damage from the bailing pilot or the claiming marine); the real systems are planned in [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md).
 
 ## Requirements
 

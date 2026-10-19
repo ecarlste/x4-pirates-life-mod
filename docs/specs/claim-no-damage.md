@@ -1,6 +1,6 @@
 # Spec: Capture without damage
 
-Plan item: Phase 1, "Captured ships arrive intact" · Status: Agreed
+Plan item: Phase 1, "Captured ships arrive intact" · Status: Done
 
 ## Goal
 
@@ -28,7 +28,7 @@ A captured ship arrives as the player left it. Neither the bailing pilot nor the
 - [x] `aiscripts/move.claim.xml` diff, with selectors checked to match exactly one element each in 9.00, and validated against `aiscripts.xsd` and `diff.xsd`
 - [x] Deploy with `make deploy-local` and test: send a marine to claim an abandoned S/M ship
 - [x] `md/notifications.xml`: zero the pilot-bail hull drop and sabotage, with selectors checked and the patched file validated
-- [ ] Test: force a pilot bail and check the ship keeps its hull and weapons
+- [x] Test: force a pilot bail and check the ship keeps its hull and weapons
 
 ## Done when
 
