@@ -44,6 +44,7 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
   - `make deploy-local` syncs the working tree (uncommitted changes included) for in-game testing before a PR; `./deploy.sh --ref <branch>` deploys a pushed branch; `make deploy-dry-run` previews.
   - PowerShell equivalent: `.\deploy.ps1` (`-WorkingTree`, `-Ref <branch>`, `-DryRun`).
   - Only the paths in `deploy.include` ship; add new top-level mod folders there. Restart X4 after deploying.
+- **Game tests:** `make game-test` deploys the working tree, then `tools/run-game-tests.ps1` starts X4 with the dev-only test extension (`tests/game/apirateslife_tests`), which runs scripted scenarios in game and quits; the runner reports PASS/FAIL. Windows only, not in CI. Add a game test with each feature. See [research/automated-game-testing.md](research/automated-game-testing.md).
 - **Test scripts before a PR:** `make test` (or `tests/run.sh`) runs the bats suites, shellcheck when installed, and the Pester suites when PowerShell is available, including Windows PowerShell from WSL. `.\tests\run.ps1` runs just the Pester suites. Test frameworks are fetched on first run (bats into `.tools/`, Pester into `.tools/` or `%LOCALAPPDATA%` when the repo is on `\\wsl.localhost`). CI (`.github/workflows/tests.yml`) runs everything on Linux, macOS (stock bash 3.2) and Windows (PowerShell 5.1 and 7) for every PR.
   - Every script change needs a test; `deploy.sh` and `deploy.ps1` share one behavior spec, so a case added to `tests/deploy.bats` belongs in `tests/Deploy.Tests.ps1` too.
 - Never commit game data or unpacked reference files.
@@ -88,5 +89,5 @@ When one of these happens, update the matching docs in the same PR.
 
 ## Current status
 
-- Existing: the deploy and test tooling, an in-game smoke test script, and the bail hook (`md/`): every bail check runs through our code (currently 2x chance) and every bail raises our `Bailed` signal; captured ships arrive intact (no pilot-bail hull drop or sabotage, no marine-claim damage).
+- Existing: the deploy and test tooling, an in-game smoke test script, and the bail hook (`md/`): every bail check runs through our code (currently 2x chance) and every bail raises our `Bailed` signal; captured ships arrive intact (no pilot-bail hull drop or sabotage, no marine-claim damage). A proof of concept for automated in-game tests (`make game-test`), not yet run in game.
 - Next: see the first unticked items in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) (Phase 0 setup, then spike 1).

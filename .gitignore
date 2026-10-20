@@ -4,3 +4,4 @@ deploy.config
 # Test tooling fetched by tests/run.sh and tests/run.ps1
 .tools/
 tests/results.xml
+tests/game/results.xml

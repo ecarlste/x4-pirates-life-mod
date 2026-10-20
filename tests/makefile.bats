@@ -13,7 +13,7 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 @test "make help lists every target" {
     run make -C "$REPO" help
     [ "$status" -eq 0 ]
-    for target in setup deploy deploy-local deploy-dry-run test; do
+    for target in setup deploy deploy-local deploy-dry-run test game-test; do
         [[ "$output" == *"make $target "* ]] || { echo "missing: $target"; return 1; }
     done
 }
@@ -55,4 +55,18 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 @test "make deploy fails when deploy.sh fails" {
     run env X4_PATH="$SANDBOX/nope" make -C "$REPO" deploy
     [ "$status" -ne 0 ]
+}
+
+@test "make game-test deploys the working tree, then runs the game tests" {
+    echo '<diff>local</diff>' > "$REPO/libraries/god.xml"
+    run make -C "$REPO" game-test GAME_TEST_RUNNER='echo game tests ran'
+    [ "$status" -eq 0 ]
+    assert_file_content "$TARGET/libraries/god.xml" '<diff>local</diff>'
+    [[ "$output" == *"game tests ran"* ]]
+}
+
+@test "make game-test stops when the deploy fails" {
+    run env X4_PATH="$SANDBOX/nope" make -C "$REPO" game-test GAME_TEST_RUNNER='echo game tests ran'
+    [ "$status" -ne 0 ]
+    [[ "$output" != *"game tests ran"* ]]
 }

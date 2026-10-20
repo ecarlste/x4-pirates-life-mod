@@ -1,4 +1,7 @@
-.PHONY: setup deploy deploy-local deploy-dry-run test help
+.PHONY: setup deploy deploy-local deploy-dry-run test game-test help
+
+# Runs the game test runner on Windows through WSL interop; override to run it another way
+GAME_TEST_RUNNER ?= powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$$(wslpath -w tools/run-game-tests.ps1)"
 
 help:
 	@echo "X4 Foundations - A Pirate's Life Mod"
@@ -9,6 +12,7 @@ help:
 	@echo "  make deploy-local   - Sync your working tree instead (uncommitted changes included)"
 	@echo "  make deploy-dry-run - Show what 'make deploy' would change"
 	@echo "  make test           - Run the bats and Pester test suites"
+	@echo "  make game-test      - Deploy your working tree and run the in-game tests in X4 (Windows)"
 	@echo "  make help           - Show this help message"
 	@echo ""
 	@echo "Other refs: ./deploy.sh --ref <branch>  (PowerShell: .\\deploy.ps1 -Ref <branch>)"
@@ -34,3 +38,7 @@ deploy-dry-run:
 
 test:
 	@tests/run.sh
+
+game-test:
+	@./deploy.sh --working-tree
+	@$(GAME_TEST_RUNNER)
