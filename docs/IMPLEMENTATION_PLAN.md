@@ -32,7 +32,8 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 
 - [x] Smoke test proving the mod runs in game, and the first real `make deploy` ([PR #11](https://github.com/ecarlste/x4-pirates-life-mod/pull/11)): an MD script that writes to `debuglog.txt` (`debug_text`) and shows an on-screen notification (`show_notification`) on `event_game_started` / `event_game_loaded`, plus a log line when a ship is abandoned (`event_object_abandoned`) or attacked (`event_object_attacked`)
 - [ ] Showcase/test gamestart (the game tests' gamestart below covers testing; a showcase start is still to do)
-- [ ] Automated in-game regression tests: a dev-only test extension (test gamestart, MD tests, Lua autostart) and a runner that starts X4, reads the results from `debuglog.txt` and reports PASS/FAIL (`make game-test`): [research note](research/automated-game-testing.md). Proof of concept built with tests for the bail hook and intact captures ([PR #20](https://github.com/ecarlste/x4-pirates-life-mod/pull/20)); still to do: the first in-game run and its open questions
+- [x] Automated in-game regression tests: a dev-only test extension (test gamestart, MD tests, Lua autostart) and a runner that starts X4, reads the results from `debuglog.txt` and reports PASS/FAIL (`make game-test`): [research note](research/automated-game-testing.md). Proof of concept built with tests for the bail hook and intact captures ([PR #20](https://github.com/ecarlste/x4-pirates-life-mod/pull/20)); first in-game run: 3 of 3 pass ([PR #28](https://github.com/ecarlste/x4-pirates-life-mod/pull/28))
+- [ ] Game tests for the capture settings: each intact flag off gives vanilla damage
 - [ ] Dev menu, stripped from release builds
 - [ ] Versioned showcase saves, one per feature
 
@@ -92,6 +93,9 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
 Not yet agreed. Promote an item into a phase once we decide to do it.
 
 - [ ] PSScriptAnalyzer and shellcheck in PR CI as well as at release
+- [ ] Game tests through Egosoft's NoSteam executable: research and PoC (own arguments, no Steam prompt or session limit; needs its own profile folder): [notes](research/automated-game-testing.md#egosofts-nosteam-executable)
+- [ ] Game-test report stamped with the commit SHA, posted to the PR as a comment (and maybe a commit status): [notes](research/automated-game-testing.md#run-reports-on-the-pr)
+- [ ] Game tests in CI before inviting contributors (test machine, dedicated Steam account, approval gate, post-merge gate, automated release): [notes](research/automated-game-testing.md#cicd)
 - [ ] Refitting captured ships without legit factions ([research note](research/pirate-refitting.md#design-ideas)). Vanilla gives a pirate only general-use gear at the Vigor wharf early on, so:
   - [ ] Prize-to-prize transfer: move a prize's weapons, turrets and shields onto another ship (`apply_loadout`), stripping the source
   - [ ] Salvage stash: strip prizes into a per-ware parts stash (MD data); refit empty slots from it at a pirate contact and later the hideout (`generate_loadout` limited to stash wares)

@@ -1,6 +1,6 @@
 # Automated in-game testing
 
-**Status: WIP (2026-10-19).** Researched against the 9.00 game files and `X4.exe`; a proof of concept is built but **hasn't run in the game yet**. The open questions below are what the first run has to answer.
+**Status: WIP, working (2026-10-20).** `make game-test` runs in the real game: all 3 tests pass in about 2½ minutes from command to report, with no clicks once Steam's one-time launch prompt has been accepted (see [first runs](#first-runs-in-game)). Still open: the questions at the end.
 
 Goal: Cypress/Playwright-style regression tests that play a short, controlled scenario in the real game and report PASS/FAIL, run locally on Erik's Windows machine with one command.
 
@@ -88,18 +88,71 @@ So 6x is the most MD can speed things up. Tests should avoid waiting for travel 
 make game-test        # or: .\deploy.ps1 -WorkingTree; .\tools\run-game-tests.ps1
 ```
 
-1. The runner checks the mod is deployed and X4 isn't running, copies the test extension into `extensions\apirateslife_tests`, and deletes the old `debuglog.txt`.
-2. It starts `X4.exe` with `-skipintro -debug all -logfile debuglog.txt -scriptlogfiles`.
+1. The runner checks the mod is deployed and X4 isn't running, copies the test extension into `extensions\apirateslife_tests`, and moves the old `debuglog.txt` to `debuglog.previous.txt`.
+2. It asks Steam to start X4 (`steam://rungameid/392160`), so the game gets the Steam launch options, which must include `-logfile debuglog.txt` (see [PROJECT.md, Paths](../PROJECT.md#paths-eriks-machine)), and waits up to 120 s for the `X4` process.
 3. The Lua autostart starts the test gamestart; MD runs the tests and quits the game.
 4. The runner prints each result as it arrives, closes the game if it's still running after `DONE` (30 s grace) or at the timeout (900 s), removes the test extension, writes `tests/game/results.xml` (JUnit) and exits 0 or 1.
 
-**Writing a test:** a root cue that fires on `event_cue_signalled`, sets up its scenario, and signals `Report` once with `table[$name, $ok, $detail]` from either a result cue or a timeout cue. Then add it to `$Tests`. Clean up spawned ships so tests don't affect each other.
+**Writing a test:** a root cue that fires on `event_cue_signalled`, sets up its scenario, and signals `Report` once with `table[$name, $ok, $detail]` from either a result cue or a timeout cue. Then add it to `$Tests`. Clean up spawned ships so tests don't affect each other. Don't put a `delay` on a cue whose sub-cues need its actions to have run first (see below).
+
+## First runs in game
+
+Four runs on 2026-10-20, X4 9.00, with only A Pirate's Life enabled in the profile.
+
+| Run | Result | What we learned |
+| --- | --- | --- |
+| 1 | X4 exited at once, no log | **Starting `X4.exe` directly doesn't work:** it hands over to Steam and the arguments are lost. The runner now launches through Steam |
+| 2 | X4 never started (120 s) | **Steam asked first:** the first launch from outside Steam opened a Steam dialog that had to be accepted. **Only once:** after Erik accepted it, later launches started straight away with no prompt (its wording wasn't recorded). What makes Steam ask again is unknown, so the runner's launch-timeout error says to look for the prompt |
+| 3 | Pipeline worked; 0 tests ran | Autostart, gamestart, harness, log reading and closing the game all worked. Two harness bugs and one runner bug (below) |
+| 4 | **3 of 3 passed** in 2 min 21 s | `pilot_bail_intact`: vanilla would have sabotaged the ship (pilot skill 53); hull 100%, 4 items kept. `claim_intact`: the marine claimed it about 16 s (game time) into the test, with vanilla max damage 80 prevented |
+
+**Answered:**
+
+- **The autostart works:** the extension's Lua loads, the main menu reports `startmenu`, and `NewGame` starts the test gamestart about 8 s after the menu appears. No start-up dialog got in the way. In the new game the module name is still empty when the Lua runs, so the `startmenu` check is what stops it looping.
+- **Sub-cues start when the parent's conditions are met, not after its `delay`.** `Begin` (a sub-cue of `Run`) fired at 0 s, before `Run`'s actions had set `$Tests`. Fix: no delay on `Run`; the 5 s settle delay moved into `Begin`.
+- **`set_timewarp_factor` takes a time:** `factor="6s"`, not `6`.
+- **Script errors are followed by `* Expression:` and `* Action:` lines** that can quote our markers, so a failing `debug_text` once looked like `DONE`. The runner now skips those lines and only accepts `DONE` after `RUN START`.
+- **God off makes vanilla noisy:** about 380 `Error in MD cue` lines per run from DLC and story setup cues that look for stations god never built (`Setup_DLC_Pirate`, `Story_Criminal`, `Setup_DLC_Terran` …). They don't affect our tests, and the runner ignores them because they don't mention the mod.
+- **The claim scenario works:** `<person role="marine">` gives the frigate marines, and with a `Wait` order and `foundabandonedship` = `claim` it sends one within seconds.
+- **The log is complete** at `quit_to_desktop`, and X4 quits by itself.
+- **Timing:** about 2½ minutes from `make game-test` to the report, most of it X4 starting and loading the universe; the tests themselves take about 25 s of game time.
 
 ## Fit with `make test` and CI
 
 - **`make test` stays fast and headless.** It runs the runner's Pester tests, not the game.
 - **`make game-test` runs the game** (Windows, through WSL interop or `.\tools\run-game-tests.ps1`). Run it before opening a PR that changes mod behavior, and add a test with each feature (its spec's "Done when").
 - **CI:** hosted runners can't run X4. A self-hosted runner on Erik's PC could, but only on `workflow_dispatch` or pushes to `main`, never on PRs from forks: a self-hosted runner executes the PR's code on that machine. Not worth it until there are enough tests to forget to run.
+
+## Ideas to research later
+
+Not agreed work; kept so these paths aren't forgotten. The current setup (launch through Steam, local runs) stays for now.
+
+### Egosoft's NoSteam executable
+
+Egosoft offers an official NoSteam build to owners (X4 registered in their forum profile, or a linked Steam account): `X4_nonsteam.exe`, copied into the game folder ([FAQ](https://www.egosoft.com/support/faq/faq_answer_en.php?answer=2413), [downloads](https://www.egosoft.com/download/x4/bonus_en.php), which list a 9.00 package for Windows and Linux). Erik's 7.60 SWI copy already runs it through a desktop shortcut with our arguments.
+
+- **Why:** the runner could pass its own arguments (no Steam launch options to set up, no Steam prompt), and no Steam means no one-session limit and no Workshop sync loading other mods.
+- **Profile folder:** NoSteam uses the root `Documents\Egosoft\X4\`, not the Steam profile. On Erik's machine that's the 7.60 SWI profile, which also explains the `-personalfolderid` fallback noted in [PROJECT.md, Paths](../PROJECT.md#paths-eriks-machine). A test run would share its `config.xml`, `content.xml` (extension on/off) and `debuglog.txt`, so it needs its own folder (what `-personalfolderid` really expects on 9.00) or a backup and restore around the run.
+- **Versions:** patches only come through Steam, so each X4 update needs the matching NoSteam download. The runner should check the executable's version against the game data.
+- **Licensing:** whether running it on several CI machines at once fits Egosoft's terms.
+- **PoC:** download the 9.00 package, run `X4_nonsteam.exe` with our arguments from the runner (`-GameExe` already starts an executable directly), find a separate profile folder, and compare a run with the Steam launch.
+
+### Run reports on the PR
+
+- The report records the commit SHA, branch, and whether the working tree was dirty (`make game-test` deploys uncommitted changes too), plus the X4 version from the log, the enabled extensions and the duration. The runner writes it as Markdown next to the JUnit file.
+- `make game-test-report` posts it as a PR comment with `gh`, refusing if the tree was dirty or `HEAD` isn't the PR's head commit. Optionally it also sets a `game-tests` commit status on that SHA, so the result shows in the PR's checks and a new push leaves the new commit without one.
+
+### CI/CD
+
+For when contributors join: their game-test results should show on their PRs without anyone pulling their branch.
+
+- **Machines:** hosted runners can't run X4 (no GPU, Steam or licence). Options: a self-hosted runner on Erik's PC, or a cloud GPU VM (e.g. EC2 `g4dn`) started per job from a prebuilt image. Packer rather than Vagrant for the image: local hypervisors mostly can't give X4 a Vulkan GPU, and Vagrant's cloud providers are largely unmaintained.
+- **Steam account:** a dedicated account that owns X4 and all DLCs, used only for testing. One session at a time, so runs are queued: one runner label, since GitHub's `concurrency` keeps only one pending job and cancels the rest. More parallel machines need more accounts (or NoSteam, licence permitting).
+- **Security:** a self-hosted runner executes the PR's code, so runs for outside contributors wait for Erik's approval (an environment with required reviewers), with throwaway VMs and the Steam login scoped to that environment.
+- **Mainline:** game tests on `main` after every merge to catch conflicts that pass separately, gating releases. GitHub's merge queue would test PRs together before they land; as far as we know it needs an organization-owned repo.
+- **Release:** an automated release from a green `main` (`make release`, the Workshop through Egosoft's WorkshopTool, Nexus if it can be automated). Target: a merged PR reaches players within an hour or two.
+- **Reuse:** the image, runner and MD harness could become a standalone X4 game test kit for other modders.
+
 
 ## UI tests, when we need them
 
@@ -109,19 +162,16 @@ The in-game settings page (planned through kuertee's UI Extensions) is the first
 2. **A thin input layer** only for what Lua can't reach: a Windows helper that focuses X4, sends keys and clicks (`SendInput`), and takes screenshots. Python (`pyautogui` plus OpenCV template matching, OCR only if it must read text) is the quickest to write; keep it under `tools/` and call it from the runner.
 3. Screenshots as **artifacts on failure** are useful even without matching.
 
-## Open questions (for the first in-game run)
+## Open questions
 
-1. **Does the autostart work?** Does the extension's Lua load with Protected UI Mode on (SirNukes' notes say only its external pipes are blocked), does `GetGameStartName()` return `startmenu` in the main menu, and does `NewGame` work while start-up dialogs are open (news, "modified game")?
-2. **Launching:** does running `X4.exe` directly (Steam running) keep our arguments, or does Steam restart it with the Steam launch options? Those already include ours, so either should work. If not, launch through `steam.exe -applaunch 392160 …`.
-3. **Does the quiet gamestart work?** Errors from vanilla scripts with god off, load time, and whether SETA engages there.
-4. **The claim test:** does the frigate get marines from `<person role="marine">`, notice the fighter and claim it within 180 s?
-5. **Run time:** game start plus loading, likely 1–3 minutes. Is a faster start possible (`thevoid`'s empty galaxy, or the undocumented module option above)?
-6. **Is the log complete** when `quit_to_desktop` runs (the harness waits 2 s first)?
-7. **Other `X4.exe` options** (strings next to the known ones, unverified): `-nocputhrottle` and `-nosoundthrottle` (keep running at full speed in the background, so the PC stays usable during a run), `-disablesound`, `-usedefaultconfig` / `-dontsaveconfig` (a clean, unchanged config), `-noworkshopsync`, `-enablexmlvalidation` (could catch bad XML in our files at load).
-8. **The out-of-sight claim path** (`attention min="unknown"`) needs the player far away. Tests could move the player with `warp`.
+1. **A faster start:** `thevoid`'s empty galaxy, or the undocumented module option above, could cut the loading time.
+2. **Is SETA on during the tests?** Nothing checks it yet; it only matters once a test waits on travel.
+3. **Other `X4.exe` options** (strings next to the known ones, unverified): `-nocputhrottle` and `-nosoundthrottle` (keep running at full speed in the background, so the PC stays usable during a run), `-disablesound`, `-usedefaultconfig` / `-dontsaveconfig` (a clean, unchanged config), `-noworkshopsync`, `-enablexmlvalidation` (could catch bad XML in our files at load). Through Steam they'd go in the Steam launch options.
+4. **The out-of-sight claim path** (`attention min="unknown"`) needs the player far away. Tests could move the player with `warp`.
+5. **Other enabled mods** would load into test runs too. The runner could list the enabled extensions in its report, so a run is reproducible.
 
 ## Next steps
 
-1. First in-game run: answer the questions above, fix what breaks, update this note.
-2. Add a test with each new feature; add `settings` tests once capture settings merge (flags off → vanilla damage).
+1. Settings tests: with each intact flag set to 0 (the test can set the global directly), the pilot bail and claim take vanilla damage, matching Erik's manual results in the [capture settings spec](../specs/capture-settings.md#test-results-in-game-2026-10-20).
+2. Add a test with each new feature.
 3. Tidy the harness once it has a few more tests: shared helpers for spawning ships and checking hull and equipment.

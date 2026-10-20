@@ -73,6 +73,19 @@ Describe 'Read-GameTestLog' {
         $run.Errors[0] | Should -BeLike '*applying patch*'
     }
 
+    It 'ignores markers quoted in script error details, and a DONE before RUN START' {
+        $run = Read-GameTestLog @(
+            '[=ERROR=] 0.00 Error in MD cue md.APiratesLife_Tests.NextTest<inst:14461>: Property lookup failed: $Passed'
+            "* Expression: '[apirateslife-test] DONE passed=%s failed=%s'.[`$Passed, `$Failed]"
+            '* Action: <debug_text>, line 53'
+            '[General] 0.00 *** Context:md.APiratesLife_Tests.NextTest<inst:14461>: [apirateslife-test] DONE passed=null failed=null'
+            "* Expression: '[apirateslife-test] PASS fake: x'"
+        )
+        $run.Done | Should -BeFalse
+        $run.Results.Count | Should -Be 0
+        $run.Errors.Count | Should -Be 1
+    }
+
     It 'returns an empty run for an empty log' {
         $run = Read-GameTestLog @()
         $run.Started | Should -BeFalse
@@ -179,12 +192,13 @@ Describe 'run-game-tests.ps1' {
         Test-Path "$x4/extensions/apirateslife_tests" | Should -BeFalse
     }
 
-    It 'replaces a stale log from an earlier run' {
+    It 'moves a stale log from an earlier run aside' {
         Set-Content $env:FAKE_LOGPATH $script:PassingLog
         Set-Content $env:FAKE_SOURCE_LOG @('[General] 0.00 nothing here')
         $r = Invoke-Script $script:Runner $runArgs
         $r.Output | Should -BeLike '*never started*'
         $r.ExitCode | Should -Be 1
+        Get-Content (Join-Path $root 'debuglog.previous.txt') | Should -Be $script:PassingLog
     }
 
     It 'refuses to run when the mod is not deployed' {
