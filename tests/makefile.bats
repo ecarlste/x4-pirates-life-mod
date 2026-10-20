@@ -13,7 +13,7 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 @test "make help lists every target" {
     run make -C "$REPO" help
     [ "$status" -eq 0 ]
-    for target in setup deploy deploy-local deploy-dry-run test game-test; do
+    for target in setup deploy deploy-local deploy-dry-run test game-test game-test-report; do
         [[ "$output" == *"make $target "* ]] || { echo "missing: $target"; return 1; }
     done
 }
@@ -84,4 +84,18 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     [ "$status" -eq 0 ]
     [ "$(deployed_setting IntactOnClaim)" = 0 ]
     [[ "$output" == *"game tests ran"* ]]
+}
+
+@test "make game-test tells the runner which commit and branch it tests" {
+    run make -C "$REPO" game-test GAME_TEST_RUNNER='echo runner'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"runner -Commit $(git -C "$REPO" rev-parse HEAD) -Branch main"* ]]
+    [[ "$output" != *"-Dirty"* ]]
+}
+
+@test "make game-test flags uncommitted changes" {
+    echo '<diff>local</diff>' > "$REPO/libraries/god.xml"
+    run make -C "$REPO" game-test GAME_TEST_RUNNER='echo runner'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"-Branch main -Dirty"* ]]
 }

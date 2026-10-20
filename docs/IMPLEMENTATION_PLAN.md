@@ -34,6 +34,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [ ] Showcase/test gamestart (the game tests' gamestart below covers testing; a showcase start is still to do)
 - [x] Automated in-game regression tests: a dev-only test extension (test gamestart, MD tests, Lua autostart) and a runner that starts X4, reads the results from `debuglog.txt` and reports PASS/FAIL (`make game-test`): [research note](research/automated-game-testing.md). Proof of concept built with tests for the bail hook and intact captures ([PR #20](https://github.com/ecarlste/x4-pirates-life-mod/pull/20)); first in-game run: 3 of 3 pass ([PR #28](https://github.com/ecarlste/x4-pirates-life-mod/pull/28))
 - [x] Game tests for the capture settings: each intact flag off gives vanilla damage ([PR #29](https://github.com/ecarlste/x4-pirates-life-mod/pull/29))
+- [x] `make game-test-report`: post the last game-test report to the branch's PR as a comment and a `game-tests` commit status, only when it's for the PR's latest commit with nothing uncommitted ([PR #30](https://github.com/ecarlste/x4-pirates-life-mod/pull/30))
 - [ ] Dev menu, stripped from release builds
 - [ ] Versioned showcase saves, one per feature
 
@@ -94,7 +95,7 @@ Not yet agreed. Promote an item into a phase once we decide to do it.
 
 - [ ] PSScriptAnalyzer and shellcheck in PR CI as well as at release
 - [ ] Game tests through Egosoft's NoSteam executable: research and PoC (own arguments, no Steam prompt or session limit; needs its own profile folder): [notes](research/automated-game-testing.md#egosofts-nosteam-executable)
-- [ ] Game-test report stamped with the commit SHA, posted to the PR as a comment (and maybe a commit status): [notes](research/automated-game-testing.md#run-reports-on-the-pr)
+- [ ] Game-test report on the PR: compare the PR's run with the latest run on `main` (newly failing, newly passing, new tests): [notes](research/automated-game-testing.md#comparing-a-prs-run-with-main)
 - [ ] Game tests in CI before inviting contributors (test machine, dedicated Steam account, approval gate, post-merge gate, automated release): [notes](research/automated-game-testing.md#cicd)
 - [ ] Refitting captured ships without legit factions ([research note](research/pirate-refitting.md#design-ideas)). Vanilla gives a pirate only general-use gear at the Vigor wharf early on, so:
   - [ ] Prize-to-prize transfer: move a prize's weapons, turrets and shields onto another ship (`apply_loadout`), stripping the source

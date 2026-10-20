@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: shellcheck deploy.sh tests/run.sh
+      - run: shellcheck deploy.sh tests/run.sh tools/post-game-test-report.sh
       - run: shellcheck -s bash tests/*.bash tests/*.bats
 
   bash:

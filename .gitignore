@@ -8,3 +8,4 @@ tests/game/results.xml
 
 # Claude Code worktrees for parallel sessions
 .claude/worktrees/
+tests/game/report.md

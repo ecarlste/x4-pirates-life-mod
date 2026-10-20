@@ -10,6 +10,7 @@ BeforeAll {
     $script:PassingLog = @(
         '[General] 0.00 ======================================'
         '[=ERROR=] 2.50 [apirateslife-test] autostart: starting gamestart apirateslife_test'
+        "[Init   ] 0.00 Starting new game using gamestart 'apirateslife_test' in 9.00 (611726)"
         '[General] 3.10 Could not find signature file extensions\apirateslife\md\apirateslife_bail.xml.sig'
         '[General] 3.11 Failed to verify the file signature for file extensions\apirateslife\md\apirateslife_bail.xml (error: 14)'
         '[Scripts] 40.01 *** Context:md.APiratesLife_Tests.Run<inst:2a1b>: [apirateslife-test] RUN START 2 tests'
@@ -55,6 +56,7 @@ Describe 'Read-GameTestLog' {
         $run.Results[1].Name | Should -Be 'pilot_bail_intact'
         $run.Results[1].Passed | Should -BeTrue
         $run.Results[1].Detail | Should -Be 'hull 100%, 4 equipment kept, pilot skill 38'
+        $run.GameVersion | Should -Be '9.00 (611726)'
     }
 
     It 'reads a failure and its detail' {
@@ -108,7 +110,7 @@ Describe 'Get-RunProblems' {
     }
 
     It 'reports an unfinished run and missing results' {
-        $problems = Get-RunProblems (Read-GameTestLog $script:PassingLog[0..6]) 'the game exited early'
+        $problems = Get-RunProblems (Read-GameTestLog $script:PassingLog[0..7]) 'the game exited early'
         $problems | Should -Contain "the run didn't finish (the game exited early)"
         $problems | Should -Contain '1 of 2 tests reported'
     }
@@ -138,6 +140,37 @@ Describe 'ConvertTo-JUnitXml' {
     }
 }
 
+Describe 'ConvertTo-MarkdownReport' {
+    BeforeAll {
+        $script:Info = @{ Commit = '0123456789abcdef0123456789abcdef01234567'; Branch = 'feature/x'; Dirty = $false
+                          StartedAt = [datetime] '2026-10-20 15:24'; DurationSeconds = 141 }
+    }
+
+    It 'starts with the marker the poster checks, then a summary and a row per test' {
+        $run = Read-GameTestLog $script:PassingLog
+        $lines = (ConvertTo-MarkdownReport $run (Get-RunProblems $run 'finished') $script:Info) -split "`n"
+        $lines[0] | Should -Be '<!-- apirateslife-game-tests commit=0123456789abcdef0123456789abcdef01234567 dirty=false result=pass passed=2 total=2 -->'
+        $lines[1] | Should -Be '### Game tests: passed, 2 of 2'
+        $lines[3] | Should -Be 'Commit `0123456` on `feature/x`, X4 9.00 (611726), 2 min 21 s, 2026-10-20 15:24'
+        $lines | Should -Contain '| `pilot_bail_intact` | PASS | hull 100%, 4 equipment kept, pilot skill 38 |'
+    }
+
+    It 'marks a failing, dirty run, and lists run problems and mod errors' {
+        $log = ($script:PassingLog -replace 'PASS pilot_bail_intact: hull 100%', 'FAIL pilot_bail_intact: hull 72% | worse') +
+               @('[=ERROR=] 9.00 Error in MD cue md.APiratesLife_Bail.Bailed')
+        $run = Read-GameTestLog $log
+        $info = $script:Info.Clone(); $info.Dirty = $true
+        $md = ConvertTo-MarkdownReport $run (Get-RunProblems $run 'finished') $info
+        $md | Should -BeLike '<!-- apirateslife-game-tests * dirty=true result=fail passed=1 total=2 -->*'
+        $md | Should -BeLike '*### Game tests: FAILED, 1 of 2*'
+        # Contains, not -BeLike: backticks are escape characters in wildcard patterns
+        $md.Contains('on `feature/x` **plus uncommitted changes**,') | Should -BeTrue
+        $md.Contains('| `pilot_bail_intact` | **FAIL** | hull 72% \| worse, 4 equipment kept, pilot skill 38 |') | Should -BeTrue
+        $md | Should -BeLike '*- 1 errors from the mod in debuglog.txt*'
+        $md | Should -BeLike '*Error in MD cue md.APiratesLife_Bail.Bailed*'
+    }
+}
+
 Describe 'run-game-tests.ps1' {
     BeforeEach {
         $root = New-TestDir
@@ -150,7 +183,9 @@ Describe 'run-game-tests.ps1' {
         $env:FAKE_HANG = $null
         $report = Join-Path $root 'results.xml'
         $game = New-FakeGame (Join-Path $root 'bin')
-        $runArgs = @('-X4Path', $x4, '-GameExe', $game, '-LogPath', $env:FAKE_LOGPATH, '-ReportPath', $report, '-PollSeconds', '0.2')
+        $markdown = Join-Path $root 'report.md'
+        $runArgs = @('-X4Path', $x4, '-GameExe', $game, '-LogPath', $env:FAKE_LOGPATH, '-ReportPath', $report, '-MarkdownPath', $markdown,
+                     '-PollSeconds', '0.2', '-Commit', '0123456789abcdef0123456789abcdef01234567', '-Branch', 'feature/x')
     }
 
     AfterEach {
@@ -166,6 +201,14 @@ Describe 'run-game-tests.ps1' {
         Get-TestFile $env:FAKE_MARK | Should -Be 'installed'
         Test-Path "$x4/extensions/apirateslife_tests" | Should -BeFalse
         ([xml] (Get-Content $report -Raw)).testsuite.failures | Should -Be '0'
+        (Get-Content $markdown)[0] | Should -Be '<!-- apirateslife-game-tests commit=0123456789abcdef0123456789abcdef01234567 dirty=false result=pass passed=2 total=2 -->'
+    }
+
+    It 'marks the report dirty with -Dirty' {
+        Set-Content $env:FAKE_SOURCE_LOG $script:PassingLog
+        $r = Invoke-Script $script:Runner ($runArgs + @('-Dirty'))
+        $r.ExitCode | Should -Be 0
+        (Get-Content $markdown)[0] | Should -BeLike '* dirty=true result=pass *'
     }
 
     It 'fails a run with a failing test' {
