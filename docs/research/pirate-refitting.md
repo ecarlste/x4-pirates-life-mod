@@ -163,7 +163,7 @@ Erik's design (2026-10-20): two data maps in the profile decide the wiring, inst
 
 - Booty taken from the hunted faction raises rep with them, and earns their unlock currency.
 - Optionally, raiding the hunted faction itself shifts those pirates' opinion (the "enemy of my enemy" effect).
-- Vanilla defaults follow the start relations above, e.g. Terran → Yaki, SCA, Fallen Families; Argon → SCA, Buccaneers, Vigor.
+- Vanilla defaults follow the start relations above, e.g. Terran → Yaki, SCA, Fallen Families; Argon → SCA, Fallen Families, Yaki, Buccaneers, Vigor.
 - **Fallback for factions missing from the map** (e.g. a new faction from another mod): the live query, pirate-tagged factions currently hostile to the hunted faction. Unknown mods then still work, just less curated.
 
 **2. Pirate (currency) faction → vendor stations, by size (the vendor map).** Where each pirate faction's unlocked gear is sold, per size group:
