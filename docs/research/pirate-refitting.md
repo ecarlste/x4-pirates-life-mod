@@ -155,6 +155,32 @@ Start relations (UI values) between pirate factions and the factions they could 
   - **Blueprints.** Unlocking a pirated item could also grant its blueprint (`add_blueprints`), so a player's own equipment dock can build it later. To decide.
 - **Selling it.** Station stock is driven by static `<owner>` lists and licences, so it can't be gated per player. Licence types are a fixed list (`licencelookup` enum, `base/libraries/common.xsd:4402-4440`), so a custom "pirated gear" licence is unlikely to work. The shop has to be ours: a fence or pirate-contact refit service that fits gear with `apply_loadout`. This is the same service as design ideas 2 and 4, so it's built once.
 
+### Profile maps: who rewards raids, and where gear is sold
+
+Erik's design (2026-10-20): two data maps in the profile decide the wiring, instead of hardcoding it or relying only on live relations. Anyone building on the mod can change them, e.g. when adding new pirate factions; a conversion like SWI patches them with its own factions and station types.
+
+**1. Hunted faction → pirate factions (the reward map).** For each faction the player preys on, the pirate factions that care:
+
+- Booty taken from the hunted faction raises rep with them, and earns their unlock currency.
+- Optionally, raiding the hunted faction itself shifts those pirates' opinion (the "enemy of my enemy" effect).
+- Vanilla defaults follow the start relations above, e.g. Terran → Yaki, SCA, Fallen Families; Argon → SCA, Buccaneers, Vigor.
+- **Fallback for factions missing from the map** (e.g. a new faction from another mod): the live query, pirate-tagged factions currently hostile to the hunted faction. Unknown mods then still work, just less curated.
+
+**2. Pirate (currency) faction → vendor stations, by size (the vendor map).** Where each pirate faction's unlocked gear is sold, per size group:
+
+- Entries name a station *kind*, not a station: owner faction, type (wharf, equipment dock, shipyard, pirate base) and sizes served, e.g. S/M → Vigor or Riptide wharf, L/XL → SCA's Cove dock or the Vigor shipyard.
+- **Routing solves the vanilla gap.** Only Tides of Avarice's two wharfs fit S/M gear, so every currency faction routes S/M sales there. SCA's Yaki-or-Terran rewards are still spent with SCA currency, just at a Vigor wharf.
+- MD finds matching stations at runtime: owner (`find_station_by_true_owner`, as in `base/md/factionlogic.xml:633`), `iswharf` / `isshipyard` / `isequipmentdock`, and `canequipclass.{$class}` for the sizes (`base/libraries/scriptproperties.xml:675-681,861-863`). Stations can be destroyed or change hands, so a list in priority order with fallbacks is safer than one station.
+- **The player must be able to dock.** The host faction must not be an enemy (relation better than −10), or the route is useless. When no mapped station works, fall back to the hideout, so it's never a soft-lock ([DESIGN.md, Difficulty and economy model](../DESIGN.md#difficulty-and-economy-model)).
+- The shop is ours (see "Selling it" above), so the station's owner doesn't need to own or license the gear. The station is just where the service is offered.
+
+**Format and how others change it.** Settings already live as values set in an MD library (`md/apirateslife_config.xml`), and the maps can be MD tables the same way, e.g. `table[{faction.terran} = [faction.yaki, faction.scaleplate, faction.fallensplit]]`. Two ways to change them:
+
+- **An MD diff patch on our profile file:** the standard way, and what SWI would do. Fragile if two mods patch the same entry.
+- **A registration signal:** at game start our code raises a "build your maps" signal, and other extensions add or replace entries in response. Several mods can add entries without patching the same lines. This would be part of the public contract in `INTEGRATION.md` ([DESIGN.md, Design pillars](../DESIGN.md#design-pillars-and-compatibility-architecture)).
+
+Both are worth having: defaults in a patchable file, plus the signal for add-ons.
+
 ### Unlock with salvage credits (mod-friendly)
 
 Erik's design (2026-10-20), replacing two earlier drafts (unlock by ship size, then by counting one specific gun): **equipment on turned-in ships earns salvage credits for its size, and the player spends them to unlock any pirated item of that size at the vendor.** Eventually everything can be unlocked.
