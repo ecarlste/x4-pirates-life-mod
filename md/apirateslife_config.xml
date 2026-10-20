@@ -7,8 +7,9 @@
   time you start or load a game. Note: updating the mod replaces this file, so edits are lost on
   update. In-game settings are planned.
 
-  Developers: deploy with different values without editing this file, e.g.
-  make deploy-local ARGS="--set IntactOnEject=0" (PowerShell: .\deploy.ps1 -WorkingTree -Set IntactOnEject=0).
+  Developers: deploy.sh and deploy.ps1 can override these values in the deployed copy without
+  editing this file; see "Everyday commands" in the README. (No double hyphens in this comment:
+  XML forbids them, and X4 would then skip this whole file.)
 -->
 <mdscript name="APiratesLife_Config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
