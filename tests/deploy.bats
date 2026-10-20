@@ -305,3 +305,84 @@ STUB
     [ "$status" -eq 1 ]
     [[ "$output" == *"can't be combined"* ]]
 }
+
+# --- Setting overrides (--set) ------------------------------------------------
+
+@test "--set overrides a setting in the deployed copy only" {
+    write_config
+    deploy --working-tree --set IntactOnEject=0
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"with settings: IntactOnEject=0"* ]]
+    [ "$(deployed_setting IntactOnEject)" = 0 ]
+    [ "$(deployed_setting IntactOnClaim)" = 1 ]
+    grep -q 'APiratesLife_IntactOnEject" exact="1"' "$REPO/md/apirateslife_config.xml"
+}
+
+@test "--set accepts repeats and comma lists" {
+    write_config
+    deploy --working-tree --set IntactOnEject=0 --set IntactOnClaim=0
+    [ "$status" -eq 0 ]
+    [ "$(deployed_setting IntactOnEject)" = 0 ]
+    [ "$(deployed_setting IntactOnClaim)" = 0 ]
+
+    deploy --working-tree --set IntactOnEject=1,IntactOnClaim=0
+    [ "$status" -eq 0 ]
+    [ "$(deployed_setting IntactOnEject)" = 1 ]
+    [ "$(deployed_setting IntactOnClaim)" = 0 ]
+}
+
+@test "--set works when deploying a git ref" {
+    write_config
+    commit_all "add config"
+    deploy --ref HEAD --set IntactOnClaim=0
+    [ "$status" -eq 0 ]
+    [ "$(deployed_setting IntactOnClaim)" = 0 ]
+}
+
+@test "a later deploy without --set restores the committed values" {
+    write_config
+    deploy --working-tree --set IntactOnEject=0
+    deploy --working-tree
+    [ "$status" -eq 0 ]
+    [ "$(deployed_setting IntactOnEject)" = 1 ]
+}
+
+@test "--set rejects unknown settings before deploying anything" {
+    write_config
+    deploy --working-tree --set Bogus=0
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"unknown setting 'Bogus' (valid: IntactOnEject IntactOnClaim)"* ]]
+    [ ! -e "$TARGET" ]
+}
+
+@test "--set rejects values that could break the XML" {
+    write_config
+    deploy --working-tree --set 'IntactOnEject=1"/><x'
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"invalid value for IntactOnEject"* ]]
+    [ ! -e "$TARGET" ]
+}
+
+@test "--set needs NAME=VALUE and a config file" {
+    write_config
+    deploy --working-tree --set IntactOnEject
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"--set needs NAME=VALUE"* ]]
+
+    deploy --working-tree --set
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"--set needs NAME=VALUE"* ]]
+
+    rm "$REPO/md/apirateslife_config.xml"
+    deploy --working-tree --set IntactOnEject=0
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"needs md/apirateslife_config.xml"* ]]
+}
+
+@test "--set with --dry-run reports the override and writes nothing" {
+    write_config
+    deploy --working-tree --dry-run --set IntactOnEject=0
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"with settings: IntactOnEject=0"* ]]
+    [ ! -e "$TARGET" ]
+}

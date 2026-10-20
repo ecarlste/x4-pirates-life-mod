@@ -80,3 +80,26 @@ assert_file_content() {
     [ -f "$1" ] || { echo "missing file: $1"; return 1; }
     [ "$(cat "$1")" = "$2" ] || { echo "unexpected content in $1: $(cat "$1")"; return 1; }
 }
+
+# A config file shaped like md/apirateslife_config.xml, for the --set tests
+write_config() {
+    mkdir -p "$REPO/md"
+    cat > "$REPO/md/apirateslife_config.xml" <<'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="APiratesLife_Config">
+  <cues>
+    <library name="Defaults" purpose="run_actions">
+      <actions>
+        <set_value name="global.$APiratesLife_IntactOnEject" exact="1"/>
+        <set_value name="global.$APiratesLife_IntactOnClaim" exact="1"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>
+XML
+}
+
+# Prints the deployed value of one config setting
+deployed_setting() {
+    grep -o "APiratesLife_$1\" exact=\"[^\"]*\"" "$TARGET/md/apirateslife_config.xml" | sed 's/.*exact="\([^"]*\)"/\1/'
+}

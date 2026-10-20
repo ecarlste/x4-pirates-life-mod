@@ -98,3 +98,26 @@ function Invoke-Deploy($s, [string[]] $Arguments = @()) {
 function Get-TestFile([string] $Path) {
     if (Test-Path $Path) { [IO.File]::ReadAllText($Path).TrimEnd("`r", "`n") }
 }
+
+# A config file shaped like md/apirateslife_config.xml, for the -Set tests
+function Write-TestConfig($s) {
+    Write-LfFile "$($s.Repo)/md/apirateslife_config.xml" @'
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="APiratesLife_Config">
+  <cues>
+    <library name="Defaults" purpose="run_actions">
+      <actions>
+        <set_value name="global.$APiratesLife_IntactOnEject" exact="1"/>
+        <set_value name="global.$APiratesLife_IntactOnClaim" exact="1"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>
+'@
+}
+
+# The deployed value of one config setting
+function Get-DeployedSetting($s, [string] $Name) {
+    $text = [IO.File]::ReadAllText("$($s.Target)/md/apirateslife_config.xml")
+    [regex]::Match($text, "APiratesLife_$Name"" exact=""([^""]*)""").Groups[1].Value
+}

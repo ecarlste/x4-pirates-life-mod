@@ -16,6 +16,10 @@
 .PARAMETER WorkingTree
     Deploy the files on disk instead, including uncommitted changes.
 
+.PARAMETER Set
+    Override settings from md/apirateslife_config.xml in the deployed copy only, as NAME=VALUE
+    (e.g. -Set IntactOnEject=0, or -Set IntactOnEject=0,IntactOnClaim=0). The repo copy is untouched.
+
 .PARAMETER DryRun
     Show what would change without touching the game folder.
 
@@ -24,11 +28,15 @@
 
 .EXAMPLE
     .\deploy.ps1 -Ref feature/my-branch -DryRun
+
+.EXAMPLE
+    .\deploy.ps1 -WorkingTree -Set IntactOnEject=0
 #>
 [CmdletBinding()]
 param(
     [string] $Ref,
     [switch] $WorkingTree,
+    [string[]] $Set,
     [switch] $DryRun
 )
 
@@ -124,8 +132,28 @@ try {
     if ($modId -notmatch '^[A-Za-z0-9_-][A-Za-z0-9_.-]*$') { throw "couldn't read a valid extension id from content.xml" }
     $target = Join-Path (Join-Path $x4Path 'extensions') $modId
 
+    # Apply -Set overrides to the staged config only; the repo copy is never touched
+    $setSummary = @()
+    if ($Set) {
+        $config = Join-Path $stageMod 'md/apirateslife_config.xml'
+        if (-not (Test-Path $config)) { throw "-Set needs md/apirateslife_config.xml in the deployed files" }
+        $text = [IO.File]::ReadAllText($config)
+        $valid = @([regex]::Matches($text, 'name="global\.\$APiratesLife_([A-Za-z0-9_]+)"') | ForEach-Object { $_.Groups[1].Value })
+        # Comma lists arrive as one string when the script is run with -File, so split them here
+        foreach ($s in @($Set | ForEach-Object { $_ -split ',' } | Where-Object { $_ })) {
+            if ($s -notmatch '^([^=]+)=(.*)$') { throw "-Set needs NAME=VALUE, got: $s" }
+            $name = $Matches[1]; $value = $Matches[2]
+            if ($name -notmatch '^[A-Za-z0-9_]+$' -or $valid -notcontains $name) { throw "unknown setting '$name' (valid: $($valid -join ' '))" }
+            if ($value -notmatch '^[A-Za-z0-9_.-]+$') { throw "invalid value for ${name}: '$value' (letters, digits, '_', '.', '-' only)" }
+            $text = [regex]::Replace($text, '(name="global\.\$APiratesLife_' + $name + '" exact=")[^"]*"', { param($m) $m.Groups[1].Value + $value + '"' })
+            $setSummary += "$name=$value"
+        }
+        [IO.File]::WriteAllText($config, $text)
+    }
+
     Write-Host "Deploying $source" -ForegroundColor Green
     Write-Host "  to $target"
+    if ($setSummary) { Write-Host "  with settings: $($setSummary -join ', ')" }
     if ($DryRun) { Write-Host "Dry run: nothing will be changed" -ForegroundColor Yellow }
 
     # Mirror the staged files into the target, deleting anything that's no longer in the mod
