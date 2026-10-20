@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A Pirate's Life: default settings
+  =================================
+
+  Edit the values below to change the mod's behavior (1 = on, 0 = off). Changes apply the next
+  time you start or load a game. Note: updating the mod replaces this file, so edits are lost on
+  update. In-game settings are planned.
+-->
+<mdscript name="APiratesLife_Config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <library name="Defaults" purpose="run_actions">
+      <actions>
+        <!-- Intact when the pilot ejects: the bailing pilot doesn't lower the hull or sabotage
+             weapons, turrets and shields. 0 = vanilla behavior. -->
+        <set_value name="global.$APiratesLife_IntactOnEject" exact="1"/>
+
+        <!-- Intact when marines claim: claiming an abandoned ship with marines doesn't damage the
+             hull or destroy equipment. 0 = vanilla behavior. -->
+        <set_value name="global.$APiratesLife_IntactOnClaim" exact="1"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>

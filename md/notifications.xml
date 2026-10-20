@@ -17,12 +17,21 @@
        $damageminpercent must be 100, NOT 0: vanilla sets the hull to min(current, value), so 100
        keeps the current hull, while 0 takes vanilla's do_else, which DESTROYS the ship (meant for
        a perfect-skill pilot scuttling it). -->
+  <!-- Both only apply while the "intact on eject" setting is on (missing counts as on);
+       see md/apirateslife_settings.xml -->
   <add sel="//cue[@name='PlayerOwnedShipAttacks']//set_value[@name='$damageminpercent']" pos="after">
-    <set_value name="$damageminpercent" exact="100"/>
+    <do_if value="not (global.$APiratesLife_IntactOnEject? and global.$APiratesLife_IntactOnEject == 0)">
+      <set_value name="$damageminpercent" exact="100"/>
+    </do_if>
   </add>
   <add sel="//cue[@name='PlayerOwnedShipAttacks']//set_value[@name='$scuttle']" pos="after">
-    <debug_text text="'[apirateslife] pilot bail: %s keeps its hull and equipment (vanilla sabotage: %s, pilot skill %s)'.[@$target.knownname, $scuttle, $targetpilotskill]"/>
-    <set_value name="$scuttle" exact="false"/>
+    <do_if value="not (global.$APiratesLife_IntactOnEject? and global.$APiratesLife_IntactOnEject == 0)">
+      <debug_text text="'[apirateslife] pilot bail: %s keeps its hull and equipment (vanilla sabotage: %s, pilot skill %s)'.[@$target.knownname, $scuttle, $targetpilotskill]"/>
+      <set_value name="$scuttle" exact="false"/>
+    </do_if>
+    <do_else>
+      <debug_text text="'[apirateslife] pilot bail: %s takes vanilla damage (intact on eject is off)'.[@$target.knownname]"/>
+    </do_else>
   </add>
 
   <!-- Announce every bail (crew and pilot) before vanilla discards the crew count -->
