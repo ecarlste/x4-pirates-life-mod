@@ -1,6 +1,6 @@
 # Automated in-game testing
 
-**Status: WIP, working (2026-10-20).** `make game-test` runs in the real game: all 3 tests pass in about 2½ minutes from command to report, with no clicks once Steam's one-time launch prompt has been accepted (see [first runs](#first-runs-in-game)). Still open: the questions at the end.
+**Status: WIP, working (2026-10-20).** `make game-test` runs in the real game: all 5 tests pass in about 2½ minutes from command to report, with no clicks once Steam's one-time launch prompt has been accepted (see [first runs](#first-runs-in-game)). Still open: the questions at the end.
 
 Goal: Cypress/Playwright-style regression tests that play a short, controlled scenario in the real game and report PASS/FAIL, run locally on Erik's Windows machine with one command.
 
@@ -64,7 +64,7 @@ So 6x is the most MD can speed things up. Tests should avoid waiting for travel 
 | `tests/game/apirateslife_tests/` | The test extension (ID `apirateslife_tests`, depends on `apirateslife`). Never shipped: it's outside `deploy.include` |
 | `…/libraries/gamestarts.xml` | Diff adding the `apirateslife_test` gamestart: Argon Prime, god and jobs off, a scout with SETA, `nosave` |
 | `…/ui.xml`, `…/ui/apirateslife_tests_autostart.lua` | Starts the test gamestart 3 s into the main menu |
-| `…/md/apirateslife_tests.xml` | The harness and three tests, run one after another |
+| `…/md/apirateslife_tests.xml` | The harness, shared helpers (`SpawnBailPair`, `SpawnClaimPair`, `EquipmentCount`, `ForceBail`) and five tests, run one after another |
 | `…/md/notifications.xml` | Test-only patch that switches on `$testcheat` |
 | `tools/run-game-tests.ps1` | The runner |
 | `tests/GameTests.Tests.ps1` | Pester tests for the runner (log parsing, report, whole runs against a fake game), run by `make test` and CI |
@@ -75,8 +75,10 @@ So 6x is the most MD can speed things up. Tests should avoid waiting for travel 
 | Test | Covers |
 | --- | --- |
 | `eject_chance_doubled` | `AdjustEjectChance`: 0→0, 10→20, 30→60, 50→100, 70→100 |
-| `pilot_bail_intact` | A forced pilot bail: our `Bailed` signal fires with `$pilot`, the ship is ownerless, hull and equipment unchanged ([bail hook](../specs/bail-hook.md), [capture without damage](../specs/claim-no-damage.md)) |
+| `pilot_bail_intact` | Intact on eject on: a forced pilot bail: our `Bailed` signal fires with `$pilot`, the ship is ownerless, hull and equipment unchanged ([bail hook](../specs/bail-hook.md), [capture without damage](../specs/claim-no-damage.md)) |
 | `claim_intact` | A marine claims an ownerless fighter: it becomes the player's with hull and equipment unchanged. The "visible" attention level only |
+| `pilot_bail_vanilla_when_off` | With intact on eject off, a forced pilot bail does vanilla's damage exactly: hull to about (100 − pilot skill)%, and min(non-mandatory parts, skill ÷ 10) parts sabotaged |
+| `claim_vanilla_when_off` | With intact on claim off, the claimed fighter's hull drops to vanilla's max(marine skill, 70)%. Equipment isn't checked: vanilla destroys each part only by chance |
 
 **Log protocol** (every line starts with `[apirateslife-test]`): `RUN START <n> tests`, `PASS <name>: <detail>` / `FAIL <name>: <detail>`, `DONE passed=<n> failed=<n>`. A run fails if any test fails, fewer than `<n>` results arrive, `DONE` never comes (game exited or timed out), or the log has errors mentioning the mod (signature warnings excluded).
 
@@ -93,7 +95,7 @@ make game-test        # or: .\deploy.ps1 -WorkingTree; .\tools\run-game-tests.ps
 3. The Lua autostart starts the test gamestart; MD runs the tests and quits the game.
 4. The runner prints each result as it arrives, closes the game if it's still running after `DONE` (30 s grace) or at the timeout (900 s), removes the test extension, writes `tests/game/results.xml` (JUnit) and exits 0 or 1.
 
-**Writing a test:** a root cue that fires on `event_cue_signalled`, sets up its scenario, and signals `Report` once with `table[$name, $ok, $detail]` from either a result cue or a timeout cue. Then add it to `$Tests`. Clean up spawned ships so tests don't affect each other. Don't put a `delay` on a cue whose sub-cues need its actions to have run first (see below).
+**Writing a test:** a root cue that fires on `event_cue_signalled`, sets up its scenario, and signals `Report` once with `table[$name, $ok, $detail]` from either a result cue or a timeout cue. Then add it to `$Tests`. Use the helpers for spawning and forcing bails, and set any mod setting the test relies on, so settings overridden at deploy time can't change its outcome. Clean up spawned ships so tests don't affect each other. Don't put a `delay` on a cue whose sub-cues need its actions to have run first (see below).
 
 ## First runs in game
 
@@ -172,6 +174,5 @@ The in-game settings page (planned through kuertee's UI Extensions) is the first
 
 ## Next steps
 
-1. Settings tests: with each intact flag set to 0 (the test can set the global directly), the pilot bail and claim take vanilla damage, matching Erik's manual results in the [capture settings spec](../specs/capture-settings.md#test-results-in-game-2026-10-20).
-2. Add a test with each new feature.
-3. Tidy the harness once it has a few more tests: shared helpers for spawning ships and checking hull and equipment.
+1. Add a test with each new feature.
+2. Maybe: a test that a missing setting counts as on (the patches' `not (global.$X? and global.$X == 0)`).

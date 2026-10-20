@@ -33,7 +33,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] Smoke test proving the mod runs in game, and the first real `make deploy` ([PR #11](https://github.com/ecarlste/x4-pirates-life-mod/pull/11)): an MD script that writes to `debuglog.txt` (`debug_text`) and shows an on-screen notification (`show_notification`) on `event_game_started` / `event_game_loaded`, plus a log line when a ship is abandoned (`event_object_abandoned`) or attacked (`event_object_attacked`)
 - [ ] Showcase/test gamestart (the game tests' gamestart below covers testing; a showcase start is still to do)
 - [x] Automated in-game regression tests: a dev-only test extension (test gamestart, MD tests, Lua autostart) and a runner that starts X4, reads the results from `debuglog.txt` and reports PASS/FAIL (`make game-test`): [research note](research/automated-game-testing.md). Proof of concept built with tests for the bail hook and intact captures ([PR #20](https://github.com/ecarlste/x4-pirates-life-mod/pull/20)); first in-game run: 3 of 3 pass ([PR #28](https://github.com/ecarlste/x4-pirates-life-mod/pull/28))
-- [ ] Game tests for the capture settings: each intact flag off gives vanilla damage
+- [x] Game tests for the capture settings: each intact flag off gives vanilla damage (PR_LINK)
 - [ ] Dev menu, stripped from release builds
 - [ ] Versioned showcase saves, one per feature
 
