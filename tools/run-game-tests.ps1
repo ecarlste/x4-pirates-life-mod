@@ -157,7 +157,7 @@ function ConvertTo-JUnitXml($Run, [string[]] $Problems) {
 function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     $passed = @($Run.Results | Where-Object { $_.Passed }).Count
     $total = [Math]::Max($Run.Expected, $Run.Results.Count)
-    $ok = -not @($Problems).Count
+    $ok = -not @($Problems | Where-Object { $_ }).Count  # PowerShell 7 binds no problems as $null, not an empty array
     $commit = if ($Info.Commit) { $Info.Commit } else { 'unknown' }
     $short = if ($commit.Length -ge 7 -and $commit -ne 'unknown') { $commit.Substring(0, 7) } else { $commit }
     $dirty = ([bool] $Info.Dirty).ToString().ToLower()
