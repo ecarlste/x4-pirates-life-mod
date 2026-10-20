@@ -16,7 +16,7 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 - **Profile-driven core:** no hardcoded vanilla faction/ship/ware/sector IDs in scripts. Universe-specific data lives in profiles; vanilla is the first profile.
 - **Capture tiers are data**, not engine classes (vanilla S/M/L/XL; SWI adds XXL).
 - **XML diff patches only** for library changes; never overwrite base files.
-- **UI** builds on kuertee's UI Extensions and SirNukes' Mod Support APIs.
+- **UI** builds on kuertee's UI Extensions (actively maintained, and what SWI uses), declared as an optional dependency with the mod working without it. SirNukes' Mod Support APIs only where there's no alternative (not updated since Dec 2025; unreliable on 9.0). See [research/third-party-ui-apis.md](research/third-party-ui-apis.md).
 - **Filenames lowercase** (X4 3.0+ convention; matters for loose, uncatalogued files).
 - **Build order:** core loop via standard vanilla starts first; custom starts and redemption later.
 
