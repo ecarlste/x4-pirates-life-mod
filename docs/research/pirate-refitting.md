@@ -10,7 +10,9 @@
 
 - **Buying gear is gated by licences, and licences by relation.** General-use equipment needs relation above −10 UI (better than enemy). Military equipment (almost every real combat weapon) needs +10 and a promotion ceremony. Capital equipment needs +20. Every faction uses the same thresholds.
 - **To fit S/M gear, a station needs an S/M build module.** Wharfs and equipment docks have one. Pirate bases, HAT free ports and the SCA anarchy port don't. The SCA pirate dock only has L/XL modules.
-- **No pirate-tagged faction in the base game has a station that fits S/M gear.** The only ones in reach are Tides of Avarice's: the Vigor Syndicate wharf (pirate-tagged) and the Riptide Rakers wharf (salvagers, not tagged pirate). Both sell only general-use gear until you reach +10 with them.
+- **No pirate-tagged faction in the base game has a station that fits S/M gear.** The DLCs add two: the Vigor Syndicate wharf (Tides of Avarice) and the Yaki wharf (Cradle of Humanity). The Riptide Rakers' wharf also fits S/M, but they're salvagers, not pirates, and are left out (see below).
+- **Vigor alone covers every ship size:** its wharf fits S/M and its shipyard fits L/XL, both in Windfall I. SCA's Cove dock adds a second L/XL station, and the Yaki wharf a second S/M one. Vigor sells only general-use gear until you reach +10 with them.
+- **Riptide Rakers are left out of the pirate supply chain** (Erik, 2026-10-20): not a supplier or vendor host in the maps. They might fit the honorable side of fear vs. honor later; to be decided when that's fleshed out.
 - **Scale Plate Pact is a dead end for S/M refits.** Its relation is locked at −5, so you can dock and buy general-use gear, but it has no S/M fitting station and only owns a few mk1 basics. Military gear stays out of reach, since the only unlock is a terraforming milestone.
 - **Your own wharf or equipment dock is the late route.** It needs equipment blueprints, plus the S/M build-module blueprint, which no pirate faction sells. Pirate routes to blueprints exist: hacking module data leaks, agent espionage (stealing equipment blueprints from any faction's equipment dock), pirate reps' blueprint sales, and blueprint crates.
 - **Vanilla has no way to take equipment off one ship and keep it.** Removing gear at an NPC dock refunds credits. Lockboxes and ship drops never contain weapons or shields. Ventures don't add equipment either.
@@ -43,7 +45,7 @@ A station sells equipment whose ware lists its owner faction (`<owner faction="�
 | Hatikvah's Choice (`hatikvah`) | yes (`factions.xml:298`) | 6 / 7 / 4 | the same kind of mk1 basics, Argon flavour |
 | Duke's Buccaneers (`buccaneers`) | yes (`factions.xml:215`) | 40 / 34 / 20 | a full Paranid/Argon range, but see blockers |
 | Vigor Syndicate (`loanshark`) | yes (`ego_dlc_pirate/libraries/factions.xml:123`) | Argon S/M/L/XL shields and turrets, the full `weapon_gen_*` set (beam, gatling, plasma, shotgun, launchers) | added as owner by the ToA `wares.xml` diff |
-| Riptide Rakers (`scavenger`) | **no**: tags `claimspace economic extrarepair …` (`…/factions.xml:173`) | same as Vigor, plus scrap beam turret | salvage culture; Erik's call whether they count as pirates |
+| Riptide Rakers (`scavenger`) | **no**: tags `claimspace economic extrarepair …` (`…/factions.xml:173`) | same as Vigor, plus scrap beam turret | salvage culture; left out of the pirate supply chain (Erik, 2026-10-20) |
 | Fallen Families, Yaki | yes | nothing / 1 mine | Yaki general-use needs +10 (`ego_dlc_terran/libraries/factions.xml:239`); start at −0.32 (UI −25) |
 
 ### Where gear can be fitted
@@ -59,7 +61,7 @@ Fitting needs a build module that can equip that ship class (`canequipships`, `c
 | Hidden depot | BUC (`god.xml:2483`) | none | no |
 | Vigor wharf, shipyard | Windfall I Union Summit (`ego_dlc_pirate/libraries/god.xml`, `loanshark_wharf_01`, `loanshark_shipyard_01`) | wharf: `ships_m_dockarea`; shipyard: `ships_l`, `_xl` (`ego_dlc_pirate/libraries/constructionplans.xml:710,881`) | **yes** (wharf) |
 | Riptide wharf, shipyard | Avarice I (`scavenger_wharf_01`, `scavenger_shipyard_01`) | wharf: `ships_m_dockarea` (`…/constructionplans.xml:1113,1330`) | **yes** (wharf) |
-| Yaki wharf | Savage Spur I (`ego_dlc_terran/libraries/god.xml`) | not traced | Yaki start at kill relation |
+| Yaki wharf | Savage Spur I (`ego_dlc_terran/libraries/god.xml`) | `ships_m_dockarea` (`yak_wharf`, `ego_dlc_terran/libraries/constructionplans.xml:1991`) | **yes**, but the Yaki own almost no gear, start at −25, and need +10 even for general-use |
 
 SCA, HAT and BUC equipment docks and wharfs exist only as station *types* (`base/libraries/stations.xml:15-61` lets Teladi or Argon docks belong to SCA or HAT), but `god.xml` never places one for them. Station placement is fixed in `god.xml`: there are no dynamic shipyard or equipment-dock products. A player report agrees that SCA "do not have their own dock or shipyard" ([Steam, 2021](https://steamcommunity.com/app/392160/discussions/0/3154186375141406119)).
 
@@ -107,12 +109,12 @@ Stealing from legit factions is theft, not buying, so it fits Erik's constraint.
 
 | Stage | Realistic routes | What blocks the rest |
 | --- | --- | --- |
-| **1. Small-time raider** (S fighter, no HQ) | Vigor or Riptide wharf: shields and pulse lasers at neutral. Fly prizes as they are. Strip unwanted prizes at the wharf for credits | Military weapons need +10 Vigor. SCA can't fit S/M ships. HAT and SCA bases can't fit anything. BUC is enemy-locked. Windfall and Avarice are one corner of the map, a long flight from most hunting grounds |
+| **1. Small-time raider** (S fighter, no HQ) | Vigor wharf: shields and pulse lasers at neutral. Fly prizes as they are. Strip unwanted prizes at the wharf for credits | Military weapons need +10 Vigor. SCA can't fit S/M ships. HAT and SCA bases can't fit anything. BUC is enemy-locked. Windfall is one corner of the map, a long flight from most hunting grounds |
 | **2. Raider captain** (M ships + wing) | Grind Vigor to +10 (missions, killing their enemies) to unlock military gear. Mix and match prizes: keep the armed ones, strip the rest | Vigor police make Windfall a bad place to hunt. Rep loss from piracy against Vigor ships |
-| **3. Corsair** (L ships + hideout) | SCA pirate dock refits L/XL (general-use only). Vigor/Riptide shipyards for L/XL. HQ unlocks hacking and agents. Your own equipment dock once you've hacked or stolen the S/M module | Military and capital gear need +10/+20 with Vigor or Riptide, or stolen blueprints. The station still needs build resources (a supply chain or purchases) |
-| **4. Pirate lord** | Your own docks with stolen blueprints; Vigor/Riptide at +20 | Blueprint coverage is random (agents roll from pools) |
+| **3. Corsair** (L ships + hideout) | SCA pirate dock refits L/XL (general-use only). Vigor shipyard for L/XL. HQ unlocks hacking and agents. Your own equipment dock once you've hacked or stolen the S/M module | Military and capital gear need +10/+20 with Vigor, or stolen blueprints. The station still needs build resources (a supply chain or purchases) |
+| **4. Pirate lord** | Your own docks with stolen blueprints; Vigor at +20 | Blueprint coverage is random (agents roll from pools) |
 
-**The gap:** stages 1–2 have one supplier corner (Windfall/Avarice) and only general-use gear. Players without Tides of Avarice would have *no* pirate S/M refit at all, but the mod requires it. The design's "no soft-locks: a pirate-friendly fence and repair option always exist" ([DESIGN.md, Difficulty and economy model](../DESIGN.md#difficulty-and-economy-model)) currently holds only for repair at Vigor/Riptide, not for fitting military gear.
+**The gap:** stages 1–2 have one supplier corner (Windfall) and only general-use gear. Without Tides of Avarice only the Yaki wharf would be left, and it has almost nothing to sell; the mod requires Tides of Avarice anyway. The design's "no soft-locks: a pirate-friendly fence and repair option always exist" ([DESIGN.md, Difficulty and economy model](../DESIGN.md#difficulty-and-economy-model)) currently holds only for repair at Vigor, not for fitting military gear.
 
 ## Raid a faction, arm from its enemies
 
@@ -168,8 +170,8 @@ Erik's design (2026-10-20): two data maps in the profile decide the wiring, inst
 
 **2. Pirate (currency) faction → vendor stations, by size (the vendor map).** Where each pirate faction's unlocked gear is sold, per size group:
 
-- Entries name a station *kind*, not a station: owner faction, type (wharf, equipment dock, shipyard, pirate base) and sizes served, e.g. S/M → Vigor or Riptide wharf, L/XL → SCA's Cove dock or the Vigor shipyard.
-- **Routing solves the vanilla gap.** Only Tides of Avarice's two wharfs fit S/M gear, so every currency faction routes S/M sales there. SCA's Yaki-or-Terran rewards are still spent with SCA currency, just at a Vigor wharf.
+- Entries name a station *kind*, not a station: owner faction, type (wharf, equipment dock, shipyard, pirate base) and sizes served, e.g. S/M → Vigor wharf, then the Yaki wharf; L/XL → Vigor shipyard, then SCA's Cove dock.
+- **Routing solves the vanilla gap.** Among pirate stations only the Vigor and Yaki wharfs fit S/M gear, so every currency faction routes S/M sales there. SCA's Yaki-or-Terran rewards are still spent with SCA currency, just at a Vigor wharf.
 - MD finds matching stations at runtime: owner (`find_station_by_true_owner`, as in `base/md/factionlogic.xml:633`), `iswharf` / `isshipyard` / `isequipmentdock`, and `canequipclass.{$class}` for the sizes (`base/libraries/scriptproperties.xml:675-681,861-863`). Stations can be destroyed or change hands, so a list in priority order with fallbacks is safer than one station.
 - **The player must be able to dock.** The host faction must not be an enemy (relation better than −10), or the route is useless. When no mapped station works, fall back to the hideout, so it's never a soft-lock ([DESIGN.md, Difficulty and economy model](../DESIGN.md#difficulty-and-economy-model)).
 - The shop is ours (see "Selling it" above), so the station's owner doesn't need to own or license the gear. The station is just where the service is offered.
@@ -221,7 +223,7 @@ Erik's design (2026-10-20), replacing two earlier drafts (unlock by ship size, t
 - Should pirated items have no vanilla `<owner>` at all (only our shop sells them), or a supplier owner so pirate stations stock them too, which loses the per-player gate?
 - Do recipes stay generic (per weapon type), or does each faction's pirated line get its own flavour?
 - Should pirated gear be *better* overall (a reward for commitment), or only different (more damage, more heat, less durability)?
-- Should a supplier's own wars count? Riptide likes Boron and dislikes Terrans; Fallen Families like the Free Families.
+- Should a supplier's own wars count? E.g. the Fallen Families like the Free Families.
 - What exactly counts as booty: captured ships, cargo from drops, ransoms, destroyed T ships?
 
 ## Building blocks the mod can use
@@ -242,11 +244,11 @@ Ordered by how well they fit the design and how cheap they look. None are agreed
 3. **Prize-to-prize transfer.** A shortcut for idea 1+2: "move this prize's weapons to that ship" (`apply_loadout` from one ship's loadout, then strip the source). Only for compatible slot sizes. Cheap to build first, and it covers the most common case right away.
 4. **Fences sell stolen and salvaged gear.** Fences (slice 3) buy stash parts at a hot-goods cut, and sell a rotating stock of gear, military included, at a markup that scales with notoriety rather than licence rep. This answers "military gear without +10 anywhere" in a pirate way. Stock comes from the profile's equipment lists (queried by tag/licence, no hardcoded IDs).
 5. **Bounty hunter loot.** Destroyed hunters drop a blueprint crate (blueprint-drop mechanic) or stash parts of their upgraded gear; a captured hunter keeps its high-end loadout. Fits [DESIGN.md, Bounty hunters](../DESIGN.md#bounty-hunters) ("loot from destroyed hunters").
-6. **Pirate-faction reach via the profile.** The vanilla profile lists which factions count as pirates for supply (SCA, HAT, Vigor, maybe Riptide, BUC once unlocked) and can diff-patch extra `<owner>` entries or an S/M build module onto a pirate station (e.g. SCA's Cove dock). This needs a careful look at what other mods (and SWI) also patch.
+6. **Pirate-faction reach via the profile.** The vanilla profile lists which factions count as pirates for supply (SCA, HAT, Vigor, Yaki, Fallen Families, BUC once unlocked; not Riptide) and can diff-patch extra `<owner>` entries or an S/M build module onto a pirate station (e.g. SCA's Cove dock). This needs a careful look at what other mods (and SWI) also patch.
 7. **Raid a faction, arm from its enemies.** Booty taken from a faction buys rep with the pirates who hate it, unlocking pirated versions of its gear with salvage credits earned from the equipment on turned-in ships. See [Raid a faction, arm from its enemies](#raid-a-faction-arm-from-its-enemies).
 8. **Data-leak and espionage hooks.** Lean on the vanilla theft routes: a fence or contact sells EMPs and leak locations, and notoriety unlocks agent targets. Mostly flavour on top of what exists.
 
-**Fear vs. honor:** stripping a surrendered crew's ship bare could count as fear; letting them keep it could count as honor. A small hook for later.
+**Fear vs. honor:** stripping a surrendered crew's ship bare could count as fear; letting them keep it could count as honor. A small hook for later. The Riptide Rakers, salvagers rather than pirates, might have a role on the honorable side.
 
 ## To verify in game
 
