@@ -114,7 +114,7 @@ Stealing from legit factions is theft, not buying, so it fits Erik's constraint.
 | **3. Corsair** (L ships + hideout) | SCA pirate dock refits L/XL (general-use only). Vigor shipyard for L/XL. HQ unlocks hacking and agents. Your own equipment dock once you've hacked or stolen the S/M module | Military and capital gear need +10/+20 with Vigor, or stolen blueprints. The station still needs build resources (a supply chain or purchases) |
 | **4. Pirate lord** | Your own docks with stolen blueprints; Vigor at +20 | Blueprint coverage is random (agents roll from pools) |
 
-**The gap:** stages 1–2 have one supplier corner (Windfall) and only general-use gear. Without Tides of Avarice only the Yaki wharf would be left, and it has almost nothing to sell; the mod requires Tides of Avarice anyway. The design's "no soft-locks: a pirate-friendly fence and repair option always exist" ([DESIGN.md, Difficulty and economy model](../DESIGN.md#difficulty-and-economy-model)) currently holds only for repair at Vigor/Riptide, not for fitting military gear.
+**The gap:** stages 1–2 have one supplier corner (Windfall) and only general-use gear. Without Tides of Avarice only the Yaki wharf would be left, and it has almost nothing to sell; the mod requires Tides of Avarice anyway. The design's "no soft-locks: a pirate-friendly fence and repair option always exist" ([DESIGN.md, Difficulty and economy model](../DESIGN.md#difficulty-and-economy-model)) currently holds only for repair at Vigor, not for fitting military gear.
 
 ## Raid a faction, arm from its enemies
 
