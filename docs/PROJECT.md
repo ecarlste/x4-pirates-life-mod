@@ -50,7 +50,8 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
   - Every script change needs a test; `deploy.sh` and `deploy.ps1` share one behavior spec, so a case added to `tests/deploy.bats` belongs in `tests/Deploy.Tests.ps1` too.
 - Never commit game data or unpacked reference files.
 - Research notes go in `docs/research/`, listed in its README.
-- **Ideas move through three stages:** brainstorming and open questions stay in research notes and under "Ideas and maybe" in the plan; once Erik and Claude agree in chat that we *will* do something, it goes into `DESIGN.md`; when it's about to be built, it gets a spec. Don't put undecided ideas in `DESIGN.md` or specs.
+- **Ideas move through three stages:** brainstorming and open questions stay in research notes and under "Ideas and maybe" in the plan; once Erik signs off that we *will* do something, it goes into `DESIGN.md`; when it's about to be built, it gets a spec. Don't put undecided ideas in `DESIGN.md` or specs.
+- **Erik signs off every design change, whoever proposes it** (Claude, another developer, a research spike). Propose changes in a "Design proposals" section of the PR description, or discuss them in chat; edit `DESIGN.md` only after Erik has explicitly agreed, in chat or on the PR. A PR that changes `DESIGN.md` says so in its title or description, so a design change is never buried in other work.
 - Design discussions happen in chat; build work happens locally in WSL. GitHub is the hub, so commit and push often.
 - **All changes go through a feature branch and a pull request**, never straight to `main`. Erik reviews every PR, and an automated PR reviewer runs on it too. Branch names: `feature/…`, `fix/…`, `docs/…`, `spike/…`.
 - **PRs are squash-merged** (the only merge option): the PR title becomes the commit title on `main` and the PR description becomes its body. Commits inside a branch can be informal. Merged branches are deleted automatically.
@@ -80,7 +81,8 @@ When one of these happens, update the matching docs in the same PR.
 | A PR finishes a plan item | Tick it off; if it has a spec, mark the spec Done in the spec and in `specs/README.md` |
 | A feature's design is agreed | Write a spec from `specs/_template.md`, add it to `specs/README.md`, link it from the plan item |
 | Building a feature changes its design | Update its spec |
-| A design choice is agreed (in chat), or changes | `DESIGN.md`, in the same PR as the work or its own `docs/` PR |
+| Erik signs off a design choice or change | `DESIGN.md`, in the same PR as the work or its own `docs/` PR |
+| Research or other work suggests a design change not yet signed off | A "Design proposals" list in the PR description; not `DESIGN.md` |
 | A research note is added or changes status | Its row in `docs/research/README.md` |
 | A research spike finishes | Notes in `docs/research/`; update the plan's order and items to match |
 | A key decision changes (target version, DLC, architecture) | "Key decisions" above, and `DESIGN.md` |

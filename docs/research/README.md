@@ -1,6 +1,6 @@
 # Research notes
 
-What we've learned about how vanilla X4 works, for designing and building against it. Notes can be WIP; say so in the status. Ideas in a note stay ideas until we agree to do them; then they go into [`DESIGN.md`](../DESIGN.md) (see [PROJECT.md, Keeping docs in sync](../PROJECT.md#keeping-docs-in-sync)).
+What we've learned about how vanilla X4 works, for designing and building against it. Notes can be WIP; say so in the status. Ideas in a note stay ideas: list design proposals in the PR description, and they go into [`DESIGN.md`](../DESIGN.md) only once Erik signs off (see [PROJECT.md, Keeping docs in sync](../PROJECT.md#keeping-docs-in-sync)).
 
 | Note | Covers | Status |
 | --- | --- | --- |

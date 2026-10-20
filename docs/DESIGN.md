@@ -1,6 +1,6 @@
 # X4 Piracy Overhaul — Design Doc
 
-> The agreed design, and its source of truth. Changes go through PRs once a choice is agreed; ideas still being explored live in [`research/`](research/README.md) and under "Ideas and maybe" in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md#ideas-and-maybe).
+> The agreed design, and its source of truth. Changes need Erik's sign-off and go through PRs; ideas still being explored live in [`research/`](research/README.md) and under "Ideas and maybe" in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md#ideas-and-maybe).
 
 ## Vision and goals
 
