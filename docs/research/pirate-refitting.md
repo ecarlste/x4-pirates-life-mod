@@ -150,7 +150,9 @@ Start relations (UI values) between pirate factions and the factions they could 
 
 ### Unlock with salvage credits (mod-friendly)
 
-Erik's design (2026-10-20), replacing two earlier drafts (unlock by ship size, then by counting one specific gun): **equipment on turned-in ships earns salvage credits for its size, and the player spends them to unlock any pirated item of that size at the vendor.** Eventually everything can be unlocked. The goal is that weapon mods, and extensions that add weapons to our vendors, work with no onboarding.
+Erik's design (2026-10-20), replacing two earlier drafts (unlock by ship size, then by counting one specific gun): **equipment on turned-in ships earns salvage credits for its size, and the player spends them to unlock any pirated item of that size at the vendor.** Eventually everything can be unlocked.
+
+**The name is undecided.** "Salvage credits" is a placeholder; the currency needs a pirate name. Candidates so far: Plunder Marks, Doubloons, Pieces of Eight, Black Scrip, Spoils, and "teeth" as trophies pulled from prizes, which would be spelled *teef* in honour of the Orks. A profile should be able to rename it for its universe. The goal is that weapon mods, and extensions that add weapons to our vendors, work with no onboarding.
 
 **Earning**
 
