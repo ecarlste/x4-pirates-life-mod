@@ -7,7 +7,7 @@ Read this first. It is the shared context for anyone (and any tool) working on t
 An X4: Foundations piracy overhaul: the one pirate mod a player needs, from small-time raider to pirate lord, playable as piracy alone. Base game first; designed so total conversions (Star Wars Interworlds) can plug in through data profiles.
 
 - Extension ID: `apirateslife` (see `content.xml`)
-- Full design: [`docs/DESIGN.md`](DESIGN.md) (exported from the living design doc, which is the source of truth)
+- Full design: [`docs/DESIGN.md`](DESIGN.md), the source of truth for the agreed design
 
 ## Key decisions
 
@@ -49,8 +49,9 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
 - **Test scripts before a PR:** `make test` (or `tests/run.sh`) runs the bats suites, shellcheck when installed, and the Pester suites when PowerShell is available, including Windows PowerShell from WSL. `.\tests\run.ps1` runs just the Pester suites. Test frameworks are fetched on first run (bats into `.tools/`, Pester into `.tools/` or `%LOCALAPPDATA%` when the repo is on `\\wsl.localhost`). CI (`.github/workflows/tests.yml`) runs everything on Linux, macOS (stock bash 3.2) and Windows (PowerShell 5.1 and 7) for every PR.
   - Every script change needs a test; `deploy.sh` and `deploy.ps1` share one behavior spec, so a case added to `tests/deploy.bats` belongs in `tests/Deploy.Tests.ps1` too.
 - Never commit game data or unpacked reference files.
-- Research notes go in `docs/research/`, listed in its README; decisions get reflected back into the design doc.
-- Design discussions happen in the design doc; build work happens locally in WSL. GitHub is the hub between them, so commit and push often.
+- Research notes go in `docs/research/`, listed in its README.
+- **Ideas move through three stages:** brainstorming and open questions stay in research notes and under "Ideas and maybe" in the plan; once Erik and Claude agree in chat that we *will* do something, it goes into `DESIGN.md`; when it's about to be built, it gets a spec. Don't put undecided ideas in `DESIGN.md` or specs.
+- Design discussions happen in chat; build work happens locally in WSL. GitHub is the hub, so commit and push often.
 - **All changes go through a feature branch and a pull request**, never straight to `main`. Erik reviews every PR, and an automated PR reviewer runs on it too. Branch names: `feature/…`, `fix/…`, `docs/…`, `spike/…`.
 - **PRs are squash-merged** (the only merge option): the PR title becomes the commit title on `main` and the PR description becomes its body. Commits inside a branch can be informal. Merged branches are deleted automatically.
 - **PR titles follow [Conventional Commits](https://www.conventionalcommits.org/):** `type(scope): summary`, checked by CI (`.github/workflows/pr-title.yml`). The check is required by branch protection on `main`, for admins too.
@@ -62,7 +63,7 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
 
 ## Planning docs
 
-- [`DESIGN.md`](DESIGN.md): the high-level design, exported from the living design doc. Don't edit it here; it gets overwritten on the next export.
+- [`DESIGN.md`](DESIGN.md): the agreed high-level design, edited here through PRs like everything else. Only decided design goes in; ideas still being explored stay in research notes and the plan's "Ideas and maybe".
 - [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md): the tracker for all agreed work.
 - [`specs/`](specs/): one short spec per agreed feature.
 - [`research/`](research/README.md): what we've learned about vanilla X4 (call flows, hooks, tuning). Check its index before digging through game files.
@@ -79,10 +80,10 @@ When one of these happens, update the matching docs in the same PR.
 | A PR finishes a plan item | Tick it off; if it has a spec, mark the spec Done in the spec and in `specs/README.md` |
 | A feature's design is agreed | Write a spec from `specs/_template.md`, add it to `specs/README.md`, link it from the plan item |
 | Building a feature changes its design | Update its spec |
-| A design decision changes, or research changes the design | List the changes for the living design doc in the PR description (Erik updates it, then re-exports `DESIGN.md`) |
+| A design choice is agreed (in chat), or changes | `DESIGN.md`, in the same PR as the work or its own `docs/` PR |
 | A research note is added or changes status | Its row in `docs/research/README.md` |
 | A research spike finishes | Notes in `docs/research/`; update the plan's order and items to match |
-| A key decision changes (target version, DLC, architecture) | "Key decisions" above, and the design doc as in the row above |
+| A key decision changes (target version, DLC, architecture) | "Key decisions" above, and `DESIGN.md` |
 | A setup step, command, or path changes | "Workflow" or "Paths" above |
 | A script changes | Its tests in `tests/` (and `tools/README.md` for anything in `tools/`) |
 | A new top-level mod folder is added (`md/`, `aiscripts/`, …) | `deploy.include`, or it won't ship |
