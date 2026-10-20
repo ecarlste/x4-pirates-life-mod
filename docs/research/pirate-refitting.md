@@ -152,7 +152,7 @@ Start relations (UI values) between pirate factions and the factions they could 
     - Drawbacks to pay for it: heat, range, projectile speed, rotation, hull (durability).
   - **Players can still mod them.** They're normal equipment, so the equipment-mod workbench works on them. Unlockable mods (the vendor selling weapon mods for the currency) are a possible extra.
   - **How variants get made.** Macros are static files, so variants can't be created at runtime. For vanilla we ship them as profile data, made by a generator script (`tools/`) that reads the unpacked game files and applies a "pirate rig" recipe per weapon type (e.g. ion and laser → stripper; shotgun → brawler). The same script can run against a weapon mod's files, so onboarding a mod is "run the tool, ship the small compat extension it writes". Modded weapons without variants can still be sold as they are through the unlock currency below.
-  - **Blueprints.** Unlocking a pirated item could also grant its blueprint (`add_blueprints`), so a player's own equipment dock can build it later. To decide.
+  - **Blueprints:** bought separately with the unlock currency; see "Spending" below.
 - **Selling it.** Station stock is driven by static `<owner>` lists and licences, so it can't be gated per player. Licence types are a fixed list (`licencelookup` enum, `base/libraries/common.xsd:4402-4440`), so a custom "pirated gear" licence is unlikely to work. The shop has to be ours: a fence or pirate-contact refit service that fits gear with `apply_loadout`. This is the same service as design ideas 2 and 4, so it's built once.
 
 ### Profile maps: who rewards raids, and where gear is sold
@@ -197,6 +197,10 @@ Erik's design (2026-10-20), replacing two earlier drafts (unlock by ship size, t
 
 - One pool per size (S, M, L, XL; the profile's sizes, so SWI can add more). Optionally split weapon / turret / shield, using the macro's `class`.
 - The vendor lists pirated items by size; unlocking costs credits scaled by the item's price. Once unlocked, the item is for sale (at a price) and fits through our refit service.
+- **Blueprints from the same vendor** (Erik, 2026-10-20). The same NPC or UI that unlocks items also sells their blueprints for the currency, granted with `add_blueprints` (`base/md/playerreputation.xml:350`). The player's own equipment dock can then build them, which is the late-career route.
+  - Probably only for items already unlocked, and at a higher cost than the unlock.
+  - The pirated wares need a production recipe and no `noplayerblueprint` tag, like vanilla equipment (`base/libraries/wares.xml:15944-15956`).
+  - The same shop could sell the S/M and L/XL equipment-module blueprints that no pirate faction sells in vanilla (see [Blueprints and your own docks](#blueprints-and-your-own-docks)). That closes the gap that today needs a data-leak hack or an agent theft.
 - **Classifying the catalogue by size:** the same Lua helper tests each item against a slot of each size (`C.IsUpgradeMacroCompatible`, `menu_ship_configuration.lua:4380`) on a reference ship. Cache the result per macro and redo it on game load, so new mods get picked up. Fallback: the `_s_` / `_m_` / `_l_` / `_xl_` naming convention vanilla and most mods follow.
 
 **Onboarding mods**
