@@ -123,6 +123,37 @@ Four runs on 2026-10-20, X4 9.00, with only A Pirate's Life enabled in the profi
 - **`make game-test` runs the game** (Windows, through WSL interop or `.\tools\run-game-tests.ps1`). Run it before opening a PR that changes mod behavior, and add a test with each feature (its spec's "Done when").
 - **CI:** hosted runners can't run X4. A self-hosted runner on Erik's PC could, but only on `workflow_dispatch` or pushes to `main`, never on PRs from forks: a self-hosted runner executes the PR's code on that machine. Not worth it until there are enough tests to forget to run.
 
+## Ideas to research later
+
+Not agreed work; kept so these paths aren't forgotten. The current setup (launch through Steam, local runs) stays for now.
+
+### Egosoft's NoSteam executable
+
+Egosoft offers an official NoSteam build to owners (X4 registered in their forum profile, or a linked Steam account): `X4_nonsteam.exe`, copied into the game folder ([FAQ](https://www.egosoft.com/support/faq/faq_answer_en.php?answer=2413), [downloads](https://www.egosoft.com/download/x4/bonus_en.php), which list a 9.00 package for Windows and Linux). Erik's 7.60 SWI copy already runs it through a desktop shortcut with our arguments.
+
+- **Why:** the runner could pass its own arguments (no Steam launch options to set up, no Steam prompt), and no Steam means no one-session limit and no Workshop sync loading other mods.
+- **Profile folder:** NoSteam uses the root `Documents\Egosoft\X4\`, not the Steam profile. On Erik's machine that's the 7.60 SWI profile, which also explains the `-personalfolderid` fallback noted in [PROJECT.md, Paths](../PROJECT.md#paths-eriks-machine). A test run would share its `config.xml`, `content.xml` (extension on/off) and `debuglog.txt`, so it needs its own folder (what `-personalfolderid` really expects on 9.00) or a backup and restore around the run.
+- **Versions:** patches only come through Steam, so each X4 update needs the matching NoSteam download. The runner should check the executable's version against the game data.
+- **Licensing:** whether running it on several CI machines at once fits Egosoft's terms.
+- **PoC:** download the 9.00 package, run `X4_nonsteam.exe` with our arguments from the runner (`-GameExe` already starts an executable directly), find a separate profile folder, and compare a run with the Steam launch.
+
+### Run reports on the PR
+
+- The report records the commit SHA, branch, and whether the working tree was dirty (`make game-test` deploys uncommitted changes too), plus the X4 version from the log, the enabled extensions and the duration. The runner writes it as Markdown next to the JUnit file.
+- `make game-test-report` posts it as a PR comment with `gh`, refusing if the tree was dirty or `HEAD` isn't the PR's head commit. Optionally it also sets a `game-tests` commit status on that SHA, so the result shows in the PR's checks and a new push leaves the new commit without one.
+
+### CI/CD
+
+For when contributors join: their game-test results should show on their PRs without anyone pulling their branch.
+
+- **Machines:** hosted runners can't run X4 (no GPU, Steam or licence). Options: a self-hosted runner on Erik's PC, or a cloud GPU VM (e.g. EC2 `g4dn`) started per job from a prebuilt image. Packer rather than Vagrant for the image: local hypervisors mostly can't give X4 a Vulkan GPU, and Vagrant's cloud providers are largely unmaintained.
+- **Steam account:** a dedicated account that owns X4 and all DLCs, used only for testing. One session at a time, so runs are queued: one runner label, since GitHub's `concurrency` keeps only one pending job and cancels the rest. More parallel machines need more accounts (or NoSteam, licence permitting).
+- **Security:** a self-hosted runner executes the PR's code, so runs for outside contributors wait for Erik's approval (an environment with required reviewers), with throwaway VMs and the Steam login scoped to that environment.
+- **Mainline:** game tests on `main` after every merge to catch conflicts that pass separately, gating releases. GitHub's merge queue would test PRs together before they land; as far as we know it needs an organization-owned repo.
+- **Release:** an automated release from a green `main` (`make release`, the Workshop through Egosoft's WorkshopTool, Nexus if it can be automated). Target: a merged PR reaches players within an hour or two.
+- **Reuse:** the image, runner and MD harness could become a standalone X4 game test kit for other modders.
+
+
 ## UI tests, when we need them
 
 The in-game settings page (planned through kuertee's UI Extensions) is the first UI we'd want to test. In order of preference:

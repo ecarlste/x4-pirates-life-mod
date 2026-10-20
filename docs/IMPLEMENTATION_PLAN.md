@@ -93,6 +93,9 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
 Not yet agreed. Promote an item into a phase once we decide to do it.
 
 - [ ] PSScriptAnalyzer and shellcheck in PR CI as well as at release
+- [ ] Game tests through Egosoft's NoSteam executable: research and PoC (own arguments, no Steam prompt or session limit; needs its own profile folder): [notes](research/automated-game-testing.md#egosofts-nosteam-executable)
+- [ ] Game-test report stamped with the commit SHA, posted to the PR as a comment (and maybe a commit status): [notes](research/automated-game-testing.md#run-reports-on-the-pr)
+- [ ] Game tests in CI before inviting contributors (test machine, dedicated Steam account, approval gate, post-merge gate, automated release): [notes](research/automated-game-testing.md#cicd)
 - [ ] Refitting captured ships without legit factions ([research note](research/pirate-refitting.md#design-ideas)). Vanilla gives a pirate only general-use gear at the Vigor wharf early on, so:
   - [ ] Prize-to-prize transfer: move a prize's weapons, turrets and shields onto another ship (`apply_loadout`), stripping the source
   - [ ] Salvage stash: strip prizes into a per-ware parts stash (MD data); refit empty slots from it at a pirate contact and later the hideout (`generate_loadout` limited to stash wares)
