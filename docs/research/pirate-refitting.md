@@ -4,7 +4,7 @@
 
 **The question:** captured S/M ships often arrive with empty weapon, turret and shield slots. Some ships spawn that way, and vanilla bail sabotage and marine-claim damage used to make it worse (the mod now stops both by default, see [claim-no-damage](../specs/claim-no-damage.md)). S/M equipment can't be shot off, so whatever a prize has when it bails is what it keeps. How does a pirate fill the empty slots?
 
-**Constraint (Erik):** no buying from legitimate, non-pirate factions. Earning rep with pirate factions to buy gear is fine.
+**Scope (Erik):** players aren't limited to pirate suppliers, but a pure pirate must never *need* a legit faction to arm their ships. The routes below assume the worst case: a pirate hostile to everyone legit, who can still earn rep with pirate factions.
 
 ## Summary
 
@@ -14,6 +14,7 @@
 - **Scale Plate Pact is a dead end for S/M refits.** Its relation is locked at −5, so you can dock and buy general-use gear, but it has no S/M fitting station and only owns a few mk1 basics. Military gear stays out of reach, since the only unlock is a terraforming milestone.
 - **Your own wharf or equipment dock is the late route.** It needs equipment blueprints, plus the S/M build-module blueprint, which no pirate faction sells. Pirate routes to blueprints exist: hacking module data leaks, agent espionage (stealing equipment blueprints from any faction's equipment dock), pirate reps' blueprint sales, and blueprint crates.
 - **Vanilla has no way to take equipment off one ship and keep it.** Removing gear at an NPC dock refunds credits. Lockboxes and ship drops never contain weapons or shields. Ventures don't add equipment either.
+- **Raiding a faction can pay for its gear.** Every legit faction starts hated by several pirate factions (Terrans: Yaki, SCA, Fallen Families, then Buccaneers, Vigor, Riptide). Delivering booty taken from a faction to the pirates who hate it could unlock "pirated" versions of that faction's gear: same models, plus a vanilla-style bonus-and-drawback mod. See [Raid a faction, arm from its enemies](#raid-a-faction-arm-from-its-enemies).
 - **The mod can fill this gap with existing MD actions:** `apply_loadout` can copy one ship's loadout onto another, `generate_loadout` can build a loadout from a list of allowed wares, and blueprint drops can be spawned. That makes stripping prizes, hideout refits, fence stock and hunter loot all buildable without engine work.
 
 ## How buying equipment works
@@ -113,6 +114,47 @@ Stealing from legit factions is theft, not buying, so it fits Erik's constraint.
 
 **The gap:** stages 1–2 have one supplier corner (Windfall/Avarice) and only general-use gear. Players without Tides of Avarice would have *no* pirate S/M refit at all, but the mod requires it. The design's "no soft-locks: a pirate-friendly fence and repair option always exist" ([DESIGN.md, Difficulty and economy model](../DESIGN.md#difficulty-and-economy-model)) currently holds only for repair at Vigor/Riptide, not for fitting military gear.
 
+## Raid a faction, arm from its enemies
+
+Erik's idea (2026-10-20): a player who keeps raiding one faction, say the Terrans, hands the "booty" to a pirate faction that hates the Terrans. That builds rep with them, and eventually they sell *pirated Terran gear*: the same models as Terran gear, but "pirate modified", with bonuses and drawbacks compared to the legit Terran sellers. It's only offered to players who are low enough with the Terrans **and** have delivered enough Terran booty. The general form: every faction you prey on has enemies who'll arm you with its own gear.
+
+### Who hates whom at game start
+
+Start relations (UI values) between pirate factions and the factions they could fence for, from all `factions.xml` files (each faction's `<relations>` plus the DLC diffs). Diplomacy changes these during play, so the mod must query them at runtime and never store this table.
+
+| Pirate faction | Argon | Antigone | Paranid | Holy Order | Teladi | Ministry | Split | Free Families | Terran | Pioneers | Boron |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Scale Plate Pact | −25 | −20 | −25 | −25 | 0 | −25 | −25 | −20 | −25 | −25 | −25 |
+| Hatikvah's Choice | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Buccaneers | −15 | −15 | −15 | −15 | 0 | −15 | −15 | −15 | −15 | −15 | −15 |
+| Vigor Syndicate | −15 | −15 | −15 | −15 | 0 | −20 | −15 | −15 | −10 | −15 | −15 |
+| Riptide Rakers | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | −10 | 0 | +15 |
+| Fallen Families | −25 | −20 | −25 | −25 | −20 | −25 | −25 | +20 | −25 | −25 | −25 |
+| Yaki | −25 | −25 | −25 | −25 | −25 | −25 | −25 | −25 | **−30** | −10 | −25 |
+
+- **Every legit faction except Teladi has at least two pirate factions at −15 or worse.** Teladi is only hated by the Fallen Families and Yaki, and it's SCA's parent race.
+- **Terran → Yaki is the natural pair.** The Yaki are Terran-descended pirates, start at nemesis (−30) with the Terrans, and own a wharf in Savage Spur I. But they start at −25 with the player and need +10 even for general-use gear (`ego_dlc_terran/libraries/factions.xml:233-241`), so raiding Terrans is how you'd win them over.
+- **HAT hates nobody**, so it would never be a supplier for this; it fits better as a neutral fence.
+- Vanilla factions already "like" specific wares as diplomatic bribes (`base/md/diplomacy.xml:95-100`; Vigor and Riptide added in `ego_dlc_pirate/md/setup_dlc_pirate.xml:47-49`). Booty-for-rep is a pirate twist on that.
+
+### How it could be built
+
+- **Finding suppliers, profile-free.** For a target faction T: the factions tagged `pirate` (`.hastag`, the tag in `factions.xml`), or a profile's list of fences, whose relation to T is in the enemy range or worse (`get_factions_by_relation`, `relationto`; `base/libraries/common.xsd:20161`). Runtime queries follow wars and peace deals made by vanilla diplomacy.
+- **The booty ledger.** Our MD keeps a per-(supplier, target) tally of booty delivered. Vanilla wares carry no record of where they came from, so we tag at capture time: our `Bailed` signal and claims already know the target's owner, so a captured ship and its cargo count as T booty. "Delivering" means selling or handing it in at a supplier's station (a conversation option, or tracking sales there). Each delivery raises rep with the supplier through `add_faction_relation` (`common.xsd:20134`), scaled like the design's other payouts.
+- **The gate.** Offer pirated T gear when the player's relation to T is at or below a threshold **and** the ledger for (supplier, T) passes a threshold. Both are sliders. Recovering rep with T closes the shop again, which nudges the player to keep raiding.
+- **What's for sale.** T's equipment, queried by owner: `get_ware_definition` with `faction` and `<owner … licencefaction>` filters (vanilla does this in `base/md/diplomacy.xml:2543-2556`), split by `tag.weapon`, `turret`, `shield`. No ware IDs in our scripts.
+- **"Pirate modified": two options.**
+  - **A. Vanilla gear plus a pirate mod (recommended first).** Fit T's real ware, then apply an equipment mod with `add_equipment_mods` (vanilla does this in `base/md/rml_board_ship.xml:152-160`). Vanilla mods already pair a bonus with a drawback, e.g. `mod_weapon_damage_02_mk1`: damage ×1.35–1.45, cooling ×0.68–0.74 (`base/libraries/equipmentmods.xml:23-27`). We'd add our own "pirate rig" mods through an `equipmentmods.xml` and `wares.xml` diff. No new models, macros or stats files.
+  - **B. New equipment macros.** A new macro that reuses the vanilla component (same model) with its own stats, plus a new ware. Truly separate items in the encyclopedia and the shop, but much more data per ware, and it has to be generated for every universe (SWI included).
+- **Selling it.** Station stock is driven by static `<owner>` lists and licences, so it can't be gated per player. Licence types are a fixed list (`licencelookup` enum, `base/libraries/common.xsd:4402-4440`), so a custom "pirated gear" licence is unlikely to work. The shop has to be ours: a fence or pirate-contact refit service that fits gear with `apply_loadout` and then applies the pirate mod. This is the same service as design ideas 2 and 4, so it's built once.
+
+### Open questions
+
+- Do pirate mods stack with, or replace, vanilla mods the player applies later at a mod workbench?
+- Should pirated gear be *better* overall (a reward for commitment), or only different (more damage, more heat, less durability)?
+- Should a supplier's own wars count? Riptide likes Boron and dislikes Terrans; Fallen Families like the Free Families.
+- What exactly counts as booty: captured ships, cargo from drops, ransoms, destroyed T ships?
+
 ## Building blocks the mod can use
 
 - **`apply_loadout object="$ship" loadout="$other.loadout"`** copies a whole loadout onto an existing ship. Vanilla does this in `base/md/gm_barterwares.xml:2263`. `flags` can limit it to `weapons shields turrets` and `add`/`remove` (`base/libraries/common.xsd:4887-4997`, `24586`).
@@ -132,7 +174,8 @@ Ordered by how well they fit the design and how cheap they look. None are agreed
 4. **Fences sell stolen and salvaged gear.** Fences (slice 3) buy stash parts at a hot-goods cut, and sell a rotating stock of gear, military included, at a markup that scales with notoriety rather than licence rep. This answers "military gear without +10 anywhere" in a pirate way. Stock comes from the profile's equipment lists (queried by tag/licence, no hardcoded IDs).
 5. **Bounty hunter loot.** Destroyed hunters drop a blueprint crate (blueprint-drop mechanic) or stash parts of their upgraded gear; a captured hunter keeps its high-end loadout. Fits [DESIGN.md, Bounty hunters](../DESIGN.md#bounty-hunters) ("loot from destroyed hunters").
 6. **Pirate-faction reach via the profile.** The vanilla profile lists which factions count as pirates for supply (SCA, HAT, Vigor, maybe Riptide, BUC once unlocked) and can diff-patch extra `<owner>` entries or an S/M build module onto a pirate station (e.g. SCA's Cove dock). This needs a careful look at what other mods (and SWI) also patch.
-7. **Data-leak and espionage hooks.** Lean on the vanilla theft routes: a fence or contact sells EMPs and leak locations, and notoriety unlocks agent targets. Mostly flavour on top of what exists.
+7. **Raid a faction, arm from its enemies.** Booty taken from a faction buys rep with the pirates who hate it, unlocking pirated versions of its gear. See [Raid a faction, arm from its enemies](#raid-a-faction-arm-from-its-enemies).
+8. **Data-leak and espionage hooks.** Lean on the vanilla theft routes: a fence or contact sells EMPs and leak locations, and notoriety unlocks agent targets. Mostly flavour on top of what exists.
 
 **Fear vs. honor:** stripping a surrendered crew's ship bare could count as fear; letting them keep it could count as honor. A small hook for later.
 
