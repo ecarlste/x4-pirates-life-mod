@@ -36,7 +36,10 @@ Studied SWI 0.86 (X4 7.60, from the local 7.60 install) and 0.90 (X4 8.00, 2025-
 - **It bundles UI Extensions' menu code itself.** `subst_02.cat` replaces 20 vanilla menu files (`menu_map`, `menu_playerinfo`, `menu_toplevel`, `gameoptions`, `menu_interactmenu`, `helper` and more) with versions carrying kuertee's callback system (`uix_callbacks`, `function menu.registerCallback` in 10 of them). So SWI works without UI Extensions installed separately, which is why `content.xml` declares no dependency (only the game version and five DLCs). kuertee is one of SWI's listed authors, and SWI also bundles copies of several kuertee mods' UI code (reputations and professions, social standings, kill counts, emergent missions).
 - **MD side** (0.90, unchanged from 0.86): opening Player Info or the Encyclopedia (`event_ui_triggered screen="'PlayerInfoMenu'"`) makes MD write the page data to `player.entity.$swiMaintenanceData`; while the menu is open, a 0.25 s cue sends `raise_lua_event 'swi.togglePlayerInfoMenuRefresh'` and the Lua re-reads the blackboard; on `menu_close` MD removes the data. Values from Lua arrive as `event.param3` (e.g. `AddUITriggeredEvent("kuertee_ssac", "transactionsByStation", list)`).
 - **A Lua load handshake with no handler:** MD sends `raise_lua_event 'SWIUI_LoadLua'` with a module path, waits for `SWIUI_OnLoad`, and retries after 30 s. No handler was found in SWI's Lua, its replacement menus, or UI Extensions; it may be a leftover from an older loading method (loading happens through `ui.xml`).
-- **SirNukes only for typed chat commands:** 62 listeners for SirNukes' `Chat_Window_API` text entry, all admin/debug commands (e.g. `reset emissions`) that do nothing without it.
+- **SirNukes only for typed chat commands:** 62 listeners for SirNukes' `Chat_Window_API` text entry, all admin/debug commands (e.g. `debug em hunt cues`, `reset emissions`) that do nothing without it.
+- **No player-facing settings.** The bundled kuertee mods keep hardcoded defaults in an MD `UserSettings` cue (reward multiplier, mission-offer distance, debug chances), re-applied on every start and load and exposed as `global.$kEMissions_UserSettings`. Changing them means editing the mod's files. No options registration of any kind (no SirNukes, no added options). Its only options-menu change is `sw_gameoptions.lua` *removing* the Timelines and tutorial entries.
+- **Detection instead of choice:** the bundled kuertee mods detect SWI with `$IsSWIExists = @ware.tie_fighter != null` and switch to a reduced mode, our "detect, don't assume" pillar in practice.
+- **Settings migration:** `<patch sinceversion="N">` blocks on the `UserSettings` cue update stored values in existing saves when the mod changes.
 
 ## The Lua ↔ MD bridge (vanilla)
 
@@ -49,6 +52,10 @@ Studied SWI 0.86 (X4 7.60, from the local 7.60 install) and 0.90 (X4 8.00, 2025-
 SWI uses the same calls (e.g. `AddUITriggeredEvent("kuertee_ssac", "lua_loaded")`, `GetNPCBlackboard(playerId, "$swiMaintenanceData")`).
 
 ## Approach for our in-game settings
+
+- **The options hook can add entries.** In SWI's bundled `gameoptions.xpl`, each registered callback receives the options list and returns a modified one (`options = uix_callback(options, config)`, ~line 9493). SWI uses it to filter; returning the list with our entries added is how our page would work. Vanilla's option entries are tables with `name`, `value` and `callback` functions (e.g. the `extensionsettings` entries in vanilla `gameoptions.lua`, ~line 1464), so we have a model.
+- **This goes further than SWI**, which has no player-facing settings, and works for SWI players too, since SWI's bundled menus provide the same hook.
+- **Use `<patch sinceversion="N">`** on our settings cue to migrate stored settings when they change.
 
 - A Lua file loaded through our own `ui.xml` adds an "A Pirate's Life" section via `displayOptions_modifyOptions`.
 - Current values reach Lua through the player blackboard; changes go back with `AddUITriggeredEvent("apirateslife", …)`, and MD updates the same globals the config file sets.
