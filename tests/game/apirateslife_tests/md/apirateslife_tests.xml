@@ -18,8 +18,8 @@
         <event_cue_signalled cue="md.Setup.GameStart"/>
         <check_value value="player.module == 'apirateslife_test'"/>
       </conditions>
-      <!-- Let the game settle after loading -->
-      <delay exact="5s"/>
+      <!-- No delay here: X4 activates sub-cues as soon as these conditions are met, before a
+           delay would end, so Begin could run before these variables exist -->
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
@@ -27,15 +27,18 @@
         <set_value name="$Index" exact="0"/>
         <set_value name="$Passed" exact="0"/>
         <set_value name="$Failed" exact="0"/>
-        <debug_text text="'[apirateslife-test] RUN START %s tests'.[$Tests.count]" filter="general"/>
-        <!-- SETA: up to 6x game time, for tests that wait on travel. Needs SETA in the inventory
-             (the gamestart provides it) and no enemies nearby. -->
-        <toggle_timewarp/>
-        <set_timewarp_factor factor="6"/>
       </actions>
       <cues>
         <cue name="Begin">
+          <!-- Let the game settle after loading -->
+          <delay exact="5s"/>
           <actions>
+            <debug_text text="'[apirateslife-test] RUN START %s tests'.[$Tests.count]" filter="general"/>
+            <!-- SETA: up to 6x game time, for tests that wait on travel. Needs SETA in the inventory
+                 (the gamestart provides it) and no enemies nearby. The factor is game time per
+                 real second. -->
+            <toggle_timewarp/>
+            <set_timewarp_factor factor="6s"/>
             <signal_cue cue="NextTest"/>
           </actions>
         </cue>

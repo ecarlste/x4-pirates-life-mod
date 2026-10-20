@@ -4,13 +4,15 @@
 
 .DESCRIPTION
     1. Installs the dev-only test extension (tests/game/apirateslife_tests) next to the deployed mod.
-    2. Starts X4. The test extension starts its own gamestart from the main menu, runs every
+    2. Starts X4 through Steam, so with your Steam launch options: they must write the log
+       (-logfile debuglog.txt; -debug all -scriptlogfiles recommended). Started directly, X4.exe
+       hands over to Steam and drops its arguments. The test extension starts its own gamestart from the main menu, runs every
        test, logs "[apirateslife-test] ..." lines to debuglog.txt and quits the game.
     3. Watches debuglog.txt until the run finishes, the game exits, or the timeout passes (the
        game is then closed).
     4. Removes the test extension, prints a summary and writes a JUnit report.
 
-    Deploy the mod first (make deploy-local). Exits 1 if any test failed, the run didn't finish,
+    The previous debuglog.txt is kept as debuglog.previous.txt. Deploy the mod first (make deploy-local). Exits 1 if any test failed, the run didn't finish,
     or the log has errors from the mod.
 
     X4_PATH comes from -X4Path, the X4_PATH environment variable, or deploy.config.
@@ -29,7 +31,13 @@
     Where to write the JUnit report. Default tests/game/results.xml.
 
 .PARAMETER GameExe
-    The game executable. Default <X4Path>\X4.exe; the tests use a fake game.
+    Start this executable directly instead of starting X4 through Steam; the tests use a fake game.
+
+.PARAMETER SteamAppId
+    X4's Steam app ID. Default 392160.
+
+.PARAMETER LaunchTimeoutSeconds
+    How long to wait for the X4 process to appear after asking Steam to start it. Default 120.
 
 .PARAMETER KeepExtension
     Leave the test extension installed afterwards (X4 then starts the tests on every launch).
@@ -44,6 +52,8 @@ param(
     [int] $TimeoutSeconds = 900,
     [string] $ReportPath,
     [string] $GameExe,
+    [string] $SteamAppId = '392160',
+    [int] $LaunchTimeoutSeconds = 120,
     [double] $PollSeconds = 2,
     [switch] $KeepExtension
 )
@@ -51,7 +61,6 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $TestExtensionId = 'apirateslife_tests'
-$GameArgs = '-skipintro -debug all -logfile debuglog.txt -scriptlogfiles'
 
 # Parses debuglog.txt lines into the run's results. Errors are lines that mention the mod and an
 # error, apart from our own markers and the harmless "unsigned file" warnings every mod gets.
@@ -60,6 +69,9 @@ function Read-GameTestLog([string[]] $Lines) {
     $results = New-Object System.Collections.ArrayList
     $errors = New-Object System.Collections.ArrayList
     foreach ($line in $Lines) {
+        # X4 follows each script error with "* Expression: ..." and "* Action: ..." lines, which
+        # can quote our markers; only the error's own line counts
+        if ($line -like '`* *') { continue }
         if ($line -match '\[apirateslife-test\] RUN START (\d+)') {
             $run.Started = $true
             $run.Expected = [int] $Matches[1]
@@ -67,7 +79,7 @@ function Read-GameTestLog([string[]] $Lines) {
         elseif ($line -match '\[apirateslife-test\] (PASS|FAIL) ([^:\s]+):? ?(.*)$') {
             [void] $results.Add([pscustomobject]@{ Name = $Matches[2]; Passed = ($Matches[1] -eq 'PASS'); Detail = $Matches[3].Trim() })
         }
-        elseif ($line -match '\[apirateslife-test\] DONE') {
+        elseif ($line -match '\[apirateslife-test\] DONE' -and $run.Started) {
             $run.Done = $true
         }
         elseif ($line -match '(?i)apirateslife' -and $line -match '(?i)error' -and
@@ -152,14 +164,13 @@ if ($MyInvocation.InvocationName -eq '.') { return }
 
 $root = Split-Path $PSScriptRoot -Parent
 if (-not $X4Path) { $X4Path = Resolve-X4Path $root }
-if (-not $GameExe) { $GameExe = Join-Path $X4Path 'X4.exe' }
 if (-not $LogPath) { $LogPath = Resolve-LogPath }
 if (-not $ReportPath) { $ReportPath = Join-Path $root 'tests/game/results.xml' }
 
 if (-not (Test-Path (Join-Path $X4Path 'extensions/apirateslife/content.xml'))) {
     throw "A Pirate's Life isn't deployed to $X4Path. Run make deploy-local (or .\deploy.ps1 -WorkingTree) first"
 }
-$gameName = [IO.Path]::GetFileNameWithoutExtension($GameExe)
+$gameName = if ($GameExe) { [IO.Path]::GetFileNameWithoutExtension($GameExe) } else { 'X4' }
 if (Get-Process -Name $gameName -ErrorAction SilentlyContinue) {
     throw "$gameName is already running; close it first"
 }
@@ -170,11 +181,22 @@ $ending = ''
 try {
     if (Test-Path $extension) { Remove-Item $extension -Recurse -Force }
     Copy-Item (Join-Path $root "tests/game/$TestExtensionId") $extension -Recurse
-    # A stale log would report the previous run
-    if (Test-Path $LogPath) { Remove-Item $LogPath -Force }
+    # A stale log would report the previous run; keep it out of the way instead
+    if (Test-Path $LogPath) { Move-Item $LogPath (Join-Path (Split-Path $LogPath -Parent) 'debuglog.previous.txt') -Force }
 
-    Write-Host "Starting $GameExe; results go to $LogPath"
-    $game = Start-Process -FilePath $GameExe -ArgumentList $GameArgs -WorkingDirectory $X4Path -PassThru
+    if ($GameExe) {
+        Write-Host "Starting $GameExe; results go to $LogPath"
+        $game = Start-Process -FilePath $GameExe -WorkingDirectory $X4Path -PassThru
+    }
+    else {
+        Write-Host "Starting X4 through Steam; results go to $LogPath"
+        Start-Process "steam://rungameid/$SteamAppId"
+        $launchDeadline = (Get-Date).AddSeconds($LaunchTimeoutSeconds)
+        while (-not ($game = Get-Process -Name X4 -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+            if ((Get-Date) -gt $launchDeadline) { throw "X4 didn't start within $LaunchTimeoutSeconds s; is Steam running?" }
+            Start-Sleep -Seconds 1
+        }
+    }
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $reported = 0
     while ($true) {

@@ -4,7 +4,7 @@ Reusable scripts for working on the mod. Windows-side scripts are PowerShell (`.
 
 | Script | What it does |
 | --- | --- |
-| [`run-game-tests.ps1`](run-game-tests.ps1) | Runs the in-game tests: installs the test extension, starts X4, follows `debuglog.txt` until the tests finish (or time out), removes the extension and writes a JUnit report to `tests/game/results.xml`. Deploy the mod first; `make game-test` does both. See [the research note](../docs/research/automated-game-testing.md) |
+| [`run-game-tests.ps1`](run-game-tests.ps1) | Runs the in-game tests: installs the test extension, starts X4 through Steam (launch options must write `debuglog.txt`), follows `debuglog.txt` until the tests finish (or time out), removes the extension and writes a JUnit report to `tests/game/results.xml`. Deploy the mod first; `make game-test` does both. See [the research note](../docs/research/automated-game-testing.md) |
 | [`unpack-x4.ps1`](unpack-x4.ps1) | Unpacks the base game and every DLC into `E:\x4-dev\reference\x4-<version>\` (one folder per DLC, `_subst` for base-file replacements) |
 
 ## Running
