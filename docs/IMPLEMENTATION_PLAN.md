@@ -92,3 +92,9 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
 Not yet agreed. Promote an item into a phase once we decide to do it.
 
 - [ ] PSScriptAnalyzer and shellcheck in PR CI as well as at release
+- [ ] Refitting captured ships without legit factions ([research note](research/pirate-refitting.md#design-ideas)). Vanilla gives a pirate only general-use gear at the Vigor/Riptide wharfs early on, so:
+  - [ ] Prize-to-prize transfer: move a prize's weapons, turrets and shields onto another ship (`apply_loadout`), stripping the source
+  - [ ] Salvage stash: strip prizes into a per-ware parts stash (MD data); refit empty slots from it at a pirate contact and later the hideout (`generate_loadout` limited to stash wares)
+  - [ ] Fences buy salvaged gear and sell stolen gear, military included, priced by notoriety instead of licence rep (part of slice 3)
+  - [ ] Bounty hunter loot: blueprint crates and stash parts from destroyed hunters (part of slice 6)
+  - [ ] Vanilla profile: which factions count as pirate suppliers, and maybe diff-patch an S/M fitting module or extra ware owners onto a pirate station
