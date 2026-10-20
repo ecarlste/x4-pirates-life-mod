@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dev-only test extension for A Pirate's Life: never shipped (not in deploy.include). The game
+     test runner (tools/run-game-tests.ps1) installs it for a run and removes it afterwards. With it
+     installed, X4 starts the "apirateslife_test" gamestart straight from the main menu, runs the
+     tests in md/apirateslife_tests.xml and quits. See docs/research/automated-game-testing.md. -->
+<content id="apirateslife_tests" name="A Pirate's Life: game tests" description="Automated in-game tests for A Pirate's Life. Dev only: starts a test game automatically." author="Erik S. Carlsten" version="100" date="2026-10-19" save="false" enabled="true">
+  <dependency id="apirateslife" name="A Pirate's Life"/>
+  <dependency id="ego_dlc_pirate" name="Tides of Avarice"/>
+</content>

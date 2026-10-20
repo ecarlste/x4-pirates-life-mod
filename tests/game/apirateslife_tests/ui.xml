@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<addon name="apirateslife_tests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../ui/core/addon.xsd">
+  <environment type="menus">
+    <file name="ui/apirateslife_tests_autostart.lua"/>
+  </environment>
+</addon>

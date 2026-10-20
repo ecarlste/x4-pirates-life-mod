@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Test-only diff patch for vanilla md/notifications.xml (applied after the mod's own patch).
+     Vanilla's PlayerOwnedShipAttacks already has a $testcheat switch that skips the bail gates
+     and cooldown and makes the roll 100%. This turns it on while a test sets
+     global.$APiratesLifeTest_ForceBail, so bail scenarios are deterministic. -->
+<diff>
+  <add sel="//cue[@name='PlayerOwnedShipAttacks']//set_value[@name='$targetpilotskill'][@exact='0']" pos="after">
+    <do_if value="@global.$APiratesLifeTest_ForceBail">
+      <set_value name="$testcheat" exact="true"/>
+    </do_if>
+  </add>
+</diff>

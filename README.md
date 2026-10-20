@@ -39,6 +39,7 @@ Start X4 and check that **A Pirate's Life** is enabled under Extensions. For now
 | Deploy your working copy, uncommitted changes included | `make deploy-local` | `.\deploy.ps1 -WorkingTree` |
 | Deploy a pushed branch | `./deploy.sh --ref <branch>` | `.\deploy.ps1 -Ref <branch>` |
 | Run the tests | `make test` | `.\tests\run.ps1` |
+| Run the in-game tests in X4 (Windows) | `make game-test` | `.\deploy.ps1 -WorkingTree; .\tools\run-game-tests.ps1` |
 
 Restart X4 after each deploy. For debugging, set X4's launch options (Steam: Properties → General) to
 
@@ -55,7 +56,7 @@ The log is written to your X4 profile folder, `<Documents>\Egosoft\X4\<Steam acc
 | `content.xml`, `md/` | The mod itself; `deploy.include` lists everything that ships |
 | `deploy.sh`, `deploy.ps1` | Sync the mod into the game |
 | `tools/` | Dev scripts, such as unpacking the game files ([`tools/README.md`](tools/README.md)) |
-| `tests/` | bats and Pester suites; CI runs them on Linux, macOS and Windows |
+| `tests/` | bats and Pester suites; CI runs them on Linux, macOS and Windows. `tests/game/` holds the dev-only extension for in-game tests |
 | `docs/` | Project context, design, plan and specs (below) |
 
 ## Docs
