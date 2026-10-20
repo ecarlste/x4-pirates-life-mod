@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- English text for A Pirate's Life. X4 strips text in round brackets as a comment, so none is used. -->
+<language id="44">
+  <page id="1774100" title="A Pirate's Life" descr="Capture operations" voice="no">
+    <!-- Comm choice -->
+    <t id="1">Heave to. We're taking your ship.</t>
+
+    <!-- Mission -->
+    <t id="10">Capture: %s</t>
+    <t id="11">Make the pilot abandon ship without destroying it. Your wing breaks the hull, then only keeps the shields down. Abort this mission to call the capture off.</t>
+    <t id="20">Knock shields below 20%</t>
+    <t id="21">Damage hull below 75%</t>
+    <t id="22">Keep the pressure on: next bail check</t>
+    <t id="23">Keep the pressure on: last check %s%%</t>
+
+    <!-- Notifications -->
+    <t id="30">Capture started: %s</t>
+    <t id="31">%s abandoned. Claim it!</t>
+    <t id="32">%s captured.</t>
+    <t id="33">Capture failed: %s was destroyed.</t>
+    <t id="34">Capture failed: %s escaped.</t>
+    <t id="35">Capture called off: %s</t>
+
+    <!-- Wingman order -->
+    <t id="101">Capture</t>
+    <t id="102">Force the target's pilot to bail without destroying the ship.</t>
+  </page>
+</language>

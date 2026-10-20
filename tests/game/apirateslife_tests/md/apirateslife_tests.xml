@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureWingHoldsFire]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$Passed" exact="0"/>
         <set_value name="$Failed" exact="0"/>
@@ -496,6 +496,278 @@
             <destroy_object object="$Pair.$claimer"/>
             <destroy_object object="$Pair.$target"/>
           </actions>
+        </cue>
+      </cues>
+    </cue>
+    <!-- ===== Capture operations (docs/specs/capture-operation.md) ===== -->
+
+    <!-- The bail hook undoes vanilla's quarter chance for wingmen in the target's operation (x4, then
+         our x2), only for members and only while the setting is on. A fake operation on the target
+         is enough; no fighting needed. -->
+    <cue name="CaptureWingFullChance">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Attacker" exact="$Pair.$attacker"/>
+        <set_value name="$Target" exact="$Pair.$target"/>
+        <!-- [members, setting, vanilla chance, expected] -->
+        <do_if value="not global.$APiratesLife_CaptureOps?">
+          <set_value name="global.$APiratesLife_CaptureOps" exact="table[]"/>
+        </do_if>
+        <set_value name="$Cases" exact="[[[$Attacker], 1, 5, 40], [[$Attacker], 1, 20, 100], [[$Attacker], 0, 5, 10], [[], 1, 5, 10]]"/>
+        <set_value name="$Problems" exact="''"/>
+        <do_for_each name="$Case" in="$Cases">
+          <set_value name="$Op" exact="table[$leader = player.occupiedship, $members = $Case.{1}, $op = null, $lastchance = null]"/>
+          <set_value name="global.$APiratesLife_CaptureOps.{$Target}" exact="$Op"/>
+          <set_value name="global.$APiratesLife_CaptureWingFullChance" exact="$Case.{2}"/>
+          <run_actions ref="md.APiratesLife_Bail.AdjustEjectChance" result="$Got">
+            <param name="EjectChance" value="$Case.{3}"/>
+            <param name="Attacker" value="$Attacker"/>
+            <param name="Target" value="$Target"/>
+          </run_actions>
+          <do_if value="$Got != $Case.{4}">
+            <set_value name="$Problems" exact="$Problems + ' %s member(s), setting %s: %s gave %s, expected %s;'.[$Case.{1}.count, $Case.{2}, $Case.{3}, $Got, $Case.{4}]"/>
+          </do_if>
+          <do_if value="$Op.$lastchance != $Got">
+            <set_value name="$Problems" exact="$Problems + ' last chance not recorded;'"/>
+          </do_if>
+        </do_for_each>
+        <set_value name="global.$APiratesLife_CaptureWingFullChance" exact="1"/>
+        <remove_value name="global.$APiratesLife_CaptureOps.{$Target}"/>
+        <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_full_chance', $ok = ($Problems == ''), $detail = (if $Problems == '' then '%s cases'.[$Cases.count] else $Problems)]"/>
+        <destroy_object object="$Attacker"/>
+        <destroy_object object="$Target"/>
+      </actions>
+    </cue>
+
+    <!-- Start accepts a fresh target, sets its state and refuses player-owned ships and a second
+         operation; destroying the target ends the operation as "destroyed" and clears the state. -->
+    <cue name="CaptureStartAndDestroyed">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Target" exact="$Pair.$target"/>
+        <set_value name="$Problems" exact="''"/>
+        <run_actions ref="md.APiratesLife_Capture.CanStart" result="$Ok">
+          <param name="Target" value="$Pair.$attacker"/>
+        </run_actions>
+        <do_if value="$Ok">
+          <set_value name="$Problems" exact="$Problems + ' accepted a player-owned ship;'"/>
+        </do_if>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Ok">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <do_if value="not $Ok">
+          <set_value name="$Problems" exact="$Problems + ' refused a capturable fighter;'"/>
+        </do_if>
+        <do_if value="not @global.$APiratesLife_CaptureOps.{$Target}">
+          <set_value name="$Problems" exact="$Problems + ' no operation state on the target;'"/>
+        </do_if>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Ok">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <do_if value="$Ok">
+          <set_value name="$Problems" exact="$Problems + ' started a second operation;'"/>
+        </do_if>
+        <destroy_object object="$Target"/>
+      </actions>
+      <cues>
+        <cue name="CaptureStartAndDestroyed_Ended">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+            <check_value value="event.param.$target == $Target"/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="CaptureStartAndDestroyed_Timeout"/>
+            <do_if value="event.param.$outcome != 'destroyed'">
+              <set_value name="$Problems" exact="$Problems + ' ended as %s, expected destroyed;'.[event.param.$outcome]"/>
+            </do_if>
+            <signal_cue_instantly cue="Report" param="table[$name = 'capture_start_and_destroyed', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'started, refused twice, ended as destroyed' else $Problems)]"/>
+            <destroy_object object="$Pair.$attacker"/>
+          </actions>
+        </cue>
+        <cue name="CaptureStartAndDestroyed_Timeout">
+          <delay exact="10s"/>
+          <actions>
+            <cancel_cue cue="CaptureStartAndDestroyed_Ended"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'capture_start_and_destroyed', $ok = false, $detail = $Problems + ' operation did not end within 10s of the target being destroyed']"/>
+            <destroy_object object="$Pair.$attacker"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A pilot bail during an operation ends it as "abandoned", clears the target's state, and an
+         ownerless ship can't start a new one -->
+    <cue name="CaptureAbandoned">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_IntactOnEject" exact="1"/>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Target" exact="$Pair.$target"/>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="CaptureAbandoned_Act">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="ForceBail" result="$Before">
+              <param name="Attacker" value="$Pair.$attacker"/>
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="CaptureAbandoned_Ended">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+                <check_value value="event.param.$target == $Target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureAbandoned_Timeout"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <set_value name="$Problems" exact="''"/>
+                <do_if value="not $Started">
+                  <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
+                </do_if>
+                <do_if value="event.param.$outcome != 'abandoned'">
+                  <set_value name="$Problems" exact="$Problems + ' ended as %s, expected abandoned;'.[event.param.$outcome]"/>
+                </do_if>
+                <do_if value="@global.$APiratesLife_CaptureOps.{$Target}">
+                  <set_value name="$Problems" exact="$Problems + ' operation state left on the target;'"/>
+                </do_if>
+                <run_actions ref="md.APiratesLife_Capture.CanStart" result="$Ok">
+                  <param name="Target" value="$Target"/>
+                </run_actions>
+                <do_if value="$Ok">
+                  <set_value name="$Problems" exact="$Problems + ' accepted an ownerless ship;'"/>
+                </do_if>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_abandoned', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'ended as abandoned, state cleared' else $Problems)]"/>
+                <destroy_object object="$Pair.$attacker"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+            <cue name="CaptureAbandoned_Timeout">
+              <delay exact="30s"/>
+              <actions>
+                <cancel_cue cue="CaptureAbandoned_Ended"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_abandoned', $ok = false, $detail = 'operation did not end within 30s (owner: %s)'.[@$Target.trueowner]]"/>
+                <destroy_object object="$Pair.$attacker"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A wingman in an operation really fights: it breaks the target's hull to the hold line, then
+         keeps it there without ever taking it below the floor. The target is made uncapturable
+         after the start, so no bail ends the fight early. Real combat at the "visible" attention
+         level, so it takes a while. -->
+    <cue name="CaptureWingHoldsFire">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="65"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <create_ship name="$Wingman" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector">
+          <owner exact="faction.player" overridenpc="true"/>
+          <loadout>
+            <level exact="1.0"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.argon" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" x="-1km" allowyaxis="true"/>
+        </create_ship>
+        <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
+        <create_ship name="$Target" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.argon" overridenpc="true"/>
+          <loadout>
+            <level exact="1.0"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.argon" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" z="3km" allowyaxis="true"/>
+        </create_ship>
+        <create_order id="'Wait'" object="$Target" default="true">
+          <param name="noattackresponse" value="true"/>
+        </create_order>
+        <set_value name="$MinHull" exact="100"/>
+        <set_value name="$HeldFor" exact="0"/>
+      </actions>
+      <cues>
+        <cue name="CaptureWingHoldsFire_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <set_object_capturable object="$Target" capturable="false"/>
+          </actions>
+          <cues>
+            <cue name="CaptureWingHoldsFire_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <set_value name="$Finished" exact="true"/>
+                <set_value name="$Result" exact="''"/>
+                <do_if value="not $Target.exists or not $Target.isoperational">
+                  <set_value name="$Result" exact="' target destroyed (lowest hull seen %s%%);'.[$MinHull]"/>
+                </do_if>
+                <do_else>
+                  <set_value name="$MinHull" exact="[$MinHull, $Target.hullpercentage].min"/>
+                  <do_if value="$Target.hullpercentage lt 35">
+                    <set_value name="$Result" exact="' hull %s%%, below the 35%% floor;'.[$Target.hullpercentage]"/>
+                  </do_if>
+                  <do_else>
+                    <set_value name="$Finished" exact="false"/>
+                    <do_if value="$Target.hullpercentage le 65">
+                      <set_value name="$HeldFor" operation="add"/>
+                      <!-- At or under the hold line long enough to see that the wing stops there -->
+                      <set_value name="$Finished" exact="$HeldFor ge 30"/>
+                    </do_if>
+                  </do_else>
+                </do_else>
+                <do_if value="$Finished">
+                  <cancel_cue cue="CaptureWingHoldsFire_Timeout"/>
+                  <signal_cue_instantly cue="CaptureWingHoldsFire_Done" param="$Result"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="CaptureWingHoldsFire_Timeout">
+              <delay exact="180s"/>
+              <actions>
+                <signal_cue_instantly cue="CaptureWingHoldsFire_Done" param="' hull only got to %s%% in 180s, %s s at or under the hold line;'.[$MinHull, $HeldFor]"/>
+              </actions>
+            </cue>
+            <cue name="CaptureWingHoldsFire_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureWingHoldsFire_Watch"/>
+                <set_value name="$Problems" exact="event.param"/>
+                <do_if value="not $Started">
+                  <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
+                </do_if>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'held %s s at or under 65%%, lowest hull %s%%'.[$HeldFor, $MinHull] else $Problems)]"/>
+                <destroy_object object="$Wingman"/>
+                <do_if value="$Target.exists">
+                  <destroy_object object="$Target"/>
+                </do_if>
+              </actions>
+            </cue>
+          </cues>
         </cue>
       </cues>
     </cue>

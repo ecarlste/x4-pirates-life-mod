@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Diff patch for vanilla md/conversations.xml: adds the capture operation's comm choice to the
+     default ship comm (DefaultComm). See docs/specs/capture-operation.md. -->
+<diff>
+  <!-- Before vanilla decides whether a hostile pilot talks at all: can we start a capture on this
+       ship? ($surrenderoption: the player is flying a ship and is talking to a piloting NPC.) -->
+  <add sel="//cue[@name='DefaultComm']/actions/do_if[@value='not ($surrenderoption and $maysurrender) and (if $npctemplate then $locobject.hasrelation.enemy.{faction.player} else event.object.hasrelation.enemy.{faction.player})']" pos="before">
+    <set_value name="$apirateslife_capture" exact="false"/>
+    <do_if value="$surrenderoption">
+      <run_actions ref="md.APiratesLife_Capture.CanStart" result="$apirateslife_capture">
+        <param name="Target" value="$locobject"/>
+      </run_actions>
+    </do_if>
+  </add>
+
+  <!-- Vanilla hangs up on hostile pilots unless they may already surrender. Keep the line open
+       when we can start a capture, so pirates can work hostile targets too. -->
+  <replace sel="//cue[@name='DefaultComm']/actions/do_if[@value='not ($surrenderoption and $maysurrender) and (if $npctemplate then $locobject.hasrelation.enemy.{faction.player} else event.object.hasrelation.enemy.{faction.player})']/@value">not ($surrenderoption and ($maysurrender or $apirateslife_capture)) and (if $npctemplate then $locobject.hasrelation.enemy.{faction.player} else event.object.hasrelation.enemy.{faction.player})</replace>
+
+  <!-- The choice itself, among the non-player pilot's options (vanilla uses top_left, left,
+       bottom_left, top_right and bottom_right there). Handled by md.APiratesLife_Capture.CommChoice. -->
+  <add sel="//cue[@name='DefaultComm']//remove_value[@name='$locobject']" pos="before">
+    <do_if value="$apirateslife_capture">
+      <add_player_choice text="{1774100, 1}" section="g_apirateslife_capture" position="right" choiceparam="event.object.controlled"/>
+    </do_if>
+  </add>
+</diff>

@@ -22,6 +22,18 @@
         <!-- Intact when marines claim: claiming an abandoned ship with marines doesn't damage the
              hull or destroy equipment. 0 = vanilla behavior. -->
         <set_value name="global.$APiratesLife_IntactOnClaim" exact="1"/>
+
+        <!-- Capture operations: wingmen attack the target at full strength until its hull is at this
+             percentage, then only knock its shields down. Keep it below 75, vanilla's bail gate. -->
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="65"/>
+
+        <!-- Capture operations: nobody in the operation fires once the target's hull is at or below
+             this percentage. -->
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+
+        <!-- Capture operations: a wingman's hit gets the same bail chance as yours while you lead the
+             operation in the same sector. 0 = vanilla, where a wingman's chance is a quarter of yours. -->
+        <set_value name="global.$APiratesLife_CaptureWingFullChance" exact="1"/>
       </actions>
     </library>
   </cues>

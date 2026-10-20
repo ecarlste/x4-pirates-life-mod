@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Capture order for wingmen in a capture operation (md/apirateslife_capture.xml gives it).
+     Fights the target with lasers only and decides on every pass whether to fire, so the target
+     stays inside vanilla's bail gates instead of dying:
+       break:    hull above $holdhull: fire
+       suppress: hull at or below $holdhull: fire only while shields are above $shieldstop percent,
+                 then again once they regenerate to $shieldresume
+       floor:    hull at or below $floorhull: no fire at all
+     Its own small combat loop rather than vanilla's attack script: that script fires missiles
+     from the first pass, and a missile already in flight kills a fighter at the hold line (the
+     first game-test run lost its target from 74% hull within a second). Out of the player's sight
+     (below "visible" attention, where shoot_at isn't allowed) wingmen follow the target but don't
+     fire. See docs/specs/capture-operation.md. -->
+<aiscript name="order.apirateslife.capture" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="1">
+  <order id="APiratesLife_Capture" name="{1774100, 101}" description="{1774100, 102}" category="internal" allowinloop="false">
+    <params>
+      <param name="target" required="true" type="object" text="{1041, 10126}" comment="Ship to capture">
+        <input_param name="class" value="[class.ship]"/>
+      </param>
+      <param name="holdhull" default="65" type="internal" comment="Hull percentage at which full attack stops"/>
+      <param name="floorhull" default="35" type="internal" comment="Hull percentage at or below which nobody fires"/>
+      <param name="shieldstop" default="5" type="internal" comment="While suppressing, stop firing once shields are at or below this percentage"/>
+      <param name="shieldresume" default="10" type="internal" comment="While suppressing, fire again once shields are back to this percentage (below the 20% bail gate)"/>
+      <param name="debugchance" type="internal" default="0" comment="Print debug output: 0 or 100"/>
+    </params>
+    <requires>
+      <match shiptype="shiptype.lasertower" negate="true"/>
+      <match class="class.spacesuit" negate="true"/>
+    </requires>
+  </order>
+  <interrupts>
+    <!-- Stop firing on the hit that crosses a line, not on the next pass -->
+    <handler>
+      <conditions>
+        <event_object_attacked object="$target"/>
+        <check_value value="$firing"/>
+        <check_value value="not $target.isoperational or ($target.hullpercentage le $holdhull and (($target.hullpercentage le $floorhull) or (not $target.maxshield) or ($target.shieldpercentage le $shieldstop)))"/>
+      </conditions>
+      <actions>
+        <debug_text text="'%s holds fire on %s: hull %s%%, shields %s%%'.[this.assignedcontrolled.knownname, @$target.knownname, @$target.hullpercentage, @$target.shieldpercentage]" chance="$debugchance"/>
+        <stop_shooting object="this.assignedcontrolled"/>
+        <set_value name="$firing" exact="false"/>
+      </actions>
+    </handler>
+    <!-- The operation ended (abandoned, called off...): stop at once -->
+    <handler>
+      <conditions>
+        <event_object_signalled object="this.assignedcontrolled" param="'apirateslife_capture_end'"/>
+        <check_value value="event.param2 == $target"/>
+      </conditions>
+      <actions>
+        <stop_shooting object="this.assignedcontrolled"/>
+        <set_value name="$firing" exact="false"/>
+        <set_value name="$ended" exact="true"/>
+      </actions>
+    </handler>
+  </interrupts>
+  <init>
+    <set_command command="command.attackobject" param="$target"/>
+    <set_value name="$firing" exact="false"/>
+    <set_value name="$ended" exact="false"/>
+  </init>
+  <!-- In the player's sight: fight -->
+  <attention min="visible">
+    <actions>
+      <select_flight_behaviour entity="this" evasive="false" result="$behaviour"/>
+      <start_attack object="this.assignedcontrolled" target="$target"/>
+      <!-- Turrets (M ships) stay out of it: their defence officer is told to stop -->
+      <do_if value="this.assignedcontrolled.defencenpc.exists">
+        <signal_objects object="this.assignedcontrolled.defencenpc" param="'attack'" comment="no target means stop attacking"/>
+      </do_if>
+
+      <label name="decide"/>
+      <!-- The operation is over (or the prize is taken or lost) -->
+      <do_if value="$ended or not @$target.isoperational or $target.isplayerowned or $target.trueowner == faction.ownerless or not @global.$APiratesLife_CaptureOps.{$target}">
+        <resume label="finish"/>
+      </do_if>
+
+      <!-- Follow the target into another sector -->
+      <do_if value="this.sector != $target.sector">
+        <stop_shooting object="this.assignedcontrolled"/>
+        <set_value name="$firing" exact="false"/>
+        <run_script name="'move.generic'" result="$movesuccess">
+          <param name="destination" value="$target"/>
+          <param name="debugchance" value="$debugchance"/>
+        </run_script>
+        <do_if value="not $movesuccess">
+          <resume label="finish"/>
+        </do_if>
+        <resume label="decide"/>
+      </do_if>
+
+      <!-- Break: fire until the hull reaches the hold line -->
+      <do_if value="$target.hullpercentage gt $holdhull">
+        <set_value name="$fire" exact="true"/>
+      </do_if>
+      <!-- Floor: never below it -->
+      <do_elseif value="$target.hullpercentage le $floorhull">
+        <set_value name="$fire" exact="false"/>
+      </do_elseif>
+      <!-- Suppress: knock shields down once they've regenerated, then stop. Keep going until
+           they're down once started, so we don't flicker between the two thresholds. -->
+      <do_elseif value="$firing">
+        <set_value name="$fire" exact="$target.maxshield and $target.shieldpercentage gt $shieldstop"/>
+      </do_elseif>
+      <do_else>
+        <set_value name="$fire" exact="$target.maxshield and $target.shieldpercentage ge $shieldresume"/>
+      </do_else>
+
+      <do_if value="$fire and not $firing">
+        <!-- Lasers only: missiles default to off for shoot_at, and the launchers are stopped too -->
+        <shoot_at object="this.assignedcontrolled" target="$target" fixedtarget="true"/>
+        <stop_shooting object="this.assignedcontrolled" missiles="true"/>
+        <set_value name="$firing" exact="true"/>
+      </do_if>
+      <do_elseif value="not $fire and $firing">
+        <stop_shooting object="this.assignedcontrolled"/>
+        <set_value name="$firing" exact="false"/>
+      </do_elseif>
+      <!-- Attack runs while firing, as vanilla's fighter script does: close in, and turn away to
+           gain distance when too close. While holding, stay within about 2.5 km. Short moves, so
+           the decision above runs about twice a second. -->
+      <do_if value="$firing and this.assignedcontrolled.bboxdistanceto.{$target} lt 700m">
+        <move_to object="this.assignedcontrolled" destination="$target" flightbehaviour="flightbehaviour.gaindistance" forcesteering="true">
+          <interrupt_after_time time="2s"/>
+        </move_to>
+      </do_if>
+      <do_elseif value="$firing">
+        <move_to object="this.assignedcontrolled" destination="$target" flightbehaviour="$behaviour" forcesteering="true">
+          <interrupt_after_time time="500ms"/>
+        </move_to>
+      </do_elseif>
+      <do_elseif value="this.assignedcontrolled.distanceto.{$target} gt 2.5km">
+        <move_to object="this.assignedcontrolled" destination="$target" finishonapproach="true" forcesteering="true">
+          <interrupt_after_time time="500ms"/>
+        </move_to>
+      </do_elseif>
+      <do_else>
+        <wait exact="500ms"/>
+      </do_else>
+      <resume label="decide"/>
+
+      <label name="finish"/>
+      <stop_shooting object="this.assignedcontrolled"/>
+      <stop_shooting object="this.assignedcontrolled" missiles="true"/>
+      <cease_fire object="this.assignedcontrolled"/>
+      <do_if value="this.assignedcontrolled.defencenpc.exists">
+        <signal_objects object="this.assignedcontrolled.defencenpc" param="'attack'" comment="no target means stop attacking"/>
+      </do_if>
+      <do_if value="$target.exists">
+        <stop_attack object="this.assignedcontrolled" target="$target"/>
+      </do_if>
+      <debug_text text="'%s ends its capture order on %s'.[this.assignedcontrolled.knownname, @$target.knownname]" chance="$debugchance"/>
+    </actions>
+  </attention>
+  <!-- Out of sight: follow the target and hold fire until the player is close again (the engine
+       switches to the block above when attention rises) -->
+  <attention min="unknown">
+    <actions>
+      <label name="decide"/>
+      <do_if value="$ended or not @$target.isoperational or $target.isplayerowned or $target.trueowner == faction.ownerless or not @global.$APiratesLife_CaptureOps.{$target}">
+        <resume label="finish"/>
+      </do_if>
+      <do_if value="this.sector != $target.sector">
+        <run_script name="'move.generic'" result="$movesuccess">
+          <param name="destination" value="$target"/>
+          <param name="debugchance" value="$debugchance"/>
+        </run_script>
+        <do_if value="not $movesuccess">
+          <resume label="finish"/>
+        </do_if>
+      </do_if>
+      <do_elseif value="this.assignedcontrolled.distanceto.{$target} gt 2.5km">
+        <move_to object="this.assignedcontrolled" destination="$target" finishonapproach="true">
+          <interrupt_after_time time="2s"/>
+        </move_to>
+      </do_elseif>
+      <do_else>
+        <wait exact="2s"/>
+      </do_else>
+      <resume label="decide"/>
+
+      <label name="finish"/>
+      <debug_text text="'%s ends its capture order on %s (out of sight)'.[this.assignedcontrolled.knownname, @$target.knownname]" chance="$debugchance"/>
+    </actions>
+  </attention>
+</aiscript>
