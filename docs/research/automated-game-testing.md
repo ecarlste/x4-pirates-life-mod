@@ -102,7 +102,7 @@ Four runs on 2026-10-20, X4 9.00, with only A Pirate's Life enabled in the profi
 | Run | Result | What we learned |
 | --- | --- | --- |
 | 1 | X4 exited at once, no log | **Starting `X4.exe` directly doesn't work:** it hands over to Steam and the arguments are lost. The runner now launches through Steam |
-| 2 | X4 never started (120 s) | **Steam asked first:** the first launch from outside Steam opened a Steam dialog that had to be accepted. **Only once:** after Erik accepted it, later launches started straight away with no prompt (its wording wasn't recorded) |
+| 2 | X4 never started (120 s) | **Steam asked first:** the first launch from outside Steam opened a Steam dialog that had to be accepted. **Only once:** after Erik accepted it, later launches started straight away with no prompt (its wording wasn't recorded). What makes Steam ask again is unknown, so the runner's launch-timeout error says to look for the prompt |
 | 3 | Pipeline worked; 0 tests ran | Autostart, gamestart, harness, log reading and closing the game all worked. Two harness bugs and one runner bug (below) |
 | 4 | **3 of 3 passed** in 2 min 21 s | `pilot_bail_intact`: vanilla would have sabotaged the ship (pilot skill 53); hull 100%, 4 items kept. `claim_intact`: the marine claimed it about 16 s (game time) into the test, with vanilla max damage 80 prevented |
 

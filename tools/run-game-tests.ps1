@@ -193,7 +193,7 @@ try {
         Start-Process "steam://rungameid/$SteamAppId"
         $launchDeadline = (Get-Date).AddSeconds($LaunchTimeoutSeconds)
         while (-not ($game = Get-Process -Name X4 -ErrorAction SilentlyContinue | Select-Object -First 1)) {
-            if ((Get-Date) -gt $launchDeadline) { throw "X4 didn't start within $LaunchTimeoutSeconds s; is Steam running?" }
+            if ((Get-Date) -gt $launchDeadline) { throw "X4 didn't start within $LaunchTimeoutSeconds s. Check Steam is running and isn't waiting on a prompt to allow the launch (accept it and run again)" }
             Start-Sleep -Seconds 1
         }
     }
