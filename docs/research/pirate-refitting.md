@@ -148,6 +148,16 @@ Start relations (UI values) between pirate factions and the factions they could 
   - **B. New equipment macros.** A new macro that reuses the vanilla component (same model) with its own stats, plus a new ware. Truly separate items in the encyclopedia and the shop, but much more data per ware, and it has to be generated for every universe (SWI included).
 - **Selling it.** Station stock is driven by static `<owner>` lists and licences, so it can't be gated per player. Licence types are a fixed list (`licencelookup` enum, `base/libraries/common.xsd:4402-4440`), so a custom "pirated gear" licence is unlikely to work. The shop has to be ours: a fence or pirate-contact refit service that fits gear with `apply_loadout` and then applies the pirate mod. This is the same service as design ideas 2 and 4, so it's built once.
 
+### Unlock by ship size
+
+Erik's follow-up (2026-10-20): unlock pirated gear by the size of the ships turned in as booty. Terran S/M ships unlock S/M weapons, L ships unlock L gear, XL ships unlock XL gear. Capturing bigger prizes then matters for your arsenal too, and the unlocks follow the [career stages](../DESIGN.md#career-stages).
+
+- **Keep the ledger per tier:** (supplier, target, capture tier), using the profile's capture tiers. Vanilla's S/M/L/XL are data, and SWI's XXL comes for free. Ships count toward their tier; cargo and other booty could count toward rep only, or toward the smallest tier.
+- **Equipment size isn't in ware data.** Equipment ware tags don't include a size (`base/libraries/wares.xml`: `equipment weapon`, `equipment turret`, `equipment shield`); the size is in the equipment macro's slot connections. So "S/M weapons" can't be a tag query.
+- **Workaround: unlock what fits the ships turned in.** For each ship class the player has turned in, ask `generate_loadout` for that ship's macro, limited to the target's wares. Whatever it fits is the unlocked set. This sorts gear by size without any size data, and gets the edge cases right: L ships carry M turrets as well as L ones, so turning in L ships unlocks both.
+- **A finer variant:** unlock per ship *model* rather than per tier, e.g. a turned-in Terran fighter unlocks exactly what fits that fighter's slots. More collectible-feeling, but more to track and explain. Tier level is the simpler first version.
+- To verify: how MD reads an equipment macro's slot size directly, which would make the workaround unnecessary.
+
 ### Open questions
 
 - Do pirate mods stack with, or replace, vanilla mods the player applies later at a mod workbench?
@@ -174,7 +184,7 @@ Ordered by how well they fit the design and how cheap they look. None are agreed
 4. **Fences sell stolen and salvaged gear.** Fences (slice 3) buy stash parts at a hot-goods cut, and sell a rotating stock of gear, military included, at a markup that scales with notoriety rather than licence rep. This answers "military gear without +10 anywhere" in a pirate way. Stock comes from the profile's equipment lists (queried by tag/licence, no hardcoded IDs).
 5. **Bounty hunter loot.** Destroyed hunters drop a blueprint crate (blueprint-drop mechanic) or stash parts of their upgraded gear; a captured hunter keeps its high-end loadout. Fits [DESIGN.md, Bounty hunters](../DESIGN.md#bounty-hunters) ("loot from destroyed hunters").
 6. **Pirate-faction reach via the profile.** The vanilla profile lists which factions count as pirates for supply (SCA, HAT, Vigor, maybe Riptide, BUC once unlocked) and can diff-patch extra `<owner>` entries or an S/M build module onto a pirate station (e.g. SCA's Cove dock). This needs a careful look at what other mods (and SWI) also patch.
-7. **Raid a faction, arm from its enemies.** Booty taken from a faction buys rep with the pirates who hate it, unlocking pirated versions of its gear. See [Raid a faction, arm from its enemies](#raid-a-faction-arm-from-its-enemies).
+7. **Raid a faction, arm from its enemies.** Booty taken from a faction buys rep with the pirates who hate it, unlocking pirated versions of its gear, one ship size at a time. See [Raid a faction, arm from its enemies](#raid-a-faction-arm-from-its-enemies).
 8. **Data-leak and espionage hooks.** Lean on the vanilla theft routes: a fence or contact sells EMPs and leak locations, and notoriety unlocks agent targets. Mostly flavour on top of what exists.
 
 **Fear vs. honor:** stripping a surrendered crew's ship bare could count as fear; letting them keep it could count as honor. A small hook for later.
