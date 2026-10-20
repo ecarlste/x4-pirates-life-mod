@@ -47,7 +47,7 @@ Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.
 - [x] Find where the bail chance actually lives: `PlayerOwnedShipAttacks` in `md/notifications.xml` ([research note](research/spike-1-bailing-boarding.md)). The old `libraries/god.xml` patch was removed: 9.00 has no bail value there, and X4 merged the non-`<diff>` file as god data, logging errors on every new game
 - [x] Bring back the mod's 2x bail rate as an MD diff patch on `PlayerOwnedShipAttacks` (the candidate hook in the research note): [spec](specs/bail-hook.md)
 - [x] Captured ships arrive intact: no damage from the bailing pilot (hull drop, sabotage) or the claiming marine: [spec](specs/claim-no-damage.md) ([PR #18](https://github.com/ecarlste/x4-pirates-life-mod/pull/18))
-- [ ] Player settings for intact captures: on/off for "intact when the pilot ejects" and "intact when marines claim", from a config file: [spec](specs/capture-settings.md)
+- [ ] Player settings for intact captures: on/off for "intact when the pilot ejects" and "intact when marines claim", from a config file: [spec](specs/capture-settings.md) ([PR #21](https://github.com/ecarlste/x4-pirates-life-mod/pull/21))
 - [ ] In-game settings page through kuertee's UI Extensions (the `displayOptions_modifyOptions` hook SWI uses), optional dependency; config file stays the fallback
 - [ ] Reflect findings back into the design doc, then confirm the order of the Phase 2 slices
 
