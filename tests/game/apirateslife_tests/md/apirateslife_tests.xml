@@ -10,7 +10,8 @@
 
      Adding a test: a root cue named after it that fires on event_cue_signalled, sets things up,
      and signals Report exactly once (from a result cue or a timeout cue) with
-     table[$name, $ok, $detail]. Then add it to $Tests in Run. -->
+     table[$name, $ok, $detail]. Then add it to $Tests in Run. Set any mod setting the test relies
+     on, so settings overridden at deploy time can't change its outcome. -->
 <mdscript name="APiratesLife_Tests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
     <cue name="Run">
@@ -23,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, ClaimIntact]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$Passed" exact="0"/>
         <set_value name="$Failed" exact="0"/>
@@ -115,14 +116,12 @@
       </actions>
     </cue>
 
-    <!-- A player-owned fighter forces the pilot of a crewless fighter to bail (vanilla's $testcheat,
-         switched on by this extension's md/notifications.xml patch, makes it certain). Our Bailed
-         signal must fire, and the ship must keep its full hull and equipment: no pilot hull drop
-         or sabotage. -->
-    <cue name="PilotBailIntact">
-      <conditions>
-        <event_cue_signalled/>
-      </conditions>
+    <!-- ===== Helpers ===== -->
+
+    <!-- A player-owned fighter and a crewless Argon fighter at full hull, 2-3 km from the player.
+         With no crew, the first bail takes the pilot and leaves the ship ownerless. Returns
+         table[$attacker, $target]. -->
+    <library name="SpawnBailPair" purpose="run_actions">
       <actions>
         <create_ship name="$Attacker" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector">
           <owner exact="faction.player" overridenpc="true"/>
@@ -139,7 +138,6 @@
           <loadout>
             <level exact="1.0"/>
           </loadout>
-          <!-- No crew, so the first bail takes the pilot and leaves the ship ownerless -->
           <people>
             <fillpercent exact="0"/>
           </people>
@@ -151,83 +149,15 @@
         <create_order id="'Wait'" object="$Target" default="true">
           <param name="noattackresponse" value="true"/>
         </create_order>
+        <return value="table[$attacker = $Attacker, $target = $Target]"/>
       </actions>
-      <cues>
-        <cue name="PilotBailIntact_Act">
-          <delay exact="2s"/>
-          <actions>
-            <set_object_hull object="$Target" exact="100"/>
-            <set_value name="$Skill" exact="$Target.pilot.combinedskill"/>
-            <set_value name="$Equipment" exact="$Target.weapons.operational.count + $Target.turrets.operational.count + $Target.shields.operational.count"/>
-            <set_value name="global.$APiratesLifeTest_ForceBail" exact="true"/>
-            <!-- How a ship's AI asks for a bail check when attacked (aiscripts/interrupt.attacked.xml) -->
-            <signal_objects object="player.galaxy" param="$Attacker" param2="$Target" param3="'shouldwebail'"/>
-          </actions>
-          <cues>
-            <cue name="PilotBailIntact_Bailed">
-              <conditions>
-                <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
-                <check_value value="event.param.$target == $Target"/>
-              </conditions>
-              <actions>
-                <cancel_cue cue="PilotBailIntact_Timeout"/>
-                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
-                <set_value name="$PilotBailed" exact="event.param.$pilot"/>
-              </actions>
-              <cues>
-                <!-- Vanilla damages the ship after signalling the bail; check once it's done -->
-                <cue name="PilotBailIntact_Check">
-                  <delay exact="1s"/>
-                  <actions>
-                    <set_value name="$Problems" exact="''"/>
-                    <do_if value="not $PilotBailed">
-                      <set_value name="$Problems" exact="$Problems + ' pilot did not bail;'"/>
-                    </do_if>
-                    <do_if value="$Target.trueowner != faction.ownerless">
-                      <set_value name="$Problems" exact="$Problems + ' owner is %s, not ownerless;'.[$Target.trueowner]"/>
-                    </do_if>
-                    <do_if value="$Target.hullpercentage lt 99">
-                      <set_value name="$Problems" exact="$Problems + ' hull %s%%, expected 100%%;'.[$Target.hullpercentage]"/>
-                    </do_if>
-                    <set_value name="$EquipmentAfter" exact="$Target.weapons.operational.count + $Target.turrets.operational.count + $Target.shields.operational.count"/>
-                    <do_if value="$EquipmentAfter != $Equipment">
-                      <set_value name="$Problems" exact="$Problems + ' equipment %s, was %s;'.[$EquipmentAfter, $Equipment]"/>
-                    </do_if>
-                    <!-- Vanilla's damage scales with pilot skill, so a 0-skill pilot proves nothing -->
-                    <do_if value="$Skill == 0">
-                      <set_value name="$Problems" exact="$Problems + ' pilot skill 0, so vanilla would not have damaged it either;'"/>
-                    </do_if>
-                    <signal_cue_instantly cue="Report" param="table[$name = 'pilot_bail_intact', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'hull %s%%, %s equipment kept, pilot skill %s'.[$Target.hullpercentage, $EquipmentAfter, $Skill] else $Problems)]"/>
-                    <destroy_object object="$Attacker"/>
-                    <destroy_object object="$Target"/>
-                  </actions>
-                </cue>
-              </cues>
-            </cue>
+    </library>
 
-            <cue name="PilotBailIntact_Timeout">
-              <delay exact="30s"/>
-              <actions>
-                <cancel_cue cue="PilotBailIntact_Bailed"/>
-                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
-                <signal_cue_instantly cue="Report" param="table[$name = 'pilot_bail_intact', $ok = false, $detail = 'no Bailed signal within 30s']"/>
-                <destroy_object object="$Attacker"/>
-                <destroy_object object="$Target"/>
-              </actions>
-            </cue>
-          </cues>
-        </cue>
-      </cues>
-    </cue>
-
-    <!-- A player-owned frigate set to claim abandoned ships sends a marine to an ownerless fighter
-         (vanilla aiscripts/interrupt.foundabandonedship.xml and move.claim.xml). The fighter must
-         arrive with its full hull and equipment: no claim damage. The player is nearby, so this
-         covers the "visible" attention level of move.claim only. -->
-    <cue name="ClaimIntact">
-      <conditions>
-        <event_cue_signalled/>
-      </conditions>
+    <!-- An ownerless, crewless fighter and a player-owned frigate with marines, set to claim
+         abandoned ships, 2-3 km from the player (vanilla aiscripts/interrupt.foundabandonedship.xml
+         and move.claim.xml do the rest). The player is nearby, so claims run at the "visible"
+         attention level. Returns table[$claimer, $target]. -->
+    <library name="SpawnClaimPair" purpose="run_actions">
       <actions>
         <create_ship name="$Target" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector" capturable="true">
           <owner exact="faction.ownerless" overridenpc="true"/>
@@ -260,13 +190,227 @@
         <create_order id="'Wait'" object="$Claimer" default="true"/>
         <set_object_signal_response object="$Claimer" signal="'foundabandonedship'" response="'claim'"/>
         <set_object_hull object="$Target" exact="100"/>
-        <set_value name="$Equipment" exact="$Target.weapons.operational.count + $Target.turrets.operational.count + $Target.shields.operational.count"/>
+        <return value="table[$claimer = $Claimer, $target = $Target]"/>
+      </actions>
+    </library>
+
+    <!-- Weapons, turrets and shield generators still working on a ship -->
+    <library name="EquipmentCount" purpose="run_actions">
+      <params>
+        <param name="Ship"/>
+      </params>
+      <actions>
+        <return value="$Ship.weapons.operational.count + $Ship.turrets.operational.count + $Ship.shields.operational.count"/>
+      </actions>
+    </library>
+
+    <!-- Forces a pilot bail and returns what vanilla would damage: table[$skill, $equipment,
+         $sabotage], where $sabotage is how many parts a sabotaging pilot destroys (vanilla:
+         min(non-mandatory weapons, turrets and shields, pilot skill / 10)). How a ship's AI asks for
+         a bail check when attacked (aiscripts/interrupt.attacked.xml), with vanilla's $testcheat
+         switched on by this extension's md/notifications.xml patch, so the bail is certain. -->
+    <library name="ForceBail" purpose="run_actions">
+      <params>
+        <param name="Attacker"/>
+        <param name="Target"/>
+      </params>
+      <actions>
+        <set_value name="$Skill" exact="$Target.pilot.combinedskill"/>
+        <run_actions ref="EquipmentCount" result="$Equipment">
+          <param name="Ship" value="$Target"/>
+        </run_actions>
+        <find_object_component name="$Parts" object="$Target" class="[class.weapon, class.turret, class.shieldgenerator]" multiple="true">
+          <match tag="tag.mandatory" negate="true"/>
+        </find_object_component>
+        <set_value name="global.$APiratesLifeTest_ForceBail" exact="true"/>
+        <signal_objects object="player.galaxy" param="$Attacker" param2="$Target" param3="'shouldwebail'"/>
+        <return value="table[$skill = $Skill, $equipment = $Equipment, $sabotage = [$Parts.count, $Skill / 10].min]"/>
+      </actions>
+    </library>
+
+    <!-- ===== Tests ===== -->
+
+    <!-- Intact on eject (the default): our Bailed signal fires with the pilot, the ship becomes
+         ownerless, and keeps its full hull and equipment: no pilot hull drop or sabotage. -->
+    <cue name="PilotBailIntact">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_IntactOnEject" exact="1"/>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+      </actions>
+      <cues>
+        <cue name="PilotBailIntact_Act">
+          <delay exact="2s"/>
+          <actions>
+            <set_object_hull object="$Pair.$target" exact="100"/>
+            <run_actions ref="ForceBail" result="$Before">
+              <param name="Attacker" value="$Pair.$attacker"/>
+              <param name="Target" value="$Pair.$target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="PilotBailIntact_Bailed">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+                <check_value value="event.param.$target == $Pair.$target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="PilotBailIntact_Timeout"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <set_value name="$PilotBailed" exact="event.param.$pilot"/>
+              </actions>
+              <cues>
+                <!-- Vanilla damages the ship after signalling the bail; check once it's done -->
+                <cue name="PilotBailIntact_Check">
+                  <delay exact="1s"/>
+                  <actions>
+                    <set_value name="$Target" exact="$Pair.$target"/>
+                    <run_actions ref="EquipmentCount" result="$Equipment">
+                      <param name="Ship" value="$Target"/>
+                    </run_actions>
+                    <set_value name="$Problems" exact="''"/>
+                    <do_if value="not $PilotBailed">
+                      <set_value name="$Problems" exact="$Problems + ' pilot did not bail;'"/>
+                    </do_if>
+                    <do_if value="$Target.trueowner != faction.ownerless">
+                      <set_value name="$Problems" exact="$Problems + ' owner is %s, not ownerless;'.[$Target.trueowner]"/>
+                    </do_if>
+                    <do_if value="$Target.hullpercentage lt 99">
+                      <set_value name="$Problems" exact="$Problems + ' hull %s%%, expected 100%%;'.[$Target.hullpercentage]"/>
+                    </do_if>
+                    <do_if value="$Equipment != $Before.$equipment">
+                      <set_value name="$Problems" exact="$Problems + ' equipment %s, was %s;'.[$Equipment, $Before.$equipment]"/>
+                    </do_if>
+                    <!-- Vanilla's damage scales with pilot skill, so a 0-skill pilot proves nothing -->
+                    <do_if value="$Before.$skill == 0">
+                      <set_value name="$Problems" exact="$Problems + ' pilot skill 0, so vanilla would not have damaged it either;'"/>
+                    </do_if>
+                    <signal_cue_instantly cue="Report" param="table[$name = 'pilot_bail_intact', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'hull %s%%, %s equipment kept, pilot skill %s'.[$Target.hullpercentage, $Equipment, $Before.$skill] else $Problems)]"/>
+                    <destroy_object object="$Pair.$attacker"/>
+                    <destroy_object object="$Target"/>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+
+            <cue name="PilotBailIntact_Timeout">
+              <delay exact="30s"/>
+              <actions>
+                <cancel_cue cue="PilotBailIntact_Bailed"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'pilot_bail_intact', $ok = false, $detail = 'no Bailed signal within 30s']"/>
+                <destroy_object object="$Pair.$attacker"/>
+                <destroy_object object="$Pair.$target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Intact on eject off: vanilla damage is back. The hull drops to about (100 - pilot skill)%
+         and the pilot destroys exactly the number of parts ForceBail predicts. -->
+    <cue name="PilotBailVanillaWhenOff">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_IntactOnEject" exact="0"/>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+      </actions>
+      <cues>
+        <cue name="PilotBailVanillaWhenOff_Act">
+          <delay exact="2s"/>
+          <actions>
+            <set_object_hull object="$Pair.$target" exact="100"/>
+            <run_actions ref="ForceBail" result="$Before">
+              <param name="Attacker" value="$Pair.$attacker"/>
+              <param name="Target" value="$Pair.$target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="PilotBailVanillaWhenOff_Bailed">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+                <check_value value="event.param.$target == $Pair.$target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="PilotBailVanillaWhenOff_Timeout"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+              </actions>
+              <cues>
+                <cue name="PilotBailVanillaWhenOff_Check">
+                  <delay exact="1s"/>
+                  <actions>
+                    <set_value name="$Target" exact="$Pair.$target"/>
+                    <set_value name="$Skill" exact="$Before.$skill"/>
+                    <set_value name="$Problems" exact="''"/>
+                    <!-- A 100-skill pilot scuttles the ship and a 0-skill one does no damage, so
+                         only skills in between prove anything -->
+                    <do_if value="$Skill le 0 or $Skill ge 100">
+                      <set_value name="$Problems" exact="' pilot skill %s, so vanilla damage is not measurable;'.[$Skill]"/>
+                    </do_if>
+                    <do_elseif value="not $Target.exists">
+                      <set_value name="$Problems" exact="' ship was destroyed;'"/>
+                    </do_elseif>
+                    <do_else>
+                      <!-- Vanilla sets the hull to between max(100 - skill, 5) and max(100 - skill, 10) -->
+                      <set_value name="$Expected" exact="100 - $Skill"/>
+                      <do_if value="$Target.hullpercentage gt [$Expected, 10].max + 1 or $Target.hullpercentage lt [$Expected, 5].max - 1">
+                        <set_value name="$Problems" exact="$Problems + ' hull %s%%, expected about %s%%;'.[$Target.hullpercentage, $Expected]"/>
+                      </do_if>
+                      <run_actions ref="EquipmentCount" result="$Equipment">
+                        <param name="Ship" value="$Target"/>
+                      </run_actions>
+                      <do_if value="$Before.$equipment - $Equipment != $Before.$sabotage">
+                        <set_value name="$Problems" exact="$Problems + ' %s parts lost, expected %s;'.[$Before.$equipment - $Equipment, $Before.$sabotage]"/>
+                      </do_if>
+                    </do_else>
+                    <signal_cue_instantly cue="Report" param="table[$name = 'pilot_bail_vanilla_when_off', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'hull %s%%, %s parts sabotaged, pilot skill %s'.[$Target.hullpercentage, $Before.$sabotage, $Skill] else $Problems)]"/>
+                    <destroy_object object="$Pair.$attacker"/>
+                    <do_if value="$Target.exists">
+                      <destroy_object object="$Target"/>
+                    </do_if>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+
+            <cue name="PilotBailVanillaWhenOff_Timeout">
+              <delay exact="30s"/>
+              <actions>
+                <cancel_cue cue="PilotBailVanillaWhenOff_Bailed"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'pilot_bail_vanilla_when_off', $ok = false, $detail = 'no Bailed signal within 30s']"/>
+                <destroy_object object="$Pair.$attacker"/>
+                <destroy_object object="$Pair.$target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Intact on claim (the default): the ownerless fighter becomes the player's with its full
+         hull and equipment: no claim damage. -->
+    <cue name="ClaimIntact">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_IntactOnClaim" exact="1"/>
+        <run_actions ref="SpawnClaimPair" result="$Pair"/>
+        <run_actions ref="EquipmentCount" result="$Before">
+          <param name="Ship" value="$Pair.$target"/>
+        </run_actions>
       </actions>
       <cues>
         <cue name="ClaimIntact_Claimed">
           <conditions>
-            <event_object_changed_true_owner object="$Target"/>
-            <check_value value="$Target.trueowner == faction.player"/>
+            <event_object_changed_true_owner object="$Pair.$target"/>
+            <check_value value="$Pair.$target.trueowner == faction.player"/>
           </conditions>
           <actions>
             <cancel_cue cue="ClaimIntact_Timeout"/>
@@ -276,16 +420,19 @@
             <cue name="ClaimIntact_Check">
               <delay exact="5s"/>
               <actions>
+                <set_value name="$Target" exact="$Pair.$target"/>
+                <run_actions ref="EquipmentCount" result="$Equipment">
+                  <param name="Ship" value="$Target"/>
+                </run_actions>
                 <set_value name="$Problems" exact="''"/>
                 <do_if value="$Target.hullpercentage lt 99">
                   <set_value name="$Problems" exact="$Problems + ' hull %s%%, expected 100%%;'.[$Target.hullpercentage]"/>
                 </do_if>
-                <set_value name="$EquipmentAfter" exact="$Target.weapons.operational.count + $Target.turrets.operational.count + $Target.shields.operational.count"/>
-                <do_if value="$EquipmentAfter != $Equipment">
-                  <set_value name="$Problems" exact="$Problems + ' equipment %s, was %s;'.[$EquipmentAfter, $Equipment]"/>
+                <do_if value="$Equipment != $Before">
+                  <set_value name="$Problems" exact="$Problems + ' equipment %s, was %s;'.[$Equipment, $Before]"/>
                 </do_if>
-                <signal_cue_instantly cue="Report" param="table[$name = 'claim_intact', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'hull %s%%, %s equipment kept'.[$Target.hullpercentage, $EquipmentAfter] else $Problems)]"/>
-                <destroy_object object="$Claimer"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'claim_intact', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'hull %s%%, %s equipment kept'.[$Target.hullpercentage, $Equipment] else $Problems)]"/>
+                <destroy_object object="$Pair.$claimer"/>
                 <destroy_object object="$Target"/>
               </actions>
             </cue>
@@ -296,9 +443,58 @@
           <delay exact="180s"/>
           <actions>
             <cancel_cue cue="ClaimIntact_Claimed"/>
-            <signal_cue_instantly cue="Report" param="table[$name = 'claim_intact', $ok = false, $detail = 'not claimed within 180s (owner: %s)'.[@$Target.trueowner]]"/>
-            <destroy_object object="$Claimer"/>
-            <destroy_object object="$Target"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'claim_intact', $ok = false, $detail = 'not claimed within 180s (owner: %s)'.[@$Pair.$target.trueowner]]"/>
+            <destroy_object object="$Pair.$claimer"/>
+            <destroy_object object="$Pair.$target"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Intact on claim off: vanilla claim damage is back. The hull drops to max(marine skill, 70)%;
+         vanilla destroys each part only by chance, so equipment isn't checked. -->
+    <cue name="ClaimVanillaWhenOff">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_IntactOnClaim" exact="0"/>
+        <run_actions ref="SpawnClaimPair" result="$Pair"/>
+      </actions>
+      <cues>
+        <cue name="ClaimVanillaWhenOff_Claimed">
+          <conditions>
+            <event_object_changed_true_owner object="$Pair.$target"/>
+            <check_value value="$Pair.$target.trueowner == faction.player"/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="ClaimVanillaWhenOff_Timeout"/>
+          </actions>
+          <cues>
+            <cue name="ClaimVanillaWhenOff_Check">
+              <delay exact="5s"/>
+              <actions>
+                <set_value name="$Target" exact="$Pair.$target"/>
+                <set_value name="$Problems" exact="''"/>
+                <!-- Only a perfect marine (skill 100) would leave the hull at 100% -->
+                <do_if value="$Target.hullpercentage ge 99 or $Target.hullpercentage lt 69">
+                  <set_value name="$Problems" exact="' hull %s%%, expected 70-99%%;'.[$Target.hullpercentage]"/>
+                </do_if>
+                <signal_cue_instantly cue="Report" param="table[$name = 'claim_vanilla_when_off', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'hull %s%%'.[$Target.hullpercentage] else $Problems)]"/>
+                <destroy_object object="$Pair.$claimer"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+
+        <cue name="ClaimVanillaWhenOff_Timeout">
+          <delay exact="180s"/>
+          <actions>
+            <cancel_cue cue="ClaimVanillaWhenOff_Claimed"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'claim_vanilla_when_off', $ok = false, $detail = 'not claimed within 180s (owner: %s)'.[@$Pair.$target.trueowner]]"/>
+            <destroy_object object="$Pair.$claimer"/>
+            <destroy_object object="$Pair.$target"/>
           </actions>
         </cue>
       </cues>

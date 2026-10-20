@@ -42,6 +42,8 @@ Players choose whether captured ships arrive intact, with two on/off settings: *
 
 Every load logged `settings: config applied` with the deployed values, and our scripts logged no errors.
 
+The game tests (`make game-test`) now cover all four cases automatically: `pilot_bail_intact`, `pilot_bail_vanilla_when_off`, `claim_intact` and `claim_vanilla_when_off` ([research note](../research/automated-game-testing.md#the-proof-of-concept)).
+
 When checking for missing equipment, count a ship's slots by connection in its macro, not by tags: a missile launcher slot is also tagged `weapon`, so counting tags makes a scout look like it lost a gun.
 
 ## Open questions
