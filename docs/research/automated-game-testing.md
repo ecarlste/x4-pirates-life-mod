@@ -1,6 +1,6 @@
 # Automated in-game testing
 
-**Status: WIP, working (2026-10-20).** `make game-test` runs in the real game: all 3 tests pass in about 2½ minutes from command to report, with no clicks (after Steam's one-time launch prompt, see [first runs](#first-runs-in-game)). Still open: the questions at the end.
+**Status: WIP, working (2026-10-20).** `make game-test` runs in the real game: all 3 tests pass in about 2½ minutes from command to report, with no clicks once Steam's one-time launch prompt has been accepted (see [first runs](#first-runs-in-game)). Still open: the questions at the end.
 
 Goal: Cypress/Playwright-style regression tests that play a short, controlled scenario in the real game and report PASS/FAIL, run locally on Erik's Windows machine with one command.
 
@@ -102,7 +102,7 @@ Four runs on 2026-10-20, X4 9.00, with only A Pirate's Life enabled in the profi
 | Run | Result | What we learned |
 | --- | --- | --- |
 | 1 | X4 exited at once, no log | **Starting `X4.exe` directly doesn't work:** it hands over to Steam and the arguments are lost. The runner now launches through Steam |
-| 2 | X4 never started (120 s) | **Steam asked first:** a launch from outside Steam opens a Steam dialog that someone has to accept |
+| 2 | X4 never started (120 s) | **Steam asked first:** the first launch from outside Steam opened a Steam dialog that had to be accepted. **Only once:** after Erik accepted it, later launches started straight away with no prompt (its wording wasn't recorded) |
 | 3 | Pipeline worked; 0 tests ran | Autostart, gamestart, harness, log reading and closing the game all worked. Two harness bugs and one runner bug (below) |
 | 4 | **3 of 3 passed** in 2 min 21 s | `pilot_bail_intact`: vanilla would have sabotaged the ship (pilot skill 53); hull 100%, 4 items kept. `claim_intact`: the marine claimed it about 16 s (game time) into the test, with vanilla max damage 80 prevented |
 
@@ -133,12 +133,11 @@ The in-game settings page (planned through kuertee's UI Extensions) is the first
 
 ## Open questions
 
-1. **Steam's launch prompt:** what exactly it says, and whether accepting it once (or a setting) stops it coming back. Until then, a run needs someone at the PC to accept it.
-2. **A faster start:** `thevoid`'s empty galaxy, or the undocumented module option above, could cut the loading time.
-3. **Is SETA on during the tests?** Nothing checks it yet; it only matters once a test waits on travel.
-4. **Other `X4.exe` options** (strings next to the known ones, unverified): `-nocputhrottle` and `-nosoundthrottle` (keep running at full speed in the background, so the PC stays usable during a run), `-disablesound`, `-usedefaultconfig` / `-dontsaveconfig` (a clean, unchanged config), `-noworkshopsync`, `-enablexmlvalidation` (could catch bad XML in our files at load). Through Steam they'd go in the Steam launch options.
-5. **The out-of-sight claim path** (`attention min="unknown"`) needs the player far away. Tests could move the player with `warp`.
-6. **Other enabled mods** would load into test runs too. The runner could list the enabled extensions in its report, so a run is reproducible.
+1. **A faster start:** `thevoid`'s empty galaxy, or the undocumented module option above, could cut the loading time.
+2. **Is SETA on during the tests?** Nothing checks it yet; it only matters once a test waits on travel.
+3. **Other `X4.exe` options** (strings next to the known ones, unverified): `-nocputhrottle` and `-nosoundthrottle` (keep running at full speed in the background, so the PC stays usable during a run), `-disablesound`, `-usedefaultconfig` / `-dontsaveconfig` (a clean, unchanged config), `-noworkshopsync`, `-enablexmlvalidation` (could catch bad XML in our files at load). Through Steam they'd go in the Steam launch options.
+4. **The out-of-sight claim path** (`attention min="unknown"`) needs the player far away. Tests could move the player with `warp`.
+5. **Other enabled mods** would load into test runs too. The runner could list the enabled extensions in its report, so a run is reproducible.
 
 ## Next steps
 
