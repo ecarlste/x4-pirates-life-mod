@@ -55,7 +55,7 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
 - **Erik decides each piece of a proposal: accept, keep iterating, or reject.** A proposal can be split, with different pieces getting different outcomes.
   - *Accepted:* goes into `DESIGN.md`.
   - *Keep iterating:* stays in its research note (or under "Ideas and maybe") to be researched or reworked.
-  - *Rejected:* moves out of research into [`rejected/`](rejected/README.md), with the reason, so it's kept and easy to find but isn't proposed again unchanged. Reopening a rejected idea, e.g. because someone thinks they've solved the reason it was rejected, needs Erik's approval; then it moves back into research.
+  - *Rejected:* moves out of research into [`rejected/`](rejected/README.md), with a rejection notice at the top of its file (date, reason, links to the full reasons and to [reopening](rejected/README.md#reopening-a-rejected-idea)), so it's kept and easy to find but isn't proposed again unchanged. Reopening a rejected idea, e.g. because someone thinks they've solved the reason it was rejected, needs Erik's approval; then it moves back into research.
 - Before proposing a design idea, check [`rejected/`](rejected/README.md) for it.
 - Design discussions happen in chat; build work happens locally in WSL. GitHub is the hub, so commit and push often.
 - **All changes go through a feature branch and a pull request**, never straight to `main`. Erik reviews every PR, and an automated PR reviewer runs on it too. Branch names: `feature/…`, `fix/…`, `docs/…`, `spike/…`.
@@ -89,8 +89,8 @@ When one of these happens, update the matching docs in the same PR.
 | Building a feature changes its design | Update its spec |
 | Erik signs off a design choice or change | `DESIGN.md`, in the same PR as the work or its own `docs/` PR |
 | Research or other work suggests a design change not yet signed off | A "Design proposals" list in the PR description; not `DESIGN.md` |
-| Erik rejects a design idea | Move it from its research note (or "Ideas and maybe") into `docs/rejected/` with the reason and date, and add its row to `docs/rejected/README.md`; leave a one-line pointer where it was |
-| Erik approves reopening a rejected idea | Move it back into research and remove its row from `docs/rejected/README.md` |
+| Erik rejects a design idea | Move it from its research note (or "Ideas and maybe") into a file in `docs/rejected/` made from `_template.md`, with the rejection notice at the top, and add its row to `docs/rejected/README.md`; leave a one-line pointer where it was |
+| Erik approves reopening a rejected idea | Move it back into research, drop its rejection notice, and remove its row from `docs/rejected/README.md` ([how](rejected/README.md#reopening-a-rejected-idea)) |
 | A research note is added or changes status | Its row in `docs/research/README.md` |
 | A research spike finishes | Notes in `docs/research/`; update the plan's order and items to match |
 | A key decision changes (target version, DLC, architecture) | "Key decisions" above, and `DESIGN.md` |
