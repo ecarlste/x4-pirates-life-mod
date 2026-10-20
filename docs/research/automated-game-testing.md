@@ -93,7 +93,19 @@ make game-test        # or: .\deploy.ps1 -WorkingTree; .\tools\run-game-tests.ps
 1. The runner checks the mod is deployed and X4 isn't running, copies the test extension into `extensions\apirateslife_tests`, and moves the old `debuglog.txt` to `debuglog.previous.txt`.
 2. It asks Steam to start X4 (`steam://rungameid/392160`), so the game gets the Steam launch options, which must include `-logfile debuglog.txt` (see [PROJECT.md, Paths](../PROJECT.md#paths-eriks-machine)), and waits up to 120 s for the `X4` process.
 3. The Lua autostart starts the test gamestart; MD runs the tests and quits the game.
-4. The runner prints each result as it arrives, closes the game if it's still running after `DONE` (30 s grace) or at the timeout (900 s), removes the test extension, writes `tests/game/results.xml` (JUnit) and exits 0 or 1.
+4. The runner prints each result as it arrives, closes the game if it's still running after `DONE` (30 s grace) or at the timeout (900 s), removes the test extension, writes `tests/game/results.xml` (JUnit) and `tests/game/report.md`, and exits 0 or 1.
+
+### Posting a run to the PR
+
+```
+make game-test          # on the PR's latest commit, with everything committed and pushed
+make game-test-report   # ARGS=--dry-run to check and preview without posting
+```
+
+- **The report** (`tests/game/report.md`) names the commit, branch, X4 version (from the log's "Starting new game" line), duration and start time, with a row per test, any run problems, and any errors from the mod. `make game-test` passes the commit, branch and dirty state from WSL's git; run directly, the runner asks git itself.
+- **A hidden first line** carries what the poster checks: `<!-- apirateslife-game-tests commit=<sha> dirty=<true|false> result=<pass|fail> passed=<n> total=<n> -->`.
+- **`tools/post-game-test-report.sh`** (bash and `gh`, so WSL) posts only when the run had no uncommitted changes, the report's commit is `HEAD`, and `HEAD` is the latest commit of the branch's open PR. Then it comments the report on the PR and sets a **`game-tests` commit status** on that SHA (success or failure, "5 of 5 passed (local run)"). The status shows in the PR's checks; a new push leaves the new commit without one, so a stale pass can't pass for current.
+- **It's an attestation, not proof:** the report is a file the developer could edit. It stops mistakes (wrong commit, unpushed or uncommitted changes), not cheating; CI is the answer to that.
 
 **Writing a test:** a root cue that fires on `event_cue_signalled`, sets up its scenario, and signals `Report` once with `table[$name, $ok, $detail]` from either a result cue or a timeout cue. Then add it to `$Tests`. Use the helpers for spawning and forcing bails, and set any mod setting the test relies on, so settings overridden at deploy time can't change its outcome. Clean up spawned ships so tests don't affect each other. Don't put a `delay` on a cue whose sub-cues need its actions to have run first (see below).
 
@@ -139,10 +151,9 @@ Egosoft offers an official NoSteam build to owners (X4 registered in their forum
 - **Licensing:** whether running it on several CI machines at once fits Egosoft's terms.
 - **PoC:** download the 9.00 package, run `X4_nonsteam.exe` with our arguments from the runner (`-GameExe` already starts an executable directly), find a separate profile folder, and compare a run with the Steam launch.
 
-### Run reports on the PR
+### Comparing a PR's run with `main`
 
-- The report records the commit SHA, branch, and whether the working tree was dirty (`make game-test` deploys uncommitted changes too), plus the X4 version from the log, the enabled extensions and the duration. The runner writes it as Markdown next to the JUnit file.
-- `make game-test-report` posts it as a PR comment with `gh`, refusing if the tree was dirty or `HEAD` isn't the PR's head commit. Optionally it also sets a `game-tests` commit status on that SHA, so the result shows in the PR's checks and a new push leaves the new commit without one.
+Show on the PR what changed against the latest run on `main`: tests that newly fail or pass, and new tests. Possible routes: keep each posted report (e.g. a `game-tests` status on `main` commits plus the report in a gist or a `game-test-reports` branch), then diff the PR's report against the one for its merge base. Not needed for the MVP.
 
 ### CI/CD
 

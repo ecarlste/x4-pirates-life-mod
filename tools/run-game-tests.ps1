@@ -10,7 +10,8 @@
        test, logs "[apirateslife-test] ..." lines to debuglog.txt and quits the game.
     3. Watches debuglog.txt until the run finishes, the game exits, or the timeout passes (the
        game is then closed).
-    4. Removes the test extension, prints a summary and writes a JUnit report.
+    4. Removes the test extension, prints a summary and writes a JUnit report plus a Markdown
+       report (tests/game/report.md) that make game-test-report can post to the PR.
 
     The previous debuglog.txt is kept as debuglog.previous.txt. Deploy the mod first (make deploy-local). Exits 1 if any test failed, the run didn't finish,
     or the log has errors from the mod.
@@ -39,6 +40,19 @@
 .PARAMETER LaunchTimeoutSeconds
     How long to wait for the X4 process to appear after asking Steam to start it. Default 120.
 
+.PARAMETER MarkdownPath
+    Where to write the Markdown report. Default tests/game/report.md.
+
+.PARAMETER Commit
+    The commit being tested, for the report. make game-test passes it (with -Branch and -Dirty)
+    from WSL's git; otherwise the runner asks git itself.
+
+.PARAMETER Branch
+    The branch being tested, for the report.
+
+.PARAMETER Dirty
+    The deployed working tree had uncommitted changes, so the commit doesn't describe what ran.
+
 .PARAMETER KeepExtension
     Leave the test extension installed afterwards (X4 then starts the tests on every launch).
 
@@ -55,6 +69,10 @@ param(
     [string] $SteamAppId = '392160',
     [int] $LaunchTimeoutSeconds = 120,
     [double] $PollSeconds = 2,
+    [string] $MarkdownPath,
+    [string] $Commit,
+    [string] $Branch,
+    [switch] $Dirty,
     [switch] $KeepExtension
 )
 
@@ -65,14 +83,17 @@ $TestExtensionId = 'apirateslife_tests'
 # Parses debuglog.txt lines into the run's results. Errors are lines that mention the mod and an
 # error, apart from our own markers and the harmless "unsigned file" warnings every mod gets.
 function Read-GameTestLog([string[]] $Lines) {
-    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @() }
+    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = '' }
     $results = New-Object System.Collections.ArrayList
     $errors = New-Object System.Collections.ArrayList
     foreach ($line in $Lines) {
         # X4 follows each script error with "* Expression: ..." and "* Action: ..." lines, which
         # can quote our markers; only the error's own line counts
         if ($line -like '`* *') { continue }
-        if ($line -match '\[apirateslife-test\] RUN START (\d+)') {
+        if ($line -match "Starting new game using gamestart '[^']*' in (\S+) \((\d+)\)") {
+            $run.GameVersion = "$($Matches[1]) ($($Matches[2]))"
+        }
+        elseif ($line -match '\[apirateslife-test\] RUN START (\d+)') {
             $run.Started = $true
             $run.Expected = [int] $Matches[1]
         }
@@ -130,6 +151,64 @@ function ConvertTo-JUnitXml($Run, [string[]] $Problems) {
     ) -join "`n"
 }
 
+# The Markdown report for a PR comment. Its first line is a hidden marker that
+# tools/post-game-test-report.sh reads to check the report matches the PR's commit.
+# $Info: Commit, Branch, Dirty, StartedAt (datetime), DurationSeconds.
+function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
+    $passed = @($Run.Results | Where-Object { $_.Passed }).Count
+    $total = [Math]::Max($Run.Expected, $Run.Results.Count)
+    $ok = -not @($Problems).Count
+    $commit = if ($Info.Commit) { $Info.Commit } else { 'unknown' }
+    $short = if ($commit.Length -ge 7 -and $commit -ne 'unknown') { $commit.Substring(0, 7) } else { $commit }
+    $dirty = ([bool] $Info.Dirty).ToString().ToLower()
+    $minutes = [int] [Math]::Floor($Info.DurationSeconds / 60)
+    $seconds = [int] $Info.DurationSeconds % 60
+    $lines = @(
+        "<!-- apirateslife-game-tests commit=$commit dirty=$dirty result=$(if ($ok) { 'pass' } else { 'fail' }) passed=$passed total=$total -->"
+        "### Game tests: $(if ($ok) { 'passed' } else { 'FAILED' }), $passed of $total"
+        ''
+        "Commit ``$short`` on ``$($Info.Branch)``$(if ($Info.Dirty) { ' **plus uncommitted changes**' }), X4 $(if ($Run.GameVersion) { $Run.GameVersion } else { 'version unknown' }), ${minutes} min ${seconds} s, $($Info.StartedAt.ToString('yyyy-MM-dd HH:mm'))"
+        ''
+        '| Test | Result | Detail |'
+        '| --- | --- | --- |'
+    )
+    foreach ($r in $Run.Results) {
+        $detail = ($r.Detail -replace '\|', '\|')
+        $lines += "| ``$($r.Name)`` | $(if ($r.Passed) { 'PASS' } else { '**FAIL**' }) | $detail |"
+    }
+    $runProblems = @($Problems | Where-Object { $_ -notmatch '^\d+ failed: ' })
+    if ($runProblems.Count) {
+        $lines += ''
+        $lines += '**Run problems:**'
+        $lines += ''
+        $lines += @($runProblems | ForEach-Object { "- $_" })
+    }
+    if ($Run.Errors.Count) {
+        $lines += ''
+        $lines += '**Errors from the mod in `debuglog.txt`:**'
+        $lines += ''
+        $lines += '```'
+        $lines += $Run.Errors
+        $lines += '```'
+    }
+    $lines += ''
+    $lines += '<sub>Local run of <code>make game-test</code>, posted with <code>make game-test-report</code>.</sub>'
+    $lines -join "`n"
+}
+
+# Commit, branch and dirty state from git, for runs not started by make game-test
+function Get-GitState([string] $Root) {
+    $state = @{ Commit = ''; Branch = ''; Dirty = $false }
+    $ErrorActionPreference = 'Continue'
+    try {
+        $state.Commit = (& git -c 'safe.directory=*' -C $Root rev-parse HEAD 2>$null | Out-String).Trim()
+        $state.Branch = (& git -c 'safe.directory=*' -C $Root rev-parse --abbrev-ref HEAD 2>$null | Out-String).Trim()
+        $state.Dirty = [bool] (& git -c 'safe.directory=*' -C $Root status --porcelain 2>$null | Out-String).Trim()
+    }
+    catch { }
+    $state
+}
+
 function Resolve-X4Path([string] $Root) {
     if ($env:X4_PATH) { return $env:X4_PATH }
     $config = Join-Path $Root 'deploy.config'
@@ -166,6 +245,13 @@ $root = Split-Path $PSScriptRoot -Parent
 if (-not $X4Path) { $X4Path = Resolve-X4Path $root }
 if (-not $LogPath) { $LogPath = Resolve-LogPath }
 if (-not $ReportPath) { $ReportPath = Join-Path $root 'tests/game/results.xml' }
+if (-not $MarkdownPath) { $MarkdownPath = Join-Path $root 'tests/game/report.md' }
+if (-not $Commit) {
+    $git = Get-GitState $root
+    $Commit = $git.Commit
+    if (-not $Branch) { $Branch = $git.Branch }
+    if ($git.Dirty) { $Dirty = [switch] $true }
+}
 
 if (-not (Test-Path (Join-Path $X4Path 'extensions/apirateslife/content.xml'))) {
     throw "A Pirate's Life isn't deployed to $X4Path. Run make deploy-local (or .\deploy.ps1 -WorkingTree) first"
@@ -176,6 +262,7 @@ if (Get-Process -Name $gameName -ErrorAction SilentlyContinue) {
 }
 
 $extension = Join-Path $X4Path "extensions/$TestExtensionId"
+$startedAt = Get-Date
 $game = $null
 $ending = ''
 try {
@@ -231,12 +318,15 @@ $run = Read-GameTestLog (Read-SharedFile $LogPath)
 $problems = @(Get-RunProblems $run $ending)
 New-Item -ItemType Directory -Force -Path (Split-Path $ReportPath -Parent) | Out-Null
 [IO.File]::WriteAllText($ReportPath, (ConvertTo-JUnitXml $run $problems))
+$info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = ((Get-Date) - $startedAt).TotalSeconds }
+New-Item -ItemType Directory -Force -Path (Split-Path $MarkdownPath -Parent) | Out-Null
+[IO.File]::WriteAllText($MarkdownPath, (ConvertTo-MarkdownReport $run $problems $info) + "`n")
 
 $passed = @($run.Results | Where-Object { $_.Passed }).Count
 foreach ($e in $run.Errors) { Write-Host "  log error: $e" }
 if ($problems.Count) {
     Write-Host "GAME TESTS FAILED ($passed passed): $($problems -join '; ')"
-    Write-Host "Report: $ReportPath"
+    Write-Host "Report: $MarkdownPath"
     exit 1
 }
-Write-Host "Game tests passed ($passed of $($run.Expected)). Report: $ReportPath"
+Write-Host "Game tests passed ($passed of $($run.Expected)). Report: $MarkdownPath"

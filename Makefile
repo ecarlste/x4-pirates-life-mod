@@ -1,7 +1,9 @@
-.PHONY: setup deploy deploy-local deploy-dry-run test game-test help
+.PHONY: setup deploy deploy-local deploy-dry-run test game-test game-test-report help
 
 # Runs the game test runner on Windows through WSL interop; override to run it another way
 GAME_TEST_RUNNER ?= powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$$(wslpath -w tools/run-game-tests.ps1)"
+# What the report says was tested: the commit, branch, and whether uncommitted changes were deployed too
+GAME_TEST_GIT = -Commit $$(git rev-parse HEAD) -Branch $$(git rev-parse --abbrev-ref HEAD) $$(test -z "$$(git status --porcelain)" || echo -Dirty)
 
 help:
 	@echo "X4 Foundations - A Pirate's Life Mod"
@@ -13,6 +15,7 @@ help:
 	@echo "  make deploy-dry-run - Show what 'make deploy' would change"
 	@echo "  make test           - Run the bats and Pester test suites"
 	@echo "  make game-test      - Deploy your working tree and run the in-game tests in X4 (Windows)"
+	@echo "  make game-test-report - Post the last game-test report to this branch's PR (comment and check)"
 	@echo "  make help           - Show this help message"
 	@echo ""
 	@echo "Other refs: ./deploy.sh --ref <branch>  (PowerShell: .\\deploy.ps1 -Ref <branch>)"
@@ -42,4 +45,7 @@ test:
 
 game-test:
 	@./deploy.sh --working-tree $(ARGS)
-	@$(GAME_TEST_RUNNER)
+	@$(GAME_TEST_RUNNER) $(GAME_TEST_GIT)
+
+game-test-report:
+	@tools/post-game-test-report.sh $(ARGS)
