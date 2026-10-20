@@ -28,12 +28,15 @@
 
 ## How SWI builds its UI
 
-Studied SWI 0.86 (X4 7.60, from the local 7.60 install) and 0.90 (X4 8.00, 2025-12-06; snapshot at `E:\x4-dev\reference\mods\swi-0.90\`, without the 18 GB asset file). Reference only, per the SWI etiquette in [DESIGN.md](DESIGN.md#design-pillars-and-compatibility-architecture).
+Studied SWI 0.86 (X4 7.60, from the local 7.60 install) and 0.90 (X4 8.00, 2025-12-06). Snapshots in `E:\x4-dev\reference\mods\swi-0.86\` and `…\swi-0.90\`: the loose UI, plus MD scripts, AI scripts, libraries and text pulled from the catalogs with XRCatTool `-include`, and SWI's replacement menus (`subst02\`). The 18 GB asset data was deleted after extraction. Reference only, per the SWI etiquette in [DESIGN.md](DESIGN.md#design-pillars-and-compatibility-architecture).
 
 - **Loading:** a `ui.xml` add-on (identical in both versions) lists loose Lua files under `ui/` and the vanilla menus they extend (`ego_gameoptions`, `ego_detailmonitor`, `ego_interactmenu`, `ego_detailmonitorhelper`).
 - **Hooks:** UI Extensions' `registerCallback` everywhere: 28 uses across 9 of 10 files in 0.86, 40 in 0.90 (new ones include `createPlayerInfo_on_start`, `createInfoFrame_on_info_frame_mode`, `createFactionDetailsContext_on_before_detailtable`, `onRowChanged`, `onClearUIData`). `sw_gameoptions.lua` uses `displayOptions_modifyOptions` to change the options list.
 - **No SirNukes** anywhere, in either version.
-- **No declared dependency on UI Extensions** in `content.xml` (only the game version and five DLCs), yet its Lua calls `registerCallback` unguarded, so it relies on players installing UI Extensions separately. kuertee is one of SWI's listed authors, and SWI bundles copies of several kuertee mods' UI code (reputations and professions, social standings, kill counts, emergent missions).
+- **It bundles UI Extensions' menu code itself.** `subst_02.cat` replaces 20 vanilla menu files (`menu_map`, `menu_playerinfo`, `menu_toplevel`, `gameoptions`, `menu_interactmenu`, `helper` and more) with versions carrying kuertee's callback system (`uix_callbacks`, `function menu.registerCallback` in 10 of them). So SWI works without UI Extensions installed separately, which is why `content.xml` declares no dependency (only the game version and five DLCs). kuertee is one of SWI's listed authors, and SWI also bundles copies of several kuertee mods' UI code (reputations and professions, social standings, kill counts, emergent missions).
+- **MD side** (0.90, unchanged from 0.86): opening Player Info or the Encyclopedia (`event_ui_triggered screen="'PlayerInfoMenu'"`) makes MD write the page data to `player.entity.$swiMaintenanceData`; while the menu is open, a 0.25 s cue sends `raise_lua_event 'swi.togglePlayerInfoMenuRefresh'` and the Lua re-reads the blackboard; on `menu_close` MD removes the data. Values from Lua arrive as `event.param3` (e.g. `AddUITriggeredEvent("kuertee_ssac", "transactionsByStation", list)`).
+- **A Lua load handshake with no handler:** MD sends `raise_lua_event 'SWIUI_LoadLua'` with a module path, waits for `SWIUI_OnLoad`, and retries after 30 s. No handler was found in SWI's Lua, its replacement menus, or UI Extensions; it may be a leftover from an older loading method (loading happens through `ui.xml`).
+- **SirNukes only for typed chat commands:** 62 listeners for SirNukes' `Chat_Window_API` text entry, all admin/debug commands (e.g. `reset emissions`) that do nothing without it.
 
 ## The Lua ↔ MD bridge (vanilla)
 
@@ -49,5 +52,5 @@ SWI uses the same calls (e.g. `AddUITriggeredEvent("kuertee_ssac", "lua_loaded")
 
 - A Lua file loaded through our own `ui.xml` adds an "A Pirate's Life" section via `displayOptions_modifyOptions`.
 - Current values reach Lua through the player blackboard; changes go back with `AddUITriggeredEvent("apirateslife", …)`, and MD updates the same globals the config file sets.
-- **Unlike SWI:** declare UI Extensions as an optional dependency, and check that `registerCallback` exists before using it, so the mod still works (config file only) without it.
+- **Unlike SWI:** don't bundle replaced vanilla menus. It's heavy, has to be redone every game patch, and can conflict with a separately installed UI Extensions; that's a total conversion's trade-off, not ours. Declare UI Extensions as an optional dependency and check that `registerCallback` exists before using it, so the mod still works (config file only) without it. That check also passes for SWI players, whose bundled menus provide `registerCallback`.
 - To verify when building: whether extension Lua loads with Protected UI Mode on, and the exact shape of the options table `displayOptions_modifyOptions` receives.
