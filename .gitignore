@@ -5,3 +5,6 @@ deploy.config
 .tools/
 tests/results.xml
 tests/game/results.xml
+
+# Claude Code worktrees for parallel sessions
+.claude/worktrees/

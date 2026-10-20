@@ -16,6 +16,7 @@ help:
 	@echo "  make help           - Show this help message"
 	@echo ""
 	@echo "Other refs: ./deploy.sh --ref <branch>  (PowerShell: .\\deploy.ps1 -Ref <branch>)"
+	@echo "Extra options: make deploy-local ARGS=\"--set IntactOnEject=0\"  (also deploy, deploy-dry-run, game-test)"
 
 setup:
 	@if [ -f deploy.config ]; then \
@@ -28,17 +29,17 @@ setup:
 	fi
 
 deploy:
-	@./deploy.sh
+	@./deploy.sh $(ARGS)
 
 deploy-local:
-	@./deploy.sh --working-tree
+	@./deploy.sh --working-tree $(ARGS)
 
 deploy-dry-run:
-	@./deploy.sh --dry-run
+	@./deploy.sh --dry-run $(ARGS)
 
 test:
 	@tests/run.sh
 
 game-test:
-	@./deploy.sh --working-tree
+	@./deploy.sh --working-tree $(ARGS)
 	@$(GAME_TEST_RUNNER)

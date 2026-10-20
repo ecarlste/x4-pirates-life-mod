@@ -6,6 +6,9 @@
   Edit the values below to change the mod's behavior (1 = on, 0 = off). Changes apply the next
   time you start or load a game. Note: updating the mod replaces this file, so edits are lost on
   update. In-game settings are planned.
+
+  Developers: deploy with different values without editing this file, e.g.
+  make deploy-local ARGS="--set IntactOnEject=0" (PowerShell: .\deploy.ps1 -WorkingTree -Set IntactOnEject=0).
 -->
 <mdscript name="APiratesLife_Config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>

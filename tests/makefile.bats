@@ -70,3 +70,18 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     [ "$status" -ne 0 ]
     [[ "$output" != *"game tests ran"* ]]
 }
+
+@test "make passes ARGS through to deploy.sh" {
+    write_config
+    run make -C "$REPO" deploy-local ARGS="--set IntactOnEject=0"
+    [ "$status" -eq 0 ]
+    [ "$(deployed_setting IntactOnEject)" = 0 ]
+}
+
+@test "make game-test passes ARGS through to the deploy" {
+    write_config
+    run make -C "$REPO" game-test ARGS="--set IntactOnClaim=0" GAME_TEST_RUNNER='echo game tests ran'
+    [ "$status" -eq 0 ]
+    [ "$(deployed_setting IntactOnClaim)" = 0 ]
+    [[ "$output" == *"game tests ran"* ]]
+}

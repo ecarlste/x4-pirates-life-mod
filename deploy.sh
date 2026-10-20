@@ -4,7 +4,7 @@
 # Syncs the mod into <X4_PATH>/extensions/<id>, removing files that are no longer
 # part of it. By default it deploys the latest origin/main, not your working tree.
 #
-# Usage: ./deploy.sh [--ref <git-ref>] [--working-tree] [--dry-run]
+# Usage: ./deploy.sh [--ref <git-ref>] [--working-tree] [--set NAME=VALUE]... [--dry-run]
 
 set -eo pipefail
 
@@ -23,6 +23,8 @@ Usage: ./deploy.sh [options]
 
   --ref <ref>      Deploy this git ref (default: origin/main, fetched first)
   --working-tree   Deploy the files on disk instead, including uncommitted changes
+  --set NAME=VALUE Override a setting from md/apirateslife_config.xml in the deployed
+                   copy only; repeat it or use commas, e.g. --set IntactOnEject=0,IntactOnClaim=0
   --dry-run        Show what would change without touching the game folder
   -h, --help       Show this help
 EOF
@@ -32,10 +34,12 @@ REF=origin/main
 REF_SET=0
 WORKING_TREE=0
 DRY_RUN=0
+SETS=()
 while [ $# -gt 0 ]; do
     case "$1" in
         --ref) [ -n "${2:-}" ] || die "--ref needs a value"; REF=$2; REF_SET=1; shift 2 ;;
         --working-tree) WORKING_TREE=1; shift ;;
+        --set) [ -n "${2:-}" ] || die "--set needs NAME=VALUE"; SETS+=("$2"); shift 2 ;;
         --dry-run) DRY_RUN=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) usage >&2; die "unknown option: $1" ;;
@@ -92,8 +96,33 @@ MOD_ID=$(sed -n 's/.*<content[^>]* id="\([^"]*\)".*/\1/p' "$STAGE/mod/content.xm
 [[ "$MOD_ID" =~ ^[A-Za-z0-9_-][A-Za-z0-9_.-]*$ ]] || die "couldn't read a valid extension id from content.xml"
 TARGET="$X4_PATH/extensions/$MOD_ID"
 
+# Apply --set overrides to the staged config only; the repo copy is never touched
+if [ ${#SETS[@]} -gt 0 ]; then
+    CONFIG="$STAGE/mod/md/apirateslife_config.xml"
+    [ -f "$CONFIG" ] || die "--set needs md/apirateslife_config.xml in the deployed files"
+    # shellcheck disable=SC2016  # the $ is literal: we're matching global.$APiratesLife_ in the XML
+    VALID=$(grep -o 'name="global\.\$APiratesLife_[A-Za-z0-9_]*"' "$CONFIG" | sed 's/.*APiratesLife_\([A-Za-z0-9_]*\)"/\1/' | tr '\n' ' ')
+    ALL_SETS=()
+    for s in "${SETS[@]}"; do
+        IFS=',' read -r -a parts <<< "$s"   # allow --set A=0,B=1 as well as repeated --set
+        ALL_SETS+=("${parts[@]}")
+    done
+    for s in "${ALL_SETS[@]}"; do
+        [[ "$s" == *=* ]] || die "--set needs NAME=VALUE, got: $s"
+        name=${s%%=*}; value=${s#*=}
+        if ! [[ "$name" =~ ^[A-Za-z0-9_]+$ ]] || [[ " $VALID" != *" $name "* ]]; then
+            die "unknown setting '$name' (valid: ${VALID% })"
+        fi
+        [[ "$value" =~ ^[A-Za-z0-9_.-]+$ ]] || die "invalid value for $name: '$value' (letters, digits, '_', '.', '-' only)"
+        sed "s|\(name=\"global\.\$APiratesLife_$name\" exact=\"\)[^\"]*\"|\1$value\"|" "$CONFIG" > "$STAGE/config.tmp"
+        mv "$STAGE/config.tmp" "$CONFIG"
+        SET_SUMMARY="${SET_SUMMARY:+$SET_SUMMARY, }$name=$value"
+    done
+fi
+
 echo -e "${GREEN}Deploying $SOURCE${NC}"
 echo "  to $TARGET"
+[ -n "${SET_SUMMARY:-}" ] && echo "  with settings: $SET_SUMMARY"
 [ "$DRY_RUN" = 1 ] && warn "Dry run: nothing will be changed"
 
 # Mirror the staged files into the target, deleting anything that's no longer in the mod
