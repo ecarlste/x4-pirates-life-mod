@@ -142,17 +142,15 @@ Start relations (UI values) between pirate factions and the factions they could 
 - **Finding suppliers, profile-free.** For a target faction T: the factions tagged `pirate` (`.hastag`, the tag in `factions.xml`), or a profile's list of fences, whose relation to T is in the enemy range or worse (`get_factions_by_relation`, `relationto`; `base/libraries/common.xsd:20161`). Runtime queries follow wars and peace deals made by vanilla diplomacy.
 - **The booty ledger.** Our MD keeps a per-(supplier, target) tally of booty delivered. Vanilla wares carry no record of where they came from, so we tag at capture time: our `Bailed` signal and claims already know the target's owner, so a captured ship and its cargo count as T booty. "Delivering" means selling or handing it in at a supplier's station (a conversation option, or tracking sales there). Each delivery raises rep with the supplier through `add_faction_relation` (`common.xsd:20134`), scaled like the design's other payouts.
 - **The gate.** Offer pirated T gear when the player's relation to T is at or below a threshold **and** the ledger for (supplier, T) passes a threshold. Both are sliders. Recovering rep with T closes the shop again, which nudges the player to keep raiding.
-- **What's for sale.** The items unlocked with teef (below), drawn from T's equipment queried by owner: `get_ware_definition` with `faction` and `<owner … licencefaction>` filters (vanilla does this in `base/md/diplomacy.xml:2543-2556`), split by `tag.weapon`, `turret`, `shield`. No ware IDs in our scripts.
+- **What's for sale.** The items unlocked with salvage credits (below), drawn from T's equipment queried by owner: `get_ware_definition` with `faction` and `<owner … licencefaction>` filters (vanilla does this in `base/md/diplomacy.xml:2543-2556`), split by `tag.weapon`, `turret`, `shield`. No ware IDs in our scripts.
 - **"Pirate modified": two options.**
   - **A. Vanilla gear plus a pirate mod (recommended first).** Fit T's real ware, then apply an equipment mod with `add_equipment_mods` (vanilla does this in `base/md/rml_board_ship.xml:152-160`). Vanilla mods already pair a bonus with a drawback, e.g. `mod_weapon_damage_02_mk1`: damage ×1.35–1.45, cooling ×0.68–0.74 (`base/libraries/equipmentmods.xml:23-27`). We'd add our own "pirate rig" mods through an `equipmentmods.xml` and `wares.xml` diff. No new models, macros or stats files.
   - **B. New equipment macros.** A new macro that reuses the vanilla component (same model) with its own stats, plus a new ware. Truly separate items in the encyclopedia and the shop, but much more data per ware, and it has to be generated for every universe (SWI included).
 - **Selling it.** Station stock is driven by static `<owner>` lists and licences, so it can't be gated per player. Licence types are a fixed list (`licencelookup` enum, `base/libraries/common.xsd:4402-4440`), so a custom "pirated gear" licence is unlikely to work. The shop has to be ours: a fence or pirate-contact refit service that fits gear with `apply_loadout` and then applies the pirate mod. This is the same service as design ideas 2 and 4, so it's built once.
 
-### Unlock with teef (mod-friendly)
+### Unlock with salvage credits (mod-friendly)
 
-Erik's design (2026-10-20), replacing two earlier drafts (unlock by ship size, then by counting one specific gun): **equipment on turned-in ships earns teef for its size, and the player spends them to unlock any pirated item of that size at the vendor.** Eventually everything can be unlocked.
-
-**The name:** *teef*, the pirate unlock currency, a nod to the Orks, whose currency is teeth ("40 L-teef"). A profile can rename it for its universe. The goal is that weapon mods, and extensions that add weapons to our vendors, work with no onboarding.
+Erik's design (2026-10-20), replacing two earlier drafts (unlock by ship size, then by counting one specific gun): **equipment on turned-in ships earns salvage credits for its size, and the player spends them to unlock any pirated item of that size at the vendor.** Eventually everything can be unlocked. The goal is that weapon mods, and extensions that add weapons to our vendors, work with no onboarding.
 
 **Earning**
 
@@ -163,7 +161,7 @@ Erik's design (2026-10-20), replacing two earlier drafts (unlock by ship size, t
 **Spending**
 
 - One pool per size (S, M, L, XL; the profile's sizes, so SWI can add more). Optionally split weapon / turret / shield, using the macro's `class`.
-- The vendor lists pirated items by size; unlocking costs teef scaled by the item's price. Once unlocked, the item is for sale (at a price) and fits through our refit service.
+- The vendor lists pirated items by size; unlocking costs credits scaled by the item's price. Once unlocked, the item is for sale (at a price) and fits through our refit service.
 - **Classifying the catalogue by size:** the same Lua helper tests each item against a slot of each size (`C.IsUpgradeMacroCompatible`, `menu_ship_configuration.lua:4380`) on a reference ship. Cache the result per macro and redo it on game load, so new mods get picked up. Fallback: the `_s_` / `_m_` / `_l_` / `_xl_` naming convention vanilla and most mods follow.
 
 **Onboarding mods**
@@ -173,9 +171,9 @@ Erik's design (2026-10-20), replacing two earlier drafts (unlock by ship size, t
 
 **What happens to the earlier ideas**
 
-- "Raid a faction, arm from its enemies" still decides *which* pirated gear a vendor offers (its enemies' gear) and *who* will deal with you (enough rep, low enough with the target). Teef decide *how much* you can unlock.
-- Teef could be one global pool per size, or kept per supplier (each pirate faction does its own reverse engineering). Global is simpler; per supplier gives each pirate faction its own progression.
-- The reverse-engineering flavour stays: teef stand for the hardware the vendor rips out and reverse engineers from the hardware you bring in.
+- "Raid a faction, arm from its enemies" still decides *which* pirated gear a vendor offers (its enemies' gear) and *who* will deal with you (enough rep, low enough with the target). Credits decide *how much* you can unlock.
+- Credits could be one global pool per size, or kept per supplier (each pirate faction does its own reverse engineering). Global is simpler; per supplier gives each pirate faction its own progression.
+- The reverse-engineering flavour stays: credits are "salvage data" the vendor gets from the hardware you bring in.
 - Intact captures still matter: sabotaged guns earn nothing.
 
 ### Open questions
@@ -204,7 +202,7 @@ Ordered by how well they fit the design and how cheap they look. None are agreed
 4. **Fences sell stolen and salvaged gear.** Fences (slice 3) buy stash parts at a hot-goods cut, and sell a rotating stock of gear, military included, at a markup that scales with notoriety rather than licence rep. This answers "military gear without +10 anywhere" in a pirate way. Stock comes from the profile's equipment lists (queried by tag/licence, no hardcoded IDs).
 5. **Bounty hunter loot.** Destroyed hunters drop a blueprint crate (blueprint-drop mechanic) or stash parts of their upgraded gear; a captured hunter keeps its high-end loadout. Fits [DESIGN.md, Bounty hunters](../DESIGN.md#bounty-hunters) ("loot from destroyed hunters").
 6. **Pirate-faction reach via the profile.** The vanilla profile lists which factions count as pirates for supply (SCA, HAT, Vigor, maybe Riptide, BUC once unlocked) and can diff-patch extra `<owner>` entries or an S/M build module onto a pirate station (e.g. SCA's Cove dock). This needs a careful look at what other mods (and SWI) also patch.
-7. **Raid a faction, arm from its enemies.** Booty taken from a faction buys rep with the pirates who hate it, unlocking pirated versions of its gear with teef earned from the equipment on turned-in ships. See [Raid a faction, arm from its enemies](#raid-a-faction-arm-from-its-enemies).
+7. **Raid a faction, arm from its enemies.** Booty taken from a faction buys rep with the pirates who hate it, unlocking pirated versions of its gear with salvage credits earned from the equipment on turned-in ships. See [Raid a faction, arm from its enemies](#raid-a-faction-arm-from-its-enemies).
 8. **Data-leak and espionage hooks.** Lean on the vanilla theft routes: a fence or contact sells EMPs and leak locations, and notoriety unlocks agent targets. Mostly flavour on top of what exists.
 
 **Fear vs. honor:** stripping a surrendered crew's ship bare could count as fear; letting them keep it could count as honor. A small hook for later.
