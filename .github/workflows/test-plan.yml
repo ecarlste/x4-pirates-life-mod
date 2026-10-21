@@ -1,0 +1,25 @@
+name: Test plan
+
+# When a spec or a game test changes, the game-test plan (tests/game/features/) should change
+# with it; the PR description can opt out with "Test plan: no change". Runs again when the
+# description is edited. See docs/PROJECT.md, Workflow.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  plan-follows-changes:
+    name: Test plan follows spec and test changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check the changed files against the test plan
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE: origin/${{ github.base_ref }}
+        run: python3 tools/check-test-plan-changes.py "$BASE"

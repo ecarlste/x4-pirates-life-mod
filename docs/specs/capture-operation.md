@@ -100,6 +100,8 @@ On ending, the target's state is removed and wingmen's orders finish by themselv
 
 ## Done when
 
+Scenarios: [`tests/game/features/capture-operation.feature`](../../tests/game/features/capture-operation.feature).
+
 - **Game tests pass:**
   - `capture_wing_full_chance`: the hook gives op members ×4×2, non-members ×2, and members only ×2 when the setting is off; the last chance is recorded.
   - `capture_start_and_destroyed`: `Start` accepts a capturable fighter and refuses a player-owned ship and a second operation; destroying the target ends the op as destroyed.

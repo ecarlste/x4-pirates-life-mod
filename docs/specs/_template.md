@@ -20,7 +20,7 @@ The decisions, each with a short reason, so they can be questioned. Note any alt
 
 ## Done when
 
-How we'll check it works in game, including any edge cases that matter.
+How we'll check it works in game, including any edge cases that matter. Write the behaviours as scenarios in `tests/game/features/<feature>.feature` (Given/When/Then, tagged `@pending` until a game test covers them) and link the file here.
 
 ## Open questions
 
