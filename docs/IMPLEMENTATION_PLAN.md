@@ -59,6 +59,10 @@ Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.
 Each slice is demo-able and gets a video. Each one goes through: design agreed, spec written, built, tested in game, showcase save recorded, video. The order is provisional until spike 1 is done.
 
 - [ ] 1. Wingman forces an S ship to bail; a prize crew flies it home
+  - [ ] Capture operation: wingmen that capture, not kill, started from a comm choice: [spec](specs/capture-operation.md) ([PR #31](https://github.com/ecarlste/x4-pirates-life-mod/pull/31))
+  - [ ] Start a capture operation from the right-click/F interact menu (kuertee's UI Extensions, optional)
+  - [ ] Capture hotkeys: "wing: make target bail" and "call off capture" (Chem O'Dun's Native Hotkey API on UI Extensions, optional)
+  - [ ] Prize crew flies a captured ship home
 - [ ] 2. Notoriety and heat v1, with bail chance tied to notoriety
 - [ ] 3. Fencing and hot-goods pricing at pirate docks
 - [ ] 4. Raid Sector fleet order
@@ -93,6 +97,8 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
 
 Not yet agreed. Promote an item into a phase once we decide to do it.
 
+- [ ] Capture operations: wingmen prefer shield-heavy weapons (ion), from a profile list, since scripts can't read a weapon's damage type
+- [ ] Capture operations: pressure that builds with each failed bail check (a visible nerve meter), through the bail hook
 - [ ] PSScriptAnalyzer and shellcheck in PR CI as well as at release
 - [ ] Game tests through Egosoft's NoSteam executable: research and PoC (own arguments, no Steam prompt or session limit; needs its own profile folder): [notes](research/automated-game-testing.md#egosofts-nosteam-executable)
 - [ ] Game-test report on the PR: compare the PR's run with the latest run on `main` (newly failing, newly passing, new tests): [notes](research/automated-game-testing.md#comparing-a-prs-run-with-main)

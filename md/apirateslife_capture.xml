@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Capture operations: the player starts one on a ship (for now from a comm choice, our
+     md/conversations.xml patch); their wingmen get aiscripts/order.apirateslife.capture.xml, which
+     breaks the hull to a hold line and then only keeps the shields down. A mission shows what the
+     next bail check needs, and every outcome ends the operation with its own message.
+     See docs/specs/capture-operation.md.
+
+     While an operation runs, it is listed by target in
+       global.$APiratesLife_CaptureOps.{$target} = table[$leader, $members, $op, $lastchance]
+     which the wingman order and the bail hook (md/apirateslife_bail.xml) read. A global table,
+     because X4 can't store script variables on a ship (only on NPCs), and AI scripts can read
+     globals. -->
+<mdscript name="APiratesLife_Capture" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <!-- Whether an operation can start on this ship: a piloted, capturable, non-capital ship that
+         isn't the player's, ownerless, or already in an operation, while the player flies a ship -->
+    <library name="CanStart" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+      </params>
+      <actions>
+        <do_if value="not @$Target.isoperational or not $Target.isclass.ship">
+          <return value="false"/>
+        </do_if>
+        <do_if value="@global.$APiratesLife_CaptureOps.{$Target}">
+          <return value="false"/>
+        </do_if>
+        <return value="$Target.pilot.exists and $Target.iscapturable and not $Target.iscapitalship and not $Target.isplayerowned and $Target.trueowner != faction.ownerless and @player.occupiedship.isoperational and not player.occupiedship.isclass.spacesuit"/>
+      </actions>
+    </library>
+
+    <!-- Starts an operation on Target, led by the ship the player is flying. Returns whether it
+         started. Every entry point (comm choice, interact menu, hotkeys) goes through here. -->
+    <library name="Start" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+      </params>
+      <actions>
+        <run_actions ref="CanStart" result="$Ok">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <do_if value="$Ok">
+          <signal_cue_instantly cue="Operation" param="$Target"/>
+        </do_if>
+        <do_else>
+          <debug_text text="'[apirateslife] capture: cannot start an operation on %s'.[@$Target.knownname]"/>
+        </do_else>
+        <return value="$Ok"/>
+      </actions>
+    </library>
+
+    <!-- One instance per operation, signalled by Start with the target -->
+    <cue name="Operation" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="$Target" exact="event.param"/>
+        <set_value name="$Name" exact="$Target.knownname"/>
+        <set_value name="$Leader" exact="player.occupiedship"/>
+        <set_value name="$Hold" exact="if global.$APiratesLife_CaptureHoldHull? then global.$APiratesLife_CaptureHoldHull else 75"/>
+        <set_value name="$Floor" exact="if global.$APiratesLife_CaptureFloorHull? then global.$APiratesLife_CaptureFloorHull else 35"/>
+
+        <!-- The leader's wingmen in the target's sector join. Their other orders are cancelled, as
+             vanilla's squad commands do, so a queued Attack can't kill the prize afterwards; once
+             the capture order ends, their default behavior (formation) resumes. -->
+        <set_value name="$Members" exact="[]"/>
+        <do_for_each name="$Ship" in="$Leader.subordinates">
+          <do_if value="$Ship.isclass.ship and $Ship.isoperational and @$Ship.pilot.exists and $Ship.sector == $Target.sector and not $Ship.dock">
+            <cancel_all_orders object="$Ship"/>
+            <create_order object="$Ship" id="'APiratesLife_Capture'" immediate="true">
+              <param name="target" value="$Target"/>
+              <param name="holdhull" value="$Hold"/>
+              <param name="floorhull" value="$Floor"/>
+              <!-- Dev only: set global.$APiratesLife_CaptureDebug to 100 to log the order's decisions -->
+              <param name="debugchance" value="if global.$APiratesLife_CaptureDebug? then global.$APiratesLife_CaptureDebug else 0"/>
+            </create_order>
+            <append_to_list name="$Members" exact="$Ship"/>
+          </do_if>
+        </do_for_each>
+        <do_if value="not global.$APiratesLife_CaptureOps?">
+          <set_value name="global.$APiratesLife_CaptureOps" exact="table[]"/>
+        </do_if>
+        <!-- Tables are shared by reference, so the bail hook can record $lastchance in it -->
+        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null]"/>
+        <set_value name="global.$APiratesLife_CaptureOps.{$Target}" exact="$Op"/>
+
+        <!-- Starting a capture is the act of piracy: this one ship turns hostile to the player, as
+             it would after the player's first shot. Without it, player-owned ships may not fire on
+             a ship they aren't hostile to (vanilla's Attack order stands down on a "friendly
+             target" too). The same boost as vanilla's "Mark as hostile" interaction
+             (ui/addons/ego_detailmonitor/menu_userquestion.lua: -1, decay 1, 600 s); faction
+             reputation is left to vanilla's cost for the damage done.
+             With wingmen, each capture order applies it once it runs: applied here, the wingmen's
+             escort behavior would see a new enemy first and queue vanilla's Attack (missiles and
+             all) ahead of ours, as the game tests showed. -->
+        <do_if value="not $Members.count">
+          <set_relation_boost object="$Target" faction="faction.player" value="-1" decay="1" delay="600s"/>
+        </do_if>
+
+        <create_mission cue="this" name="{1774100, 10}.[$Name]" description="{1774100, 11}" faction="faction.player" type="missiontype.fight" abortable="true">
+          <briefing>
+            <objective step="1" action="objective.custom" customaction="{1774100, 20}" object="$Target"/>
+            <objective step="2" action="objective.custom" customaction="{1774100, 21}" object="$Target"/>
+            <objective step="3" action="objective.custom" customaction="{1774100, 22}" object="$Target"/>
+          </briefing>
+        </create_mission>
+        <set_value name="$Objective" exact="''"/>
+        <show_notification text="{1774100, 30}.[$Name]"/>
+        <debug_text text="'[apirateslife] capture: started on %s, led by %s with %s wingmen (hold %s%%, floor %s%%)'.[$Name, $Leader.knownname, $Members.count, $Hold, $Floor]"/>
+      </actions>
+      <cues>
+        <cue name="Tick" checkinterval="1s" instantiate="true">
+          <actions>
+            <set_value name="$Outcome" exact="null"/>
+            <do_if value="not $Target.exists or not $Target.isoperational">
+              <set_value name="$Outcome" exact="'destroyed'"/>
+            </do_if>
+            <do_elseif value="$Target.isplayerowned">
+              <set_value name="$Outcome" exact="'captured'"/>
+            </do_elseif>
+            <do_elseif value="$Target.trueowner == faction.ownerless">
+              <set_value name="$Outcome" exact="'abandoned'"/>
+            </do_elseif>
+            <do_elseif value="not $Leader.isoperational">
+              <set_value name="$Outcome" exact="'calledoff'"/>
+            </do_elseif>
+            <do_else>
+              <!-- Escaped: nobody in the operation within 15 km for 30 s, so a jump through a gate
+                   ahead of the wing doesn't end it at once -->
+              <set_value name="$Near" exact="$Leader.sector == $Target.sector and $Leader.distanceto.{$Target} lt 15km"/>
+              <do_for_each name="$Ship" in="$Members">
+                <do_if value="@$Ship.isoperational and $Ship.sector == $Target.sector and $Ship.distanceto.{$Target} lt 15km">
+                  <set_value name="$Near" exact="true"/>
+                </do_if>
+              </do_for_each>
+              <do_if value="$Near">
+                <remove_value name="$FarSince"/>
+              </do_if>
+              <do_elseif value="not $FarSince?">
+                <set_value name="$FarSince" exact="player.age"/>
+              </do_elseif>
+              <do_elseif value="player.age - $FarSince ge 30s">
+                <set_value name="$Outcome" exact="'escaped'"/>
+              </do_elseif>
+            </do_else>
+
+            <do_if value="$Outcome">
+              <signal_cue_instantly cue="End" param="$Outcome"/>
+            </do_if>
+            <do_else>
+              <!-- The readout: what the next bail check still needs. Only updated on change. -->
+              <do_if value="$Target.maxshield and $Target.shieldpercentage ge 20">
+                <set_value name="$Step" exact="1"/>
+                <set_value name="$Text" exact="{1774100, 20}"/>
+                <set_value name="$Progress" exact="[[(100 - $Target.shieldpercentage)i, 0].max, 80].min"/>
+                <set_value name="$Max" exact="80"/>
+              </do_if>
+              <do_elseif value="$Target.hullpercentage ge 75">
+                <set_value name="$Step" exact="2"/>
+                <set_value name="$Text" exact="{1774100, 21}"/>
+                <set_value name="$Progress" exact="[[(100 - $Target.hullpercentage)i, 0].max, 25].min"/>
+                <set_value name="$Max" exact="25"/>
+              </do_elseif>
+              <do_else>
+                <!-- Vanilla allows one evaluated check per pilot every 30 s -->
+                <set_value name="$Step" exact="3"/>
+                <set_value name="$Text" exact="if $Op.$lastchance then {1774100, 23}.[$Op.$lastchance] else {1774100, 22}"/>
+                <set_value name="$Wait" exact="0"/>
+                <do_if value="@$Target.pilot.$nextcapturechance">
+                  <set_value name="$Wait" exact="[[($Target.pilot.$nextcapturechance - player.age)i, 0].max, 30].min"/>
+                </do_if>
+                <set_value name="$Progress" exact="30 - $Wait"/>
+                <set_value name="$Max" exact="30"/>
+              </do_else>
+              <set_value name="$Key" exact="'%s|%s|%s'.[$Step, $Text, $Progress]"/>
+              <do_if value="$Key != $Objective">
+                <set_value name="$Objective" exact="$Key"/>
+                <set_objective cue="Operation" step="$Step" action="objective.custom" customaction="$Text" object="$Target">
+                  <progress text="$Text" progress="$Progress" max="$Max"/>
+                </set_objective>
+              </do_if>
+            </do_else>
+          </actions>
+        </cue>
+
+        <cue name="Aborted">
+          <conditions>
+            <event_mission_aborted cue="Operation"/>
+          </conditions>
+          <actions>
+            <signal_cue_instantly cue="End" param="'calledoff'"/>
+          </actions>
+        </cue>
+
+        <!-- Signalled once with the outcome: abandoned, captured, destroyed, escaped or calledoff -->
+        <cue name="End">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <set_value name="$Outcome" exact="event.param"/>
+            <!-- Wingmen's orders end once the operation is no longer listed; the signal stops one
+                 that is in the middle of an attack at once -->
+            <remove_value name="global.$APiratesLife_CaptureOps.{$Target}"/>
+            <!-- Called off or escaped: take back the hostility we added, so the player's escorts
+                 don't hunt the ship down afterwards. Damage already done still costs reputation. -->
+            <do_if value="($Outcome == 'calledoff' or $Outcome == 'escaped') and @$Target.isoperational">
+              <reset_relation_boost object="$Target" faction="faction.player"/>
+            </do_if>
+            <do_for_each name="$Ship" in="$Members">
+              <do_if value="$Ship.exists">
+                <signal_objects object="$Ship" param="'apirateslife_capture_end'" param2="$Target"/>
+              </do_if>
+            </do_for_each>
+            <do_if value="$Outcome == 'abandoned'">
+              <remove_mission cue="Operation" type="completed"/>
+              <show_notification text="{1774100, 31}.[$Name]"/>
+            </do_if>
+            <do_elseif value="$Outcome == 'captured'">
+              <remove_mission cue="Operation" type="completed"/>
+              <show_notification text="{1774100, 32}.[$Name]"/>
+            </do_elseif>
+            <do_elseif value="$Outcome == 'destroyed'">
+              <remove_mission cue="Operation" type="failed"/>
+              <show_notification text="{1774100, 33}.[$Name]"/>
+            </do_elseif>
+            <do_elseif value="$Outcome == 'escaped'">
+              <remove_mission cue="Operation" type="failed"/>
+              <show_notification text="{1774100, 34}.[$Name]"/>
+            </do_elseif>
+            <do_else>
+              <remove_mission cue="Operation" type="aborted"/>
+              <show_notification text="{1774100, 35}.[$Name]"/>
+            </do_else>
+            <debug_text text="'[apirateslife] capture: ended on %s: %s'.[$Name, $Outcome]"/>
+            <signal_cue_instantly cue="md.APiratesLife_Capture.Ended" param="table[$target = $Target, $outcome = $Outcome]"/>
+            <cancel_cue cue="Operation"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Signalled whenever an operation ends, with table[$target, $outcome]. For tests and future
+         features (notoriety, raid reports). -->
+    <cue name="Ended" instantiate="true">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+    </cue>
+
+    <!-- The comm choice from our md/conversations.xml patch -->
+    <cue name="CommChoice" instantiate="true">
+      <conditions>
+        <event_conversation_next_section section="g_apirateslife_capture"/>
+      </conditions>
+      <actions>
+        <run_actions ref="Start" result="$Started">
+          <param name="Target" value="event.object.controlled"/>
+        </run_actions>
+        <do_if value="$Started">
+          <add_npc_line line="5036" comment="(refusal to surrender - finds it funny)"/>
+        </do_if>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

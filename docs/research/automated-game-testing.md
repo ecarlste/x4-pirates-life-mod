@@ -79,6 +79,10 @@ So 6x is the most MD can speed things up. Tests should avoid waiting for travel 
 | `claim_intact` | A marine claims an ownerless fighter: it becomes the player's with hull and equipment unchanged. The "visible" attention level only |
 | `pilot_bail_vanilla_when_off` | With intact on eject off, a forced pilot bail does vanilla's damage exactly: hull to about (100 − pilot skill)%, and min(non-mandatory parts, skill ÷ 10) parts sabotaged |
 | `claim_vanilla_when_off` | With intact on claim off, the claimed fighter's hull drops to vanilla's max(marine skill, 70)%. Equipment isn't checked: vanilla destroys each part only by chance |
+| `capture_wing_full_chance` | Bail hook in a capture operation: members ×4×2, non-members ×2, setting off ×2; last chance recorded ([capture operation](../specs/capture-operation.md)) |
+| `capture_start_and_destroyed` | `Start` accepts a capturable fighter, refuses a player-owned ship and a second operation; destroying the target ends it as destroyed |
+| `capture_abandoned` | A forced pilot bail ends the operation as abandoned and clears its state |
+| `capture_wing_holds_fire` | Real combat: a pulse-laser wingman (fixed loadout) breaks a fighter to under 75% and keeps it there 30 s, never more than 20 points under the gate or below the 35% floor (target made uncapturable after the start so no bail ends it) |
 
 **Log protocol** (every line starts with `[apirateslife-test]`): `RUN START <n> tests`, `PASS <name>: <detail>` / `FAIL <name>: <detail>`, `DONE passed=<n> failed=<n>`. A run fails if any test fails, fewer than `<n>` results arrive, `DONE` never comes (game exited or timed out), or the log has errors mentioning the mod (signature warnings excluded).
 
@@ -129,6 +133,15 @@ Four runs on 2026-10-20, X4 9.00, with only A Pirate's Life enabled in the profi
 - **God off makes vanilla noisy:** about 380 `Error in MD cue` lines per run from DLC and story setup cues that look for stations god never built (`Setup_DLC_Pirate`, `Story_Criminal`, `Setup_DLC_Terran` …). They don't affect our tests, and the runner ignores them because they don't mention the mod.
 - **The claim scenario works:** `<person role="marine">` gives the frigate marines, and with a `Wait` order and `foundabandonedship` = `claim` it sends one within seconds.
 - **The log is complete** at `quit_to_desktop`, and X4 quits by itself.
+- **Learned from the capture-operation tests** (2026-10-20):
+  - **Script variables can't be stored on a ship.** `set_value name="$ship.$x"` logs `Failed to set component…`; only NPCs (entities) have that storage. Use a global table keyed by the object instead.
+  - **`shoot_at` is only allowed in an AI script's `visible` attention block.** The script fails to load otherwise.
+  - **Order params without a `text` must be `type="internal"`**, or the script logs an error at load.
+  - **Combat tests need a fixed loadout.** With `loadout level` the wingman rolled different weapons each run: slow mass drivers barely landed a shot, and torpedoes one-shot the target. The test extension defines its own loadout (`libraries/loadouts.xml` diff) and spawns it with `<loadout ref="…"/>`; MD's `create_ship` can't list macros itself.
+  - **Player-owned ships won't fire on a neutral** until it's hostile to the player (vanilla's "Mark as hostile" relation boost).
+  - **`event_object_attacked` only fires now and then**; `event_object_hull_damaged` / `event_object_shield_damaged` fire on each damage.
+  - **SETA drops** whenever something interrupts it (help messages, comm calls); the harness switches it back on (`KeepSeta`).
+  - **Weapon groups are numbered from 0:** a spawned ship's guns are in active primary group 0, and `reset_weapongroups` plus activating group 1 left it with nothing to fire.
 - **Timing:** about 2½ minutes from `make game-test` to the report, most of it X4 starting and loading the universe; the tests themselves take about 25 s of game time.
 
 ## Fit with `make test` and CI

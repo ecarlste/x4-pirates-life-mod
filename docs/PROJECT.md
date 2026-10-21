@@ -101,5 +101,5 @@ When one of these happens, update the matching docs in the same PR.
 
 ## Current status
 
-- Existing: the deploy and test tooling, an in-game smoke test script, and the bail hook (`md/`): every bail check runs through our code (currently 2x chance) and every bail raises our `Bailed` signal; captured ships arrive intact (no pilot-bail hull drop or sabotage, no marine-claim damage), each switchable to vanilla in the config file (`md/apirateslife_config.xml`), tested in game. Automated in-game tests (`make game-test`) covering the bail hook and intact captures.
+- Existing: the deploy and test tooling, an in-game smoke test script, and the bail hook (`md/`): every bail check runs through our code (currently 2x chance) and every bail raises our `Bailed` signal; captured ships arrive intact (no pilot-bail hull drop or sabotage, no marine-claim damage), each switchable to vanilla in the config file (`md/apirateslife_config.xml`), tested in game. Capture operations started from a comm choice: wingmen break a target to a hold line and then only keep its shields down, with a mission readout ([spec](specs/capture-operation.md)). Automated in-game tests (`make game-test`) covering the bail hook, intact captures and capture operations.
 - Next: see the first unticked items in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) (Phase 0 setup, then spike 1).

@@ -12,9 +12,32 @@
         <param name="Target"/>
       </params>
       <actions>
+        <set_value name="$Chance" exact="$EjectChance"/>
+        <set_value name="$Note" exact="''"/>
+
+        <!-- Capture operations (md/apirateslife_capture.xml): a wingman's hit counts like the
+             player's while the player leads the operation in the target's sector, undoing vanilla's
+             quarter chance for attackers the player isn't flying -->
+        <set_value name="$Op" exact="null"/>
+        <do_if value="$Target">
+          <set_value name="$Op" exact="@global.$APiratesLife_CaptureOps.{$Target}"/>
+        </do_if>
+        <do_if value="$Op and $Attacker and $Attacker != player.occupiedship">
+          <do_if value="$Op.$members.indexof.{$Attacker} and $Op.$leader == player.occupiedship and player.occupiedship.sector == $Target.sector">
+            <do_if value="not (global.$APiratesLife_CaptureWingFullChance? and global.$APiratesLife_CaptureWingFullChance == 0)">
+              <set_value name="$Chance" exact="$Chance * 4"/>
+              <set_value name="$Note" exact="' (capture wing x4)'"/>
+            </do_if>
+          </do_if>
+        </do_if>
+
         <!-- Bail rate doubled for now; notoriety and difficulty modifiers will plug in here -->
-        <set_value name="$Chance" exact="[($EjectChance * 2)i, 100].min"/>
-        <debug_text text="'[apirateslife] bail check: %s attacking %s: chance %s -> %s'.[@$Attacker.knownname, @$Target.knownname, $EjectChance, $Chance]"/>
+        <set_value name="$Chance" exact="[($Chance * 2)i, 100].min"/>
+        <do_if value="$Op">
+          <!-- For the operation's readout -->
+          <set_value name="$Op.$lastchance" exact="$Chance"/>
+        </do_if>
+        <debug_text text="'[apirateslife] bail check: %s attacking %s: chance %s -> %s%s'.[@$Attacker.knownname, @$Target.knownname, $EjectChance, $Chance, $Note]"/>
         <return value="$Chance"/>
       </actions>
     </library>
