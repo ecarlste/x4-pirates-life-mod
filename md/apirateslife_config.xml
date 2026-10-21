@@ -23,9 +23,10 @@
              hull or destroy equipment. 0 = vanilla behavior. -->
         <set_value name="global.$APiratesLife_IntactOnClaim" exact="1"/>
 
-        <!-- Capture operations: wingmen attack the target at full strength until its hull is at this
-             percentage, then only knock its shields down. Keep it below 75, vanilla's bail gate. -->
-        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="65"/>
+        <!-- Capture operations: wingmen attack the target at full strength until its hull is below
+             this percentage, then only knock its shields down and stop once they're gone. 75 is
+             vanilla's bail gate (a bail check needs hull below 75%); higher values make no sense. -->
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
 
         <!-- Capture operations: nobody in the operation fires once the target's hull is at or below
              this percentage. -->

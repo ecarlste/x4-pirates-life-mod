@@ -58,7 +58,7 @@
         <set_value name="$Target" exact="event.param"/>
         <set_value name="$Name" exact="$Target.knownname"/>
         <set_value name="$Leader" exact="player.occupiedship"/>
-        <set_value name="$Hold" exact="if global.$APiratesLife_CaptureHoldHull? then global.$APiratesLife_CaptureHoldHull else 65"/>
+        <set_value name="$Hold" exact="if global.$APiratesLife_CaptureHoldHull? then global.$APiratesLife_CaptureHoldHull else 75"/>
         <set_value name="$Floor" exact="if global.$APiratesLife_CaptureFloorHull? then global.$APiratesLife_CaptureFloorHull else 35"/>
 
         <!-- The leader's wingmen in the target's sector join. Their other orders are cancelled, as
@@ -72,6 +72,8 @@
               <param name="target" value="$Target"/>
               <param name="holdhull" value="$Hold"/>
               <param name="floorhull" value="$Floor"/>
+              <!-- Dev only: set global.$APiratesLife_CaptureDebug to 100 to log the order's decisions -->
+              <param name="debugchance" value="if global.$APiratesLife_CaptureDebug? then global.$APiratesLife_CaptureDebug else 0"/>
             </create_order>
             <append_to_list name="$Members" exact="$Ship"/>
           </do_if>
@@ -82,6 +84,19 @@
         <!-- Tables are shared by reference, so the bail hook can record $lastchance in it -->
         <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null]"/>
         <set_value name="global.$APiratesLife_CaptureOps.{$Target}" exact="$Op"/>
+
+        <!-- Starting a capture is the act of piracy: this one ship turns hostile to the player, as
+             it would after the player's first shot. Without it, player-owned ships may not fire on
+             a ship they aren't hostile to (vanilla's Attack order stands down on a "friendly
+             target" too). The same boost as vanilla's "Mark as hostile" interaction
+             (ui/addons/ego_detailmonitor/menu_userquestion.lua: -1, decay 1, 600 s); faction
+             reputation is left to vanilla's cost for the damage done.
+             With wingmen, each capture order applies it once it runs: applied here, the wingmen's
+             escort behavior would see a new enemy first and queue vanilla's Attack (missiles and
+             all) ahead of ours, as the game tests showed. -->
+        <do_if value="not $Members.count">
+          <set_relation_boost object="$Target" faction="faction.player" value="-1" decay="1" delay="600s"/>
+        </do_if>
 
         <create_mission cue="this" name="{1774100, 10}.[$Name]" description="{1774100, 11}" faction="faction.player" type="missiontype.fight" abortable="true">
           <briefing>
@@ -188,6 +203,11 @@
             <!-- Wingmen's orders end once the operation is no longer listed; the signal stops one
                  that is in the middle of an attack at once -->
             <remove_value name="global.$APiratesLife_CaptureOps.{$Target}"/>
+            <!-- Called off or escaped: take back the hostility we added, so the player's escorts
+                 don't hunt the ship down afterwards. Damage already done still costs reputation. -->
+            <do_if value="($Outcome == 'calledoff' or $Outcome == 'escaped') and @$Target.isoperational">
+              <reset_relation_boost object="$Target" faction="faction.player"/>
+            </do_if>
             <do_for_each name="$Ship" in="$Members">
               <do_if value="$Ship.exists">
                 <signal_objects object="$Ship" param="'apirateslife_capture_end'" param2="$Target"/>

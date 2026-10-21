@@ -44,6 +44,19 @@
           </actions>
         </cue>
 
+        <!-- SETA drops whenever something interrupts it (a help message, a wingman's comm call, an
+             enemy nearby); switch it back on once the game allows it again -->
+        <cue name="KeepSeta" instantiate="true" checkinterval="2s">
+          <conditions>
+            <check_value value="Begin.state == cuestate.complete"/>
+            <check_value value="not player.timewarp.active and player.timewarp.available"/>
+          </conditions>
+          <actions>
+            <toggle_timewarp/>
+            <set_timewarp_factor factor="6s"/>
+          </actions>
+        </cue>
+
         <cue name="NextTest" instantiate="true">
           <conditions>
             <event_cue_signalled/>
@@ -669,8 +682,9 @@
       </cues>
     </cue>
 
-    <!-- A wingman in an operation really fights: it breaks the target's hull to the hold line, then
-         keeps it there without ever taking it below the floor. The target is made uncapturable
+    <!-- A wingman in an operation really fights: it breaks the target's hull to under 75% (vanilla's
+         bail gate), then only takes the shields down, so the hull stays close to 75% and never
+         reaches the floor. The target is made uncapturable
          after the start, so no bail ends the fight early. Real combat at the "visible" attention
          level, so it takes a while. -->
     <cue name="CaptureWingHoldsFire">
@@ -678,13 +692,16 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="65"/>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
+        <!-- A fixed loadout from this extension's libraries/loadouts.xml: two pulse lasers and no
+             missile launcher. A random loadout made the test a lottery: slow mass drivers barely
+             landed a shot and torpedoes one-shot the target. (Plasma was tried too: vanilla's
+             fighter AI didn't land a plasma bolt on the parked fighter in 180 s.) -->
         <create_ship name="$Wingman" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector">
           <owner exact="faction.player" overridenpc="true"/>
-          <loadout>
-            <level exact="1.0"/>
-          </loadout>
+          <loadout ref="apirateslife_test_nova_lasers"/>
           <pilot>
             <select faction="faction.argon" tags="tag.aipilot"/>
           </pilot>
@@ -726,14 +743,15 @@
                 </do_if>
                 <do_else>
                   <set_value name="$MinHull" exact="[$MinHull, $Target.hullpercentage].min"/>
+                  <debug_text text="'[apirateslife-test] trace: hull %s%%, shields %s%%, wingman %sm away, order %s, may attack %s, enemy %s, guns %s, ready %s, dps %s'.[$Target.hullpercentage, $Target.shieldpercentage, $Wingman.distanceto.{$Target}, @$Wingman.order.id, $Wingman.mayattack.{$Target}, $Wingman.hasrelation.enemy.{$Target}, $Wingman.weapons.operational.count, @$Wingman.weapons.operational.list.{1}.isreadytofire, $Wingman.dps.lasers.all]"/>
                   <do_if value="$Target.hullpercentage lt 35">
                     <set_value name="$Result" exact="' hull %s%%, below the 35%% floor;'.[$Target.hullpercentage]"/>
                   </do_if>
                   <do_else>
                     <set_value name="$Finished" exact="false"/>
-                    <do_if value="$Target.hullpercentage le 65">
+                    <do_if value="$Target.hullpercentage lt 75">
                       <set_value name="$HeldFor" operation="add"/>
-                      <!-- At or under the hold line long enough to see that the wing stops there -->
+                      <!-- Inside the bail gate long enough to see that the wing stops there -->
                       <set_value name="$Finished" exact="$HeldFor ge 30"/>
                     </do_if>
                   </do_else>
@@ -747,7 +765,7 @@
             <cue name="CaptureWingHoldsFire_Timeout">
               <delay exact="180s"/>
               <actions>
-                <signal_cue_instantly cue="CaptureWingHoldsFire_Done" param="' hull only got to %s%% in 180s, %s s at or under the hold line;'.[$MinHull, $HeldFor]"/>
+                <signal_cue_instantly cue="CaptureWingHoldsFire_Done" param="' hull only got to %s%% in 180s, %s s under 75%%;'.[$MinHull, $HeldFor]"/>
               </actions>
             </cue>
             <cue name="CaptureWingHoldsFire_Done">
@@ -756,11 +774,17 @@
               </conditions>
               <actions>
                 <cancel_cue cue="CaptureWingHoldsFire_Watch"/>
+                <remove_value name="global.$APiratesLife_CaptureDebug"/>
                 <set_value name="$Problems" exact="event.param"/>
                 <do_if value="not $Started">
                   <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
                 </do_if>
-                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'held %s s at or under 65%%, lowest hull %s%%'.[$HeldFor, $MinHull] else $Problems)]"/>
+                <!-- Wingmen stop once the hull is under 75% and the shields are gone, so only shots
+                     already on their way should take it further. 20 points is a generous margin. -->
+                <do_if value="$Problems == '' and $MinHull lt 55">
+                  <set_value name="$Problems" exact="' lowest hull %s%%, more than 20 points under the 75%% gate;'.[$MinHull]"/>
+                </do_if>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'held %s s under 75%%, lowest hull %s%%'.[$HeldFor, $MinHull] else $Problems)]"/>
                 <destroy_object object="$Wingman"/>
                 <do_if value="$Target.exists">
                   <destroy_object object="$Target"/>
