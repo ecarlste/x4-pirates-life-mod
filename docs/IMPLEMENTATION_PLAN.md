@@ -58,7 +58,7 @@ Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.
 Each slice is demo-able and gets a video. Each one goes through: design agreed, spec written, built, tested in game, showcase save recorded, video. The order is provisional until spike 1 is done.
 
 - [ ] 1. Wingman forces an S ship to bail; a prize crew flies it home
-  - [ ] Capture operation: wingmen that capture, not kill, started from a comm choice: [spec](specs/capture-operation.md)
+  - [ ] Capture operation: wingmen that capture, not kill, started from a comm choice: [spec](specs/capture-operation.md) ([PR #31](https://github.com/ecarlste/x4-pirates-life-mod/pull/31))
   - [ ] Start a capture operation from the right-click/F interact menu (kuertee's UI Extensions, optional)
   - [ ] Capture hotkeys: "wing: make target bail" and "call off capture" (Chem O'Dun's Native Hotkey API on UI Extensions, optional)
   - [ ] Prize crew flies a captured ship home
