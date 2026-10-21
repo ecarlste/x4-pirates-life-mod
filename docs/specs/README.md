@@ -9,4 +9,4 @@ If the build changes the plan, update the spec in the same PR.
 | [bail-hook.md](bail-hook.md) | Done |
 | [claim-no-damage.md](claim-no-damage.md) | Done |
 | [capture-settings.md](capture-settings.md) | Done |
-| [capture-operation.md](capture-operation.md) | Agreed |
+| [capture-operation.md](capture-operation.md) | Done |

@@ -161,12 +161,33 @@ Found while researching Better Piracy. The descriptions come from search results
 | --- | --- | --- |
 | True Capture ([Nexus 97](https://www.nexusmods.com/x4foundations/mods/97)), vx | Inspiration for Better Piracy | Reported broken since 7.0 |
 | Fix Bail Logic ([Nexus 87](https://www.nexusmods.com/x4foundations/mods/87)), Kevrlet | Bail based on relative hull health, attacker vs. target class difference and target morale; 5% base; L/XL can bail at 50% of the normal rate. Install folder `fixbailchance` | Last updated May 2021 |
-| Enhanced Bailing ([Nexus 741](https://www.nexusmods.com/x4foundations/mods/741)) | Credits Fix Bail Logic. A 9.x variant (`enhanced_bailing_9x`) reportedly covers NPC-vs-NPC abandonment and surrender demands for any ship size | **Most relevant to check next** |
+| Enhanced Bailing ([Nexus 741](https://www.nexusmods.com/x4foundations/mods/741)) | Credits Fix Bail Logic. A 9.x variant (`enhanced_bailing_9x`) reportedly covers NPC-vs-NPC abandonment and surrender demands for any ship size. SWI bundles a version: [below](#enhanced-bailing-as-bundled-in-swi) | Studied through SWI 0.90's copy; the standalone 9.x variant unchecked |
 | Better Capture ([Nexus 1406](https://www.nexusmods.com/x4foundations/mods/1406)), Gryzli100 | No hull or component damage from bailing crew or marine claims | Made after True Capture broke |
 | No Bailing Penalty ([Nexus 1725](https://www.nexusmods.com/x4foundations/mods/1725)) | Not checked | |
 | Bail and Board ([Nexus 1828](https://www.nexusmods.com/x4foundations/mods/1828)) | Not checked | |
 
+## Bail checks compared
+
+From reading the files (2026-10-20), for the [bail pressure](../IMPLEMENTATION_PLAN.md#phase-2-core-loop-vertical-slices) design.
+
+**Reborn's Harass escalates and keeps its own clock.**
+- Every `keep_pressure_timer` (10 s, minimum 5) it adds +1 `$Pressure`, then rolls its own bail 5 s later: 60 × (15 − (morale − pressure)) ÷ 15, × the shield/hull ratio.
+- For a morale-10 pilot that's 24%, 28%, … 60% by the tenth roll (about 100 s).
+- It never reads or sets vanilla's `$nextcapturechance`, so it ignores the 30 s cooldown and any ÷4 (you're always the attacker).
+- Vanilla's own per-hit check still runs alongside, with its 30 s cooldown and ÷4, on Reborn's replaced base formula.
+
+### Enhanced Bailing as bundled in SWI
+
+SWI 0.90's `md/notifications.xml` replaces vanilla's whole `do_if $target.iscapturable` block in `PlayerOwnedShipAttacks` with Enhanced Bailing:
+- **Chance:** 11, + 0–10 for missing crew, + the attacker/target health ratio (capped at 10), + 0/3.33/6.67/10 for the size-class gap, − pilot morale × 1.75. The minimum is 1, and it's halved for combat S/M ships.
+  - In practice that's about 1–2% for an average fighter and 5–15% for a low-morale trader.
+- **Cooldown:** 5 s instead of 30 s.
+- **No ÷4** for non-player attackers. Any attacker can make the pilot fully bail (vanilla needs a player-owned or claiming attacker). Bailed ships self-destruct after 30–70 min.
+- **No pilot-bail hull damage:** the `$damageminpercent` line is commented out, and there's no `$scuttle`.
+- **What it keeps:** the cue, the `'shouldwebail'` trigger, `$target.pilot.$nextcapturechance` and the `chance="if not $testcheat? then $ejectchance else 100"` roll. So a pressure tick that drives vanilla's check, and our hook before that roll, would work under SWI. That holds if SWI loads first: declare it an optional dependency.
+- **Our intact-on-eject patch** would find nothing to change under SWI. That's harmless, since SWI already skips the damage, but it should handle the missing lines without errors.
+
 ## Open questions
 
 - Confirm the *(suspected)* bugs in game: duplicate Corsair operations (4) and the pilot skill read after ejection (7).
-- What the related mods do in detail, starting with Enhanced Bailing's 9.x variant.
+- What the related mods do in detail: Enhanced Bailing's standalone 9.x variant (vs. SWI's copy), Fix Bail Logic, Bail and Board.
