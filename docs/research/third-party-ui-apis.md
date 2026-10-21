@@ -1,6 +1,6 @@
 # Third-party UI APIs on X4 9.0
 
-**Status: done for the settings decision (2026-10-19).** How mods add in-game UI on 9.0, which shared APIs are healthy, and how SWI does it. Led to the "Key decisions" UI rule in [PROJECT.md](../PROJECT.md#key-decisions).
+**Status: done (2026-10-19; 9.00 options hook added 2026-10-21).** How mods add in-game UI on 9.0, which shared APIs are healthy, and how SWI does it. Led to the "Key decisions" UI rule in [PROJECT.md](../PROJECT.md#key-decisions).
 
 ## Summary
 
@@ -60,4 +60,25 @@ SWI uses the same calls (e.g. `AddUITriggeredEvent("kuertee_ssac", "lua_loaded")
 - A Lua file loaded through our own `ui.xml` adds an "A Pirate's Life" section via `displayOptions_modifyOptions`.
 - Current values reach Lua through the player blackboard; changes go back with `AddUITriggeredEvent("apirateslife", …)`, and MD updates the same globals the config file sets.
 - **Unlike SWI:** don't bundle replaced vanilla menus. It's heavy, has to be redone every game patch, and can conflict with a separately installed UI Extensions; that's a total conversion's trade-off, not ours. Declare UI Extensions as an optional dependency and check that `registerCallback` exists before using it, so the mod still works (config file only) without it. That check also passes for SWI players, whose bundled menus provide `registerCallback`.
-- To verify when building: whether extension Lua loads with Protected UI Mode on, and the exact shape of the options table `displayOptions_modifyOptions` receives.
+- To verify when building: whether extension Lua loads with Protected UI Mode on, and the exact shape of the options table `displayOptions_modifyOptions` receives (answered below).
+
+## The options hook on 9.00 (2026-10-21)
+
+Read from UI Extensions v9.0.0.18 (`content.xml` version 900, dated 2026-10-16; GitHub head `efc9151`, 2026-10-19) and vanilla 9.00 `ui/addons/ego_gameoptions/gameoptions.lua`.
+
+- **Not installed on Erik's machine:** `extensions/kuertee_ui_extensions` is an empty folder left by Vortex (marker files only, no `content.xml`), so the game doesn't load it. Testing the page in game needs UI Extensions installed (Nexus 552 or the GitHub release).
+- **9.00 support:** the changelog lists 9.0 compatibility from v9.0.0.1 (11 Jun 2026), with the 9.0 RC UI files merged, and regular fixes since.
+- **The hook:** `menu.displayOptions(optionParameter)` (`gameoptions.xpl:9600`) runs every `displayOptions_modifyOptions` callback as `options = callback(options, config)` before drawing, for every page that goes through `displayOptions`, with `menu.currentOption` set to the page key ("main", "settings", "game", …).
+  - `options` is the live `config.optionDefinitions[page]` table, not a copy: a callback that inserts into it adds the entry again on every redraw. Return a new table, as SWI does. SWI copies with `pairs`, which doesn't guarantee the order of the numbered entries; copy them with `ipairs` and the named fields (`name`, `info`, `warning`) separately.
+  - `config` is the menu's whole config table, so a callback can also add a page of its own: `config.optionDefinitions["apirateslife"] = { … }`. `menu.submenuHandler` shows any page key that has an entry there (`elseif config.optionDefinitions[optionParameter] then menu.displayOptions(...)`), and the back arrow returns to the page that linked it.
+  - `registerCallback` warns in the log for names not in `menu.uix_supportedCallbacks`; `displayOptions_modifyOptions` is in the list.
+  - Also supported: `submenuHandler_customPage` (draw a whole page yourself) and `submenuHandler_preDisplayOptions`. Not needed for a list of options.
+- **Option entries** (vanilla `menu.displayOption`, `gameoptions.lua:4856`): `id`, `name`, optional `mouseOverText`, `display()` (hide), `selectable()` (grey out). With a `value`, the row has a control chosen by `valuetype`:
+  - `"button"`: `value()` returns the button text, `callback()` on click. Vanilla's on/off options use this with ReadText(1001, 2617)/(1001, 2618) ("On"/"Off").
+  - `"slidercell"`: `value()` returns `{ min, max, start, step, suffix, … }`, `callback(value)` on every change.
+  - `"dropdown"`: `value()` returns the entries and the current one, `callback(id, option)`.
+  - Without `value`, a `submenu = "<page>"` entry links to another page.
+  - Values are functions read on every frame, so a callback only needs to update what `value()` reads; no redraw.
+- **Getting the menu:** `Helper.getMenu("OptionsMenu")`; SWI's `sw_gameoptions.lua` then calls `registerCallback` unconditionally. Our `ui.xml` lists `<dependency name="ego_gameoptions"/>` so our file loads after the options menu; without UI Extensions the menu has no `registerCallback`, which is the check for "UI Extensions present".
+- **Protected UI Mode:** vanilla 9.00 only warns when an extension *modifies base-game UI files* (`GetUISafeModeOption()` with `C.GetModifiedBasegameUIFilesExtensions()`, `gameoptions.lua:444`, `:4066`). UI Extensions does, and kuertee recommends leaving the mode on and ignoring the prompt. A plain `ui.xml` add-on like ours modifies nothing: our game-test extension already loads its Lua this way.
+- **No game means no page:** the options menu in the start menu has no player, so per-save settings can only be shown in game (`display = function () return not menu.isStartmenu end`).
