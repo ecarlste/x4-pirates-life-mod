@@ -28,6 +28,8 @@ Players choose whether captured ships arrive intact, with two on/off settings: *
 
 ## Done when
 
+Scenarios: [`tests/game/features/intact-captures.feature`](../../tests/game/features/intact-captures.feature).
+
 - Defaults (both on): captures arrive intact, and the log shows the config applied on load.
 - Setting a flag to 0 in the config file and reloading restores vanilla damage for that case, logged as such.
 - No errors from our scripts in the log.

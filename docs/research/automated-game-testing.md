@@ -111,6 +111,8 @@ make game-test-report   # ARGS=--dry-run to check and preview without posting
 - **`tools/post-game-test-report.sh`** (bash and `gh`, so WSL) posts only when the run had no uncommitted changes, the report's commit is `HEAD`, and `HEAD` is the latest commit of the branch's open PR. Then it comments the report on the PR and sets a **`game-tests` commit status** on that SHA (success or failure, "5 of 5 passed (local run)"). The status shows in the PR's checks; a new push leaves the new commit without one, so a stale pass can't pass for current.
 - **It's an attestation, not proof:** the report is a file the developer could edit. It stops mistakes (wrong commit, unpushed or uncommitted changes), not cheating; CI is the answer to that.
 
+**The test plan:** what the tests cover, in Given/When/Then, is in `tests/game/features/`, one file per feature, each scenario tagged with its test; `make test` checks the two match (see [PROJECT.md, Workflow](../PROJECT.md#workflow)).
+
 **Writing a test:** a root cue that fires on `event_cue_signalled`, sets up its scenario, and signals `Report` once with `table[$name, $ok, $detail]` from either a result cue or a timeout cue. Then add it to `$Tests`. Use the helpers for spawning and forcing bails, and set any mod setting the test relies on, so settings overridden at deploy time can't change its outcome. Clean up spawned ships so tests don't affect each other. Don't put a `delay` on a cue whose sub-cues need its actions to have run first (see below).
 
 ## First runs in game

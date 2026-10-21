@@ -32,6 +32,8 @@ A captured ship arrives as the player left it. Neither the bailing pilot nor the
 
 ## Done when
 
+Scenarios: [`tests/game/features/intact-captures.feature`](../../tests/game/features/intact-captures.feature).
+
 - The log shows `[apirateslife] claim: <ship> claimed without damage (vanilla max damage N)` and `[apirateslife] pilot bail: <ship> keeps its hull and equipment …`.
 - A captured ship's hull and equipment are the same as when the pilot bailed, and unchanged by the claim.
 - No diff-patch errors for `move.claim.xml` or `notifications.xml` in the log.

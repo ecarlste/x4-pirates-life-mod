@@ -32,6 +32,8 @@ Every bail check in the game passes through our code, which can change the chanc
 
 ## Done when
 
+Scenarios: [`tests/game/features/bail-hook.feature`](../../tests/game/features/bail-hook.feature).
+
 - `debuglog.txt` shows `[apirateslife] bail check: … chance N -> 2N` for bail checks, and `[apirateslife] bailed: …` when crew or a pilot bail.
 - No diff-patch errors for `md/notifications.xml` in the log.
 - In game: harassing a target past the gates (hull < 75%, shields < 20%) produces bails, and the smoke test's "target bailed" notification still fires on a pilot bail.
