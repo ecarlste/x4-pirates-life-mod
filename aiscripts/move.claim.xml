@@ -7,20 +7,20 @@
 <diff>
   <add sel="/aiscript/attention[@min='visible']/actions//set_value[@name='$damagemaxpercent']" pos="after">
     <do_if value="not (global.$APiratesLife_IntactOnClaim? and global.$APiratesLife_IntactOnClaim == 0)">
-      <debug_text text="'[apirateslife] claim: %s claimed without damage (vanilla max damage %s)'.[$target.knownname, $damagemaxpercent]"/>
+      <debug_text text="'[apirateslife] claim: %s (%s) claimed without damage (vanilla max damage %s)'.[$target.knownname, $target.idcode, $damagemaxpercent]"/>
       <set_value name="$damagemaxpercent" exact="0"/>
     </do_if>
     <do_else>
-      <debug_text text="'[apirateslife] claim: %s takes vanilla claim damage (intact on claim is off)'.[$target.knownname]"/>
+      <debug_text text="'[apirateslife] claim: %s (%s) takes vanilla claim damage (intact on claim is off)'.[$target.knownname, $target.idcode]"/>
     </do_else>
   </add>
   <add sel="/aiscript/attention[@min='unknown']/actions//set_value[@name='$damagemaxpercent']" pos="after">
     <do_if value="not (global.$APiratesLife_IntactOnClaim? and global.$APiratesLife_IntactOnClaim == 0)">
-      <debug_text text="'[apirateslife] claim (out of sight): %s claimed without damage (vanilla max damage %s)'.[$target.knownname, $damagemaxpercent]"/>
+      <debug_text text="'[apirateslife] claim (out of sight): %s (%s) claimed without damage (vanilla max damage %s)'.[$target.knownname, $target.idcode, $damagemaxpercent]"/>
       <set_value name="$damagemaxpercent" exact="0"/>
     </do_if>
     <do_else>
-      <debug_text text="'[apirateslife] claim (out of sight): %s takes vanilla claim damage (intact on claim is off)'.[$target.knownname]"/>
+      <debug_text text="'[apirateslife] claim (out of sight): %s (%s) takes vanilla claim damage (intact on claim is off)'.[$target.knownname, $target.idcode]"/>
     </do_else>
   </add>
 </diff>

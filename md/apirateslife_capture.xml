@@ -106,8 +106,9 @@
           </briefing>
         </create_mission>
         <set_value name="$Objective" exact="''"/>
+        <set_value name="$Started" exact="player.age"/>
         <show_notification text="{1774100, 30}.[$Name]"/>
-        <debug_text text="'[apirateslife] capture: started on %s, led by %s with %s wingmen (hold %s%%, floor %s%%)'.[$Name, $Leader.knownname, $Members.count, $Hold, $Floor]"/>
+        <debug_text text="'[apirateslife] capture: started on %s (%s), led by %s (%s) with %s wingmen (hold %s%%, floor %s%%)'.[$Name, $Target.idcode, $Leader.knownname, $Leader.idcode, $Members.count, $Hold, $Floor]"/>
       </actions>
       <cues>
         <cue name="Tick" checkinterval="1s" instantiate="true">
@@ -127,7 +128,10 @@
             </do_elseif>
             <do_else>
               <!-- Escaped: nobody in the operation within 15 km for 30 s, so a jump through a gate
-                   ahead of the wing doesn't end it at once -->
+                   ahead of the wing doesn't end it at once. The timer only runs once someone has
+                   been within 15 km: the player can hail from farther away, and the wing still has
+                   to fly in (a 6-wingman operation once "escaped" 30 s after the hail). If nobody
+                   gets close within 5 minutes, the target got away. -->
               <set_value name="$Near" exact="$Leader.sector == $Target.sector and $Leader.distanceto.{$Target} lt 15km"/>
               <do_for_each name="$Ship" in="$Members">
                 <do_if value="@$Ship.isoperational and $Ship.sector == $Target.sector and $Ship.distanceto.{$Target} lt 15km">
@@ -135,8 +139,14 @@
                 </do_if>
               </do_for_each>
               <do_if value="$Near">
+                <set_value name="$Engaged" exact="true"/>
                 <remove_value name="$FarSince"/>
               </do_if>
+              <do_elseif value="not $Engaged?">
+                <do_if value="player.age - $Started ge 300s">
+                  <set_value name="$Outcome" exact="'escaped'"/>
+                </do_if>
+              </do_elseif>
               <do_elseif value="not $FarSince?">
                 <set_value name="$FarSince" exact="player.age"/>
               </do_elseif>
@@ -233,7 +243,7 @@
               <remove_mission cue="Operation" type="aborted"/>
               <show_notification text="{1774100, 35}.[$Name]"/>
             </do_else>
-            <debug_text text="'[apirateslife] capture: ended on %s: %s'.[$Name, $Outcome]"/>
+            <debug_text text="'[apirateslife] capture: ended on %s (%s): %s'.[$Name, @$Target.idcode, $Outcome]"/>
             <signal_cue_instantly cue="md.APiratesLife_Capture.Ended" param="table[$target = $Target, $outcome = $Outcome]"/>
             <cancel_cue cue="Operation"/>
           </actions>

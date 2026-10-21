@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureWingHoldsFire]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$Passed" exact="0"/>
         <set_value name="$Failed" exact="0"/>
@@ -674,6 +674,117 @@
                 <cancel_cue cue="CaptureAbandoned_Ended"/>
                 <remove_value name="global.$APiratesLifeTest_ForceBail"/>
                 <signal_cue_instantly cue="Report" param="table[$name = 'capture_abandoned', $ok = false, $detail = 'operation did not end within 30s (owner: %s)'.[@$Target.trueowner]]"/>
+                <destroy_object object="$Pair.$attacker"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Hailing from farther than 15 km doesn't start the escape timer: the operation is still
+         running 40 s later (the escape rule needs 30 s with nobody close, once someone has been
+         close). Found in Erik's save: an operation "escaped" 30 s after a long-range hail. -->
+    <cue name="CaptureEscapeWaitsForEngagement">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Target" exact="$Pair.$target"/>
+        <warp object="$Target" sector="player.sector">
+          <safepos object="player.occupiedship" z="20km" allowyaxis="true"/>
+        </warp>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="CaptureEscapeWaitsForEngagement_Ended">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+            <check_value value="event.param.$target == $Target"/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="CaptureEscapeWaitsForEngagement_Check"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'capture_escape_waits_for_engagement', $ok = false, $detail = 'operation ended as %s before anyone got close'.[event.param.$outcome]]"/>
+            <destroy_object object="$Pair.$attacker"/>
+            <do_if value="$Target.exists">
+              <destroy_object object="$Target"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="CaptureEscapeWaitsForEngagement_Check">
+          <delay exact="40s"/>
+          <actions>
+            <cancel_cue cue="CaptureEscapeWaitsForEngagement_Ended"/>
+            <set_value name="$Problems" exact="''"/>
+            <do_if value="not $Started">
+              <set_value name="$Problems" exact="' operation did not start;'"/>
+            </do_if>
+            <do_elseif value="not @global.$APiratesLife_CaptureOps.{$Target}">
+              <set_value name="$Problems" exact="' operation is gone;'"/>
+            </do_elseif>
+            <signal_cue_instantly cue="Report" param="table[$name = 'capture_escape_waits_for_engagement', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'still running 40 s after starting %s m away'.[(player.occupiedship.distanceto.{$Target})i] else $Problems)]"/>
+            <!-- Ends the operation as destroyed -->
+            <destroy_object object="$Pair.$attacker"/>
+            <destroy_object object="$Target"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Once the player has been close, a target that gets more than 15 km from everyone in the
+         operation for 30 s has escaped. Warping it away stands in for a getaway. -->
+    <cue name="CaptureEscaped">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Target" exact="$Pair.$target"/>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <!-- The target starts about 3 km away, so the operation counts as engaged within a second -->
+        <cue name="CaptureEscaped_Flee">
+          <delay exact="3s"/>
+          <actions>
+            <warp object="$Target" sector="player.sector">
+              <safepos object="player.occupiedship" z="25km" allowyaxis="true"/>
+            </warp>
+            <set_value name="$FledAt" exact="player.age"/>
+          </actions>
+          <cues>
+            <cue name="CaptureEscaped_Ended">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+                <check_value value="event.param.$target == $Target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureEscaped_Timeout"/>
+                <set_value name="$Problems" exact="''"/>
+                <do_if value="event.param.$outcome != 'escaped'">
+                  <set_value name="$Problems" exact="' ended as %s, expected escaped;'.[event.param.$outcome]"/>
+                </do_if>
+                <do_elseif value="player.age - $FledAt lt 29s">
+                  <set_value name="$Problems" exact="' escaped after only %s s;'.[player.age - $FledAt]"/>
+                </do_elseif>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_escaped', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'escaped %s s after getting away'.[(player.age - $FledAt)i] else $Problems)]"/>
+                <destroy_object object="$Pair.$attacker"/>
+                <do_if value="$Target.exists">
+                  <destroy_object object="$Target"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="CaptureEscaped_Timeout">
+              <delay exact="60s"/>
+              <actions>
+                <cancel_cue cue="CaptureEscaped_Ended"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_escaped', $ok = false, $detail = 'no escape within 60 s of getting away (operation running: %s)'.[@global.$APiratesLife_CaptureOps.{$Target} != null]]"/>
                 <destroy_object object="$Pair.$attacker"/>
                 <destroy_object object="$Target"/>
               </actions>

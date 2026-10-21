@@ -37,7 +37,7 @@
           <!-- For the operation's readout -->
           <set_value name="$Op.$lastchance" exact="$Chance"/>
         </do_if>
-        <debug_text text="'[apirateslife] bail check: %s attacking %s: chance %s -> %s%s'.[@$Attacker.knownname, @$Target.knownname, $EjectChance, $Chance, $Note]"/>
+        <debug_text text="'[apirateslife] bail check: %s (%s) attacking %s (%s): chance %s -> %s%s'.[@$Attacker.knownname, @$Attacker.idcode, @$Target.knownname, @$Target.idcode, $EjectChance, $Chance, $Note]"/>
         <return value="$Chance"/>
       </actions>
     </library>
@@ -48,7 +48,7 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <debug_text text="'[apirateslife] bailed: %s crew from %s (attacker %s), pilot bailed: %s'.[event.param.$crew, @event.param.$target.knownname, @event.param.$attacker.knownname, event.param.$pilot]"/>
+        <debug_text text="'[apirateslife] bailed: %s crew from %s (%s) (attacker %s (%s)), pilot bailed: %s'.[event.param.$crew, @event.param.$target.knownname, @event.param.$target.idcode, @event.param.$attacker.knownname, @event.param.$attacker.idcode, event.param.$pilot]"/>
       </actions>
     </cue>
   </cues>

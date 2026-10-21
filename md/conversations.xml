@@ -24,4 +24,13 @@
       <add_player_choice text="{1774100, 1}" section="g_apirateslife_capture" position="right" choiceparam="event.object.controlled"/>
     </do_if>
   </add>
+
+  <!-- Vanilla's SectionHandler logs "ERROR: Unexpected section" for any g_ section it doesn't know,
+       which ours is. Name it in the chain, just before that catch-all, so vanilla stays quiet;
+       md.APiratesLife_Capture.CommChoice handles the choice. -->
+  <add sel="//cue[@name='SectionHandler']/actions/do_elseif[@value=&quot;event.param != 'g_finish' and event.param != 'g_cancel' and event.param != 'g_interactionresult' and event.param != 'g_interactionmenu'&quot;]" pos="before">
+    <do_elseif value="event.param == 'g_apirateslife_capture'">
+      <debug_text text="'[apirateslife] capture: comm choice made (handled by md.APiratesLife_Capture.CommChoice)'" chance="0"/>
+    </do_elseif>
+  </add>
 </diff>

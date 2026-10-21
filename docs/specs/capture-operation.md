@@ -74,14 +74,15 @@ The readout updates every second.
 | Abandoned | Target ownerless (pilot bailed) | Completed; "claim it" |
 | Captured | Target became player-owned | Completed |
 | Destroyed | Target gone | Failed: prize lost |
-| Escaped | Leader and wing all more than 15 km away or in another sector | Failed |
+| Escaped | Leader and wing all more than 15 km away or in another sector for 30 s, counted only once someone has been within 15 km; or nobody gets that close within 5 minutes of the start | Failed |
 | Called off | Player aborts the mission, or the leader is lost | Aborted |
 
 On ending, the target's state is removed and wingmen's orders finish by themselves.
 
 **Comm choice** (`md/conversations.xml` diff plus `md/apirateslife_capture.xml`):
 
-- **The choice:** "Heave to. We're taking your ship." (`g_apirateslife_capture`) is added to the target's comm menu next to vanilla's surrender option, when `Start` would accept the target. Its own cue (`event_conversation_next_section`) starts the op, and the pilot answers with a vanilla refusal line. Vanilla's `SectionHandler` ignores unknown sections.
+- **The choice:** "Heave to. We're taking your ship." (`g_apirateslife_capture`) is added to the target's comm menu next to vanilla's surrender option, when `Start` would accept the target. Its own cue (`event_conversation_next_section`) starts the op, and the pilot answers with a vanilla refusal line.
+- **Quiet in vanilla's handler:** vanilla's `SectionHandler` logs "ERROR: Unexpected section" for any `g_` section it doesn't know, so the patch names ours in its chain, just before that catch-all (found in Erik's save).
 - **Hostile ships:** vanilla ends the conversation when the ship's faction is hostile to the player, unless surrender is already possible. One patch lets the conversation open when our choice applies, so pirates can work hostile targets such as the Scale Plate Pact. The other options then shown are vanilla's own.
 - **Text** lives in our `t/0001-l044.xml`, page 1774100.
 
@@ -96,7 +97,7 @@ On ending, the target's state is removed and wingmen's orders finish by themselv
 - [x] Settings in the config and settings scripts
 - [x] Game tests (below); validate patches and XML; `make test`
 - [x] `make game-test`: all pass
-- [ ] Try it in Erik's save with his 3 S ships (after merge)
+- [x] Try it in Erik's save: S captures with 3 wingmen and solo at the same time, then an M (6 crew) with 6 wingmen (2026-10-21). Found the early "escaped" and the comm-section error, fixed in the follow-up PR
 
 ## Done when
 
@@ -106,6 +107,8 @@ Scenarios: [`tests/game/features/capture-operation.feature`](../../tests/game/fe
   - `capture_wing_full_chance`: the hook gives op members ×4×2, non-members ×2, and members only ×2 when the setting is off; the last chance is recorded.
   - `capture_start_and_destroyed`: `Start` accepts a capturable fighter and refuses a player-owned ship and a second operation; destroying the target ends the op as destroyed.
   - `capture_abandoned`: a forced pilot bail ends the op as abandoned, clears the target's state, and an ownerless ship can't start a new op.
+  - `capture_escaped`: a target warped 25 km away from an engaged operation ends it as escaped after 30 s.
+  - `capture_escape_waits_for_engagement`: an operation started 20 km away is still running 40 s later.
   - `capture_wing_holds_fire`: a real wingman (a fixed pulse-laser loadout from the test extension) breaks a capturable fighter to under 75% and keeps it there for 30 s, with the hull never more than 20 points under the gate (nor below the floor). The target is made uncapturable after the start, so no bail ends the fight.
 - **In game:**
   - With 3 S ships, a comm choice on a neutral or SCA fighter starts the op.
