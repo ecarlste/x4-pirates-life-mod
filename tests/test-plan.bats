@@ -8,7 +8,12 @@ setup() {
     CHECK="$REPO_ROOT/tools/check-test-plan.py"
     FEATURES="$BATS_TEST_TMPDIR/features"
     HARNESS="$BATS_TEST_TMPDIR/tests.xml"
-    mkdir -p "$FEATURES"
+    SPECS="$BATS_TEST_TMPDIR/specs"
+    mkdir -p "$FEATURES" "$SPECS"
+    # One spec, linking the feature file most tests write; the template and README are skipped
+    echo 'Scenarios: [a](../../tests/game/features/a.feature)' > "$SPECS/example.md"
+    echo 'No link here' > "$SPECS/_template.md"
+    echo 'No link here' > "$SPECS/README.md"
     # Two game tests, reported the way the harness reports them
     cat > "$HARNESS" <<'XML'
 <mdscript><cues>
@@ -21,7 +26,7 @@ XML
 # feature <file> <content>: writes a feature file into the fixture folder
 feature() { printf '%s\n' "$2" > "$FEATURES/$1"; }
 
-check() { run python3 "$CHECK" "$FEATURES" "$HARNESS"; }
+check() { run python3 "$CHECK" "$FEATURES" "$HARNESS" "$SPECS"; }
 
 GOOD='Feature: Example
   A description line.
@@ -114,4 +119,20 @@ GOOD='Feature: Example
     check
     [ "$status" -eq 1 ]
     [[ "$output" == *"no .feature files"* ]]
+}
+
+@test "fails when a spec links no feature file" {
+    feature a.feature "$GOOD"
+    echo 'A spec with no scenarios' > "$SPECS/other.md"
+    check
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"spec other.md links no feature file"* ]]
+}
+
+@test "fails when a spec links a feature file that doesn't exist" {
+    feature a.feature "$GOOD"
+    echo 'Scenarios: tests/game/features/missing.feature' > "$SPECS/other.md"
+    check
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"spec other.md links tests/game/features/missing.feature, which doesn't exist"* ]]
 }
