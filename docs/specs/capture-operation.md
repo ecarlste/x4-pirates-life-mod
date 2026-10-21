@@ -57,7 +57,7 @@ The player picks a capturable ship (not a capital ship) and starts a **capture o
 
 - When the attacker is a member of the target's operation, the player is flying the leader, and the player is in the target's sector, undo vanilla's ÷4 (×4) before our ×2. The wing then presses as hard as the player. Setting `CaptureWingFullChance` (1 = on).
 - Integer rounding from vanilla's ÷4 stays (9 ÷ 4 = 2, ×4 = 8); not worth patching vanilla for.
-- The hook records the last final chance on the target, for the HUD.
+- The hook saves each check's final chance in the operation's state (`$lastchance`), and the mission readout shows it: "Keep the pressure on: last check N%".
 
 **Operation readout:** a player mission "Capture: <ship>", type fight, abortable. Its one live objective changes with the state:
 
