@@ -41,9 +41,11 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 
 ## Phase 1: Spike 1, how bailing and boarding work in vanilla
 
-Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.md`](research/spike-1-bailing-boarding.md) (WIP: bailing mostly mapped), covering call flow, tuning knobs, what we can hook vs. patch, and blockers for wingman bails and Raid Sector. See [DESIGN.md, Roadmap](DESIGN.md#roadmap): "Spike 1".
+Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.md`](research/spike-1-bailing-boarding.md) (WIP: bailing mapped), covering call flow, tuning knobs, what we can hook vs. patch, and blockers for wingman bails and Raid Sector. See [DESIGN.md, Roadmap](DESIGN.md#roadmap): "Spike 1".
 
-- [ ] Bailing (S/M): triggers, player vs. NPC attackers, what happens to the ship afterward, whether wingmen and fleets can cause and claim bails
+- [ ] Bailing (S/M): triggers, player vs. NPC attackers, what happens to the ship afterward, whether wingmen and fleets can cause and claim bails. Mapped, and wingmen causing bails is built ([capture operation](specs/capture-operation.md)). Left, both quick in-game checks ([open questions](research/spike-1-bailing-boarding.md#open-questions)):
+  - [ ] A wingman with marines, set to claim, claims the prize by itself when an operation ends at "abandoned"
+  - [ ] What happens to an abandoned ship nobody claims
 - [ ] Boarding (L/XL): the full flow, `parameters.xml` tuning vs. engine behavior, NPC boarding, how the boarding UI talks to MD
 - [ ] Adjacent: cargo drop demands, faction reactions to theft, the Yaki IFF disguise
 - [x] Prior art: study Better Piracy (the original on [GitHub](https://github.com/AlbertoRota/x4-Better-piracy) and the 9.x version on Steam Workshop): its features, how it implements them, and where we differentiate. Read only; its code has no license, so nothing is copied. [research note](research/prior-art-better-piracy.md), every feature and bug catalogued
