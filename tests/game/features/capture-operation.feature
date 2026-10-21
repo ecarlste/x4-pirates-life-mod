@@ -48,7 +48,7 @@ Feature: Capture operations
 
   @capture_wing_holds_fire
   Scenario: A wingman stops firing once the target is inside the bail gate
-    Given a capture operation on a capturable fighter
+    Given a capture operation on a capturable fighter with no shields and 80% hull
     And my wingman flies a Nova with two pulse lasers and no missiles
     When the wingman breaks the fighter's hull below 75%
     Then the wingman stops firing
@@ -75,8 +75,14 @@ Feature: Capture operations
     Then the operation ends as "called off"
     And the wingman stops attacking and returns to formation
 
-  @pending
+  @capture_escaped
   Scenario: The target escapes
-    Given a capture operation on a capturable fighter
+    Given a capture operation on a capturable fighter, with me close to it
     When nobody in the operation is within 15 km of it for 30 seconds
     Then the operation ends as "escaped"
+
+  @capture_escape_waits_for_engagement
+  Scenario: Hailing from far away doesn't count as an escape
+    Given I start a capture operation on a fighter 20 km away
+    When nobody in the operation has been within 15 km of it yet
+    Then the operation keeps running while we close in

@@ -82,7 +82,9 @@ So 6x is the most MD can speed things up. Tests should avoid waiting for travel 
 | `capture_wing_full_chance` | Bail hook in a capture operation: members ×4×2, non-members ×2, setting off ×2; last chance recorded ([capture operation](../specs/capture-operation.md)) |
 | `capture_start_and_destroyed` | `Start` accepts a capturable fighter, refuses a player-owned ship and a second operation; destroying the target ends it as destroyed |
 | `capture_abandoned` | A forced pilot bail ends the operation as abandoned and clears its state |
-| `capture_wing_holds_fire` | Real combat: a pulse-laser wingman (fixed loadout) breaks a fighter to under 75% and keeps it there 30 s, never more than 20 points under the gate or below the 35% floor (target made uncapturable after the start so no bail ends it) |
+| `capture_escape_waits_for_engagement` | An operation started on a target 20 km away is still running 40 s later: the escape timer waits until someone has been within 15 km |
+| `capture_escaped` | Once engaged, a target warped 25 km away ends the operation as escaped after 30 s |
+| `capture_wing_holds_fire` | Real combat: a pulse-laser wingman (fixed loadout) breaks a worn-down fighter (0 shields, 80% hull) to under 75% and keeps it there 30 s, never more than 20 points under the gate or below the 35% floor (target made uncapturable after the start so no bail ends it) |
 
 **Log protocol** (every line starts with `[apirateslife-test]`): `RUN START <n> tests`, `PASS <name>: <detail>` / `FAIL <name>: <detail>`, `DONE passed=<n> failed=<n>`. A run fails if any test fails, fewer than `<n>` results arrive, `DONE` never comes (game exited or timed out), or the log has errors mentioning the mod (signature warnings excluded).
 
@@ -142,6 +144,9 @@ Four runs on 2026-10-20, X4 9.00, with only A Pirate's Life enabled in the profi
   - **Combat tests need a fixed loadout.** With `loadout level` the wingman rolled different weapons each run: slow mass drivers barely landed a shot, and torpedoes one-shot the target. The test extension defines its own loadout (`libraries/loadouts.xml` diff) and spawns it with `<loadout ref="…"/>`; MD's `create_ship` can't list macros itself.
   - **Player-owned ships won't fire on a neutral** until it's hostile to the player (vanilla's "Mark as hostile" relation boost).
   - **`event_object_attacked` only fires now and then**; `event_object_hull_damaged` / `event_object_shield_damaged` fire on each damage.
+  - **Moving a ship with `warp`:** in the same actions as its `create_ship`, the warp doesn't stick (the ship stays near its spawn point); warp it a couple of seconds later, with explicit coordinates in the player's zone (`<position x="player.occupiedship.position.x" … z="… + 20km"/>`). The new position also isn't readable in the same actions, so measure distances later.
+  - **Sub-cue delays count from the parent's activation** (see first runs, above): a "1 s after the warp" sub-cue under a 2 s cue ran before the warp. Give the later step the longer delay.
+  - **Hold-fire test target starts worn down** (0 shields, 80% hull): with full shields, vanilla's dogfighting AI sometimes parked 1.3 km out and only chipped at them for minutes.
   - **SETA drops** whenever something interrupts it (help messages, comm calls); the harness switches it back on (`KeepSeta`).
   - **Weapon groups are numbered from 0:** a spawned ship's guns are in active primary group 0, and `reset_weapongroups` plus activating group 1 left it with nothing to fire.
 - **Timing:** about 2½ minutes from `make game-test` to the report, most of it X4 starting and loading the universe; the tests themselves take about 25 s of game time.
