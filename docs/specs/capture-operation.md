@@ -1,6 +1,6 @@
 # Spec: Capture operation
 
-Plan item: Phase 2, slice 1, "Capture operation: wingmen that capture, not kill, started from a comm choice" · Status: Agreed
+Plan item: Phase 2, slice 1, "Capture operation: wingmen that capture, not kill, started from a comm choice" · Status: Done
 
 ## Goal
 
@@ -96,7 +96,7 @@ On ending, the target's state is removed and wingmen's orders finish by themselv
 - [x] Settings in the config and settings scripts
 - [x] Game tests (below); validate patches and XML; `make test`
 - [x] `make game-test`: all pass
-- [ ] Try it in Erik's save with his 3 S ships
+- [ ] Try it in Erik's save with his 3 S ships (after merge)
 
 ## Done when
 

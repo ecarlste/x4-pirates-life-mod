@@ -59,9 +59,16 @@ Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.
 Each slice is demo-able and gets a video. Each one goes through: design agreed, spec written, built, tested in game, showcase save recorded, video. The order is provisional until spike 1 is done.
 
 - [ ] 1. Wingman forces an S ship to bail; a prize crew flies it home
-  - [ ] Capture operation: wingmen that capture, not kill, started from a comm choice: [spec](specs/capture-operation.md) ([PR #31](https://github.com/ecarlste/x4-pirates-life-mod/pull/31))
+  - [x] Capture operation: wingmen that capture, not kill, started from a comm choice: [spec](specs/capture-operation.md) ([PR #31](https://github.com/ecarlste/x4-pirates-life-mod/pull/31))
   - [ ] Start a capture operation from the right-click/F interact menu (kuertee's UI Extensions, optional)
   - [ ] Capture hotkeys: "wing: make target bail" and "call off capture" (Chem O'Dun's Native Hotkey API on UI Extensions, optional)
+  - [ ] Bail pressure in capture operations (agreed in chat 2026-10-20; spec to write):
+    - In an operation, the first check rolls at vanilla's chance (no ×2). Pressure then adds +8 for every 10 s the target spends inside the bail gates, capped at 80%. Notoriety will speed it up later.
+    - An operation pressure tick asks vanilla's own check every 10 s (`CapturePressureInterval`) while the player leads within about 10 km and the target is inside the gates. It expires the pilot's `$nextcapturechance` and sends vanilla's `'shouldwebail'` signal, so it's still one bail path, and it works the same under SWI's Enhanced Bailing.
+    - Outside operations, bails go back to vanilla's chance (our ×2 goes away).
+    - The mission readout shows the pilot's nerve.
+    - Built leader-agnostic: a presser profile (start factor, step, cap, interval) worked out from the operation's leader. The player is the only case for now; later, notoriety raises the player's numbers, and Raid Sector wings use the same logic at lower numbers.
+  - [ ] Wing-level stop line: the operation adds up the laser DPS of the wingmen that are firing and sets one shield-HP stop line for all of them, instead of each wingman's own 1.5 s margin. If that line is above the 20% bail gate, only the lightest-armed wingmen suppress while the rest hold.
   - [ ] Prize crew flies a captured ship home
 - [ ] 2. Notoriety and heat v1, with bail chance tied to notoriety
 - [ ] 3. Fencing and hot-goods pricing at pirate docks
@@ -98,7 +105,9 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
 Not yet agreed. Promote an item into a phase once we decide to do it.
 
 - [ ] Capture operations: wingmen prefer shield-heavy weapons (ion), from a profile list, since scripts can't read a weapon's damage type
-- [ ] Capture operations: pressure that builds with each failed bail check (a visible nerve meter), through the bail hook
+- [ ] Recognisable pirate: a unique ship or paint job lets pilots know a notorious player without a hail, so they bail more readily outside capture operations
+- [ ] Capture operations: drop the wing ×4 bail chance once the pressure tick lands, since the tick carries the pressure (simpler, closer to vanilla)
+- [ ] Capture operations: scale the wingmen's stop margin with distance to the target (more shots in flight from farther away), if play shows it matters; scripts can't read projectile speed
 - [ ] PSScriptAnalyzer and shellcheck in PR CI as well as at release
 - [ ] Game tests through Egosoft's NoSteam executable: research and PoC (own arguments, no Steam prompt or session limit; needs its own profile folder): [notes](research/automated-game-testing.md#egosofts-nosteam-executable)
 - [ ] Game-test report on the PR: compare the PR's run with the latest run on `main` (newly failing, newly passing, new tests): [notes](research/automated-game-testing.md#comparing-a-prs-run-with-main)
