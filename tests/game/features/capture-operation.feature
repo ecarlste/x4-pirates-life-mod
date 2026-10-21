@@ -48,7 +48,7 @@ Feature: Capture operations
 
   @capture_wing_holds_fire
   Scenario: A wingman stops firing once the target is inside the bail gate
-    Given a capture operation on a capturable fighter
+    Given a capture operation on a capturable fighter with no shields and 80% hull
     And my wingman flies a Nova with two pulse lasers and no missiles
     When the wingman breaks the fighter's hull below 75%
     Then the wingman stops firing
