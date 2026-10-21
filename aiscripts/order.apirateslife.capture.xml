@@ -5,7 +5,7 @@
        break:    hull at or above $holdhull (default 75, vanilla's bail gate): fire
        suppress: hull below $holdhull: fire only while the target's shields hold more than
                  $burst, about 1.5 s of this wingman's laser damage, so shots still in flight land
-                 on shields, not hull, whatever the weapon (plasma hits hard and flies slowly).
+                 on shields, not hull, whatever the weapon (heavy, slow guns get a bigger margin).
                  Fire again once shields are $shieldresume percent above that.
        floor:    hull at or below $floorhull: no fire at all
      Missiles: vanilla's attack script fires them (torpedoes too) from the first pass, and one

@@ -9,7 +9,7 @@ The player picks a capturable ship (not a capital ship) and starts a **capture o
 ## Context
 
 - Design: [DESIGN.md, Command modes](../DESIGN.md#command-modes) ("capture, don't kill").
-- Agreed in chat (2026-10-20): the three entry points, the PR split, dropping vanilla's ÷4 for wingmen in an op, a 35% floor. On PR #31 Erik moved the hold line to the 75% gate: wingmen stop once the hull is under 75% and the shields are down (the first draft held at 65%). His plasma wingman showed that bolts still in flight wear the hull away, hence the burst margin below.
+- Agreed in chat (2026-10-20): the three entry points, the PR split, dropping vanilla's ÷4 for wingmen in an op, a 35% floor. On PR #31 Erik moved the hold line to the 75% gate: wingmen stop once the hull is under 75% and the shields are down (the first draft held at 65%). A game-test wingman that happened to roll plasma cannons showed that bolts still in flight wear the hull away, hence the burst margin below.
 - Bail mechanics: [spike 1](../research/spike-1-bailing-boarding.md#bailing-sm). Gates: shields < 20%, hull < 75%; one evaluated check per target pilot every 30 s (`$target.pilot.$nextcapturechance`); ÷4 when the attacker isn't `player.occupiedship`.
 - **Why wingmen currently hurt:** whichever hit lands first after the cooldown uses up the check. A wingman's hit rolls at a quarter of the player's chance, so a wing makes captures slower than flying solo.
 - Better Piracy's Harass and its bugs: [prior-art note](../research/prior-art-better-piracy.md). We avoid #5 (helpers kill the prize), #9 (every ending is "completed"), #12 (ends on sector change) and #16 (own bail formula).
@@ -37,7 +37,7 @@ The player picks a capturable ship (not a capital ship) and starts a **capture o
 - **No missiles:** a two-line diff on `fight.attack.object.fighter.xml` skips missile passes (in sight) and missile damage (out of sight) while the pilot carries `$APiratesLife_NoMissiles`. The order sets the flag and clears it when it ends or is cancelled. Without the flag, vanilla is unchanged. In the game tests, torpedoes already in flight one-shot the target from the hold line.
 - **Break:** while the target's hull is at or above the hold line (default 75%, vanilla's bail gate), fire at it.
 - **Suppress:** below the hold line, fire only at shields. Stop while the target's shields still hold the wingman's **burst**, about 1.5 s of its laser damage (`dps.lasers.all × 1.5`, in hitpoints), so shots still in flight land on shields, not hull. Fire again once shields are 10% (of max) above that.
-  - This works for any weapon with no weapon IDs: plasma gets a bigger margin, pulse lasers a small one.
+  - This works for any weapon with no weapon IDs: heavy, slow guns get a bigger margin, pulse lasers a small one.
   - A heavily armed wingman may leave shields above the 20% gate; the player or a lighter wingman takes them the rest of the way, and nobody kills the prize.
   - This automates the play-tested ion technique ([spike 1](../research/spike-1-bailing-boarding.md#play-tested-technique-erik)).
 - **Floor:** at or below 35% hull, nobody fires.
@@ -96,7 +96,7 @@ On ending, the target's state is removed and wingmen's orders finish by themselv
 - [x] Settings in the config and settings scripts
 - [x] Game tests (below); validate patches and XML; `make test`
 - [x] `make game-test`: all pass
-- [ ] Try it in Erik's save (with his plasma wingman)
+- [ ] Try it in Erik's save with his 3 S ships
 
 ## Done when
 
@@ -113,6 +113,5 @@ On ending, the target's state is removed and wingmen's orders finish by themselv
 
 ## Open questions
 
-- The burst margin with plasma is untested automatically: vanilla's fighter AI didn't land a plasma bolt on a parked fighter in 180 s. Check with Erik's plasma wingman.
 - 1.5 s may be too little or too much for some weapons; tune in play.
 - Weapon choice (prefer ion), pressure build-up across failed checks (a nerve meter) and prize crews are left for later.

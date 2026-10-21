@@ -126,7 +126,6 @@ Four runs on 2026-10-20, X4 9.00, with only A Pirate's Life enabled in the profi
   - **`shoot_at` is only allowed in an AI script's `visible` attention block.** The script fails to load otherwise.
   - **Order params without a `text` must be `type="internal"`**, or the script logs an error at load.
   - **Combat tests need a fixed loadout.** With `loadout level` the wingman rolled different weapons each run: slow mass drivers barely landed a shot, and torpedoes one-shot the target. The test extension defines its own loadout (`libraries/loadouts.xml` diff) and spawns it with `<loadout ref="…"/>`; MD's `create_ship` can't list macros itself.
-  - **Plasma is hard to test:** vanilla's fighter AI didn't land a plasma bolt on a parked fighter in 180 s.
   - **Player-owned ships won't fire on a neutral** until it's hostile to the player (vanilla's "Mark as hostile" relation boost).
   - **`event_object_attacked` only fires now and then**; `event_object_hull_damaged` / `event_object_shield_damaged` fire on each damage.
   - **SETA drops** whenever something interrupts it (help messages, comm calls); the harness switches it back on (`KeepSeta`).

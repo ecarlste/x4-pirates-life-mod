@@ -697,8 +697,7 @@
         <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
         <!-- A fixed loadout from this extension's libraries/loadouts.xml: two pulse lasers and no
              missile launcher. A random loadout made the test a lottery: slow mass drivers barely
-             landed a shot and torpedoes one-shot the target. (Plasma was tried too: vanilla's
-             fighter AI didn't land a plasma bolt on the parked fighter in 180 s.) -->
+             landed a shot and torpedoes one-shot the target. -->
         <create_ship name="$Wingman" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector">
           <owner exact="faction.player" overridenpc="true"/>
           <loadout ref="apirateslife_test_nova_lasers"/>
