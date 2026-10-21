@@ -1,14 +1,14 @@
 # Spike 1: How bailing and boarding work in vanilla
 
-**Status: WIP.** Bailing is partly mapped below. Boarding and the adjacent topics haven't started. All references are to X4 9.00, unpacked under `E:\x4-dev\reference\x4-9.00\base\`.
+**Status: WIP.** Bailing (S/M) is mapped and built on: the [bail hook](../specs/bail-hook.md), [intact captures](../specs/claim-no-damage.md) and [capture operations](../specs/capture-operation.md). Two in-game checks are left (see [Open questions](#open-questions)). Boarding and the adjacent topics haven't started. All references are to X4 9.00, unpacked under `E:\x4-dev\reference\x4-9.00\base\`.
 
 ## Hooks we need
 
 From the design, our features have to be able to:
 
-1. **Adjust a bail check:** change the chance that a target bails, based on notoriety, fear vs. honor, difficulty sliders, etc.
-2. **Know when a ship bails:** both crew leaving and the pilot abandoning the ship (it becomes claimable).
-3. **Capture with our assets:** ships on a pirating order claim what bails, without the player doing it by hand.
+1. **Adjust a bail check:** change the chance that a target bails, based on notoriety, fear vs. honor, difficulty sliders, etc. Built: `AdjustEjectChance` in the [bail hook](../specs/bail-hook.md).
+2. **Know when a ship bails:** both crew leaving and the pilot abandoning the ship (it becomes claimable). Built: our `Bailed` signal.
+3. **Capture with our assets:** ships on a pirating order claim what bails, without the player doing it by hand. Partly built: [capture operations](../specs/capture-operation.md) make wingmen force bails without killing the prize; the player still claims it. Claiming by our own ships comes with the prize crew (plan, slice 1).
 
 ## Bailing (S/M)
 
@@ -38,6 +38,12 @@ One cue makes every bail decision: `PlayerOwnedShipAttacks` in `md/notifications
 - That same setting feeds the pilot-bail condition above, so it affects whether a ship becomes claimable at all, not only who claims it.
 - **The setting is a faction "signal" response** defined in `libraries/factions.xml`: `foundabandonedship`, with responses `claim`, `ignore` (the default), `mark` and `protect`. These are the per-ship and global behavior settings in the game's menus.
 - **Scripts can set it per ship:** `<set_object_signal_response object="…" signal="'foundabandonedship'" response="'claim'"/>`. Vanilla uses the same action for other signals (e.g. `policehalt`). A pirating order can switch its fleet to `claim`, which both lets target pilots fully bail and gets the ship claimed.
+- **Who can claim** (`interrupt.foundabandonedship.xml` and `lib.respond.foundabandonedship.xml`):
+  - The claimer is a ship (not a unit or XS) that is either unassigned or a direct subordinate of `player.occupiedship`, so the player's wingmen qualify. It must be in a sector, off highways and undocked, with a current order that is neither critical nor a priority order.
+  - It must carry **marines**: `claim` silently becomes `ignore` without one. One marine flies over in a pod and runs `move.claim`.
+  - The prize must have no pilot and nobody aboard.
+  - For player-owned ships the response can prompt the player first (the setting's "ask" option), and every find is logged.
+- **NPC factions claim too, if their response is `claim`:** in vanilla only the **Yaki** (`ego_dlc_terran/libraries/factions.xml`). So Yaki attackers can fully bail a pilot and then take the ship. Mission ships are kept from NPC claims with `global.$IgnoredAbandonedShips` ("prevent i.e. Yaki from claiming the ship").
 - **`iscapturable`** (engine property, `libraries/scriptproperties.xml`): "Can this defensible be captured, either via signalleak (S/M sized) or via boarding (L+ sized). Additionally, for S-ships the pilot will not eject if it is not capturable." Scripts can change it with `set_object_capturable`, which vanilla story missions use.
 
 ### NPC-vs-NPC bails
@@ -50,11 +56,13 @@ The attacked ship's AI only reacts if its `attacked` signal response isn't `igno
 
 Get the target's hull below 75%, then keep its shields under 20% with ion cannons, so the hull barely drops while the gates stay open. Each 30 s brings another check. Shields recovering to 25% closes the gate until they're knocked back below 20%.
 
-## Candidate approach (to confirm)
+## Approach (built)
+
+The bail hook and capture operations follow this plan; the specs have the details.
 
 - **One small diff patch** on `PlayerOwnedShipAttacks`, inserted after `$ejectchance` is computed: call our own library cue (`run_actions` with attacker, target and the vanilla chance, returning the new chance). All modifiers live in our code, and the vanilla patch stays small and stable.
 - **The same patch raises our own MD signals** for "crew bailed" and "ship abandoned", with attacker and target. That gives every feature a galaxy-wide bail event; vanilla's `event_object_abandoned` needs a specific ship or group. These signals would become part of the integration contract.
-- **Delegated capture** relies on the vanilla "found abandoned ship" response (set to claim) rather than reimplementing claiming.
+- **Delegated capture** relies on the vanilla "found abandoned ship" response (set to claim) rather than reimplementing claiming. Not built yet: capture operations end at "abandoned", and the player claims.
 - **Doubling the bail rate** (the mod's original goal) belongs in this patch too. The old `libraries/god.xml` patch has been removed; see "Extension loading" below.
 
 ## Confirmed in game
@@ -66,6 +74,13 @@ From running the bail hook ([spec](../specs/bail-hook.md)) on X4 9.00, 2026-10-1
 - **A player-flown attack:** the player's ship vs. an SCA Kestrel (S) got a vanilla chance of 38 (no ÷4); doubled to 76, the first roll succeeded about 64 s into the fight. One crew left and the pilot bailed, leaving the ship ownerless.
 - **Scale Plate Pact as targets** (player reports, matching the game's station placement): SCA reputation is locked at −5, so attacking them costs nothing. Their ships disguise as other factions until scanned, and attacking an unscanned one costs reputation with the faction it's posing as. Players hunt them in Silent Witness XI/XII, Hewa's Twin V and Nopileos' Fortune. Ties into the Yaki IFF disguise and the design's forged-ID idea.
 
+From capture operations ([spec](../specs/capture-operation.md), [PR #31](https://github.com/ecarlste/x4-pirates-life-mod/pull/31) and [PR #34](https://github.com/ecarlste/x4-pirates-life-mod/pull/34)), 2026-10-20 and 21:
+
+- **Wingmen can force bails** once our hook undoes vanilla's ÷4 for members of the operation. In Erik's save, an S target fell to the player plus 3 wingmen, and an M target (6 crew, so several successful checks before the pilot leaves) to 6 wingmen.
+- **Player-owned ships won't fire on a ship they aren't hostile to:** vanilla's Attack order stands down on a "friendly target". The operation applies vanilla's "Mark as hostile" boost to the target.
+- **X4 can't store script variables on a ship,** only on NPCs, so per-target state lives in a global table.
+- **Vanilla's attack script fires missiles from the first pass** and its `disable` option does nothing for S/M ships, so holding a target at the bail gates needed our own hold-fire handler and a no-missiles flag.
+
 ## Extension loading
 
 Learned from the first in-game run (X4 9.00, 2026-10-17):
@@ -76,7 +91,9 @@ Learned from the first in-game run (X4 9.00, 2026-10-17):
 
 ## Open questions
 
-- Does the ÷4 for non-player-flown attackers make delegated raiding impractical without our multiplier? (A design call once the bail hook exists.)
+- ~~Does the ÷4 for non-player-flown attackers make delegated raiding impractical?~~ Yes for wingmen: a wing made captures slower than flying solo, since every hit spends the 30 s check at a quarter of the chance. Capture operations undo the ÷4 for their members; Raid Sector will use the same presser profile at lower numbers (plan, bail pressure).
+- **To check in game:** does a wingman carrying marines, set to `claim`, claim the prize by itself when an operation ends at "abandoned"? The script conditions say yes, but S ships rarely carry marines, and the wingman's order must not be a priority one at that moment.
+- **To check in game:** what happens to an abandoned ship nobody claims? A search of vanilla scripts found no cleanup of ownerless ships (only mission scripts track them), so it probably stays until something destroys or claims it; Yaki would claim it in their space.
 - Which ships are uncapturable by default? `iscapturable` is engine-side; we only know scripts can change it.
 - Cargo drop demands: the vanilla `piratehalt` signal (`libraries/factions.xml`, default response `attack`) is how *player* ships respond to pirates' demands. Not yet traced.
 - Boarding (L/XL), faction reactions to theft, Yaki IFF disguise: not started.
