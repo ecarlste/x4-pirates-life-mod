@@ -54,6 +54,7 @@
           <actions>
             <toggle_timewarp/>
             <set_timewarp_factor factor="6s"/>
+            <debug_text text="'[apirateslife-test] SETA was off; switched back on (now active: %s)'.[player.timewarp.active]"/>
           </actions>
         </cue>
 
