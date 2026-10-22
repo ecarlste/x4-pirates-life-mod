@@ -10,4 +10,5 @@ If the build changes the plan, update the spec in the same PR.
 | [claim-no-damage.md](claim-no-damage.md) | Done |
 | [capture-settings.md](capture-settings.md) | Done |
 | [capture-operation.md](capture-operation.md) | Done |
-| [in-game-settings.md](in-game-settings.md) | Draft |
+| [in-game-settings.md](in-game-settings.md) | Done |
+| [settings-profiles.md](settings-profiles.md) | Agreed |

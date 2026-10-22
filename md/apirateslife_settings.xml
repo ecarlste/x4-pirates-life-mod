@@ -4,8 +4,9 @@
 
      Three layers, each filling what the one above leaves empty:
        1. This save's values, chosen in game: global.$APiratesLife_Chosen (keys '$<Name>').
-       2. My defaults, a profile-wide set kept by the page's Lua (ui/apirateslife_options.lua);
-          copied into a save once (seeding), or when the player loads them there.
+       2. A settings profile, kept in the player's X4 profile by the page's Lua
+          (ui/apirateslife_options.lua): the new-game profile is copied into a save once (seeding),
+          and any profile when the player loads it there.
        3. The config file, md/apirateslife_config.xml, applied on every game start and load.
      The patches only ever read global.$APiratesLife_<Name>.
 
@@ -15,9 +16,10 @@
      The page talks to this script with AddUITriggeredEvent("APiratesLife_Settings", control, value):
        <Name>, 0 or 1         sets a page setting in this save
        'Reset'                clears this save's values, back to the config file
-       'LoadDefaults', list   copies my defaults into this save: [name, value, name, value, ...]
+       'LoadProfile', list    copies a profile into this save: [name, value, name, value, ...]
        'LuaLoaded', list      the Lua reporting in after a start or load: [UI Extensions found
-                              (0 or 1), then my defaults as name, value pairs]; seeds an unseeded save
+                              (0 or 1), then the new-game profile as name, value pairs]; seeds an
+                              unseeded save
      The current values go back to Lua on the player blackboard, player.entity.$APiratesLife_Settings. -->
 <mdscript name="APiratesLife_Settings" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
@@ -181,7 +183,7 @@
                 <set_value name="Lua.$Reported" exact="true"/>
                 <debug_text text="'[apirateslife] settings: %s'.[if Lua.$UiExtensions then 'settings page available (UI Extensions found)' else 'config file only (UI Extensions not found)']"/>
               </do_if>
-              <!-- Seed a save that has never had settings from my defaults, once -->
+              <!-- Seed a save that has never had settings from the new-game profile, once -->
               <do_if value="not global.$APiratesLife_Seeded?">
                 <set_value name="global.$APiratesLife_Seeded" exact="true"/>
                 <run_actions ref="ChooseList">
@@ -189,18 +191,18 @@
                   <param name="Start" value="2"/>
                 </run_actions>
                 <run_actions ref="Apply"/>
-                <debug_text text="'[apirateslife] settings: this save started from my defaults (%s values)'.[if typeof $Param == datatype.list and $Param.count gt 1 then ($Param.count - 1) / 2 else 0]"/>
+                <debug_text text="'[apirateslife] settings: this save started from the new-game profile (%s values)'.[if typeof $Param == datatype.list and $Param.count gt 1 then ($Param.count - 1) / 2 else 0]"/>
               </do_if>
             </do_if>
             <do_elseif value="$Control == 'Reset'">
               <run_actions ref="Reset"/>
             </do_elseif>
-            <do_elseif value="$Control == 'LoadDefaults'">
+            <do_elseif value="$Control == 'LoadProfile'">
               <run_actions ref="ChooseList">
                 <param name="List" value="$Param"/>
               </run_actions>
               <run_actions ref="Apply"/>
-              <debug_text text="'[apirateslife] settings: loaded my defaults into this save'"/>
+              <debug_text text="'[apirateslife] settings: loaded a profile into this save'"/>
             </do_elseif>
             <do_else>
               <run_actions ref="Choose" result="$Chosen">

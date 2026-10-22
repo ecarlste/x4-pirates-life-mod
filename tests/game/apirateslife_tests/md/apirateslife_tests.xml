@@ -40,7 +40,7 @@
           <delay exact="5s"/>
           <actions>
             <debug_text text="'[apirateslife-test] RUN START %s tests'.[$Tests.count]" filter="general"/>
-            <!-- The new game was seeded from the tester's own "my defaults"; go back to the config
+            <!-- The new game was seeded from the tester's own new-game profile; go back to the config
                  file (and deploy set overrides) so tests start from known values -->
             <set_value name="global.$APiratesLife_Seeded" exact="true"/>
             <run_actions ref="md.APiratesLife_Settings.Reset"/>
@@ -275,8 +275,8 @@
       </actions>
     </cue>
 
-    <!-- An unseeded save takes my defaults from the Lua's first report, once; later reports don't
-         change it, and loading my defaults does -->
+    <!-- An unseeded save takes the new-game profile from the Lua's first report, once; later
+         reports don't change it, and loading a profile does -->
     <cue name="SettingsSeedFromDefaults">
       <conditions>
         <event_cue_signalled/>
@@ -304,7 +304,7 @@
               <set_value name="$Problems" exact="$Problems + ' save not marked as seeded;'"/>
             </do_if>
             <run_actions ref="SendUiEvents" result="$Target">
-              <param name="Events" value="['LoadDefaults|*CaptureWingFullChance,0']"/>
+              <param name="Events" value="['LoadProfile|*CaptureWingFullChance,0']"/>
             </run_actions>
           </actions>
           <cues>
@@ -315,9 +315,9 @@
               <actions>
                 <cancel_cue cue="SettingsSeedFromDefaults_Timeout"/>
                 <do_if value="global.$APiratesLife_CaptureWingFullChance != 0">
-                  <set_value name="$Problems" exact="$Problems + ' after loading my defaults: CaptureWingFullChance %s, defaults 0;'.[global.$APiratesLife_CaptureWingFullChance]"/>
+                  <set_value name="$Problems" exact="$Problems + ' after loading a profile: CaptureWingFullChance %s, profile 0;'.[global.$APiratesLife_CaptureWingFullChance]"/>
                 </do_if>
-                <signal_cue_instantly cue="Report" param="table[$name = 'settings_seed_from_defaults', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'seeded once from my defaults, later reports ignored, loading my defaults applied' else $Problems)]"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'settings_seed_from_defaults', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'seeded once from the new-game profile, later reports ignored, loading a profile applied' else $Problems)]"/>
                 <run_actions ref="md.APiratesLife_Settings.Reset"/>
               </actions>
             </cue>
