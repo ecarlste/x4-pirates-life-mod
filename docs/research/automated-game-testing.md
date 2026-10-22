@@ -84,7 +84,7 @@ So 6x is the most MD can speed things up. Tests should avoid waiting for travel 
 | `capture_abandoned` | A forced pilot bail ends the operation as abandoned and clears its state |
 | `capture_escape_waits_for_engagement` | An operation started on a target 20 km away is still running 40 s later: the escape timer waits until someone has been within 15 km |
 | `capture_escaped` | Once engaged, a target warped 25 km away ends the operation as escaped after 30 s |
-| `capture_wing_holds_fire` | Real combat: a pulse-laser wingman (fixed loadout) breaks a worn-down fighter (0 shields, 80% hull) to under 75% and keeps it there 30 s, never more than 20 points under the gate or below the 35% floor (target made uncapturable after the start so no bail ends it) |
+| `capture_wing_holds_fire` | Real combat: a pulse-laser wingman (fixed loadout) breaks a worn-down fighter (80% hull, shields held at 0 until it is under 75%) to under 75% and keeps it there 30 s, never more than 20 points under the gate or below the 35% floor (target made uncapturable after the start so no bail ends it) |
 
 **Log protocol** (every line starts with `[apirateslife-test]`): `RUN START <n> tests`, `PASS <name>: <detail>` / `FAIL <name>: <detail>`, `DONE passed=<n> failed=<n>`. A run fails if any test fails, fewer than `<n>` results arrive, `DONE` never comes (game exited or timed out), or the log has errors mentioning the mod (signature warnings excluded).
 
@@ -147,6 +147,7 @@ Four runs on 2026-10-20, X4 9.00, with only A Pirate's Life enabled in the profi
   - **Moving a ship with `warp`:** in the same actions as its `create_ship`, the warp doesn't stick (the ship stays near its spawn point); warp it a couple of seconds later, with explicit coordinates in the player's zone (`<position x="player.occupiedship.position.x" … z="… + 20km"/>`). The new position also isn't readable in the same actions, so measure distances later.
   - **Sub-cue delays count from the parent's activation** (see first runs, above): a "1 s after the warp" sub-cue under a 2 s cue ran before the warp. Give the later step the longer delay.
   - **Hold-fire test target starts worn down** (0 shields, 80% hull): with full shields, vanilla's dogfighting AI sometimes parked 1.3 km out and only chipped at them for minutes.
+  - **…and its shields are held at 0 until the hull is under 75%.** Shields recharge 15 s after the last hit, at about 125 hp/s on this fighter, more than two pulse lasers (209 dps) land in a dogfight. The wingman lands most of its hits on the way in, so if the last one before the gate came late, the hull stalled just above it: once in five runs on 2026-10-21, at 75.4% for the full 180 s, with the wingman still firing as it should. Below the gate the shields recharge as usual, so the suppress phase still gets tested.
   - **SETA drops** whenever something interrupts it (help messages, comm calls); the harness switches it back on (`KeepSeta`).
   - **Weapon groups are numbered from 0:** a spawned ship's guns are in active primary group 0, and `reset_weapongroups` plus activating group 1 left it with nothing to fire.
 - **Timing:** about 2½ minutes from `make game-test` to the report, most of it X4 starting and loading the universe; the tests themselves take about 25 s of game time.
