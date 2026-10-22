@@ -109,7 +109,7 @@ Scenarios: [`tests/game/features/capture-operation.feature`](../../tests/game/fe
   - `capture_abandoned`: a forced pilot bail ends the op as abandoned, clears the target's state, and an ownerless ship can't start a new op.
   - `capture_escaped`: a target warped 25 km away from an engaged operation ends it as escaped after 30 s.
   - `capture_escape_waits_for_engagement`: an operation started 20 km away is still running 40 s later.
-  - `capture_wing_holds_fire`: a real wingman (a fixed pulse-laser loadout from the test extension) breaks a capturable fighter to under 75% and keeps it there for 30 s, with the hull never more than 20 points under the gate (nor below the floor). The target is made uncapturable after the start, so no bail ends the fight.
+  - `capture_wing_holds_fire`: a real wingman (a fixed pulse-laser loadout from the test extension) breaks a capturable fighter (80% hull, shields held down until then) to under 75% and keeps it there for 30 s, with the hull never more than 20 points under the gate (nor below the floor). The target is made uncapturable after the start, so no bail ends the fight.
 - **In game:**
   - With 3 S ships, a comm choice on a neutral or SCA fighter starts the op.
   - The wing doesn't kill it, the HUD walks through shields, hull, then bail checks, and the pilot bails.
