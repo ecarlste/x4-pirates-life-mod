@@ -36,7 +36,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] Game-test plan in Gherkin: one `.feature` file per feature in `tests/game/features/`, scenarios tagged with the game test that covers them or `@pending`, checked against the tests by `make test`
 - [x] Game tests for the capture settings: each intact flag off gives vanilla damage ([PR #29](https://github.com/ecarlste/x4-pirates-life-mod/pull/29))
 - [x] `make game-test-report`: post the last game-test report to the branch's PR as a comment and a `game-tests` commit status, only when it's for the PR's latest commit with nothing uncommitted ([PR #30](https://github.com/ecarlste/x4-pirates-life-mod/pull/30))
-- [x] `@manual` scenarios in the game-test plan, checked by hand at every release (separate from `@pending`, which should get a game test), and `tools/manual-checklist.py` to turn them into a Markdown checklist (PR_LINK)
+- [x] `@manual` scenarios in the game-test plan, checked by hand at every release (separate from `@pending`, which should get a game test), and `tools/manual-checklist.py` to turn them into a Markdown checklist ([PR #40](https://github.com/ecarlste/x4-pirates-life-mod/pull/40))
 - [ ] Dev menu, stripped from release builds
 - [ ] Versioned showcase saves, one per feature
 
