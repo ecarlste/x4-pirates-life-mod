@@ -1,6 +1,6 @@
 # Spec: In-game settings page
 
-Plan item: Phase 1, "In-game settings page through kuertee's UI Extensions" · Status: Draft
+Plan item: Phase 1, "In-game settings page through kuertee's UI Extensions" · Status: Agreed (built; awaiting the game-test run and the hand test)
 
 ## Goal
 
@@ -26,7 +26,7 @@ With kuertee's UI Extensions installed, the player changes the mod's settings in
 - **New games start from my defaults.** A save that has never had settings (a new game, or an old save meeting this version) is seeded once: when the Lua reports in after the start or load, it sends my defaults and MD copies them into the save's table. After that, changing my defaults doesn't touch that save until "Load my defaults" is used there. A flag (`global.$APiratesLife_Seeded`) marks the save as seeded. Until the Lua reports in (a moment after the start), the config values apply.
 - **Reset:** "Reset to config file values" clears the save's table and re-applies the config. My defaults stay as they are.
 - **Settings the mod adds later** are missing from older saves and older defaults, so they come from the config file. Nothing needs migrating.
-- **MD owns the save's values.** Lua sends a change with `AddUITriggeredEvent("APiratesLife_Settings", <Name>, <value>)` (`"Reset"`, `"LoadDefaults"` with the defaults table, `"LuaLoaded"`); MD checks it, sets the global and the table, logs it, and mirrors the current values to the player blackboard (`player.entity.$APiratesLife_Settings`) for Lua to read with `GetNPCBlackboard`. Lua also updates its own copy at once so the page doesn't wait a frame. Unknown names are logged and ignored.
+- **MD owns the save's values.** Lua sends a change with `AddUITriggeredEvent("APiratesLife_Settings", <Name>, <value>)` (`"Reset"`; `"LoadDefaults"` and `"LuaLoaded"` with a flat list of name, value pairs, since lists are the shape vanilla and SWI are known to pass from Lua to MD); MD checks it, sets the global and the table, logs it, and mirrors the current values to the player blackboard (`player.entity.$APiratesLife_Settings`) for Lua to read with `GetNPCBlackboard`. Lua also updates its own copy at once so the page doesn't wait a frame. Unknown names are logged and ignored.
 - **Values:** the page's settings take 0 or 1; MD ignores anything else and logs it. The config file stays unchecked, as today.
 - **The page** (`ui/apirateslife_options.lua`, loaded by our `ui.xml` after `ego_gameoptions`): a `displayOptions_modifyOptions` callback adds an "A Pirate's Life" entry at the end of the in-game Settings page (hidden in the start menu, which has no save) and defines our page in `config.optionDefinitions`. It returns new tables, never editing the menu's own (the callback runs on every redraw). The page lists the three switches and the three actions (save as my defaults, load my defaults, reset). Each switch has a mouse-over text taken from the config file's comments. English text in the Lua for now; a text file when we localize.
 - **Optional dependency:** `content.xml` declares UI Extensions (`kuerteeUIExtensionsAndHUD`) with `optional="true"`, so the game loads it first when present. Without it the options menu has no `registerCallback`; our Lua logs that and adds no page, but still reports in and seeds new games from my defaults (none can be saved without the page, so in practice the config applies). SWI's bundled menus provide the same callback, so SWI players get the page too.
@@ -35,13 +35,14 @@ With kuertee's UI Extensions installed, the player changes the mod's settings in
 
 ## Tasks
 
-- [ ] `md/apirateslife_settings.xml`: the save's table, apply order on load, seeding, UI event handler with ranges, blackboard mirror, reset, logging
-- [ ] `ui.xml` and `ui/apirateslife_options.lua`: the page through `displayOptions_modifyOptions`, my defaults in `userdata`, UI Extensions check, load report
-- [ ] `content.xml`: optional dependency on UI Extensions
-- [ ] `md/apirateslife_config.xml` header
-- [ ] Game tests (the bridge and MD side; the test extension's Lua sends the same UI events as the page)
-- [ ] Manual test of the page with UI Extensions installed
-- [ ] Docs: PROJECT.md current status, plan, specs README
+- [x] `md/apirateslife_settings.xml`: the save's table, apply order on load, seeding, UI event handler, blackboard mirror, reset, logging
+- [x] `ui.xml` and `ui/apirateslife_options.lua`: the page through `displayOptions_modifyOptions`, my defaults in `userdata`, UI Extensions check, load report
+- [x] `content.xml`: optional dependency on UI Extensions
+- [x] `md/apirateslife_config.xml` header, with the page settings and the tuning settings in their own sections
+- [x] Game tests (the bridge and MD side; the test extension's Lua sends the same UI events as the page): `settings_lua_reports_in`, `settings_choice_survives_load`, `settings_config_fills_unchosen`, `settings_seed_from_defaults`, `settings_reset`, `settings_ignores_invalid`
+- [ ] Run the game tests
+- [ ] Hand test of the page with UI Extensions installed
+- [x] Docs: PROJECT.md current status, plan, specs README
 
 ## Done when
 
@@ -53,6 +54,13 @@ Scenarios: [`tests/game/features/in-game-settings.feature`](../../tests/game/fea
 - Reset brings back the config file's values; invalid values, unknown names and the tuning settings (not on the page) are ignored.
 - Our Lua loads and reports in without UI Extensions, and the game then runs on the config file as before.
 - By hand, with UI Extensions installed: the page shows in game (not in the start menu), each button changes its value and the log shows it, the values are still there after saving and loading, and my defaults saved in one game start the next new game and survive restarting X4.
+
+## Built
+
+- **Lua finds MD either way round:** the Lua reports in when it loads, and `OnLoad` also asks it to (`raise_lua_event 'APiratesLife.settingsReady'`), since which side is ready first after a load isn't known. MD logs the page state once per start or load and seeds only once per save.
+- **The game is paused while the options menu is open**, so MD may handle the page's events only after it closes. The Lua keeps what it sent as pending until the blackboard shows it, so reopening the page never shows an old value.
+- **Game-test runs:** the test game is seeded from the tester's own defaults like any new game, so the test runner's `Begin` waits for the report, then resets to the config file (and `deploy --set` values) before the first test.
+- **`deploy --set` versus the page:** a value chosen in game wins over the config file, including over `--set` overrides. Use the page's reset in a save you test with.
 
 ## Open questions
 

@@ -160,7 +160,7 @@ Setup and spike 1 come first; features then ship as demo-able vertical slices, e
 
 **Spike 1: how bailing and boarding work in vanilla**
 
-- Bailing (S/M): what triggers it, whether player vs. NPC attackers differ, what happens to the ship afterward, and whether wingmen and fleets can cause and claim bails. Start from the existing bail-rate patch in `libraries/`.
+- Bailing (S/M): what triggers it, whether player vs. NPC attackers differ, what happens to the ship afterward, and whether wingmen and fleets can cause and claim bails. Start from the bail hook, a diff patch on `PlayerOwnedShipAttacks` in `md/notifications.xml` ([spec](specs/bail-hook.md)).
 - Boarding (L/XL): the full flow, tuning in `parameters.xml` vs. engine behavior, whether NPC factions board, and how the boarding UI talks to MD.
 - Adjacent: cargo drop demands, faction reactions to theft, the Yaki IFF disguise.
 - Method: grep unpacked `md/`, `aiscripts/`, `libraries/`, `ui/` for `bail`, `abandon`, `eject`, `board`, `marine`, `claim`, `drop_cargo`, `surrender`, `ownerless`, then trace cues and orders.

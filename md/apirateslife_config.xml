@@ -5,7 +5,13 @@
 
   Edit the values below to change the mod's behavior (1 = on, 0 = off). Changes apply the next
   time you start or load a game. Note: updating the mod replaces this file, so edits are lost on
-  update. In-game settings are planned.
+  update.
+
+  In-game settings: with kuertee's UI Extensions installed, the settings marked "On the settings
+  page" can also be changed in game (Settings, then A Pirate's Life). A value chosen there stays
+  with that save and wins over this file; the page can also save your choices as "my defaults"
+  for new games. This file fills in everything else, and the page's "Reset to config file
+  values" brings its values back. Settings under "Tuning" are only set here.
 
   Developers: deploy.sh and deploy.ps1 can override these values in the deployed copy without
   editing this file; see "Everyday commands" in the README. (No double hyphens in this comment:
@@ -15,6 +21,8 @@
   <cues>
     <library name="Defaults" purpose="run_actions">
       <actions>
+        <!-- ===== On the settings page ===== -->
+
         <!-- Intact when the pilot ejects: the bailing pilot doesn't lower the hull or sabotage
              weapons, turrets and shields. 0 = vanilla behavior. -->
         <set_value name="global.$APiratesLife_IntactOnEject" exact="1"/>
@@ -22,6 +30,12 @@
         <!-- Intact when marines claim: claiming an abandoned ship with marines doesn't damage the
              hull or destroy equipment. 0 = vanilla behavior. -->
         <set_value name="global.$APiratesLife_IntactOnClaim" exact="1"/>
+
+        <!-- Capture operations: a wingman's hit gets the same bail chance as yours while you lead the
+             operation in the same sector. 0 = vanilla, where a wingman's chance is a quarter of yours. -->
+        <set_value name="global.$APiratesLife_CaptureWingFullChance" exact="1"/>
+
+        <!-- ===== Tuning (only set here) ===== -->
 
         <!-- Capture operations: wingmen attack the target at full strength until its hull is below
              this percentage, then only knock its shields down and stop once they're gone. 75 is
@@ -31,10 +45,6 @@
         <!-- Capture operations: nobody in the operation fires once the target's hull is at or below
              this percentage. -->
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
-
-        <!-- Capture operations: a wingman's hit gets the same bail chance as yours while you lead the
-             operation in the same sector. 0 = vanilla, where a wingman's chance is a quarter of yours. -->
-        <set_value name="global.$APiratesLife_CaptureWingFullChance" exact="1"/>
       </actions>
     </library>
   </cues>

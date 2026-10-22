@@ -12,7 +12,7 @@ setup() {
     cd "$REPO_ROOT"
     run python3 - <<'PY'
 import glob, sys, xml.dom.minidom
-files = ["content.xml"] + [f for d in ("md", "aiscripts", "libraries", "t", "tests/game")
+files = ["content.xml", "ui.xml"] + [f for d in ("md", "aiscripts", "libraries", "t", "ui", "tests/game")
                            for f in glob.glob(d + "/**/*.xml", recursive=True)]
 bad = []
 for f in files:
