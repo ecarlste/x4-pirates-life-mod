@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, SettingsLuaReportsIn, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsReset, SettingsIgnoresInvalid]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsReset, SettingsIgnoresInvalid]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -171,6 +171,36 @@
         <set_value name="$Uix" exact="md.APiratesLife_Settings.Lua.$UiExtensions"/>
         <signal_cue_instantly cue="Report" param="table[$name = 'settings_lua_reports_in', $ok = $Reported, $detail = (if not $Reported then 'no LuaLoaded report from ui/apirateslife_options.lua' else (if $Uix then 'reported in; UI Extensions found, settings page available' else 'reported in; UI Extensions not found, config file only'))]"/>
       </actions>
+    </cue>
+
+    <!-- With UI Extensions installed, our page is hooked into the options menu the game ended up
+         with. Asks the test extension's Lua: 0 = no UI Extensions, 1 = hooked, 2 = not hooked. -->
+    <cue name="SettingsPageRegistered">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <raise_lua_event name="'apirateslife_tests.checkSettingsPage'"/>
+      </actions>
+      <cues>
+        <cue name="SettingsPageRegistered_Answer">
+          <conditions>
+            <event_ui_triggered screen="'apirateslife_tests'" control="'settingsPage'"/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="SettingsPageRegistered_Timeout"/>
+            <set_value name="$Answer" exact="event.param3"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'settings_page_registered', $ok = ($Answer != 2), $detail = (if $Answer == 0 then 'UI Extensions not installed, nothing to hook' else (if $Answer == 1 then 'hooked into the options menu' else 'UI Extensions is installed but our callback is not on the options menu; check the dependency order in ui.xml'))]"/>
+          </actions>
+        </cue>
+        <cue name="SettingsPageRegistered_Timeout">
+          <delay exact="20s"/>
+          <actions>
+            <cancel_cue cue="SettingsPageRegistered_Answer"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'settings_page_registered', $ok = false, $detail = 'no answer from the test extension Lua within 20s']"/>
+          </actions>
+        </cue>
+      </cues>
     </cue>
 
     <!-- A choice from the page applies at once and survives the load path, which re-applies the

@@ -5,6 +5,10 @@
 <addon name="apirateslife" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../ui/core/addon.xsd">
   <environment type="menus">
     <file name="ui/apirateslife_options.lua"/>
+    <!-- Order matters: X4 loads these before our file, in this order. The options menu's Lua uses
+         types (SoundInfo, UIMacroCount) that ego_detailmonitor declares, so with ego_gameoptions
+         alone the options menu loaded first and failed. -->
+    <dependency name="ego_detailmonitor"/>
     <dependency name="ego_gameoptions"/>
     <savedvariable name="__userdata_apirateslife" storage="userdata"/>
   </environment>

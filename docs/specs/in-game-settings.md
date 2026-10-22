@@ -39,8 +39,8 @@ With kuertee's UI Extensions installed, the player changes the mod's settings in
 - [x] `ui.xml` and `ui/apirateslife_options.lua`: the page through `displayOptions_modifyOptions`, my defaults in `userdata`, UI Extensions check, load report
 - [x] `content.xml`: optional dependency on UI Extensions
 - [x] `md/apirateslife_config.xml` header, with the page settings and the tuning settings in their own sections
-- [x] Game tests (the bridge and MD side; the test extension's Lua sends the same UI events as the page): `settings_lua_reports_in`, `settings_choice_survives_load`, `settings_config_fills_unchosen`, `settings_seed_from_defaults`, `settings_reset`, `settings_ignores_invalid`
-- [ ] Run the game tests
+- [x] Game tests (the bridge and MD side; the test extension's Lua sends the same UI events as the page): `settings_lua_reports_in`, `settings_choice_survives_load`, `settings_config_fills_unchosen`, `settings_seed_from_defaults`, `settings_reset`, `settings_ignores_invalid`, `settings_page_registered`
+- [x] Run the game tests: 18 of 18 pass with UI Extensions v9.0.0.18 installed
 - [ ] Hand test of the page with UI Extensions installed
 - [x] Docs: PROJECT.md current status, plan, specs README
 
@@ -59,6 +59,7 @@ Scenarios: [`tests/game/features/in-game-settings.feature`](../../tests/game/fea
 
 - **Lua finds MD either way round:** the Lua reports in when it loads, and `OnLoad` also asks it to (`raise_lua_event 'APiratesLife.settingsReady'`), since which side is ready first after a load isn't known. MD logs the page state once per start or load and seeds only once per save.
 - **The game is paused while the options menu is open**, so MD may handle the page's events only after it closes. The Lua keeps what it sent as pending until the blackboard shows it, so reopening the page never shows an old value.
+- **Load order** (found in the first game-test run): `ui.xml` lists `ego_detailmonitor` before `ego_gameoptions`. With `ego_gameoptions` alone, X4 loaded a first copy of the options menu for our file before `ego_detailmonitor`, whose types (`SoundInfo`, `UIMacroCount`) the options menu's Lua uses. That copy failed part way (errors in the log), our file found no `registerCallback` and added no page; X4 then loaded the menu again in its normal place, so the menu itself worked. The game test `settings_page_registered` guards it: it failed with the old order and passes with the new one.
 - **Game-test runs:** the test game is seeded from the tester's own defaults like any new game, so the test runner's `Begin` waits for the report, then resets to the config file (and `deploy --set` values) before the first test.
 - **`deploy --set` versus the page:** a value chosen in game wins over the config file, including over `--set` overrides. Use the page's reset in a save you test with.
 

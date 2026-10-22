@@ -52,6 +52,12 @@ Feature: In-game settings
     When the page sends a setting the mod doesn't have
     Then no setting changes
 
+  @settings_page_registered
+  Scenario: With UI Extensions the settings page is hooked into the options menu
+    Given kuertee's UI Extensions is installed
+    When the game starts
+    Then our page is registered with the options menu the game uses
+
   @settings_lua_reports_in
   Scenario: Without UI Extensions the mod runs on the config file
     Given kuertee's UI Extensions is not installed
