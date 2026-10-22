@@ -54,7 +54,7 @@ Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.
 - [x] Bring back the mod's 2x bail rate as an MD diff patch on `PlayerOwnedShipAttacks` (the candidate hook in the research note): [spec](specs/bail-hook.md)
 - [x] Captured ships arrive intact: no damage from the bailing pilot (hull drop, sabotage) or the claiming marine: [spec](specs/claim-no-damage.md) ([PR #18](https://github.com/ecarlste/x4-pirates-life-mod/pull/18))
 - [x] Player settings for intact captures: on/off for "intact when the pilot ejects" and "intact when marines claim", from a config file: [spec](specs/capture-settings.md) ([PR #21](https://github.com/ecarlste/x4-pirates-life-mod/pull/21))
-- [ ] In-game settings page through kuertee's UI Extensions (the `displayOptions_modifyOptions` hook SWI uses), optional dependency; config file stays the fallback: [spec](specs/in-game-settings.md) ([PR](https://github.com/ecarlste/x4-pirates-life-mod/pulls?q=head%3Afeature%2Fin-game-settings))
+- [ ] In-game settings page through kuertee's UI Extensions (the `displayOptions_modifyOptions` hook SWI uses), optional dependency; config file stays the fallback: [spec](specs/in-game-settings.md) ([PR #37](https://github.com/ecarlste/x4-pirates-life-mod/pull/37))
 - [ ] Reflect agreed findings into `DESIGN.md`, then confirm the order of the Phase 2 slices
 
 ## Phase 2: Core loop vertical slices
