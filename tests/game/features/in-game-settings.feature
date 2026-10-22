@@ -15,8 +15,9 @@ Feature: In-game settings
   @pending
   Scenario: Settings not changed in game follow the config file
     Given I switched "intact when the pilot ejects" off in game
-    When the game is loaded with a different capture hold line in the config file
-    Then the hold line is the config file's value
+    When the game is loaded with "intact when marines claim" off in the config file
+    Then "intact when marines claim" is off
+    And the capture hold line and floor are the config file's values
 
   @pending
   Scenario: A new game starts from my defaults
@@ -27,10 +28,10 @@ Feature: In-game settings
 
   @pending
   Scenario: Changing my defaults leaves a seeded save alone until it loads them
-    Given a save that started from my defaults, with a capture floor of 35%
-    When my defaults change to a floor of 20%
-    Then that save's floor is still 35% after it is loaded again
-    And after I load my defaults in it, its floor is 20%
+    Given a save that started from my defaults, with full wingman bail chance on
+    When my defaults change to full wingman bail chance off
+    Then it is still on in that save after it is loaded again
+    And after I load my defaults in it, it is off
 
   @pending
   Scenario: Reset brings back the config file's values
@@ -40,13 +41,11 @@ Feature: In-game settings
     And it keeps it after the game is loaded again
 
   @pending
-  Scenario: Values that would break captures are clamped
-    When the page sends a capture hold line of 90%
-    Then the hold line is 75%
-    When the page sends a floor of 75%
-    Then the floor is 70%, 5 points under the hold line
-    When the page then sends a hold line of 40%
-    Then the floor drops to 35%
+  Scenario: The page can only change the player-facing settings
+    When the page sends "intact when the pilot ejects" set to 5
+    And it sends a capture hold line of 50%, a config-file-only setting
+    Then neither setting changes
+    And the log says the value was ignored
 
   @pending
   Scenario: Unknown settings are ignored
