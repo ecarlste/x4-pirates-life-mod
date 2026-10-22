@@ -1140,9 +1140,10 @@
         <create_order id="'Wait'" object="$Target" default="true">
           <param name="noattackresponse" value="true"/>
         </create_order>
-        <!-- Start the target worn down (no shields, 80% hull), so a few hits take it past the 75%
-             gate: the test is about stopping there, not about how well vanilla's AI dogfights (in
-             one run the wingman parked 1.3 km out and only chipped at the shields for minutes) -->
+        <!-- Start the target worn down (no shields, 80% hull; the watch below keeps the shields down
+             until the hull is under 75%), so a few hits take it past the 75% gate: the test is about
+             stopping there, not about how well vanilla's AI dogfights (in one run the wingman parked
+             1.3 km out and only chipped at the shields for minutes) -->
         <set_object_shield object="$Target" exact="0"/>
         <set_object_hull object="$Target" exact="80"/>
         <set_value name="$MinHull" exact="100"/>
@@ -1178,6 +1179,13 @@
                       <!-- Inside the bail gate long enough to see that the wing stops there -->
                       <set_value name="$Finished" exact="$HeldFor ge 30"/>
                     </do_if>
+                    <!-- Above the gate, keep the shields down. They recharge (about 125 hp/s) 15 s
+                         after the last hit, faster than two pulse lasers in a dogfight break them:
+                         in one run the hull stalled at 75.4% for the full 180 s. Below the gate
+                         they recharge as usual, so the wingman's shields-only fire is tested too. -->
+                    <do_elseif value="$Target.shield gt 0">
+                      <set_object_shield object="$Target" exact="0"/>
+                    </do_elseif>
                   </do_else>
                 </do_else>
                 <do_if value="$Finished">
