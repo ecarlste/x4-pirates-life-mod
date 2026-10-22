@@ -54,7 +54,7 @@ Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.
 - [x] Bring back the mod's 2x bail rate as an MD diff patch on `PlayerOwnedShipAttacks` (the candidate hook in the research note): [spec](specs/bail-hook.md)
 - [x] Captured ships arrive intact: no damage from the bailing pilot (hull drop, sabotage) or the claiming marine: [spec](specs/claim-no-damage.md) ([PR #18](https://github.com/ecarlste/x4-pirates-life-mod/pull/18))
 - [x] Player settings for intact captures: on/off for "intact when the pilot ejects" and "intact when marines claim", from a config file: [spec](specs/capture-settings.md) ([PR #21](https://github.com/ecarlste/x4-pirates-life-mod/pull/21))
-- [ ] In-game settings page through kuertee's UI Extensions (the `displayOptions_modifyOptions` hook SWI uses), optional dependency; config file stays the fallback
+- [ ] In-game settings page through kuertee's UI Extensions (the `displayOptions_modifyOptions` hook SWI uses), optional dependency; config file stays the fallback: [spec](specs/in-game-settings.md) ([PR #37](https://github.com/ecarlste/x4-pirates-life-mod/pull/37))
 - [ ] Reflect agreed findings into `DESIGN.md`, then confirm the order of the Phase 2 slices
 
 ## Phase 2: Core loop vertical slices
@@ -71,6 +71,7 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
     - Outside operations, bails go back to vanilla's chance (our ×2 goes away).
     - The mission readout shows the pilot's nerve.
     - Fear fades instead of vanishing (agreed 2026-10-21): if an operation ends without a capture (escaped or called off), the pressure stays on the target's pilot (`$APiratesLife_Fear` on the pilot NPC, with the time it was last set) and decays: × `CaptureFearDecayFactor` (default 0.5) per `CaptureFearDecayInterval` (default 300 s), applied when it's read, not on a timer. A new operation on that pilot starts from what's left. Capture or destruction ends it. Game tests set short intervals.
+    - Settings (after the in-game settings page lands): the pressure numbers (step, cap, interval, fear decay) as config values; which of them go on the settings page is decided then, per the page's [rule](specs/in-game-settings.md#design) that only player choices go there.
     - Built leader-agnostic: a presser profile (start factor, step, cap, interval) worked out from the operation's leader. The player is the only case for now; later, notoriety raises the player's numbers, and Raid Sector wings use the same logic at lower numbers.
   - [ ] Wing-level stop line: the operation adds up the laser DPS of the wingmen that are firing and sets one shield-HP stop line for all of them, instead of each wingman's own 1.5 s margin. If that line is above the 20% bail gate, only the lightest-armed wingmen suppress while the rest hold.
   - [ ] Prize crew flies a captured ship home

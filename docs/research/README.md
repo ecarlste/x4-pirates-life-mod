@@ -4,7 +4,7 @@ What we've learned about how vanilla X4 works, for designing and building agains
 
 | Note | Covers | Status |
 | --- | --- | --- |
-| [third-party-ui-apis.md](third-party-ui-apis.md) | SirNukes vs. kuertee's UI Extensions on 9.0, how SWI builds its UI, the vanilla Lua ↔ MD bridge, approach for our settings page | Done for the settings decision |
+| [third-party-ui-apis.md](third-party-ui-apis.md) | SirNukes vs. kuertee's UI Extensions on 9.0, how SWI builds its UI, the vanilla Lua ↔ MD bridge, approach for our settings page, how the 9.00 options hook works | Done |
 | [prior-art-better-piracy.md](prior-art-better-piracy.md) | Better Piracy (original, Reforged, Reborn for 9.x): every feature and how it's built, config, bugs, how we'd do better; related mods | Done for Better Piracy Reborn; Enhanced Bailing studied through SWI's copy; other related mods unstudied |
 | [automated-game-testing.md](automated-game-testing.md) | Running regression tests in the real game: autostarting a test gamestart from Lua, deterministic bail and claim scenarios in MD, quitting and time warp from MD, a log-reading runner, CI fit, UI testing options | WIP: working in game (all 9 tests pass, including real combat); a few questions open |
 | [spike-1-bailing-boarding.md](spike-1-bailing-boarding.md) | Bail checks, eject chance, NPC-vs-NPC bails, who can claim, capture hooks; boarding to come | WIP: bailing mapped (two in-game checks left) |

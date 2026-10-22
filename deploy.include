@@ -2,6 +2,7 @@
 # Only these are copied into the game's extensions folder; anything else in the repo
 # (docs, tools, dev config) never ships. Entries that don't exist yet are skipped.
 content.xml
+ui.xml
 aiscripts
 assets
 index
