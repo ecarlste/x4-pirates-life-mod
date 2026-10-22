@@ -25,7 +25,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] Squash-only merges using the PR title and description, merged branches auto-deleted; Conventional Commits PR titles (72 characters max) required by a CI check ([PR #10](https://github.com/ecarlste/x4-pirates-life-mod/pull/10))
 - [x] `deploy --set NAME=VALUE` (PowerShell `-Set`): override config settings in the deployed copy only, for testing ([PR #22](https://github.com/ecarlste/x4-pirates-life-mod/pull/22))
 - [ ] Autoformat scripts on commit: shfmt and PSScriptAnalyzer's formatter, through a pre-commit hook enabled by `make setup`
-- [ ] `make release`: lint (shellcheck, PSScriptAnalyzer default rules, format check), run the tests, build the release zip from a clean `origin/main`; drop linting from `make test` and PR CI
+- [ ] `make release`: lint (shellcheck, PSScriptAnalyzer default rules, format check), run the tests, build the release zip from a clean `origin/main`, and write the manual release checklist (`tools/manual-checklist.py`) next to it in `dist/`; drop linting from `make test` and PR CI
 - [x] Repo README: what the mod is, prerequisites, setup, deploy, test, coming back after a break ([PR #5](https://github.com/ecarlste/x4-pirates-life-mod/pull/5))
 
 **In-game dev tooling** (from [DESIGN.md, Roadmap](DESIGN.md#roadmap): "Dev tooling, early")
@@ -36,6 +36,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] Game-test plan in Gherkin: one `.feature` file per feature in `tests/game/features/`, scenarios tagged with the game test that covers them or `@pending`, checked against the tests by `make test`
 - [x] Game tests for the capture settings: each intact flag off gives vanilla damage ([PR #29](https://github.com/ecarlste/x4-pirates-life-mod/pull/29))
 - [x] `make game-test-report`: post the last game-test report to the branch's PR as a comment and a `game-tests` commit status, only when it's for the PR's latest commit with nothing uncommitted ([PR #30](https://github.com/ecarlste/x4-pirates-life-mod/pull/30))
+- [x] `@manual` scenarios in the game-test plan, checked by hand at every release (separate from `@pending`, which should get a game test), and `tools/manual-checklist.py` to turn them into a Markdown checklist (PR_LINK)
 - [ ] Dev menu, stripped from release builds
 - [ ] Versioned showcase saves, one per feature
 
@@ -116,7 +117,7 @@ Not yet agreed. Promote an item into a phase once we decide to do it.
 - [ ] PSScriptAnalyzer and shellcheck in PR CI as well as at release
 - [ ] Game tests through Egosoft's NoSteam executable: research and PoC (own arguments, no Steam prompt or session limit; needs its own profile folder): [notes](research/automated-game-testing.md#egosofts-nosteam-executable)
 - [ ] Game-test report on the PR: compare the PR's run with the latest run on `main` (newly failing, newly passing, new tests): [notes](research/automated-game-testing.md#comparing-a-prs-run-with-main)
-- [ ] Game tests in CI before inviting contributors (test machine, dedicated Steam account, approval gate, post-merge gate, automated release): [notes](research/automated-game-testing.md#cicd)
+- [ ] Game tests in CI before inviting contributors (test machine, dedicated Steam account, approval gate, post-merge gate, automated release whose approval gate, a GitHub Environment needing Erik's approval, shows the manual release checklist in the job summary): [notes](research/automated-game-testing.md#cicd)
 - [ ] Refitting captured ships without legit factions ([research note](research/pirate-refitting.md#design-ideas)). Vanilla gives a pirate only general-use gear at the Vigor wharf early on, so:
   - [ ] Prize-to-prize transfer: move a prize's weapons, turrets and shields onto another ship (`apply_loadout`), stripping the source
   - [ ] Salvage stash: strip prizes into a per-ware parts stash (MD data); refit empty slots from it at a pirate contact and later the hideout (`generate_loadout` limited to stash wares)

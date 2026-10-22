@@ -62,7 +62,7 @@ GOOD='Feature: Example
     feature a.feature "$GOOD"
     check
     [ "$status" -eq 0 ]
-    [[ "$output" == *"3 scenarios (1 pending) cover all 2 game tests"* ]]
+    [[ "$output" == *"3 scenarios (1 pending, 0 manual) cover all 2 game tests"* ]]
 }
 
 @test "fails when a game test has no scenario" {
@@ -135,4 +135,26 @@ GOOD='Feature: Example
     check
     [ "$status" -eq 1 ]
     [[ "$output" == *"spec other.md links tests/game/features/missing.feature, which doesn't exist"* ]]
+}
+
+@test "counts @manual scenarios separately from @pending" {
+    feature a.feature "$GOOD
+  @manual
+  Scenario: Delta, checked by hand
+    Given delta
+    Then it looks right"
+    check
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"4 scenarios (1 pending, 1 manual) cover all 2 game tests"* ]]
+}
+
+@test "fails when a scenario is both @pending and @manual" {
+    feature a.feature "$GOOD
+  @pending @manual
+  Scenario: Undecided
+    Given indecision
+    Then it is caught"
+    check
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"@pending and @manual contradict each other (scenario: Undecided)"* ]]
 }
