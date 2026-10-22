@@ -183,16 +183,22 @@ local function nameLength(name)
 	return string.len((string.gsub(name, "[\128-\191]", "")))
 end
 
-local function saveProfile(text)
+-- The trimmed name, or nil (with the reason in the status line) if it can't name a profile.
+-- Names are case-sensitive: "Hard mode" and "hard mode" are two profiles (spec: Design).
+local function checkedName(text)
 	local name = trim(text)
 	if name == "" then
 		status = "Not saved: the profile needs a name."
-		return
+		return nil
 	end
 	if nameLength(name) > maxNameLength then
 		status = string.format("Not saved: a profile name can be at most %d characters.", maxNameLength)
-		return
+		return nil
 	end
+	return name
+end
+
+local function saveProfile(name)
 	local profile = {}
 	for _, setting in ipairs(pageSettings) do
 		profile[setting.name] = values[setting.name]
@@ -234,27 +240,43 @@ end
 
 -- Shows a question on the options menu and comes back to our page afterwards, as vanilla's own
 -- questions do (e.g. resetting the extension settings)
-local function ask(question, onYes, editboxHook, editboxNote)
+local function ask(question, onYes, editboxHook)
 	local menu = optionsMenu
 	table.insert(menu.history, 1, { optionParameter = menu.currentOption, topRow = GetTopRow(menu.optionTable) })
 	menu.displayUserQuestion(question, function (text)
 		onYes(text)
 		menu.onCloseElement("back")
-	end, nil, nil, nil, editboxHook, editboxNote)
+	end, nil, nil, nil, editboxHook)
+end
+
+-- Asks a moment later, once the current handler (a dropdown, or the question before) has finished
+local function askLater(question, onYes)
+	Helper.addDelayedOneTimeCallbackOnUpdate(function ()
+		ask(question, onYes)
+	end, true, getElapsedTime() + 0.1)
 end
 
 local function askProfileName()
-	ask("Save this save's settings as a profile named:", saveProfile, function () return lastProfile or newGameProfile() or "" end, "A profile with the same name is replaced.")
+	local suggested = lastProfile or newGameProfile() or ""
+	ask("Save this save's settings as a profile named:", function (text)
+		local name = checkedName(text)
+		if not name then
+			return
+		end
+		-- Keeping the suggested name means "update that profile". Typing the name of a different
+		-- existing profile may be a surprise, so ask before replacing it.
+		if profiles()[name] and name ~= suggested then
+			askLater(string.format("Replace the profile '%s'?", name), function () saveProfile(name) end)
+		else
+			saveProfile(name)
+		end
+	end, function () return suggested end)
 end
 
 local function askDelete(name)
-	if not name then
-		return
+	if name then
+		askLater(string.format("Delete the profile '%s'?", name), function () deleteProfile(name) end)
 	end
-	-- Leave the dropdown's own handler before switching to the question
-	Helper.addDelayedOneTimeCallbackOnUpdate(function ()
-		ask(string.format("Delete the profile '%s'?", name), function () deleteProfile(name) end)
-	end, true, getElapsedTime() + 0.1)
 end
 
 local function resetToConfig()

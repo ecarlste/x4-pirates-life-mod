@@ -25,10 +25,19 @@ Feature: Named settings profiles
     And it is still there after restarting X4
 
   @pending
-  Scenario: Saving under an existing name replaces that profile
-    Given a profile named "Hard mode"
-    When I save different settings under the name "Hard mode"
-    Then there is one "Hard mode", with the new settings
+  Scenario: Saving again under the suggested name updates that profile
+    Given I loaded the profile "Hard mode" and changed a setting
+    When I save, keeping the suggested name "Hard mode"
+    Then I am not asked anything
+    And there is one "Hard mode", with the new settings
+
+  @pending
+  Scenario: Typing the name of a different existing profile asks first
+    Given profiles "Hard mode" and "Easy mode", and "Hard mode" is the suggested name
+    When I save under the name "Easy mode"
+    Then I am asked whether to replace "Easy mode"
+    And if I cancel, "Easy mode" keeps its settings
+    And if I confirm, "Easy mode" has the new settings
 
   @pending
   Scenario: A profile needs a name
