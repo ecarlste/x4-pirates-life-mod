@@ -1,9 +1,9 @@
 # Spec: docs/specs/in-game-settings.md
 Feature: In-game settings
   With kuertee's UI Extensions installed, I change the mod's settings in game. A choice stays with
-  my save, whatever the config file says. I can keep my favourite values as my defaults, which
-  start every new game. The config file fills in anything else. Without UI Extensions the mod
-  runs on the config file alone.
+  my save, whatever the config file says. The config file fills in anything else. Without UI
+  Extensions the mod runs on the config file alone. Saving settings for other saves and new games:
+  settings-profiles.feature.
 
   @settings_choice_survives_load
   Scenario: A setting changed in game survives a load
@@ -19,20 +19,6 @@ Feature: In-game settings
     When the game is loaded again
     Then "intact when the pilot ejects" is still off
     And the other three have the config file's values
-
-  @settings_seed_from_defaults
-  Scenario: A new game starts from my defaults
-    Given my defaults have "intact when marines claim" off
-    And the config file has it on
-    When I start a new game
-    Then it is off in that game
-
-  @settings_seed_from_defaults
-  Scenario: Changing my defaults leaves a seeded save alone until it loads them
-    Given a save that started from my defaults, with full wingman bail chance on
-    When my defaults change to full wingman bail chance off
-    Then it is still on in that save after it is loaded again
-    And after I load my defaults in it, it is off
 
   @settings_reset
   Scenario: Reset brings back the config file's values

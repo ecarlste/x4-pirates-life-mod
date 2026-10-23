@@ -1,13 +1,13 @@
--- A Pirate's Life: the in-game settings page (Settings > A Pirate's Life) and "my defaults".
--- See docs/specs/in-game-settings.md.
+-- A Pirate's Life: the in-game settings page (Settings > A Pirate's Life) and named settings
+-- profiles. See docs/specs/in-game-settings.md and docs/specs/settings-profiles.md.
 --
 -- The page needs kuertee's UI Extensions (or SWI's bundled menus), which add the
 -- displayOptions_modifyOptions callback to the options menu. Without it this file adds no page,
 -- but still reports in to MD (md/apirateslife_settings.xml), which then runs on the config file.
 --
 -- MD owns this save's values: changes go to MD with AddUITriggeredEvent, and MD mirrors the
--- current values to the player blackboard ($APiratesLife_Settings). My defaults are kept here, in
--- a userdata saved variable that X4 stores in the player's profile, shared by every save.
+-- current values to the player blackboard ($APiratesLife_Settings). Profiles are kept here, in a
+-- userdata saved variable that X4 stores in the player's profile, shared by every save.
 
 -- GetPlayerID is declared by vanilla's helper.lua, which loads before the options menu and so before this file
 local ffi = require("ffi")
@@ -36,15 +36,22 @@ local pageSettings = {
 	},
 }
 
--- Profile-wide storage (declared in ui.xml): { defaults = { <name> = 0 or 1 } }
+-- Profile-wide storage (declared in ui.xml):
+--   profiles = { [profile name] = { <setting> = 0 or 1 } }
+--   newGameProfile = profile name new games start from, or nil for the config file
+-- The first version kept one set in "defaults"; migrateDefaults turns it into a profile.
 __userdata_apirateslife = __userdata_apirateslife or {}
+
+local maxNameLength = 40
+local migratedName = "My defaults"
 
 local optionsMenu
 local hasPage = false
 local values = {}    -- this save's values, as last read from MD
 local config = {}    -- the config file's values, from MD (for reset)
 local pending = {}   -- values sent to MD that it hasn't mirrored back yet
-local savedNote = "" -- feedback after saving my defaults
+local status = ""   -- what the last profile action did, shown under the actions
+local lastProfile   -- the profile last loaded or saved in this session; pre-fills the name box
 
 local function log(text)
 	-- DebugError is the only Lua logger that reaches debuglog.txt; these lines aren't errors
@@ -82,13 +89,64 @@ local function setLocal(name, value)
 	pending[name] = value
 end
 
--- My defaults as a flat list [name, value, name, value, ...], the shape MD expects
-local function defaultsList()
-	local list = {}
+local function profiles()
+	if type(__userdata_apirateslife.profiles) ~= "table" then
+		__userdata_apirateslife.profiles = {}
+	end
+	return __userdata_apirateslife.profiles
+end
+
+-- Profile names, sorted ignoring case
+local function profileNames()
+	local names = {}
+	for name in pairs(profiles()) do
+		table.insert(names, name)
+	end
+	table.sort(names, function (a, b)
+		local la, lb = string.lower(a), string.lower(b)
+		if la == lb then
+			return a < b
+		end
+		return la < lb
+	end)
+	return names
+end
+
+local function hasProfiles()
+	return next(profiles()) ~= nil
+end
+
+local function newGameProfile()
+	local name = __userdata_apirateslife.newGameProfile
+	if name and profiles()[name] then
+		return name
+	end
+	return nil
+end
+
+-- The first version's single "defaults" set becomes a profile, used for new games
+local function migrateDefaults()
 	local defaults = __userdata_apirateslife.defaults
-	if type(defaults) == "table" then
+	if type(defaults) ~= "table" then
+		return
+	end
+	if profiles()[migratedName] == nil then
+		profiles()[migratedName] = defaults
+		if newGameProfile() == nil then
+			__userdata_apirateslife.newGameProfile = migratedName
+		end
+	end
+	__userdata_apirateslife.defaults = nil
+	log("moved the saved defaults into the profile '" .. migratedName .. "'")
+end
+
+-- A profile's values as a flat list [name, value, name, value, ...], the shape MD expects
+local function profileList(name)
+	local list = {}
+	local profile = name and profiles()[name]
+	if type(profile) == "table" then
 		for _, setting in ipairs(pageSettings) do
-			local value = defaults[setting.name]
+			local value = profile[setting.name]
 			if value == 0 or value == 1 then
 				table.insert(list, setting.name)
 				table.insert(list, value)
@@ -98,17 +156,13 @@ local function defaultsList()
 	return list
 end
 
-local function hasDefaults()
-	return #defaultsList() > 0
-end
-
--- Tells MD whether the page is available and sends my defaults, which seed a save that has never
--- had settings
+-- Tells MD whether the page is available and sends the new-game profile, which seeds a save that
+-- has never had settings
 local function reportIn()
 	if not inGame() then
 		return
 	end
-	local list = defaultsList()
+	local list = profileList(newGameProfile())
 	table.insert(list, 1, hasPage and 1 or 0)
 	AddUITriggeredEvent(screen, "LuaLoaded", list)
 end
@@ -116,26 +170,113 @@ end
 local function toggle(name)
 	local value = (values[name] == 1) and 0 or 1
 	setLocal(name, value)
-	savedNote = ""
+	status = ""
 	AddUITriggeredEvent(screen, name, value)
 end
 
-local function saveDefaults()
-	local defaults = {}
-	for _, setting in ipairs(pageSettings) do
-		defaults[setting.name] = values[setting.name]
-	end
-	__userdata_apirateslife.defaults = defaults
-	savedNote = " (saved)"
+local function trim(text)
+	return (string.gsub(tostring(text or ""), "^%s*(.-)%s*$", "%1"))
 end
 
-local function loadDefaults()
-	local list = defaultsList()
+-- Characters, not bytes (UTF-8 continuation bytes don't count)
+local function nameLength(name)
+	return string.len((string.gsub(name, "[\128-\191]", "")))
+end
+
+-- The trimmed name, or nil (with the reason in the status line) if it can't name a profile.
+-- Names are case-sensitive: "Hard mode" and "hard mode" are two profiles (spec: Design).
+local function checkedName(text)
+	local name = trim(text)
+	if name == "" then
+		status = "Not saved: the profile needs a name."
+		return nil
+	end
+	if nameLength(name) > maxNameLength then
+		status = string.format("Not saved: a profile name can be at most %d characters.", maxNameLength)
+		return nil
+	end
+	return name
+end
+
+local function saveProfile(name)
+	local profile = {}
+	for _, setting in ipairs(pageSettings) do
+		profile[setting.name] = values[setting.name]
+	end
+	local replaced = profiles()[name] ~= nil
+	profiles()[name] = profile
+	lastProfile = name
+	status = string.format(replaced and "Replaced the profile '%s'." or "Saved the profile '%s'.", name)
+end
+
+local function loadProfile(name)
+	if not (name and profiles()[name]) then
+		return
+	end
+	local list = profileList(name)
 	for i = 1, #list, 2 do
 		setLocal(list[i], list[i + 1])
 	end
-	savedNote = ""
-	AddUITriggeredEvent(screen, "LoadDefaults", list)
+	lastProfile = name
+	status = string.format("Loaded the profile '%s' into this save.", name)
+	AddUITriggeredEvent(screen, "LoadProfile", list)
+end
+
+local function setNewGameProfile(name)
+	__userdata_apirateslife.newGameProfile = name
+	status = name and string.format("New games start from the profile '%s'.", name) or "New games start from the config file."
+end
+
+local function deleteProfile(name)
+	profiles()[name] = nil
+	if __userdata_apirateslife.newGameProfile == name then
+		__userdata_apirateslife.newGameProfile = nil
+	end
+	if lastProfile == name then
+		lastProfile = nil
+	end
+	status = string.format("Deleted the profile '%s'.", name)
+end
+
+-- Shows a question on the options menu and comes back to our page afterwards, as vanilla's own
+-- questions do (e.g. resetting the extension settings)
+local function ask(question, onYes, editboxHook)
+	local menu = optionsMenu
+	table.insert(menu.history, 1, { optionParameter = menu.currentOption, topRow = GetTopRow(menu.optionTable) })
+	menu.displayUserQuestion(question, function (text)
+		onYes(text)
+		menu.onCloseElement("back")
+	end, nil, nil, nil, editboxHook)
+end
+
+-- Asks a moment later, once the current handler (a dropdown, or the question before) has finished
+local function askLater(question, onYes)
+	Helper.addDelayedOneTimeCallbackOnUpdate(function ()
+		ask(question, onYes)
+	end, true, getElapsedTime() + 0.1)
+end
+
+local function askProfileName()
+	local suggested = lastProfile or newGameProfile() or ""
+	ask("Save this save's settings as a profile named:", function (text)
+		local name = checkedName(text)
+		if not name then
+			return
+		end
+		-- Keeping the suggested name means "update that profile". Typing the name of a different
+		-- existing profile may be a surprise, so ask before replacing it.
+		if profiles()[name] and name ~= suggested then
+			askLater(string.format("Replace the profile '%s'?", name), function () saveProfile(name) end)
+		else
+			saveProfile(name)
+		end
+	end, function () return suggested end)
+end
+
+local function askDelete(name)
+	if name then
+		askLater(string.format("Delete the profile '%s'?", name), function () deleteProfile(name) end)
+	end
 end
 
 local function resetToConfig()
@@ -144,8 +285,35 @@ local function resetToConfig()
 			setLocal(setting.name, config[setting.name])
 		end
 	end
-	savedNote = ""
+	status = "Reset to the config file values."
 	AddUITriggeredEvent(screen, "Reset")
+end
+
+-- Dropdown entries for the profiles, with ids "p<index in profileNames()>"
+local function profileOptions(withNone)
+	local options = {}
+	if withNone then
+		table.insert(options, { id = "none", text = "None (config file)", icon = "", displayremoveoption = false })
+	end
+	for i, name in ipairs(profileNames()) do
+		table.insert(options, { id = "p" .. i, text = name, icon = "", displayremoveoption = false })
+	end
+	return options
+end
+
+local function profileFromOption(id)
+	local index = tonumber(string.match(tostring(id), "^p(%d+)$"))
+	return index and profileNames()[index]
+end
+
+local function newGameOption()
+	local current = newGameProfile()
+	for i, name in ipairs(profileNames()) do
+		if name == current then
+			return "p" .. i
+		end
+	end
+	return "none"
 end
 
 local function onOff(value)
@@ -170,17 +338,36 @@ local function buildPage()
 	end
 	table.insert(page, { id = "line", linecolor = Color["row_background"] })
 	table.insert(page, {
-		id = pageId .. "_savedefaults",
-		name = function () return "Save as my defaults" .. savedNote end,
-		mouseOverText = "Keep these values for every new game. They're stored in your X4 profile, not in this save.",
-		callback = saveDefaults,
+		id = pageId .. "_saveprofile",
+		name = "Save as profile...",
+		mouseOverText = "Save this save's settings under a name. Profiles are stored in your X4 profile, so every save can load them.",
+		callback = askProfileName,
 	})
 	table.insert(page, {
-		id = pageId .. "_loaddefaults",
-		name = "Load my defaults",
-		mouseOverText = "Use your saved defaults in this save.",
-		callback = loadDefaults,
-		selectable = hasDefaults,
+		id = pageId .. "_loadprofile",
+		name = "Load profile",
+		mouseOverText = "Use a profile's settings in this save.",
+		valuetype = "dropdown",
+		value = function () return profileOptions(false), "", "Choose a profile" end,
+		callback = function (_, id) return loadProfile(profileFromOption(id)) end,
+		selectable = hasProfiles,
+	})
+	table.insert(page, {
+		id = pageId .. "_newgameprofile",
+		name = "Profile for new games",
+		mouseOverText = "New games start from this profile. None: they start from the mod's config file.",
+		valuetype = "dropdown",
+		value = function () return profileOptions(true), newGameOption() end,
+		callback = function (_, id) return setNewGameProfile(profileFromOption(id)) end,
+	})
+	table.insert(page, {
+		id = pageId .. "_deleteprofile",
+		name = "Delete profile",
+		mouseOverText = "Delete a profile from your X4 profile. Saves that used it keep their settings.",
+		valuetype = "dropdown",
+		value = function () return profileOptions(false), "", "Choose a profile" end,
+		callback = function (_, id) return askDelete(profileFromOption(id)) end,
+		selectable = hasProfiles,
 	})
 	table.insert(page, {
 		id = pageId .. "_reset",
@@ -188,6 +375,7 @@ local function buildPage()
 		mouseOverText = "Forget this save's choices and use the values from the mod's config file (md/apirateslife_config.xml).",
 		callback = resetToConfig,
 	})
+	table.insert(page, { id = "header", name = function () return status end })
 	return page
 end
 
@@ -220,7 +408,7 @@ local function modifyOptions(options, menuConfig)
 	table.insert(newOptions, {
 		id = pageId,
 		name = "A Pirate's Life",
-		mouseOverText = "Settings for the A Pirate's Life mod in this save, and your defaults for new games.",
+		mouseOverText = "Settings for the A Pirate's Life mod in this save, and settings profiles for every save.",
 		submenu = pageId,
 	})
 	return newOptions
@@ -234,6 +422,7 @@ local function init()
 	elseif inGame() then
 		log("kuertee's UI Extensions not found, so no settings page; the config file applies")
 	end
+	migrateDefaults()
 	RegisterEvent("APiratesLife.settingsReady", reportIn)
 	reportIn()
 end

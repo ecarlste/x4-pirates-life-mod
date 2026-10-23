@@ -1,6 +1,6 @@
 # Spec: In-game settings page
 
-Plan item: Phase 1, "In-game settings page through kuertee's UI Extensions" · Status: Agreed (built; awaiting the game-test run and the hand test)
+Plan item: Phase 1, "In-game settings page through kuertee's UI Extensions" · Status: Done (PR #37). "My defaults" was then replaced by [named profiles](settings-profiles.md).
 
 ## Goal
 
@@ -22,7 +22,7 @@ With kuertee's UI Extensions installed, the player changes the mod's settings in
   - Rejected: an "Advanced" section with the percentages. It brings back the noise, plus slider ranges, clamping and warnings for values that can stop bails altogether.
 - **Three layers, each filling what the one above leaves empty:** the save's own values, then my defaults, then the config file. Patches keep reading the same `global.$APiratesLife_<Name>` values, so nothing else changes.
 - **Per-save values** live in a table `global.$APiratesLife_Chosen` (saved with the game), by name. On every start and load `OnLoad` applies the config, then the save's values over it, so the config file's own reapplication never undoes a choice.
-- **My defaults** live in Lua, in a `userdata` saved variable (`__userdata_apirateslife`). The page has "Save as my defaults" (copies this save's current values) and "Load my defaults" (copies them into this save). One set for now; several named profiles are an idea for later.
+- **My defaults** live in Lua, in a `userdata` saved variable (`__userdata_apirateslife`). The page has "Save as my defaults" (copies this save's current values) and "Load my defaults" (copies them into this save). One set for now; replaced by [named profiles](settings-profiles.md) after the hand test.
 - **New games start from my defaults.** A save that has never had settings (a new game, or an old save meeting this version) is seeded once: when the Lua reports in after the start or load, it sends my defaults and MD copies them into the save's table. After that, changing my defaults doesn't touch that save until "Load my defaults" is used there. A flag (`global.$APiratesLife_Seeded`) marks the save as seeded. Until the Lua reports in (a moment after the start), the config values apply.
 - **Reset:** "Reset to config file values" clears the save's table and re-applies the config. My defaults stay as they are.
 - **Settings the mod adds later** are missing from older saves and older defaults, so they come from the config file. Nothing needs migrating.
@@ -41,12 +41,12 @@ With kuertee's UI Extensions installed, the player changes the mod's settings in
 - [x] `md/apirateslife_config.xml` header, with the page settings and the tuning settings in their own sections
 - [x] Game tests (the bridge and MD side; the test extension's Lua sends the same UI events as the page): `settings_lua_reports_in`, `settings_choice_survives_load`, `settings_config_fills_unchosen`, `settings_seed_from_defaults`, `settings_reset`, `settings_ignores_invalid`, `settings_page_registered`
 - [x] Run the game tests: 18 of 18 pass with UI Extensions v9.0.0.18 installed
-- [ ] Hand test of the page with UI Extensions installed
+- [x] Hand test of the page with UI Extensions installed (Erik, 2026-10-22: everything shows up correctly)
 - [x] Docs: PROJECT.md current status, plan, specs README
 
 ## Done when
 
-Scenarios: [`tests/game/features/in-game-settings.feature`](../../tests/game/features/in-game-settings.feature).
+Scenarios: [`tests/game/features/in-game-settings.feature`](../../tests/game/features/in-game-settings.feature); the seeding scenarios moved to [`settings-profiles.feature`](../../tests/game/features/settings-profiles.feature).
 
 - A setting changed through the UI event applies at once and survives a load with the config file's value different.
 - Settings the save hasn't set still follow the config file.

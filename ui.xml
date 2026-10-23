@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Lua for A Pirate's Life: the in-game settings page (needs kuertee's UI Extensions for the page;
-     loads without it). __userdata_apirateslife holds "my defaults" in the player's X4 profile,
-     shared by every save. See docs/specs/in-game-settings.md. -->
+     loads without it). __userdata_apirateslife holds the settings profiles in the player's X4
+     profile, shared by every save. See docs/specs/in-game-settings.md and settings-profiles.md. -->
 <addon name="apirateslife" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../../ui/core/addon.xsd">
   <environment type="menus">
     <file name="ui/apirateslife_options.lua"/>
