@@ -2,8 +2,10 @@
 """Checks the game-test plan (tests/game/features/*.feature) against the game tests.
 
 The feature files describe, in Gherkin (Given/When/Then), what the mod should do. Every scenario
-carries one tag: the name of the game test that covers it (the name the test reports, e.g.
-@pilot_bail_intact), or @pending when nothing covers it yet. This script fails when:
+carries a tag: the name of the game test that covers it (the name the test reports, e.g.
+@pilot_bail_intact), @pending when nothing covers it yet but a game test should, or @manual when
+it's checked by hand at every release instead (tools/manual-checklist.py lists those). This
+script fails when:
   - a feature file isn't valid enough Gherkin to read (unknown step keyword, scenario without a tag)
   - a scenario's tag names no game test
   - a game test has no scenario
@@ -25,14 +27,15 @@ NOT_SPECS = ("README.md", "_template.md")
 
 
 def read_features(features_dir):
-    """Returns (scenarios, problems): scenarios as (file, line, title, tags)."""
+    """Returns (scenarios, problems): scenarios as dicts with file, feature (its title), line,
+    title, tags (without the @) and steps (the step and Examples lines, stripped)."""
     scenarios, problems = [], []
     files = sorted(glob.glob(os.path.join(features_dir, "*.feature")))
     if not files:
         problems.append(f"no .feature files in {features_dir}")
     for path in files:
         name = os.path.basename(path)
-        tags, in_scenario, seen_feature, in_examples = [], False, False, False
+        tags, in_scenario, seen_feature, in_examples, feature_title = [], False, False, False, name
         with open(path, encoding="utf-8") as f:
             for number, raw in enumerate(f, 1):
                 line = raw.strip()
@@ -44,26 +47,34 @@ def read_features(features_dir):
                     continue
                 if line.startswith("Feature:"):
                     seen_feature = True
+                    feature_title = line[len("Feature:"):].strip() or name
                     continue
                 match = SCENARIO.match(line)
                 if match:
                     if not seen_feature:
                         problems.append(f"{where}: scenario before the Feature: line")
                     if not tags:
-                        problems.append(f"{where}: scenario has no tag (a game test name or @pending)")
-                    scenarios.append((name, number, match.group(2), [t[1:] for t in tags]))
+                        problems.append(f"{where}: scenario has no tag (a game test name, @pending or @manual)")
+                    scenarios.append({"file": name, "feature": feature_title, "line": number,
+                                      "title": match.group(2), "tags": [t[1:] for t in tags], "steps": []})
                     tags, in_scenario, in_examples = [], True, False
                     continue
                 if line.startswith("Examples:"):
                     in_examples = True
+                    if scenarios:
+                        scenarios[-1]["steps"].append(line)
                     continue
                 if line.startswith("|"):
                     if not in_examples:
                         problems.append(f"{where}: table row outside Examples")
+                    elif scenarios:
+                        scenarios[-1]["steps"].append(line)
                     continue
                 if in_scenario:
                     if not line.startswith(STEP_KEYWORDS):
                         problems.append(f"{where}: step must start with Given, When, Then, And or But: {line}")
+                    else:
+                        scenarios[-1]["steps"].append(line)
                     in_examples = False
                 # Anything else before the first scenario is the feature's description
     return scenarios, problems
@@ -100,11 +111,16 @@ def main():
 
     scenarios, problems = read_features(features_dir)
     tests = game_test_names(harness)
-    covered, pending = set(), 0
-    for name, number, title, tags in scenarios:
-        for tag in tags:
+    covered, pending, manual = set(), 0, 0
+    for scenario in scenarios:
+        name, number, title = scenario["file"], scenario["line"], scenario["title"]
+        if "pending" in scenario["tags"] and "manual" in scenario["tags"]:
+            problems.append(f"{name}:{number}: @pending and @manual contradict each other (scenario: {title})")
+        for tag in scenario["tags"]:
             if tag == "pending":
                 pending += 1
+            elif tag == "manual":
+                manual += 1
             elif tag in tests:
                 covered.add(tag)
             else:
@@ -116,7 +132,7 @@ def main():
     if problems:
         print("\n".join(problems))
         return 1
-    print(f"{len(scenarios)} scenarios ({pending} pending) cover all {len(tests)} game tests")
+    print(f"{len(scenarios)} scenarios ({pending} pending, {manual} manual) cover all {len(tests)} game tests")
     return 0
 
 
