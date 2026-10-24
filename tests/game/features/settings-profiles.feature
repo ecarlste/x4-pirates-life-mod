@@ -12,29 +12,31 @@ Feature: Settings profiles
     Then the game is on "Hard mode"
     And "intact when marines claim" is off
 
-  @pending
+  @settings_change_marks_modified
   Scenario: Changing a setting stops the game following its profile
     Given a game on "Hard mode"
     When I turn a setting on in it
     Then the game uses the new value at once
     And it is marked as changed
     And the "Hard mode" profile is unchanged
+    When I save the changes into "Hard mode"
+    Then the game is no longer marked as changed
 
-  @pending
+  @settings_linked_follows_profile
   Scenario: A game on a profile picks up changes saved into it from another game
     Given game B is on "Hard mode" with no changes, and was saved
     And in game C I saved changes into "Hard mode"
     When I load game B
     Then it uses Hard mode's new values
 
-  @pending
+  @settings_saved_modified_loads_as_none
   Scenario: A game saved with changes is on its own settings when loaded again
     Given a game on "Hard mode" with a changed setting, saved
     When I load it
     Then it is on "None (custom settings)"
     And it uses the values it had when it was saved, whatever "Hard mode" holds now
 
-  @pending
+  @settings_linked_profile_gone
   Scenario: A game whose profile is gone keeps its values
     Given a game on "Hard mode", saved
     And "Hard mode" no longer exists (deleted, or the save is on another PC)
@@ -42,21 +44,21 @@ Feature: Settings profiles
     Then it is on "None (custom settings)"
     And it uses the values it had when it was saved
 
-  @pending
+  @settings_choose_profile_clears_changes
   Scenario: Choosing a profile loads it and clears changes
     Given a game on "Hard mode" with a changed setting
     When I choose "Easy mode" and confirm
     Then the game is on "Easy mode" with no changes
     And it uses the config file's values with Easy mode's on top
 
-  @pending
+  @settings_choose_default
   Scenario: Choosing Default brings back the config file's values
     Given a game on "Hard mode" with a changed setting
     When I choose "Default" and confirm
     Then the game is on "Default" with no changes
     And it uses the config file's values
 
-  @pending
+  @settings_profile_invalid_values
   Scenario: An unknown or invalid setting in a profile keeps its config value
     Given "Hard mode" has "intact when marines claim" set to "never" and a setting the mod doesn't have
     When a game loads "Hard mode"

@@ -8,10 +8,10 @@
   update.
 
   In-game settings: with kuertee's UI Extensions installed, the settings marked "On the settings
-  page" can also be changed in game (Settings, then A Pirate's Life). A value chosen there stays
-  with that save and wins over this file; the page can also save your choices as named profiles,
-  which any save can load and new games can start from. This file fills in everything else, and the page's "Reset to config file
-  values" brings its values back. Settings under "Tuning" are only set here.
+  page" can also be changed in game (Settings, then A Pirate's Life). There a game is on a
+  profile: "Default" is this file, or one you saved, shared by every save. A game on Default
+  follows this file; changing a setting in game makes that game use its own values instead.
+  Settings under "Tuning" are only set here.
 
   Developers: deploy.sh and deploy.ps1 can override these values in the deployed copy without
   editing this file; see "Everyday commands" in the README. (No double hyphens in this comment:

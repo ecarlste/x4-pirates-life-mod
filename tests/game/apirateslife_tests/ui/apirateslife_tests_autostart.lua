@@ -2,10 +2,11 @@
 -- The UI is rebuilt for every module (main menu, game), so this runs once per module and only
 -- acts in the main menu. MD quits the game when the tests finish (md/apirateslife_tests.xml).
 --
--- In the game it also relays UI events for the settings tests: MD raises
--- "apirateslife_tests.uiEvent" with "Control", "Control|value" or "Control|*a,b,c" (a list), and
--- this sends it with AddUITriggeredEvent, exactly as the settings page (ui/apirateslife_options.lua)
--- does. On "apirateslife_tests.checkSettingsPage" it answers whether our page is hooked in.
+-- In the game it also serves the settings tests:
+--   "apirateslife_tests.uiEvent" with "Control", "Control|value" or "Control|*a,b,c" (a list): sends
+--   it with AddUITriggeredEvent, exactly as the settings page (ui/apirateslife_options.lua) does.
+--   "apirateslife_tests.checkSettingsPage": answers whether our page is hooked in.
+--   "apirateslife_tests.profiles": manages test profiles (see testProfiles below).
 
 local ffi = require("ffi")
 local C = ffi.C
@@ -68,8 +69,79 @@ local function checkSettingsPage()
 	AddUITriggeredEvent("apirateslife_tests", "settingsPage", answer)
 end
 
+-- Test profiles in the X4 profile file (the settings page's __userdata_apirateslife), for the
+-- settings tests. MD raises "apirateslife_tests.profiles" with:
+--   "begin"                     delete profiles left by an earlier run, then copy the settings table
+--   "set|Name|setting,value,…"  create or replace a profile, marked as a test profile
+--   "delete|Name"               delete a profile
+--   "end"                       put the copy back, so the tester's own profiles are as they were
+-- and gets an answer: AddUITriggeredEvent("apirateslife_tests", "profiles", <1 done, 0 failed>).
+-- Test profiles are marked in __userdata_apirateslife.testProfiles, so "begin" can clean up after
+-- a run that crashed before "end".
+local profilesCopy
+
+local function deepCopy(value)
+	if type(value) ~= "table" then
+		return value
+	end
+	local copy = {}
+	for k, v in pairs(value) do
+		copy[k] = deepCopy(v)
+	end
+	return copy
+end
+
+local function settingsTable()
+	return (type(__userdata_apirateslife) == "table") and __userdata_apirateslife or nil
+end
+
+local function testProfiles(command, param)
+	local data = settingsTable()
+	if not data then
+		log("can't reach the settings page's profiles (__userdata_apirateslife)")
+		AddUITriggeredEvent("apirateslife_tests", "profiles", 0)
+		return
+	end
+	data.profiles = data.profiles or {}
+	data.testProfiles = data.testProfiles or {}
+	if command == "begin" then
+		for name in pairs(data.testProfiles) do
+			data.profiles[name] = nil
+		end
+		data.testProfiles = {}
+		profilesCopy = { profiles = deepCopy(data.profiles), newGameProfile = data.newGameProfile }
+	elseif command == "set" then
+		local name, rest = string.match(param, "^([^|]+)|?(.*)$")
+		local profile, key = {}, nil
+		for item in string.gmatch(rest, "[^,]+") do
+			if key then
+				profile[key] = parseValue(item)
+				key = nil
+			else
+				key = item
+			end
+		end
+		data.profiles[name] = profile
+		data.testProfiles[name] = true
+	elseif command == "delete" then
+		data.profiles[param] = nil
+		data.testProfiles[param] = nil
+	elseif command == "end" and profilesCopy then
+		data.profiles = profilesCopy.profiles
+		data.newGameProfile = profilesCopy.newGameProfile
+		data.testProfiles = {}
+	end
+	AddUITriggeredEvent("apirateslife_tests", "profiles", 1)
+end
+
+local function onProfilesEvent(_, param)
+	local command, rest = string.match(tostring(param), "^([^|]*)|?(.*)$")
+	testProfiles(command, rest)
+end
+
 local function init()
 	RegisterEvent("apirateslife_tests.uiEvent", relayUiEvent)
+	RegisterEvent("apirateslife_tests.profiles", onProfilesEvent)
 	RegisterEvent("apirateslife_tests.checkSettingsPage", checkSettingsPage)
 	local module = ffi.string(C.GetGameStartName())
 	if module ~= "startmenu" then

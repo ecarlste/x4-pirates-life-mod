@@ -34,14 +34,14 @@ On the settings page the player picks a **profile** for the game: the built-in *
   - Unknown or invalid settings in a profile are ignored and logged and keep their config value; profiles are cleaned only when the player saves into them. Setting names are never reused.
 - **Lua and MD:** the Lua page owns the X4 profile file; MD owns the game state and is the only writer of `inUse`. Page events (`AddUITriggeredEvent("APiratesLife_Settings", …)`): a setting change, "use this profile" with its values (or Default), "saved into the profile" (clears `modified`), "profile gone" (to None). MD mirrors `profile`, `modified` and `inUse` to the player blackboard for the page.
 - **Saves from PR #37 and #39** hold `global.$APiratesLife_Chosen` (values chosen on the page) and no profile: on their first load they become None with `inUse` = config plus those values, or Default if nothing was chosen. The X4 profile file's `profiles` and `newGameProfile` keep their #39 shape; #37's `defaults` migration stays.
-- **Testing:** MD behaviour (changes set `modified`, load rules, Default, invalid values) through game tests that send the page's events, as today. The page itself (dropdown labels, buttons enabling, dialogs, profiles surviving an X4 restart) is `@manual`. Game-test isolation for profiles: profiles created in the test game start are marked `test = true`; a run deletes marked profiles and copies the settings table first, cleans up after each test, and restores the copy at the end ([flows: decisions](settings-profiles-flows.md#decisions-not-drawn-above)).
+- **Testing:** MD behaviour (changes set `modified`, load rules, Default, invalid values) through game tests that send the page's events, as today. The page itself (dropdown labels, buttons enabling, dialogs, profiles surviving an X4 restart) is `@manual`. Game-test isolation for profiles: tests create profiles only through the test extension's Lua, which marks them (`testProfiles` in the same saved variable). A run deletes marked profiles left by a crashed run and copies the settings table first, a test deletes what it created, and the end of the run restores the copy ([flows: decisions](settings-profiles-flows.md#decisions-not-drawn-above)).
 
 ## Tasks
 
-- [ ] `md/apirateslife_settings.xml`: game state `profile` / `modified` / `inUse`, the load rules, the page events, migration of #37/#39 saves
-- [ ] `ui/apirateslife_options.lua`: the Profile dropdown with Default and "\*", "Save changes to …", "Save as new profile…" rules, delete switching games to None; remove "Load profile" and "Reset"
-- [ ] Game tests for the MD rules, and the test isolation for profiles
-- [ ] Update the in-game settings scenarios that this changes (reset becomes choosing Default; changed settings no longer follow the config)
+- [x] `md/apirateslife_settings.xml`: game state `profile` / `modified` / `inUse`, the load rules, the page events, migration of #37/#39 saves
+- [x] `ui/apirateslife_options.lua`: the Profile dropdown with Default and "\*", "Save changes to …", "Save as new profile…" rules, delete switching games to None; remove "Load profile" and "Reset"
+- [x] Game tests for the MD rules, two of them end to end through the page Lua, and the test isolation for profiles
+- [x] Update the in-game settings scenarios that this changes (reset becomes choosing Default; changed settings no longer follow the config)
 - [ ] Hand test of the `@manual` scenarios with UI Extensions
 
 ## Done when

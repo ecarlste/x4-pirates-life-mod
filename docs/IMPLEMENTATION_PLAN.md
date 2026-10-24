@@ -112,6 +112,7 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
 
 Not yet agreed. Promote an item into a phase once we decide to do it.
 
+- [ ] Lua checks: luacheck (lint and syntax) on `ui/` and the test extension's Lua in `make test`; later busted unit tests for the settings page's logic, with X4's functions stubbed. Fetched into `.tools/` like bats
 - [ ] Settings profiles: mark profiles made during manual (UAT) testing so the game-test cleanup removes them. Options: a deploy-time switch (`--set MarkAsTest=1`, everything created while deployed gets the `test` mark), a "mark as test" row in the dev menu, or a UAT game start in the test extension (needs a switch so it doesn't start the automated tests)
 - [ ] Capture operations: wingmen prefer shield-heavy weapons (ion), from a profile list, since scripts can't read a weapon's damage type
 - [ ] Recognisable pirate: a unique ship or paint job lets pilots know a notorious player without a hail, so they bail more readily outside capture operations
