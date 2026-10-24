@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for tools/check-test-plan-changes.py: on a PR, a changed spec or game test needs a
+# Tests for tools/check_test_plan_changes.py: on a PR, a changed spec or game test needs a
 # changed feature file, unless the PR description says "Test plan: no change". Each test builds a
 # small git repo with a main branch and a PR branch on top.
 
 setup() {
     command -v python3 >/dev/null || skip "python3 is not installed"
-    CHECK="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/tools/check-test-plan-changes.py"
+    CHECK="$(cd "$BATS_TEST_DIRNAME/.." && pwd)/tools/check_test_plan_changes.py"
     export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
     export GIT_AUTHOR_NAME=Test GIT_AUTHOR_EMAIL=test@example.com
     export GIT_COMMITTER_NAME=Test GIT_COMMITTER_EMAIL=test@example.com

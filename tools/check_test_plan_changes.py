@@ -7,7 +7,7 @@ Compares the current commit with a base ref (the PR's target branch) and fails w
 unless the PR description says "Test plan: no change" (for typo fixes and the like). The
 description comes from the PR_BODY environment variable.
 
-Usage: PR_BODY="..." tools/check-test-plan-changes.py <base ref>
+Usage: PR_BODY="..." tools/check_test_plan_changes.py <base ref>
 """
 import os
 import re
@@ -26,27 +26,41 @@ def git(*args):
     return subprocess.run(["git", *args], check=True, capture_output=True, text=True).stdout
 
 
+def read_text(path):
+    """A file's text, or None when it no longer exists (deleted in the PR)."""
+    if not os.path.isfile(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def find_problems(changed, read):
+    """What the changed paths need but lack: a changed spec needs one of the feature files it links
+    to change too, and changed game tests need some feature file to change. read(path) gives a
+    spec's text, or None if it was deleted."""
+    features_changed = {path for path in changed if path.startswith(FEATURES)}
+    problems = []
+    for path in sorted(changed):
+        if path.startswith(SPECS) and path.endswith(".md") and path not in NOT_SPECS:
+            text = read(path)
+            if text is None:
+                continue  # deleted spec
+            links = {FEATURES + link for link in FEATURE_LINK.findall(text)}
+            if not links & features_changed:
+                linked = ", ".join(sorted(links)) or "its feature file"
+                problems.append(f"{path} changed, but {linked} didn't")
+    if any(path.startswith(GAME_TESTS) for path in changed) and not features_changed:
+        problems.append(f"the game tests ({GAME_TESTS}) changed, but no feature file in {FEATURES} did")
+    return problems
+
+
 def main():
     if len(sys.argv) != 2:
         print(__doc__.strip())
         return 2
     base = sys.argv[1]
     changed = set(git("diff", "--name-only", f"{base}...HEAD").split())
-    features_changed = {path for path in changed if path.startswith(FEATURES)}
-
-    problems = []
-    for path in sorted(changed):
-        if path.startswith(SPECS) and path.endswith(".md") and path not in NOT_SPECS:
-            if not os.path.isfile(path):
-                continue  # deleted spec
-            with open(path, encoding="utf-8") as f:
-                links = {FEATURES + link for link in FEATURE_LINK.findall(f.read())}
-            if not links & features_changed:
-                linked = ", ".join(sorted(links)) or "its feature file"
-                problems.append(f"{path} changed, but {linked} didn't")
-    if any(path.startswith(GAME_TESTS) for path in changed) and not features_changed:
-        problems.append(f"the game tests ({GAME_TESTS}) changed, but no feature file in {FEATURES} did")
-
+    problems = find_problems(changed, read_text)
     if not problems:
         print("Test plan: OK")
         return 0

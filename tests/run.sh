@@ -4,6 +4,7 @@
 #   - bats suites for deploy.sh and the Makefile (bats-core is fetched into .tools/ on first run)
 #   - shellcheck, when installed
 #   - the Lua checks (tests/lua/run.sh: luacheck and the LuaUnit tests, under LuaJIT)
+#   - the Python unit tests for tools/ (tests/python/, with the standard library's unittest)
 #   - the Pester suites, through pwsh or (under WSL) Windows PowerShell
 #
 # Usage: tests/run.sh [--bash-only | --lua-only] [bats args...]
@@ -44,6 +45,13 @@ fi
 
 tests/lua/run.sh || FAILED=1
 
+echo "== Python unit tests"
+if command -v python3 >/dev/null; then
+    PYTHONPATH=tools python3 -m unittest discover -s tests/python || FAILED=1
+else
+    echo "python3 not installed; skipping (CI runs them)"
+fi
+
 if [ "$BASH_ONLY" = 0 ]; then
     echo "== Pester"
     if command -v pwsh >/dev/null; then
@@ -56,7 +64,7 @@ if [ "$BASH_ONLY" = 0 ]; then
 fi
 
 # Last, so it's the line people see: the generated test plan doesn't fail a local run, CI checks it
-if command -v python3 >/dev/null && ! python3 tools/test-plan-docs.py --check >/dev/null 2>&1; then
+if command -v python3 >/dev/null && ! python3 tools/test_plan_docs.py --check >/dev/null 2>&1; then
     echo
     echo "WARNING: the test-plan docs (docs/test-plan/) are out of date. Run make test-plan and commit the result; CI fails on this."
 fi

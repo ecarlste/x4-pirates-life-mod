@@ -45,7 +45,7 @@ test:
 	@tests/run.sh
 
 test-plan:
-	@python3 tools/test-plan-docs.py
+	@python3 tools/test_plan_docs.py
 
 game-test:
 	@./deploy.sh --working-tree $(ARGS)

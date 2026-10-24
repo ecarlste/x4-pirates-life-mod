@@ -22,6 +22,6 @@ jobs:
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
           BASE: origin/${{ github.base_ref }}
-        run: python3 tools/check-test-plan-changes.py "$BASE"
+        run: python3 tools/check_test_plan_changes.py "$BASE"
       - name: Check the generated test-plan docs are up to date
-        run: python3 tools/test-plan-docs.py --check
+        run: python3 tools/test_plan_docs.py --check

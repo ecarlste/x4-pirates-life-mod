@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for tools/check-test-plan.py: the game-test plan (tests/game/features/*.feature) and the
+# Tests for tools/check_test_plan.py: the game-test plan (tests/game/features/*.feature) and the
 # game tests must cover each other. Fixtures are written into a temporary folder per test.
 
 setup() {
     command -v python3 >/dev/null || skip "python3 is not installed"
     REPO_ROOT="$(cd "$BATS_TEST_DIRNAME/.." && pwd)"
-    CHECK="$REPO_ROOT/tools/check-test-plan.py"
+    CHECK="$REPO_ROOT/tools/check_test_plan.py"
     FEATURES="$BATS_TEST_TMPDIR/features"
     HARNESS="$BATS_TEST_TMPDIR/tests.xml"
     SPECS="$BATS_TEST_TMPDIR/specs"
