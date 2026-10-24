@@ -55,7 +55,9 @@ gen() { run python3 "$GEN" --features "$T/features" --harness "$T/tests.xml" --u
     grep -q '^Things work, and are described over two lines.$' "$page"
     grep -q '(../../tests/game/features/things.feature)' "$page" || grep -q 'features/things.feature)' "$page"
     grep -q '^| 1 | 1 | 1 | 1 | \*\*2\*\* |$' "$page"
+    # shellcheck disable=SC2016  # the backticks are literal Markdown, not command substitution
     grep -q '^\*\*Automated:\*\* in game `alpha_works`$' "$page"
+    # shellcheck disable=SC2016  # the backticks are literal Markdown, not command substitution
     grep -q '^\*\*Automated:\*\* unit test `test_beta_rules`$' "$page"
     grep -q '^- \[ \] \*\*Manual:\*\*' "$page"
     grep -q '^- \[ \] \*\*Pending:\*\*' "$page"
