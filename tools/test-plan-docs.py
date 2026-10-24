@@ -8,9 +8,14 @@ verified: by unit tests, by game tests, by hand (@manual), or by hand until its 
 exists (@pending). Manual plus pending is the number to drive to zero (docs/PROJECT.md, "Test
 plan").
 
+It also writes the release checklist: every scenario still checked by hand (@manual and
+@pending), grouped by feature, as Markdown checkboxes with their steps. make release will put it
+in dist/ next to the zip.
+
 Usage:
-  tools/test-plan-docs.py           write the pages (make test-plan)
-  tools/test-plan-docs.py --check   exit 1, naming the pages, if any page is out of date (CI)
+  tools/test-plan-docs.py                     write the pages (make test-plan)
+  tools/test-plan-docs.py --check             exit 1, naming the pages, if any page is out of date (CI)
+  tools/test-plan-docs.py --checklist FILE    write the release checklist to FILE ("-": print it)
 Paths can be overridden for tests: --features DIR --harness FILE --units DIR --out DIR
 """
 import argparse
@@ -120,6 +125,35 @@ def index_page(rows, total):
     return "\n".join(lines) + "\n"
 
 
+def release_checklist(features_dir, scenarios, game_tests, unit_tests, classify):
+    """Every scenario still checked by hand, as a Markdown checklist grouped by feature."""
+    titles = {os.path.basename(p): feature_info(p)[0] for p in glob.glob(os.path.join(features_dir, "*.feature"))}
+    by_hand = [(s, classify(s["tags"], game_tests, unit_tests)) for s in scenarios]
+    by_hand = [(s, level) for s, level in by_hand if level in ("manual", "pending")]
+    manual = sum(1 for _, level in by_hand if level == "manual")
+    lines = [
+        "# Release checklist",
+        "",
+        "Check each of these by hand in game before a release: the scenarios no automated test proves yet. "
+        "Generated from `tests/game/features/` by `tools/test-plan-docs.py`; the full plan is in `docs/test-plan/`.",
+        "",
+    ]
+    if not by_hand:
+        lines.append("Nothing to check by hand: every scenario is covered by automated tests.")
+        return "\n".join(lines) + "\n"
+    lines += [f"**{len(by_hand)} to check** ({manual} manual, {len(by_hand) - manual} pending)", ""]
+    current = None
+    for scenario, level in sorted(by_hand, key=lambda item: (item[0]["file"], item[0]["line"])):
+        if scenario["file"] != current:
+            current = scenario["file"]
+            lines += [f"## {titles.get(current, current)} (`{current}`)", ""]
+        note = "manual" if level == "manual" else "pending: automated test planned"
+        lines += [f"- [ ] **{scenario['title']}** ({note})", "", "  ```gherkin"]
+        lines += [f"      {step}" if step.startswith("|") else f"    {step}" for step in scenario["steps"]]
+        lines += ["  ```", ""]
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def generate(features_dir, harness, units_dir, out_dir):
     """Returns ({file name: content}, problems)."""
     checker = load_checker()
@@ -145,6 +179,7 @@ def generate(features_dir, harness, units_dir, out_dir):
 def main(argv):
     parser = argparse.ArgumentParser(description="Generate the readable test plan in docs/test-plan/.")
     parser.add_argument("--check", action="store_true", help="only check that the pages are up to date")
+    parser.add_argument("--checklist", metavar="FILE", help='write the release checklist to FILE ("-" prints it) instead of the pages')
     parser.add_argument("--features", default=os.path.join(ROOT, "tests", "game", "features"))
     parser.add_argument("--harness", default=os.path.join(ROOT, "tests", "game", "apirateslife_tests", "md", "apirateslife_tests.xml"))
     parser.add_argument("--units", default=os.path.join(ROOT, "tests", "lua"))
@@ -152,6 +187,8 @@ def main(argv):
     args = parser.parse_args(argv)
 
     out_dir = os.path.abspath(args.out)
+    if args.checklist:
+        return write_checklist(args)
     pages, problems = generate(args.features, args.harness, args.units, out_dir)
     if problems:
         print("\n".join(problems), file=sys.stderr)
@@ -180,6 +217,26 @@ def main(argv):
         os.remove(os.path.join(out_dir, page))
     changed = stale + extra
     print(f"Updated {len(changed)} of {len(pages)} test-plan pages" + (f": {', '.join(changed)}" if changed else ""))
+    return 0
+
+
+def write_checklist(args):
+    checker = load_checker()
+    scenarios, problems = checker.read_features(args.features)
+    if problems:
+        print("\n".join(problems), file=sys.stderr)
+        print("Fix the test plan first (tools/check-test-plan.py)", file=sys.stderr)
+        return 1
+    unit_tests, _ = checker.unit_test_names(args.units)
+    text = release_checklist(args.features, scenarios, checker.game_test_names(args.harness), unit_tests, checker.classify)
+    if args.checklist == "-":
+        sys.stdout.write(text)
+        return 0
+    os.makedirs(os.path.dirname(os.path.abspath(args.checklist)), exist_ok=True)
+    with open(args.checklist, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    count = sum(1 for s in scenarios if checker.classify(s["tags"], set(), set()) in ("manual", "pending"))
+    print(f"Wrote {count} scenarios to check by hand to {args.checklist}")
     return 0
 
 

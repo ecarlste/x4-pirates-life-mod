@@ -121,3 +121,37 @@ gen() { run python3 "$GEN" --features "$T/features" --harness "$T/tests.xml" --u
     echo "$output"
     [ "$status" -eq 0 ]
 }
+
+@test "the release checklist lists the manual and pending scenarios, with their steps" {
+    gen --checklist -
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"**2 to check** (1 manual, 1 pending)"* ]]
+    [[ "$output" == *"## Things (\`things.feature\`)"* ]]
+    [[ "$output" == *"- [ ] **Gamma looks right** (manual)"* ]]
+    [[ "$output" == *"- [ ] **Delta, test planned** (pending: automated test planned)"* ]]
+    [[ "$output" == *"    Then delta works"* ]]
+    [[ "$output" != *"Alpha works"* ]]
+    [[ "$output" != *"Beta rules"* ]]
+}
+
+@test "the release checklist says so when nothing is left to check by hand" {
+    sed -i.bak -e 's/@manual/@alpha_works/' -e 's/@pending/@alpha_works/' "$T/features/things.feature" && rm "$T/features/things.feature.bak"
+    gen --checklist -
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Nothing to check by hand"* ]]
+}
+
+@test "writes the release checklist to a file, creating its folder" {
+    gen --checklist "$T/dist/release-checklist.md"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Wrote 2 scenarios to check by hand to"* ]]
+    grep -q -- '- \[ \] \*\*Gamma looks right\*\* (manual)' "$T/dist/release-checklist.md"
+    [ ! -e "$T/out/README.md" ]
+}
+
+@test "the release checklist refuses a test plan the checker can't read" {
+    printf 'Feature: Broken\n\n  Scenario: No tag\n    Given nothing\n' > "$T/features/broken.feature"
+    gen --checklist -
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"scenario has no tag"* ]]
+}
