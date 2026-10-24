@@ -3,9 +3,11 @@
 # Runs every test suite available on this machine:
 #   - bats suites for deploy.sh and the Makefile (bats-core is fetched into .tools/ on first run)
 #   - shellcheck, when installed
+#   - the Lua checks (tests/lua/run.sh: luacheck and the LuaUnit tests, under LuaJIT)
 #   - the Pester suites, through pwsh or (under WSL) Windows PowerShell
 #
-# Usage: tests/run.sh [--bash-only] [bats args...]
+# Usage: tests/run.sh [--bash-only | --lua-only] [bats args...]
+#   --bash-only  skip PowerShell; --lua-only  only the Lua checks
 
 set -eo pipefail
 
@@ -15,6 +17,7 @@ cd "$(dirname "$0")/.."
 
 BASH_ONLY=0
 if [ "${1:-}" = --bash-only ]; then BASH_ONLY=1; shift; fi
+if [ "${1:-}" = --lua-only ]; then exec tests/lua/run.sh; fi
 
 BATS=.tools/bats-core-$BATS_VERSION/bin/bats
 if [ ! -x "$BATS" ]; then
@@ -34,10 +37,12 @@ echo "== bats"
 
 echo "== shellcheck"
 if command -v shellcheck >/dev/null; then
-    shellcheck deploy.sh tests/run.sh tools/post-game-test-report.sh && shellcheck -s bash tests/*.bash tests/*.bats || FAILED=1
+    shellcheck deploy.sh tests/run.sh tests/lua/run.sh tools/post-game-test-report.sh && shellcheck -s bash tests/*.bash tests/*.bats || FAILED=1
 else
     echo "shellcheck not installed; skipping (CI runs it)"
 fi
+
+tests/lua/run.sh || FAILED=1
 
 if [ "$BASH_ONLY" = 0 ]; then
     echo "== Pester"
