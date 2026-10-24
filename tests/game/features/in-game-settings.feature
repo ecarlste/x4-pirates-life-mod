@@ -1,31 +1,23 @@
 # Spec: docs/specs/in-game-settings.md
 Feature: In-game settings
   With kuertee's UI Extensions installed, I change the mod's settings in game. A choice stays with
-  my save, whatever the config file says. The config file fills in anything else. Without UI
+  my save, whatever the config file says. A game on Default follows the config file. Without UI
   Extensions the mod runs on the config file alone. Saving settings for other saves and new games:
   settings-profiles.feature.
 
   @settings_choice_survives_load
   Scenario: A setting changed in game survives a load
-    Given "intact when the pilot ejects" is on in the config file
+    Given "intact when the pilot ejects" is on in the config file, and the game is on Default
     When I switch it off in game
     Then it is off at once
-    And it is still off after the game is loaded again
+    And it is still off after the game is loaded again, now on "None (custom settings)"
 
   @settings_config_fills_unchosen
-  Scenario: Settings not changed in game follow the config file
-    Given I switched "intact when the pilot ejects" off in game
-    And "intact when marines claim", the capture hold line and the floor differ from the config file
+  Scenario: On Default the game follows the config file
+    Given the game is on Default
+    And its settings, the capture hold line and the floor differ from the config file
     When the game is loaded again
-    Then "intact when the pilot ejects" is still off
-    And the other three have the config file's values
-
-  @settings_reset
-  Scenario: Reset brings back the config file's values
-    Given I changed settings in game
-    When I reset them on the settings page
-    Then every setting has the config file's value again
-    And it keeps it after the game is loaded again
+    Then they all have the config file's values
 
   @settings_ignores_invalid
   Scenario: The page can only change the player-facing settings

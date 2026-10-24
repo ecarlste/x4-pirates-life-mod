@@ -57,7 +57,7 @@ Research before building. Deliverable: [`docs/research/spike-1-bailing-boarding.
 - [x] Player settings for intact captures: on/off for "intact when the pilot ejects" and "intact when marines claim", from a config file: [spec](specs/capture-settings.md) ([PR #21](https://github.com/ecarlste/x4-pirates-life-mod/pull/21))
 - [x] In-game settings page through kuertee's UI Extensions (the `displayOptions_modifyOptions` hook SWI uses), optional dependency; config file stays the fallback: [spec](specs/in-game-settings.md) ([PR #37](https://github.com/ecarlste/x4-pirates-life-mod/pull/37))
 - [x] Named settings profiles on the settings page: save the current settings under a name, load any profile into any save from a dropdown, choose the profile new games start from, delete profiles; replaces "my defaults": [spec](specs/settings-profiles.md) ([PR #39](https://github.com/ecarlste/x4-pirates-life-mod/pull/39))
-- [ ] Settings profiles: a game is on a profile (Default or a saved one) and follows it until a setting is changed ("Hard mode *", "Save changes to …"); saved changes become "None (custom settings)" on load; no reset row: [spec](specs/settings-profiles.md), [flows](specs/settings-profiles-flows.md) ([PR #42](https://github.com/ecarlste/x4-pirates-life-mod/pull/42))
+- [ ] Settings profiles: a game is on a profile (Default or a saved one) and follows it until a setting is changed ("Hard mode *", "Save changes to …"); saved changes become "None (custom settings)" on load; no reset row: [spec](specs/settings-profiles.md), [flows](specs/settings-profiles-flows.md) ([PR #42](https://github.com/ecarlste/x4-pirates-life-mod/pull/42), [PR #43](https://github.com/ecarlste/x4-pirates-life-mod/pull/43))
 - [ ] Reflect agreed findings into `DESIGN.md`, then confirm the order of the Phase 2 slices
 
 ## Phase 2: Core loop vertical slices
@@ -112,6 +112,7 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
 
 Not yet agreed. Promote an item into a phase once we decide to do it.
 
+- [ ] Lua checks: luacheck (lint and syntax) on `ui/` and the test extension's Lua in `make test`; later busted unit tests for the settings page's logic, with X4's functions stubbed. Fetched into `.tools/` like bats
 - [ ] Settings profiles: mark profiles made during manual (UAT) testing so the game-test cleanup removes them. Options: a deploy-time switch (`--set MarkAsTest=1`, everything created while deployed gets the `test` mark), a "mark as test" row in the dev menu, or a UAT game start in the test extension (needs a switch so it doesn't start the automated tests)
 - [ ] Capture operations: wingmen prefer shield-heavy weapons (ion), from a profile list, since scripts can't read a weapon's damage type
 - [ ] Recognisable pirate: a unique ship or paint job lets pilots know a notorious player without a hail, so they bail more readily outside capture operations

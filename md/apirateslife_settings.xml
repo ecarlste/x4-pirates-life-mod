@@ -1,26 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Settings: where each setting's value comes from, and the in-game settings page's MD side.
-     See docs/specs/in-game-settings.md.
+<!-- Settings: the game's settings state and the in-game settings page's MD side.
+     See docs/specs/settings-profiles.md and the flows in docs/specs/settings-profiles-flows.md.
 
-     Three layers, each filling what the one above leaves empty:
-       1. This save's values, chosen in game: global.$APiratesLife_Chosen (keys '$<Name>').
-       2. A settings profile, kept in the player's X4 profile by the page's Lua
-          (ui/apirateslife_options.lua): the new-game profile is copied into a save once (seeding),
-          and any profile when the player loads it there.
-       3. The config file, md/apirateslife_config.xml, applied on every game start and load.
-     The patches only ever read global.$APiratesLife_<Name>.
+     The game's settings state, saved with the game:
+       global.$APiratesLife_Profile   what the page's Profile dropdown shows: 'Default', a saved
+                                      profile's name, or '' for "None (custom settings)"
+       global.$APiratesLife_Modified  true once a page setting was changed since that profile was
+                                      chosen or saved: the game no longer follows the profile.
+                                      Lasts until the game is next loaded.
+       global.$APiratesLife_InUse     the page settings' values the game runs with ('$<Name>' keys)
+     The patches only ever read global.$APiratesLife_<Name>: the config file
+     (md/apirateslife_config.xml) sets them all on every start and load, then InUse goes on top. The
+     tuning settings (capture hold line and floor) only ever come from the config.
 
-     Only the page settings in PageSettings can be chosen in game. The rest (capture hold line and
-     floor) are tuning values that follow the config file alone.
-
-     The page talks to this script with AddUITriggeredEvent("APiratesLife_Settings", control, value):
-       <Name>, 0 or 1         sets a page setting in this save
-       'Reset'                clears this save's values, back to the config file
-       'LoadProfile', list    copies a profile into this save: [name, value, name, value, ...]
-       'LuaLoaded', list      the Lua reporting in after a start or load: [UI Extensions found
-                              (0 or 1), then the new-game profile as name, value pairs]; seeds an
-                              unseeded save
-     The current values go back to Lua on the player blackboard, player.entity.$APiratesLife_Settings. -->
+     The profiles themselves live in the player's X4 profile, kept by the page's Lua
+     (ui/apirateslife_options.lua). It talks to this script with
+     AddUITriggeredEvent("APiratesLife_Settings", control, value):
+       <Name>, 0 or 1            a page setting changed in this game: sets it, marks the game modified
+       'UseProfile', list        use a profile: [name, setting, value, setting, value, ...]; 'Default'
+                                 with no values for the config file. Rebuilds InUse from the config
+                                 plus those values and clears Modified.
+       'ProfileSaved', name      this game's values were saved into that profile: clears Modified
+       'ProfileGone', name       that profile no longer exists: a game on it switches to None
+       'LuaLoaded', list         the Lua reporting in after a start or load: [UI Extensions found]
+     The state goes back to Lua on the player blackboard, player.entity.$APiratesLife_Settings. -->
 <mdscript name="APiratesLife_Settings" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
     <cue name="OnLoad" instantiate="true">
@@ -31,13 +34,61 @@
         </check_any>
       </conditions>
       <actions>
-        <set_value name="Lua.$Reported" exact="false"/>
-        <run_actions ref="Apply"/>
-        <debug_text text="'[apirateslife] settings: applied (intact on eject %s, intact on claim %s, capture hold hull %s, floor hull %s, wing full chance %s; chosen in this save: %s)'.[global.$APiratesLife_IntactOnEject, global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull, global.$APiratesLife_CaptureWingFullChance, @global.$APiratesLife_Chosen.keys.list]"/>
+        <run_actions ref="Load">
+          <param name="NewGame" value="event.name == 'event_cue_signalled'"/>
+        </run_actions>
         <!-- Ask the Lua to report in, in case it loaded before this cue ran -->
         <raise_lua_event name="'APiratesLife.settingsReady'"/>
       </actions>
     </cue>
+
+    <!-- The load rules (flow 4), run on every start and load. A game on a named profile keeps its
+         saved values until the Lua sends the profile's current ones (UseProfile) or says it's gone. -->
+    <library name="Load" purpose="run_actions">
+      <params>
+        <param name="NewGame" default="false"/>
+      </params>
+      <actions>
+        <set_value name="Lua.$Reported" exact="false"/>
+        <set_value name="Lua.$NeedsNewGameProfile" exact="false"/>
+        <run_actions ref="ConfigValues" result="$Config"/>
+        <do_if value="not global.$APiratesLife_Profile?">
+          <!-- A new game, or a save from before profiles (PR #37 and #39) -->
+          <do_if value="global.$APiratesLife_Chosen? and global.$APiratesLife_Chosen.keys.count gt 0">
+            <set_value name="global.$APiratesLife_Profile" exact="''"/>
+            <set_value name="global.$APiratesLife_InUse" exact="$Config.clone"/>
+            <run_actions ref="PageSettings" result="$Names"/>
+            <do_for_each name="$Name" in="$Names">
+              <do_if value="global.$APiratesLife_Chosen.{'$' + $Name}?">
+                <set_value name="global.$APiratesLife_InUse.{'$' + $Name}" exact="global.$APiratesLife_Chosen.{'$' + $Name}"/>
+              </do_if>
+            </do_for_each>
+            <debug_text text="'[apirateslife] settings: values chosen before profiles existed kept, on None (custom settings)'"/>
+          </do_if>
+          <do_else>
+            <set_value name="global.$APiratesLife_Profile" exact="'Default'"/>
+            <set_value name="global.$APiratesLife_InUse" exact="$Config.clone"/>
+            <!-- A new game is put on the profile for new games once the Lua reports in -->
+            <set_value name="Lua.$NeedsNewGameProfile" exact="$NewGame"/>
+          </do_else>
+          <set_value name="global.$APiratesLife_Modified" exact="false"/>
+          <remove_value name="global.$APiratesLife_Chosen"/>
+          <remove_value name="global.$APiratesLife_Seeded"/>
+        </do_if>
+        <do_elseif value="global.$APiratesLife_Modified">
+          <!-- Saved with changes: the profile may have changed since, so the game is on its own values -->
+          <debug_text text="'[apirateslife] settings: saved with changes to %s, now on None (custom settings)'.[global.$APiratesLife_Profile]"/>
+          <set_value name="global.$APiratesLife_Profile" exact="''"/>
+          <set_value name="global.$APiratesLife_Modified" exact="false"/>
+        </do_elseif>
+        <do_if value="global.$APiratesLife_Profile == 'Default'">
+          <!-- Default follows the config file, including a changed config -->
+          <set_value name="global.$APiratesLife_InUse" exact="$Config.clone"/>
+        </do_if>
+        <run_actions ref="Apply"/>
+        <debug_text text="'[apirateslife] settings: loaded on %s (intact on eject %s, intact on claim %s, wing full chance %s, capture hold hull %s, floor hull %s)'.[if global.$APiratesLife_Profile == '' then 'None (custom settings)' else global.$APiratesLife_Profile, global.$APiratesLife_IntactOnEject, global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureWingFullChance, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull]"/>
+      </actions>
+    </library>
 
     <!-- The settings the page can change. Each is 0 or 1. -->
     <library name="PageSettings" purpose="run_actions">
@@ -46,34 +97,60 @@
       </actions>
     </library>
 
-    <!-- Applies the config file, then this save's values over it, and mirrors the result to Lua -->
-    <library name="Apply" purpose="run_actions">
+    <!-- The config file's values for the page settings, as table['$<Name>' = value]. Runs the
+         config, so every setting (tuning included) is at its config value afterwards. -->
+    <library name="ConfigValues" purpose="run_actions">
       <actions>
         <run_actions ref="md.APiratesLife_Config.Defaults"/>
         <run_actions ref="PageSettings" result="$Names"/>
         <set_value name="$Config" exact="table[]"/>
-        <set_value name="$Values" exact="table[]"/>
         <do_for_each name="$Name" in="$Names">
           <run_actions ref="GetSetting" result="$Value">
             <param name="Name" value="$Name"/>
           </run_actions>
           <set_value name="$Config.{'$' + $Name}" exact="$Value"/>
-          <do_if value="global.$APiratesLife_Chosen? and global.$APiratesLife_Chosen.{'$' + $Name}?">
-            <set_value name="$Value" exact="global.$APiratesLife_Chosen.{'$' + $Name}"/>
-            <run_actions ref="SetSetting">
-              <param name="Name" value="$Name"/>
-              <param name="Value" value="$Value"/>
-            </run_actions>
-          </do_if>
-          <set_value name="$Values.{'$' + $Name}" exact="$Value"/>
         </do_for_each>
-        <set_value name="player.entity.$APiratesLife_Settings" exact="table[$values = $Values, $config = $Config]"/>
+        <return value="$Config"/>
       </actions>
     </library>
 
-    <!-- Chooses a page setting in this save. Returns false (and changes nothing) for a name that
-         isn't a page setting or a value that isn't 0 or 1. -->
-    <library name="Choose" purpose="run_actions">
+    <!-- Applies the config file, then InUse over it, and mirrors the state to the Lua -->
+    <library name="Apply" purpose="run_actions">
+      <actions>
+        <run_actions ref="ConfigValues" result="$Config"/>
+        <run_actions ref="PageSettings" result="$Names"/>
+        <do_if value="not global.$APiratesLife_InUse?">
+          <set_value name="global.$APiratesLife_InUse" exact="$Config.clone"/>
+        </do_if>
+        <do_for_each name="$Name" in="$Names">
+          <do_if value="global.$APiratesLife_InUse.{'$' + $Name}?">
+            <run_actions ref="SetSetting">
+              <param name="Name" value="$Name"/>
+              <param name="Value" value="global.$APiratesLife_InUse.{'$' + $Name}"/>
+            </run_actions>
+          </do_if>
+          <do_else>
+            <!-- A page setting added after this game last saved: it starts at its config value -->
+            <set_value name="global.$APiratesLife_InUse.{'$' + $Name}" exact="$Config.{'$' + $Name}"/>
+          </do_else>
+        </do_for_each>
+        <run_actions ref="Mirror">
+          <param name="Config" value="$Config"/>
+        </run_actions>
+      </actions>
+    </library>
+
+    <library name="Mirror" purpose="run_actions">
+      <params>
+        <param name="Config"/>
+      </params>
+      <actions>
+        <set_value name="player.entity.$APiratesLife_Settings" exact="table[$profile = @global.$APiratesLife_Profile, $modified = (@global.$APiratesLife_Modified == true), $values = global.$APiratesLife_InUse.clone, $config = $Config, $newgame = @Lua.$NeedsNewGameProfile, $handled = @Lua.$Handled]"/>
+      </actions>
+    </library>
+
+    <!-- True if a page setting can take this value (0 or 1); logs and returns false otherwise -->
+    <library name="Valid" purpose="run_actions">
       <params>
         <param name="Name"/>
         <param name="Value"/>
@@ -88,40 +165,64 @@
           <debug_text text="'[apirateslife] settings: ignored %s = %s (must be 0 or 1)'.[$Name, $Value]"/>
           <return value="false"/>
         </do_if>
-        <do_if value="not global.$APiratesLife_Chosen?">
-          <set_value name="global.$APiratesLife_Chosen" exact="table[]"/>
-        </do_if>
-        <!-- Lua numbers may arrive as floats; store whole numbers like the config does -->
-        <set_value name="global.$APiratesLife_Chosen.{'$' + $Name}" exact="if $Value == 1 then 1 else 0"/>
         <return value="true"/>
       </actions>
     </library>
 
-    <!-- Chooses every name, value pair in a flat list [name, value, name, value, ...] -->
-    <library name="ChooseList" purpose="run_actions">
+    <!-- A page setting changed in this game (flow 2) -->
+    <library name="Change" purpose="run_actions">
       <params>
-        <param name="List"/>
-        <param name="Start" default="1"/>
+        <param name="Name"/>
+        <param name="Value"/>
       </params>
       <actions>
-        <do_if value="typeof $List == datatype.list and $List.count gt $Start">
-          <do_all exact="($List.count - $Start + 1) / 2" counter="$Pair">
-            <set_value name="$i" exact="$Start + ($Pair - 1) * 2"/>
-            <run_actions ref="Choose">
-              <param name="Name" value="$List.{$i}"/>
-              <param name="Value" value="$List.{$i + 1}"/>
-            </run_actions>
-          </do_all>
+        <run_actions ref="Valid" result="$Ok">
+          <param name="Name" value="$Name"/>
+          <param name="Value" value="$Value"/>
+        </run_actions>
+        <do_if value="$Ok">
+          <!-- Lua numbers may arrive as floats; store whole numbers like the config does -->
+          <set_value name="global.$APiratesLife_InUse.{'$' + $Name}" exact="if $Value == 1 then 1 else 0"/>
+          <do_if value="global.$APiratesLife_Profile != ''">
+            <set_value name="global.$APiratesLife_Modified" exact="true"/>
+          </do_if>
+          <run_actions ref="Apply"/>
+          <debug_text text="'[apirateslife] settings: %s set to %s in this game (on %s%s)'.[$Name, global.$APiratesLife_InUse.{'$' + $Name}, if global.$APiratesLife_Profile == '' then 'None' else global.$APiratesLife_Profile, if global.$APiratesLife_Modified then ', modified' else '']"/>
         </do_if>
       </actions>
     </library>
 
-    <!-- Clears this save's values: everything follows the config file again -->
-    <library name="Reset" purpose="run_actions">
+    <!-- Puts the game on a profile (flows 1, 6, 7, 8): InUse from the config plus the profile's
+         valid values, Modified cleared. List: [name, setting, value, setting, value, ...]. -->
+    <library name="UseProfile" purpose="run_actions">
+      <params>
+        <param name="List"/>
+      </params>
       <actions>
-        <set_value name="global.$APiratesLife_Chosen" exact="table[]"/>
+        <do_if value="typeof $List != datatype.list or $List.count == 0 or typeof $List.{1} != datatype.string or $List.{1} == ''">
+          <debug_text text="'[apirateslife] settings: ignored UseProfile without a profile name'"/>
+          <return/>
+        </do_if>
+        <run_actions ref="ConfigValues" result="$Config"/>
+        <set_value name="$InUse" exact="$Config.clone"/>
+        <do_if value="$List.count ge 3">
+          <do_all exact="($List.count - 1) / 2" counter="$Pair">
+            <set_value name="$i" exact="2 + ($Pair - 1) * 2"/>
+            <run_actions ref="Valid" result="$Ok">
+              <param name="Name" value="$List.{$i}"/>
+              <param name="Value" value="$List.{$i + 1}"/>
+            </run_actions>
+            <do_if value="$Ok">
+              <set_value name="$InUse.{'$' + $List.{$i}}" exact="if $List.{$i + 1} == 1 then 1 else 0"/>
+            </do_if>
+          </do_all>
+        </do_if>
+        <set_value name="global.$APiratesLife_Profile" exact="$List.{1}"/>
+        <set_value name="global.$APiratesLife_Modified" exact="false"/>
+        <set_value name="global.$APiratesLife_InUse" exact="$InUse"/>
+        <set_value name="Lua.$NeedsNewGameProfile" exact="false"/>
         <run_actions ref="Apply"/>
-        <debug_text text="'[apirateslife] settings: reset to the config file values'"/>
+        <debug_text text="'[apirateslife] settings: now on %s'.[$List.{1}]"/>
       </actions>
     </library>
 
@@ -161,13 +262,15 @@
       </actions>
     </library>
 
-    <!-- The page and its Lua. $Handled counts the events handled, $Reported and $UiExtensions
-         record the Lua's report since the last start or load. -->
+    <!-- The page and its Lua. $Handled counts the events handled (the Lua uses it to know when the
+         blackboard has caught up), $Reported and $UiExtensions record the Lua's report since the
+         last start or load, $NeedsNewGameProfile asks it for the profile for new games. -->
     <cue name="Lua">
       <actions>
         <set_value name="$Handled" exact="0"/>
         <set_value name="$Reported" exact="false"/>
         <set_value name="$UiExtensions" exact="false"/>
+        <set_value name="$NeedsNewGameProfile" exact="false"/>
       </actions>
       <cues>
         <cue name="UiEvent" instantiate="true">
@@ -183,38 +286,34 @@
                 <set_value name="Lua.$Reported" exact="true"/>
                 <debug_text text="'[apirateslife] settings: %s'.[if Lua.$UiExtensions then 'settings page available (UI Extensions found)' else 'config file only (UI Extensions not found)']"/>
               </do_if>
-              <!-- Seed a save that has never had settings from the new-game profile, once -->
-              <do_if value="not global.$APiratesLife_Seeded?">
-                <set_value name="global.$APiratesLife_Seeded" exact="true"/>
-                <run_actions ref="ChooseList">
-                  <param name="List" value="$Param"/>
-                  <param name="Start" value="2"/>
-                </run_actions>
-                <run_actions ref="Apply"/>
-                <debug_text text="'[apirateslife] settings: this save started from the new-game profile (%s values)'.[if typeof $Param == datatype.list and $Param.count gt 1 then ($Param.count - 1) / 2 else 0]"/>
-              </do_if>
             </do_if>
-            <do_elseif value="$Control == 'Reset'">
-              <run_actions ref="Reset"/>
-            </do_elseif>
-            <do_elseif value="$Control == 'LoadProfile'">
-              <run_actions ref="ChooseList">
+            <do_elseif value="$Control == 'UseProfile'">
+              <run_actions ref="UseProfile">
                 <param name="List" value="$Param"/>
               </run_actions>
-              <run_actions ref="Apply"/>
-              <debug_text text="'[apirateslife] settings: loaded a profile into this save'"/>
+            </do_elseif>
+            <do_elseif value="$Control == 'ProfileSaved'">
+              <do_if value="global.$APiratesLife_Profile == $Param">
+                <set_value name="global.$APiratesLife_Modified" exact="false"/>
+                <debug_text text="'[apirateslife] settings: changes saved into %s'.[$Param]"/>
+              </do_if>
+            </do_elseif>
+            <do_elseif value="$Control == 'ProfileGone'">
+              <do_if value="global.$APiratesLife_Profile == $Param">
+                <set_value name="global.$APiratesLife_Profile" exact="''"/>
+                <set_value name="global.$APiratesLife_Modified" exact="false"/>
+                <debug_text text="'[apirateslife] settings: profile %s is gone, now on None (custom settings)'.[$Param]"/>
+              </do_if>
             </do_elseif>
             <do_else>
-              <run_actions ref="Choose" result="$Chosen">
+              <run_actions ref="Change">
                 <param name="Name" value="$Control"/>
                 <param name="Value" value="$Param"/>
               </run_actions>
-              <do_if value="$Chosen">
-                <run_actions ref="Apply"/>
-                <debug_text text="'[apirateslife] settings: %s set to %s in this save'.[$Control, global.$APiratesLife_Chosen.{'$' + $Control}]"/>
-              </do_if>
             </do_else>
             <set_value name="Lua.$Handled" operation="add"/>
+            <!-- Mirror the state with the new count, so the Lua knows the blackboard caught up -->
+            <run_actions ref="Apply"/>
           </actions>
         </cue>
       </cues>

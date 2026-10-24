@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsReset, SettingsIgnoresInvalid]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -40,10 +40,14 @@
           <delay exact="5s"/>
           <actions>
             <debug_text text="'[apirateslife-test] RUN START %s tests'.[$Tests.count]" filter="general"/>
-            <!-- The new game was seeded from the tester's own new-game profile; go back to the config
-                 file (and deploy set overrides) so tests start from known values -->
-            <set_value name="global.$APiratesLife_Seeded" exact="true"/>
-            <run_actions ref="md.APiratesLife_Settings.Reset"/>
+            <!-- The new game was put on the tester's own profile for new games; go back to Default
+                 (the config file and deploy set overrides) so tests start from known values. Then
+                 clear test profiles left by a crashed run and copy the tester's profiles, which
+                 the end of the run puts back. -->
+            <run_actions ref="md.APiratesLife_Settings.UseProfile">
+              <param name="List" value="['Default']"/>
+            </run_actions>
+            <raise_lua_event name="'apirateslife_tests.profiles'" param="'begin'"/>
             <!-- SETA: up to 6x game time, for tests that wait on travel. Needs SETA in the inventory
                  (the gamestart provides it) and no enemies nearby. The factor is game time per
                  real second. -->
@@ -78,6 +82,8 @@
             </do_if>
             <do_else>
               <debug_text text="'[apirateslife-test] DONE passed=%s failed=%s'.[$Passed, $Failed]" filter="general"/>
+              <!-- Put the tester's profiles back as they were before the run -->
+              <raise_lua_event name="'apirateslife_tests.profiles'" param="'end'"/>
               <do_if value="$QuitWhenDone">
                 <signal_cue cue="Quit"/>
               </do_if>
@@ -139,11 +145,13 @@
       </actions>
     </cue>
 
-    <!-- ===== In-game settings (docs/specs/in-game-settings.md) =====
+    <!-- ===== In-game settings and profiles (docs/specs/in-game-settings.md, settings-profiles.md) =====
          The page's events go through the real bridge: SendUiEvents asks the test extension's Lua to
          send them with AddUITriggeredEvent, exactly as ui/apirateslife_options.lua does, and the
-         tests wait until md.APiratesLife_Settings has handled them. After md.APiratesLife_Settings.Reset
-         the globals hold the config file's values. Every test resets when it's done. -->
+         tests wait until md.APiratesLife_Settings has handled them (UiThen). Tests that need the page
+         Lua's profiles create test profiles through the test extension's Lua. Every test goes back to
+         Default (md.APiratesLife_Settings.UseProfile ['Default']) when it's done.
+         Spec: docs/specs/settings-profiles.md. -->
 
     <!-- Asks the test extension's Lua to send these UI events, in order: 'Control', 'Control|value'
          or 'Control|*a,b,c' for a list. Returns the handled-event count to wait for. -->
@@ -203,168 +211,146 @@
       </cues>
     </cue>
 
-    <!-- A choice from the page applies at once and survives the load path, which re-applies the
-         config file -->
+    <!-- Sends UI events through the test extension's Lua and waits until our settings script has
+         handled them (and $wait more, for events our page Lua sends itself), then signals $then with
+         true, or false after 20s. Param: table[$events, $then, $wait (optional)]. -->
+    <cue name="UiThen" instantiate="true" namespace="this">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="$Then" exact="event.param.$then"/>
+        <run_actions ref="SendUiEvents" result="$Target">
+          <param name="Events" value="event.param.$events"/>
+        </run_actions>
+        <set_value name="$Target" exact="$Target + (if event.param.$wait? then event.param.$wait else 0)"/>
+        <set_value name="$Deadline" exact="player.age + 20s"/>
+      </actions>
+      <cues>
+        <cue name="UiThen_Done" checkinterval="0.5s">
+          <conditions>
+            <check_any>
+              <check_value value="md.APiratesLife_Settings.Lua.$Handled ge $Target"/>
+              <check_value value="player.age gt $Deadline"/>
+            </check_any>
+          </conditions>
+          <actions>
+            <signal_cue_instantly cue="$Then" param="md.APiratesLife_Settings.Lua.$Handled ge $Target"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A setting changed in a game applies at once and survives a load: the game is then on None
+         (custom settings) with that value -->
     <cue name="SettingsChoiceSurvivesLoad">
       <conditions>
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <run_actions ref="md.APiratesLife_Settings.Reset"/>
-        <set_value name="$Want" exact="if global.$APiratesLife_IntactOnEject == 1 then 0 else 1"/>
-        <run_actions ref="SendUiEvents" result="$Target">
-          <param name="Events" value="['IntactOnEject|%s'.[$Want]]"/>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <run_actions ref="md.APiratesLife_Settings.UseProfile">
+          <param name="List" value="['Default']"/>
         </run_actions>
+        <set_value name="$Want" exact="1 - $Config.$IntactOnEject"/>
+        <signal_cue_instantly cue="UiThen" param="table[$events = ['IntactOnEject|%s'.[$Want]], $then = SettingsChoiceSurvivesLoad_Check]"/>
       </actions>
       <cues>
-        <cue name="SettingsChoiceSurvivesLoad_Wait" checkinterval="0.5s">
+        <cue name="SettingsChoiceSurvivesLoad_Check">
           <conditions>
-            <check_value value="md.APiratesLife_Settings.Lua.$Handled ge $Target"/>
+            <event_cue_signalled/>
           </conditions>
           <actions>
-            <cancel_cue cue="SettingsChoiceSurvivesLoad_Timeout"/>
+            <set_value name="$Handled" exact="event.param"/>
             <set_value name="$AtOnce" exact="global.$APiratesLife_IntactOnEject"/>
-            <run_actions ref="md.APiratesLife_Settings.Apply"/>
-            <set_value name="$AfterLoad" exact="global.$APiratesLife_IntactOnEject"/>
-            <set_value name="$Ok" exact="$AtOnce == $Want and $AfterLoad == $Want"/>
-            <signal_cue_instantly cue="Report" param="table[$name = 'settings_choice_survives_load', $ok = $Ok, $detail = 'IntactOnEject chosen %s: %s at once, %s after the load path'.[$Want, $AtOnce, $AfterLoad]]"/>
-            <run_actions ref="md.APiratesLife_Settings.Reset"/>
-          </actions>
-        </cue>
-        <cue name="SettingsChoiceSurvivesLoad_Timeout">
-          <delay exact="20s"/>
-          <actions>
-            <cancel_cue cue="SettingsChoiceSurvivesLoad_Wait"/>
-            <signal_cue_instantly cue="Report" param="table[$name = 'settings_choice_survives_load', $ok = false, $detail = 'the UI event was not handled within 20s']"/>
-            <run_actions ref="md.APiratesLife_Settings.Reset"/>
+            <set_value name="$Modified" exact="global.$APiratesLife_Modified"/>
+            <run_actions ref="md.APiratesLife_Settings.Load"/>
+            <set_value name="$After" exact="global.$APiratesLife_IntactOnEject"/>
+            <set_value name="$Ok" exact="$Handled and $AtOnce == $Want and $Modified and $After == $Want and global.$APiratesLife_Profile == ''"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'settings_choice_survives_load', $ok = $Ok, $detail = 'IntactOnEject %s: %s at once (modified %s), %s after the load on %s'.[$Want, $AtOnce, $Modified, $After, if global.$APiratesLife_Profile == '' then 'None' else global.$APiratesLife_Profile]]"/>
+            <run_actions ref="md.APiratesLife_Settings.UseProfile">
+              <param name="List" value="['Default']"/>
+            </run_actions>
           </actions>
         </cue>
       </cues>
     </cue>
 
-    <!-- Settings not chosen in the save, and the tuning settings, come from the config file on load -->
+    <!-- On Default the game follows the config file on every load, and the tuning settings always do -->
     <cue name="SettingsConfigFillsUnchosen">
       <conditions>
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <run_actions ref="md.APiratesLife_Settings.Reset"/>
-        <set_value name="$Config" exact="table[$claim = global.$APiratesLife_IntactOnClaim, $hold = global.$APiratesLife_CaptureHoldHull, $floor = global.$APiratesLife_CaptureFloorHull]"/>
-        <set_value name="$WantEject" exact="if global.$APiratesLife_IntactOnEject == 1 then 0 else 1"/>
-        <run_actions ref="md.APiratesLife_Settings.Choose">
-          <param name="Name" value="'IntactOnEject'"/>
-          <param name="Value" value="$WantEject"/>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <set_value name="$Hold" exact="global.$APiratesLife_CaptureHoldHull"/>
+        <set_value name="$Floor" exact="global.$APiratesLife_CaptureFloorHull"/>
+        <run_actions ref="md.APiratesLife_Settings.UseProfile">
+          <param name="List" value="['Default']"/>
         </run_actions>
         <!-- Values left over from before the load, unlike the config file -->
-        <set_value name="global.$APiratesLife_IntactOnClaim" exact="if $Config.$claim == 1 then 0 else 1"/>
-        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="$Config.$hold - 10"/>
-        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="$Config.$floor - 10"/>
-        <run_actions ref="md.APiratesLife_Settings.Apply"/>
-        <set_value name="$Problems" exact="''"/>
-        <do_if value="global.$APiratesLife_IntactOnEject != $WantEject">
-          <set_value name="$Problems" exact="$Problems + ' IntactOnEject %s, chosen %s;'.[global.$APiratesLife_IntactOnEject, $WantEject]"/>
-        </do_if>
-        <do_if value="global.$APiratesLife_IntactOnClaim != $Config.$claim">
-          <set_value name="$Problems" exact="$Problems + ' IntactOnClaim %s, config %s;'.[global.$APiratesLife_IntactOnClaim, $Config.$claim]"/>
-        </do_if>
-        <do_if value="global.$APiratesLife_CaptureHoldHull != $Config.$hold or global.$APiratesLife_CaptureFloorHull != $Config.$floor">
-          <set_value name="$Problems" exact="$Problems + ' hold %s and floor %s, config %s and %s;'.[global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull, $Config.$hold, $Config.$floor]"/>
-        </do_if>
-        <signal_cue_instantly cue="Report" param="table[$name = 'settings_config_fills_unchosen', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'chosen IntactOnEject kept; IntactOnClaim, hold and floor back to the config file' else $Problems)]"/>
-        <run_actions ref="md.APiratesLife_Settings.Reset"/>
+        <set_value name="global.$APiratesLife_InUse.$IntactOnClaim" exact="1 - $Config.$IntactOnClaim"/>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="$Hold - 10"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="$Floor - 10"/>
+        <run_actions ref="md.APiratesLife_Settings.Load"/>
+        <set_value name="$Ok" exact="global.$APiratesLife_Profile == 'Default' and global.$APiratesLife_IntactOnClaim == $Config.$IntactOnClaim and global.$APiratesLife_CaptureHoldHull == $Hold and global.$APiratesLife_CaptureFloorHull == $Floor"/>
+        <signal_cue_instantly cue="Report" param="table[$name = 'settings_config_fills_unchosen', $ok = $Ok, $detail = 'after the load on %s: IntactOnClaim %s (config %s), hold %s (config %s), floor %s (config %s)'.[global.$APiratesLife_Profile, global.$APiratesLife_IntactOnClaim, $Config.$IntactOnClaim, global.$APiratesLife_CaptureHoldHull, $Hold, global.$APiratesLife_CaptureFloorHull, $Floor]]"/>
       </actions>
     </cue>
 
-    <!-- An unseeded save takes the new-game profile from the Lua's first report, once; later
-         reports don't change it, and loading a profile does -->
+    <!-- A new game waits for the page's Lua to put it on the profile for new games -->
     <cue name="SettingsSeedFromDefaults">
       <conditions>
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <run_actions ref="md.APiratesLife_Settings.Reset"/>
-        <remove_value name="global.$APiratesLife_Seeded"/>
-        <set_value name="$WantClaim" exact="if global.$APiratesLife_IntactOnClaim == 1 then 0 else 1"/>
-        <run_actions ref="SendUiEvents" result="$Target">
-          <param name="Events" value="['LuaLoaded|*0,IntactOnClaim,%s,CaptureWingFullChance,1'.[$WantClaim], 'LuaLoaded|*0,IntactOnClaim,%s,CaptureWingFullChance,0'.[1 - $WantClaim]]"/>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <remove_value name="global.$APiratesLife_Profile"/>
+        <remove_value name="global.$APiratesLife_Modified"/>
+        <remove_value name="global.$APiratesLife_InUse"/>
+        <run_actions ref="md.APiratesLife_Settings.Load">
+          <param name="NewGame" value="true"/>
         </run_actions>
+        <set_value name="$Waiting" exact="md.APiratesLife_Settings.Lua.$NeedsNewGameProfile"/>
+        <set_value name="$Want" exact="1 - $Config.$IntactOnClaim"/>
+        <signal_cue_instantly cue="UiThen" param="table[$events = ['UseProfile|*Test new games,IntactOnClaim,%s'.[$Want]], $then = SettingsSeedFromDefaults_Check]"/>
       </actions>
       <cues>
-        <cue name="SettingsSeedFromDefaults_Seeded" checkinterval="0.5s">
+        <cue name="SettingsSeedFromDefaults_Check">
           <conditions>
-            <check_value value="md.APiratesLife_Settings.Lua.$Handled ge $Target"/>
+            <event_cue_signalled/>
           </conditions>
           <actions>
-            <set_value name="$Problems" exact="''"/>
-            <run_actions ref="md.APiratesLife_Settings.Apply"/>
-            <do_if value="global.$APiratesLife_IntactOnClaim != $WantClaim or global.$APiratesLife_CaptureWingFullChance != 1">
-              <set_value name="$Problems" exact="' after seeding and a later report: IntactOnClaim %s (defaults %s), CaptureWingFullChance %s (defaults 1);'.[global.$APiratesLife_IntactOnClaim, $WantClaim, global.$APiratesLife_CaptureWingFullChance]"/>
-            </do_if>
-            <do_if value="not global.$APiratesLife_Seeded?">
-              <set_value name="$Problems" exact="$Problems + ' save not marked as seeded;'"/>
-            </do_if>
-            <run_actions ref="SendUiEvents" result="$Target">
-              <param name="Events" value="['LoadProfile|*CaptureWingFullChance,0']"/>
+            <set_value name="$Ok" exact="event.param and $Waiting and global.$APiratesLife_Profile == 'Test new games' and global.$APiratesLife_IntactOnClaim == $Want and not global.$APiratesLife_Modified and not md.APiratesLife_Settings.Lua.$NeedsNewGameProfile"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'settings_seed_from_defaults', $ok = $Ok, $detail = 'waited for the profile for new games: %s, then on %s with IntactOnClaim %s (profile %s)'.[$Waiting, global.$APiratesLife_Profile, global.$APiratesLife_IntactOnClaim, $Want]]"/>
+            <run_actions ref="md.APiratesLife_Settings.UseProfile">
+              <param name="List" value="['Default']"/>
             </run_actions>
-          </actions>
-          <cues>
-            <cue name="SettingsSeedFromDefaults_Loaded" checkinterval="0.5s">
-              <conditions>
-                <check_value value="md.APiratesLife_Settings.Lua.$Handled ge $Target"/>
-              </conditions>
-              <actions>
-                <cancel_cue cue="SettingsSeedFromDefaults_Timeout"/>
-                <do_if value="global.$APiratesLife_CaptureWingFullChance != 0">
-                  <set_value name="$Problems" exact="$Problems + ' after loading a profile: CaptureWingFullChance %s, profile 0;'.[global.$APiratesLife_CaptureWingFullChance]"/>
-                </do_if>
-                <signal_cue_instantly cue="Report" param="table[$name = 'settings_seed_from_defaults', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'seeded once from the new-game profile, later reports ignored, loading a profile applied' else $Problems)]"/>
-                <run_actions ref="md.APiratesLife_Settings.Reset"/>
-              </actions>
-            </cue>
-          </cues>
-        </cue>
-        <cue name="SettingsSeedFromDefaults_Timeout">
-          <delay exact="20s"/>
-          <actions>
-            <cancel_cue cue="SettingsSeedFromDefaults_Seeded"/>
-            <set_value name="global.$APiratesLife_Seeded" exact="true"/>
-            <signal_cue_instantly cue="Report" param="table[$name = 'settings_seed_from_defaults', $ok = false, $detail = 'UI events not handled within 20s']"/>
-            <run_actions ref="md.APiratesLife_Settings.Reset"/>
           </actions>
         </cue>
       </cues>
     </cue>
 
-    <!-- Reset from the page brings back the config file's values, and they stay on load -->
-    <cue name="SettingsReset">
+    <!-- Choosing Default brings back the config file's values and clears changes -->
+    <cue name="SettingsChooseDefault">
       <conditions>
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <run_actions ref="md.APiratesLife_Settings.Reset"/>
-        <set_value name="$Config" exact="table[$eject = global.$APiratesLife_IntactOnEject, $claim = global.$APiratesLife_IntactOnClaim]"/>
-        <run_actions ref="SendUiEvents" result="$Target">
-          <param name="Events" value="['IntactOnEject|%s'.[1 - $Config.$eject], 'IntactOnClaim|%s'.[1 - $Config.$claim], 'Reset']"/>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <run_actions ref="md.APiratesLife_Settings.UseProfile">
+          <param name="List" value="['Test hard', 'IntactOnEject', 1 - $Config.$IntactOnEject]"/>
         </run_actions>
+        <signal_cue_instantly cue="UiThen" param="table[$events = ['IntactOnClaim|%s'.[1 - $Config.$IntactOnClaim], 'UseProfile|*Default'], $then = SettingsChooseDefault_Check]"/>
       </actions>
       <cues>
-        <cue name="SettingsReset_Wait" checkinterval="0.5s">
+        <cue name="SettingsChooseDefault_Check">
           <conditions>
-            <check_value value="md.APiratesLife_Settings.Lua.$Handled ge $Target"/>
+            <event_cue_signalled/>
           </conditions>
           <actions>
-            <cancel_cue cue="SettingsReset_Timeout"/>
-            <run_actions ref="md.APiratesLife_Settings.Apply"/>
-            <set_value name="$Ok" exact="global.$APiratesLife_IntactOnEject == $Config.$eject and global.$APiratesLife_IntactOnClaim == $Config.$claim and global.$APiratesLife_Chosen.keys.count == 0"/>
-            <signal_cue_instantly cue="Report" param="table[$name = 'settings_reset', $ok = $Ok, $detail = 'after reset and the load path: IntactOnEject %s (config %s), IntactOnClaim %s (config %s), %s chosen'.[global.$APiratesLife_IntactOnEject, $Config.$eject, global.$APiratesLife_IntactOnClaim, $Config.$claim, global.$APiratesLife_Chosen.keys.count]]"/>
-          </actions>
-        </cue>
-        <cue name="SettingsReset_Timeout">
-          <delay exact="20s"/>
-          <actions>
-            <cancel_cue cue="SettingsReset_Wait"/>
-            <signal_cue_instantly cue="Report" param="table[$name = 'settings_reset', $ok = false, $detail = 'UI events not handled within 20s']"/>
-            <run_actions ref="md.APiratesLife_Settings.Reset"/>
+            <set_value name="$Ok" exact="event.param and global.$APiratesLife_Profile == 'Default' and not global.$APiratesLife_Modified and global.$APiratesLife_IntactOnEject == $Config.$IntactOnEject and global.$APiratesLife_IntactOnClaim == $Config.$IntactOnClaim"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'settings_choose_default', $ok = $Ok, $detail = 'on %s (modified %s): IntactOnEject %s (config %s), IntactOnClaim %s (config %s)'.[global.$APiratesLife_Profile, global.$APiratesLife_Modified, global.$APiratesLife_IntactOnEject, $Config.$IntactOnEject, global.$APiratesLife_IntactOnClaim, $Config.$IntactOnClaim]]"/>
           </actions>
         </cue>
       </cues>
@@ -377,30 +363,240 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <run_actions ref="md.APiratesLife_Settings.Reset"/>
-        <set_value name="$Config" exact="table[$eject = global.$APiratesLife_IntactOnEject, $hold = global.$APiratesLife_CaptureHoldHull]"/>
-        <run_actions ref="SendUiEvents" result="$Target">
-          <param name="Events" value="['IntactOnEject|5', 'CaptureHoldHull|50', 'NoSuchSetting|1']"/>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <set_value name="$Hold" exact="global.$APiratesLife_CaptureHoldHull"/>
+        <run_actions ref="md.APiratesLife_Settings.UseProfile">
+          <param name="List" value="['Default']"/>
         </run_actions>
+        <signal_cue_instantly cue="UiThen" param="table[$events = ['IntactOnEject|5', 'CaptureHoldHull|50', 'NoSuchSetting|1'], $then = SettingsIgnoresInvalid_Check]"/>
       </actions>
       <cues>
-        <cue name="SettingsIgnoresInvalid_Wait" checkinterval="0.5s">
+        <cue name="SettingsIgnoresInvalid_Check">
           <conditions>
-            <check_value value="md.APiratesLife_Settings.Lua.$Handled ge $Target"/>
+            <event_cue_signalled/>
           </conditions>
           <actions>
-            <cancel_cue cue="SettingsIgnoresInvalid_Timeout"/>
-            <set_value name="$Ok" exact="global.$APiratesLife_IntactOnEject == $Config.$eject and global.$APiratesLife_CaptureHoldHull == $Config.$hold and global.$APiratesLife_Chosen.keys.count == 0"/>
-            <signal_cue_instantly cue="Report" param="table[$name = 'settings_ignores_invalid', $ok = $Ok, $detail = 'IntactOnEject %s (config %s), hold %s (config %s), %s chosen'.[global.$APiratesLife_IntactOnEject, $Config.$eject, global.$APiratesLife_CaptureHoldHull, $Config.$hold, global.$APiratesLife_Chosen.keys.count]]"/>
-            <run_actions ref="md.APiratesLife_Settings.Reset"/>
+            <set_value name="$Ok" exact="event.param and global.$APiratesLife_IntactOnEject == $Config.$IntactOnEject and global.$APiratesLife_CaptureHoldHull == $Hold and not global.$APiratesLife_Modified"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'settings_ignores_invalid', $ok = $Ok, $detail = 'IntactOnEject %s (config %s), hold %s (config %s), modified %s'.[global.$APiratesLife_IntactOnEject, $Config.$IntactOnEject, global.$APiratesLife_CaptureHoldHull, $Hold, global.$APiratesLife_Modified]]"/>
           </actions>
         </cue>
-        <cue name="SettingsIgnoresInvalid_Timeout">
+      </cues>
+    </cue>
+
+    <!-- Changing a setting marks a game on a profile as modified; saving into the profile clears it -->
+    <cue name="SettingsChangeMarksModified">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <run_actions ref="md.APiratesLife_Settings.UseProfile">
+          <param name="List" value="['Test hard', 'IntactOnClaim', 1 - $Config.$IntactOnClaim]"/>
+        </run_actions>
+        <set_value name="$Want" exact="$Config.$IntactOnClaim"/>
+        <signal_cue_instantly cue="UiThen" param="table[$events = ['IntactOnClaim|%s'.[$Want]], $then = SettingsChangeMarksModified_Changed]"/>
+      </actions>
+      <cues>
+        <cue name="SettingsChangeMarksModified_Changed">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <set_value name="$Problems" exact="if event.param then '' else ' the change was not handled;'"/>
+            <do_if value="global.$APiratesLife_Profile != 'Test hard' or not global.$APiratesLife_Modified or global.$APiratesLife_IntactOnClaim != $Want">
+              <set_value name="$Problems" exact="$Problems + ' after the change: on %s, modified %s, IntactOnClaim %s (want %s);'.[global.$APiratesLife_Profile, global.$APiratesLife_Modified, global.$APiratesLife_IntactOnClaim, $Want]"/>
+            </do_if>
+            <signal_cue_instantly cue="UiThen" param="table[$events = ['ProfileSaved|Test hard'], $then = SettingsChangeMarksModified_Saved]"/>
+          </actions>
+          <cues>
+            <cue name="SettingsChangeMarksModified_Saved">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <do_if value="global.$APiratesLife_Modified or global.$APiratesLife_Profile != 'Test hard'">
+                  <set_value name="$Problems" exact="$Problems + ' after saving into the profile: on %s, modified %s;'.[global.$APiratesLife_Profile, global.$APiratesLife_Modified]"/>
+                </do_if>
+                <signal_cue_instantly cue="Report" param="table[$name = 'settings_change_marks_modified', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'a change marked Test hard modified, saving into it cleared it' else $Problems)]"/>
+                <run_actions ref="md.APiratesLife_Settings.UseProfile">
+                  <param name="List" value="['Default']"/>
+                </run_actions>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A game saved while modified is on None (custom settings) when loaded again, with its values -->
+    <cue name="SettingsSavedModifiedLoadsAsNone">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <run_actions ref="md.APiratesLife_Settings.UseProfile">
+          <param name="List" value="['Test hard', 'IntactOnClaim', 1 - $Config.$IntactOnClaim]"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Settings.Change">
+          <param name="Name" value="'IntactOnEject'"/>
+          <param name="Value" value="1 - $Config.$IntactOnEject"/>
+        </run_actions>
+        <set_value name="$Before" exact="global.$APiratesLife_Modified"/>
+        <run_actions ref="md.APiratesLife_Settings.Load"/>
+        <set_value name="$Ok" exact="$Before and global.$APiratesLife_Profile == '' and not global.$APiratesLife_Modified and global.$APiratesLife_IntactOnEject == 1 - $Config.$IntactOnEject and global.$APiratesLife_IntactOnClaim == 1 - $Config.$IntactOnClaim"/>
+        <signal_cue_instantly cue="Report" param="table[$name = 'settings_saved_modified_loads_as_none', $ok = $Ok, $detail = 'modified before the load %s; after it on %s, modified %s, IntactOnEject %s, IntactOnClaim %s'.[$Before, if global.$APiratesLife_Profile == '' then 'None' else global.$APiratesLife_Profile, global.$APiratesLife_Modified, global.$APiratesLife_IntactOnEject, global.$APiratesLife_IntactOnClaim]]"/>
+        <run_actions ref="md.APiratesLife_Settings.UseProfile">
+          <param name="List" value="['Default']"/>
+        </run_actions>
+      </actions>
+    </cue>
+
+    <!-- Choosing a profile rebuilds the values from the config plus that profile and clears changes -->
+    <cue name="SettingsChooseProfileClearsChanges">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <run_actions ref="md.APiratesLife_Settings.UseProfile">
+          <param name="List" value="['Test hard', 'IntactOnClaim', 1 - $Config.$IntactOnClaim]"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Settings.Change">
+          <param name="Name" value="'IntactOnEject'"/>
+          <param name="Value" value="1 - $Config.$IntactOnEject"/>
+        </run_actions>
+        <set_value name="$Wing" exact="1 - $Config.$CaptureWingFullChance"/>
+        <signal_cue_instantly cue="UiThen" param="table[$events = ['UseProfile|*Test easy,CaptureWingFullChance,%s'.[$Wing]], $then = SettingsChooseProfileClearsChanges_Check]"/>
+      </actions>
+      <cues>
+        <cue name="SettingsChooseProfileClearsChanges_Check">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <set_value name="$Ok" exact="event.param and global.$APiratesLife_Profile == 'Test easy' and not global.$APiratesLife_Modified and global.$APiratesLife_IntactOnEject == $Config.$IntactOnEject and global.$APiratesLife_IntactOnClaim == $Config.$IntactOnClaim and global.$APiratesLife_CaptureWingFullChance == $Wing"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'settings_choose_profile_clears_changes', $ok = $Ok, $detail = 'on %s (modified %s): IntactOnEject %s (config %s), IntactOnClaim %s (config %s), CaptureWingFullChance %s (profile %s)'.[global.$APiratesLife_Profile, global.$APiratesLife_Modified, global.$APiratesLife_IntactOnEject, $Config.$IntactOnEject, global.$APiratesLife_IntactOnClaim, $Config.$IntactOnClaim, global.$APiratesLife_CaptureWingFullChance, $Wing]]"/>
+            <run_actions ref="md.APiratesLife_Settings.UseProfile">
+              <param name="List" value="['Default']"/>
+            </run_actions>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A profile with an unknown setting and an invalid value: both ignored, config values kept -->
+    <cue name="SettingsProfileInvalidValues">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <run_actions ref="md.APiratesLife_Settings.UseProfile">
+          <param name="List" value="['Default']"/>
+        </run_actions>
+        <set_value name="$Eject" exact="1 - $Config.$IntactOnEject"/>
+        <signal_cue_instantly cue="UiThen" param="table[$events = ['UseProfile|*Test hard,IntactOnEject,%s,OldSetting,1,IntactOnClaim,never'.[$Eject]], $then = SettingsProfileInvalidValues_Check]"/>
+      </actions>
+      <cues>
+        <cue name="SettingsProfileInvalidValues_Check">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <set_value name="$Ok" exact="event.param and global.$APiratesLife_Profile == 'Test hard' and global.$APiratesLife_IntactOnEject == $Eject and global.$APiratesLife_IntactOnClaim == $Config.$IntactOnClaim and global.$APiratesLife_CaptureWingFullChance == $Config.$CaptureWingFullChance"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'settings_profile_invalid_values', $ok = $Ok, $detail = 'on %s: IntactOnEject %s (profile %s), IntactOnClaim %s (config %s, profile said never), CaptureWingFullChance %s (config %s)'.[global.$APiratesLife_Profile, global.$APiratesLife_IntactOnEject, $Eject, global.$APiratesLife_IntactOnClaim, $Config.$IntactOnClaim, global.$APiratesLife_CaptureWingFullChance, $Config.$CaptureWingFullChance]]"/>
+            <run_actions ref="md.APiratesLife_Settings.UseProfile">
+              <param name="List" value="['Default']"/>
+            </run_actions>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- End to end with the real page Lua: a game on a profile, not modified, gets the profile's
+         current values from the X4 profile file when it's loaded -->
+    <cue name="SettingsLinkedFollowsProfile">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <set_value name="$Want" exact="1 - $Config.$IntactOnClaim"/>
+        <raise_lua_event name="'apirateslife_tests.profiles'" param="'set|apirateslife test linked|IntactOnClaim,%s'.[$Want]"/>
+      </actions>
+      <cues>
+        <cue name="SettingsLinkedFollowsProfile_Set">
+          <conditions>
+            <event_ui_triggered screen="'apirateslife_tests'" control="'profiles'"/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="SettingsLinkedFollowsProfile_Timeout"/>
+            <set_value name="$Reachable" exact="event.param3 == 1"/>
+            <!-- The game is on the profile with the old values (none: the config) and not modified -->
+            <run_actions ref="md.APiratesLife_Settings.UseProfile">
+              <param name="List" value="['apirateslife test linked']"/>
+            </run_actions>
+            <run_actions ref="md.APiratesLife_Settings.Load"/>
+            <set_value name="$Stale" exact="global.$APiratesLife_IntactOnClaim"/>
+            <!-- Our page Lua answers with LuaLoaded and UseProfile -->
+            <signal_cue_instantly cue="UiThen" param="table[$events = [], $wait = 2, $then = SettingsLinkedFollowsProfile_Check]"/>
+            <raise_lua_event name="'APiratesLife.settingsReady'"/>
+          </actions>
+          <cues>
+            <cue name="SettingsLinkedFollowsProfile_Check">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <set_value name="$Ok" exact="$Reachable and event.param and global.$APiratesLife_Profile == 'apirateslife test linked' and global.$APiratesLife_IntactOnClaim == $Want and not global.$APiratesLife_Modified"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'settings_linked_follows_profile', $ok = $Ok, $detail = (if not $Reachable then 'the test extension could not reach the page Lua profiles' else 'IntactOnClaim %s before the page Lua answered, %s after (profile %s), on %s'.[$Stale, global.$APiratesLife_IntactOnClaim, $Want, global.$APiratesLife_Profile])]"/>
+                <raise_lua_event name="'apirateslife_tests.profiles'" param="'delete|apirateslife test linked'"/>
+                <run_actions ref="md.APiratesLife_Settings.UseProfile">
+                  <param name="List" value="['Default']"/>
+                </run_actions>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+        <cue name="SettingsLinkedFollowsProfile_Timeout">
           <delay exact="20s"/>
           <actions>
-            <cancel_cue cue="SettingsIgnoresInvalid_Wait"/>
-            <signal_cue_instantly cue="Report" param="table[$name = 'settings_ignores_invalid', $ok = false, $detail = 'UI events not handled within 20s']"/>
-            <run_actions ref="md.APiratesLife_Settings.Reset"/>
+            <cancel_cue cue="SettingsLinkedFollowsProfile_Set"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'settings_linked_follows_profile', $ok = false, $detail = 'no answer from the test extension Lua within 20s']"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- End to end with the real page Lua: a game whose profile isn't in the X4 profile file switches
+         to None (custom settings) with its values -->
+    <cue name="SettingsLinkedProfileGone">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <set_value name="$Want" exact="1 - $Config.$IntactOnClaim"/>
+        <run_actions ref="md.APiratesLife_Settings.UseProfile">
+          <param name="List" value="['apirateslife test missing', 'IntactOnClaim', $Want]"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Settings.Load"/>
+        <!-- Our page Lua answers with LuaLoaded and ProfileGone -->
+        <signal_cue_instantly cue="UiThen" param="table[$events = [], $wait = 2, $then = SettingsLinkedProfileGone_Check]"/>
+        <raise_lua_event name="'APiratesLife.settingsReady'"/>
+      </actions>
+      <cues>
+        <cue name="SettingsLinkedProfileGone_Check">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <set_value name="$Ok" exact="event.param and global.$APiratesLife_Profile == '' and global.$APiratesLife_IntactOnClaim == $Want"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'settings_linked_profile_gone', $ok = $Ok, $detail = 'on %s, IntactOnClaim %s (had %s)'.[if global.$APiratesLife_Profile == '' then 'None' else global.$APiratesLife_Profile, global.$APiratesLife_IntactOnClaim, $Want]]"/>
+            <run_actions ref="md.APiratesLife_Settings.UseProfile">
+              <param name="List" value="['Default']"/>
+            </run_actions>
           </actions>
         </cue>
       </cues>
