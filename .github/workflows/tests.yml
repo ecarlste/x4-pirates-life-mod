@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: shellcheck deploy.sh tests/run.sh tools/post-game-test-report.sh
+      - run: shellcheck deploy.sh tests/run.sh tests/lua/run.sh tools/post-game-test-report.sh
       - run: shellcheck -s bash tests/*.bash tests/*.bats
 
   bash:
@@ -46,6 +46,20 @@ jobs:
           key: tools-${{ runner.os }}-${{ hashFiles('tests/run.sh', 'tests/run.ps1') }}
       - run: bash --version | head -n 1
       - run: tests/run.sh --bash-only
+
+  lua:
+    name: Lua (luacheck, unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # luacheck and LuaUnit are fetched into .tools/ on first run; keep them between runs
+      - uses: actions/cache@v6
+        with:
+          path: .tools
+          key: lua-tools-${{ runner.os }}-${{ hashFiles('tests/lua/run.sh') }}
+      # LuaJIT, the Lua that X4 runs
+      - run: sudo apt-get update -q && sudo apt-get install -y -q luajit
+      - run: tests/run.sh --lua-only
 
   pester:
     name: Pester (${{ matrix.name }})

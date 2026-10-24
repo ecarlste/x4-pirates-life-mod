@@ -37,6 +37,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] Game tests for the capture settings: each intact flag off gives vanilla damage ([PR #29](https://github.com/ecarlste/x4-pirates-life-mod/pull/29))
 - [x] `make game-test-report`: post the last game-test report to the branch's PR as a comment and a `game-tests` commit status, only when it's for the PR's latest commit with nothing uncommitted ([PR #30](https://github.com/ecarlste/x4-pirates-life-mod/pull/30))
 - [x] `@manual` scenarios in the game-test plan, checked by hand at every release (separate from `@pending`, which should get a game test), and `tools/manual-checklist.py` to turn them into a Markdown checklist ([PR #40](https://github.com/ecarlste/x4-pirates-life-mod/pull/40))
+- [x] Lua checks in `make test` and CI: luacheck (lint and syntax) on `ui/`, the test extension's Lua and the Lua tests, and LuaUnit unit tests for the settings page's logic under LuaJIT, with X4's functions stubbed (`tests/lua/`). LuaUnit instead of busted, which needs a C compiler for its dependencies ([PR #44](https://github.com/ecarlste/x4-pirates-life-mod/pull/44))
 - [ ] Dev menu, stripped from release builds
 - [ ] Versioned showcase saves, one per feature
 
@@ -112,7 +113,6 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
 
 Not yet agreed. Promote an item into a phase once we decide to do it.
 
-- [ ] Lua checks: luacheck (lint and syntax) on `ui/` and the test extension's Lua in `make test`; later busted unit tests for the settings page's logic, with X4's functions stubbed. Fetched into `.tools/` like bats
 - [ ] Settings profiles: mark profiles made during manual (UAT) testing so the game-test cleanup removes them. Options: a deploy-time switch (`--set MarkAsTest=1`, everything created while deployed gets the `test` mark), a "mark as test" row in the dev menu, or a UAT game start in the test extension (needs a switch so it doesn't start the automated tests)
 - [ ] Capture operations: wingmen prefer shield-heavy weapons (ion), from a profile list, since scripts can't read a weapon's damage type
 - [ ] Recognisable pirate: a unique ship or paint job lets pilots know a notorious player without a hail, so they bail more readily outside capture operations

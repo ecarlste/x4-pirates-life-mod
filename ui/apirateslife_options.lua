@@ -542,4 +542,31 @@ local function init()
 	reportIn()
 end
 
+-- The Lua unit tests (tests/lua/) set this global before loading the file, to reach its local
+-- functions. X4 never sets it, so in the game this does nothing.
+if APiratesLife_TestHooks then
+	APiratesLife_TestHooks.page = {
+		state = state,
+		status = function () return status end,
+		checkedName = checkedName,
+		profileNames = profileNames,
+		useProfileList = useProfileList,
+		useProfile = useProfile,
+		profileEntries = profileEntries,
+		profileFromEntry = profileFromEntry,
+		entryFor = entryFor,
+		profileDropdown = profileDropdown,
+		isSavedProfile = isSavedProfile,
+		canSaveChanges = canSaveChanges,
+		saveChanges = saveChanges,
+		saveAsNew = saveAsNew,
+		toggle = toggle,
+		readState = readState,
+		deleteProfile = deleteProfile,
+		newGameProfile = newGameProfile,
+		setNewGameProfile = setNewGameProfile,
+		modifyOptions = modifyOptions,
+	}
+end
+
 init()
