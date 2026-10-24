@@ -39,7 +39,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] `@manual` scenarios in the game-test plan, checked by hand at every release (separate from `@pending`, which should get a game test), and `tools/manual-checklist.py` to turn them into a Markdown checklist ([PR #40](https://github.com/ecarlste/x4-pirates-life-mod/pull/40))
 - [x] Lua checks in `make test` and CI: luacheck (lint and syntax) on `ui/`, the test extension's Lua and the Lua tests, and LuaUnit unit tests for the settings page's logic under LuaJIT, with X4's functions stubbed (`tests/lua/`). LuaUnit instead of busted, which needs a C compiler for its dependencies ([PR #44](https://github.com/ecarlste/x4-pirates-life-mod/pull/44))
 - [x] Test pyramid and coverage policy in `docs/PROJECT.md`; unit tests count as coverage in the test plan (tagged by name), and a readable test plan generated into `docs/test-plan/` by `make test-plan`, warned about by `make test` and checked in CI. 9 manual settings-profile scenarios moved to unit and UI tests ([PR #45](https://github.com/ecarlste/x4-pirates-life-mod/pull/45))
-- [x] Release checklist from the same generator: every `@manual` and `@pending` scenario, with its steps (`tools/test-plan-docs.py --checklist <file>`), replacing `tools/manual-checklist.py` (PR_LINK)
+- [x] Release checklist from the same generator: every `@manual` and `@pending` scenario, with its steps (`tools/test-plan-docs.py --checklist <file>`), replacing `tools/manual-checklist.py` ([PR #46](https://github.com/ecarlste/x4-pirates-life-mod/pull/46))
 - [ ] Dev menu, stripped from release builds
 - [ ] Versioned showcase saves, one per feature
 
