@@ -1,64 +1,138 @@
 # Spec: docs/specs/settings-profiles.md
-Feature: Named settings profiles
-  On the settings page I save my settings as named profiles, kept in my X4 profile. Any save can
-  load any of them from a list, and I choose which one new games start from.
+Feature: Settings profiles
+  On the settings page I pick a profile for my game: Default (the config file) or one I saved.
+  My game follows that profile until I change a setting in it. Profiles are kept in my X4
+  profile, so every save sees the same list. Flows: docs/specs/settings-profiles-flows.md.
 
   @settings_seed_from_defaults
-  Scenario: A new game starts from the profile for new games
-    Given my profile for new games has "intact when marines claim" off
+  Scenario: A new game is on the profile for new games
+    Given my profile for new games is "Hard mode", with "intact when marines claim" off
     And the config file has it on
     When I start a new game
-    Then it is off in that game
-
-  @settings_seed_from_defaults
-  Scenario: Changing profiles leaves a started save alone until it loads one
-    Given a save that started from my profile for new games, with full wingman bail chance on
-    When I change that profile to full wingman bail chance off
-    Then it is still on in that save after it is loaded again
-    And after I load that profile in it, it is off
+    Then the game is on "Hard mode"
+    And "intact when marines claim" is off
 
   @pending
-  Scenario: Save the current settings as a named profile
-    Given I switched "intact when the pilot ejects" off in this save
-    When I save the settings as a profile named "Hard mode"
-    Then "Hard mode" is in the list of profiles, with "intact when the pilot ejects" off
-    And it is still there after restarting X4
+  Scenario: Changing a setting stops the game following its profile
+    Given a game on "Hard mode"
+    When I turn a setting on in it
+    Then the game uses the new value at once
+    And it is marked as changed
+    And the "Hard mode" profile is unchanged
 
   @pending
-  Scenario: Saving again under the suggested name updates that profile
-    Given I loaded the profile "Hard mode" and changed a setting
-    When I save, keeping the suggested name "Hard mode"
-    Then I am not asked anything
-    And there is one "Hard mode", with the new settings
+  Scenario: A game on a profile picks up changes saved into it from another game
+    Given game B is on "Hard mode" with no changes, and was saved
+    And in game C I saved changes into "Hard mode"
+    When I load game B
+    Then it uses Hard mode's new values
 
   @pending
-  Scenario: Typing the name of a different existing profile asks first
-    Given profiles "Hard mode" and "Easy mode", and "Hard mode" is the suggested name
-    When I save under the name "Easy mode"
+  Scenario: A game saved with changes is on its own settings when loaded again
+    Given a game on "Hard mode" with a changed setting, saved
+    When I load it
+    Then it is on "None (custom settings)"
+    And it uses the values it had when it was saved, whatever "Hard mode" holds now
+
+  @pending
+  Scenario: A game whose profile is gone keeps its values
+    Given a game on "Hard mode", saved
+    And "Hard mode" no longer exists (deleted, or the save is on another PC)
+    When I load the game
+    Then it is on "None (custom settings)"
+    And it uses the values it had when it was saved
+
+  @pending
+  Scenario: Choosing a profile loads it and clears changes
+    Given a game on "Hard mode" with a changed setting
+    When I choose "Easy mode" and confirm
+    Then the game is on "Easy mode" with no changes
+    And it uses the config file's values with Easy mode's on top
+
+  @pending
+  Scenario: Choosing Default brings back the config file's values
+    Given a game on "Hard mode" with a changed setting
+    When I choose "Default" and confirm
+    Then the game is on "Default" with no changes
+    And it uses the config file's values
+
+  @pending
+  Scenario: An unknown or invalid setting in a profile keeps its config value
+    Given "Hard mode" has "intact when marines claim" set to "never" and a setting the mod doesn't have
+    When a game loads "Hard mode"
+    Then "intact when marines claim" has its config value
+    And the unknown setting is ignored
+    And the "Hard mode" profile is not changed
+
+  @manual
+  Scenario: A changed game shows the profile with a star, and can save into it
+    Given a game on "Hard mode"
+    When I change a setting
+    Then the Profile dropdown shows "Hard mode *"
+    And "Save changes to 'Hard mode'" is enabled
+    When I press it
+    Then "Hard mode" has the game's values
+    And the dropdown shows "Hard mode" and the button is disabled again
+
+  @manual
+  Scenario: Save changes isn't offered for Default or None
+    Given a game on "Default" or on "None (custom settings)" with a changed setting
+    Then there is no enabled "Save changes to …" button
+
+  @manual
+  Scenario: The star stays for the whole session
+    Given a game on "Hard mode *"
+    When I save the game, keep playing and open the settings page again
+    Then it still shows "Hard mode *" with "Save changes to 'Hard mode'" enabled
+
+  @manual
+  Scenario: Save as new profile leaves the old profile alone
+    Given a game on "Hard mode *"
+    When I save as a new profile named "Hard mode lite"
+    Then "Hard mode lite" has the game's values and the game is on it, with no star
+    And "Hard mode" is unchanged
+
+  @manual
+  Scenario: Saving under an existing name asks first
+    Given profiles "Hard mode" and "Easy mode"
+    When I save as a new profile named "Easy mode"
     Then I am asked whether to replace "Easy mode"
     And if I cancel, "Easy mode" keeps its settings
-    And if I confirm, "Easy mode" has the new settings
 
-  @pending
-  Scenario: A profile needs a name
-    When I save the settings as a profile with an empty name
+  @manual
+  Scenario: Some profile names are refused
+    When I save as a new profile with an empty name, a name over 40 characters, or "Default"
     Then no profile is saved
-    And the page says the name is empty
+    And the page says why
 
-  @pending
-  Scenario: Any save can load any profile
-    Given profiles "Hard mode" and "Easy mode" saved in another game
-    When I load "Easy mode" in this save
-    Then this save's settings are the ones in "Easy mode"
+  @manual
+  Scenario: Switching away from a changed game asks first
+    Given a game on "Hard mode *"
+    When I choose "Easy mode" in the Profile dropdown
+    Then I am asked whether to discard this game's changes
+    And if I answer No, nothing changes
 
-  @pending
+  @manual
   Scenario: Delete a profile
-    Given "Hard mode" is the profile for new games
+    Given "Hard mode" is the profile for new games and this game is on it
     When I delete "Hard mode" and confirm
     Then it is gone from the list
-    And new games start from the config file again
+    And this game is on "None (custom settings)" with the same values
+    And new games start on "Default"
 
-  @pending
+  @manual
+  Scenario: Change the profile for new games
+    When I choose "Easy mode" in "Profile for new games"
+    Then the next new game starts on "Easy mode"
+    And games I already have keep their profiles
+
+  @manual
+  Scenario: Profiles are shared by every save and survive restarting X4
+    Given I saved the profile "Hard mode" in one game
+    When I restart X4 and load another game
+    Then "Hard mode" is in its Profile dropdown
+
+  @manual
   Scenario: The defaults from the first version become a profile
     Given defaults saved with the first version of the settings page
     When the settings page loads
