@@ -55,4 +55,10 @@ if [ "$BASH_ONLY" = 0 ]; then
     fi
 fi
 
+# Last, so it's the line people see: the generated test plan doesn't fail a local run, CI checks it
+if command -v python3 >/dev/null && ! python3 tools/test-plan-docs.py --check >/dev/null 2>&1; then
+    echo
+    echo "WARNING: the test-plan docs (docs/test-plan/) are out of date. Run make test-plan and commit the result; CI fails on this."
+fi
+
 exit "$FAILED"

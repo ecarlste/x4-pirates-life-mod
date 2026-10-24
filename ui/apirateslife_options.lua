@@ -566,6 +566,9 @@ if APiratesLife_TestHooks then
 		newGameProfile = newGameProfile,
 		setNewGameProfile = setNewGameProfile,
 		modifyOptions = modifyOptions,
+		askProfileName = askProfileName,
+		chooseProfile = chooseProfile,
+		askDelete = askDelete,
 	}
 end
 

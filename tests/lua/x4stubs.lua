@@ -14,17 +14,23 @@ local M = {}
 --           events = { {screen, control, value}, ... } sent with AddUITriggeredEvent,
 --           menu = the fake options menu, callback = the displayOptions_modifyOptions function,
 --           luaEvents = { [name] = handler } from RegisterEvent, logs = { DebugError lines },
---           blackboard = function(table) to change what MD has written }
+--           blackboard = function(table) to change what MD has written,
+--           questions = { {question, yes = function(text)}, ... } the options menu asked }
 function M.loadPage(opts)
 	opts = opts or {}
 	local env = {
-		events = {}, luaEvents = {}, logs = {},
+		events = {}, luaEvents = {}, logs = {}, questions = {},
 		blackboardData = opts.blackboard,
 		playerId = (opts.playerId == nil) and 1 or opts.playerId,
 	}
 	env.blackboard = function (data) env.blackboardData = data end
 
 	local menu = { history = {}, currentOption = "settings", isStartmenu = false }
+	-- The options menu's yes/no (or name) question: recorded, answered by the test with M.answer
+	menu.displayUserQuestion = function (question, onYes)
+		table.insert(env.questions, { question = question, yes = onYes })
+	end
+	menu.onCloseElement = function () end
 	if opts.uix ~= false then
 		menu.registerCallback = function (name, fn, id)
 			if name == "displayOptions_modifyOptions" and id == "apirateslife_options" then
@@ -66,6 +72,22 @@ function M.loadPage(opts)
 	env.page = _G.APiratesLife_TestHooks.page
 	_G.APiratesLife_TestHooks = nil
 	return env
+end
+
+-- Answers the last question the page asked with yes (and the text typed, for a name question)
+function M.answer(env, text)
+	local last = env.questions[#env.questions]
+	assert(last, "the page asked no question")
+	last.yes(text)
+end
+
+-- The questions asked, as text
+function M.asked(env)
+	local texts = {}
+	for _, q in ipairs(env.questions) do
+		table.insert(texts, q.question)
+	end
+	return texts
 end
 
 -- The events sent with a given control, in order

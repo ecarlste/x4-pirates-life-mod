@@ -9,7 +9,10 @@ setup() {
     FEATURES="$BATS_TEST_TMPDIR/features"
     HARNESS="$BATS_TEST_TMPDIR/tests.xml"
     SPECS="$BATS_TEST_TMPDIR/specs"
-    mkdir -p "$FEATURES" "$SPECS"
+    UNITS="$BATS_TEST_TMPDIR/lua"
+    mkdir -p "$FEATURES" "$SPECS" "$UNITS"
+    # One unit test file, written the way tests/lua/test_*.lua are
+    printf 'TestThings = {}\nfunction TestThings:test_gamma_rules()\nend\n' > "$UNITS/test_things.lua"
     # One spec, linking the feature file most tests write; the template and README are skipped
     echo 'Scenarios: [a](../../tests/game/features/a.feature)' > "$SPECS/example.md"
     echo 'No link here' > "$SPECS/_template.md"
@@ -26,7 +29,7 @@ XML
 # feature <file> <content>: writes a feature file into the fixture folder
 feature() { printf '%s\n' "$2" > "$FEATURES/$1"; }
 
-check() { run python3 "$CHECK" "$FEATURES" "$HARNESS" "$SPECS"; }
+check() { run python3 "$CHECK" "$FEATURES" "$HARNESS" "$SPECS" "$UNITS"; }
 
 GOOD='Feature: Example
   A description line.
@@ -80,7 +83,7 @@ GOOD='Feature: Example
     Then it is caught"
     check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"@alpha_typo is not a game test"* ]]
+    [[ "$output" == *"@alpha_typo is not a game test or unit test"* ]]
 }
 
 @test "fails when a scenario has no tag" {
@@ -156,5 +159,31 @@ GOOD='Feature: Example
     Then it is caught"
     check
     [ "$status" -eq 1 ]
-    [[ "$output" == *"@pending and @manual contradict each other (scenario: Undecided)"* ]]
+    [[ "$output" == *"tests, @pending and @manual can't be mixed (scenario: Undecided)"* ]]
+}
+
+@test "accepts a unit test's name as a scenario's tag, and counts it" {
+    feature a.feature "${GOOD//@pending/@test_gamma_rules}"
+    check
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"3 scenarios (0 pending, 0 manual) cover all 2 game tests; 1 covered by unit tests"* ]]
+}
+
+@test "fails when a scenario mixes a test with @manual" {
+    feature a.feature "$GOOD
+  @alpha_works @manual
+  Scenario: Half and half
+    Given both
+    Then it is caught"
+    check
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"can't be mixed (scenario: Half and half)"* ]]
+}
+
+@test "fails when two unit tests share a name" {
+    feature a.feature "$GOOD"
+    printf 'TestOther = {}\nfunction TestOther:test_gamma_rules()\nend\n' > "$UNITS/test_other.lua"
+    check
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"unit test test_gamma_rules is defined twice (test_other.lua, test_things.lua)"* ]]
 }

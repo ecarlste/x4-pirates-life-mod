@@ -66,7 +66,9 @@ Feature: Settings profiles
     And the unknown setting is ignored
     And the "Hard mode" profile is not changed
 
-  @manual
+  @test_toggling_marks_a_profile_modified_but_not_none
+  @test_profile_dropdown_marks_unsaved_changes_and_offers_none_only_when_on_it
+  @test_save_changes_only_into_a_saved_profile_with_changes
   Scenario: A changed game shows the profile with a star, and can save into it
     Given a game on "Hard mode"
     When I change a setting
@@ -76,7 +78,7 @@ Feature: Settings profiles
     Then "Hard mode" has the game's values
     And the dropdown shows "Hard mode" and the button is disabled again
 
-  @manual
+  @test_save_changes_only_into_a_saved_profile_with_changes
   Scenario: Save changes isn't offered for Default or None
     Given a game on "Default" or on "None (custom settings)" with a changed setting
     Then there is no enabled "Save changes to …" button
@@ -87,34 +89,39 @@ Feature: Settings profiles
     When I save the game, keep playing and open the settings page again
     Then it still shows "Hard mode *" with "Save changes to 'Hard mode'" enabled
 
-  @manual
+  @test_save_as_new_leaves_the_old_profile_alone
   Scenario: Save as new profile leaves the old profile alone
     Given a game on "Hard mode *"
     When I save as a new profile named "Hard mode lite"
     Then "Hard mode lite" has the game's values and the game is on it, with no star
     And "Hard mode" is unchanged
 
-  @manual
+  @test_saving_under_an_existing_name_asks_first
   Scenario: Saving under an existing name asks first
     Given profiles "Hard mode" and "Easy mode"
     When I save as a new profile named "Easy mode"
     Then I am asked whether to replace "Easy mode"
     And if I cancel, "Easy mode" keeps its settings
 
-  @manual
+  @test_a_refused_name_saves_nothing_and_says_why
+  @test_refuses_an_empty_name
+  @test_allows_40_characters_counting_utf8_characters_not_bytes
+  @test_refuses_default_in_any_case
   Scenario: Some profile names are refused
     When I save as a new profile with an empty name, a name over 40 characters, or "Default"
     Then no profile is saved
     And the page says why
 
-  @manual
+  @test_switching_away_from_a_changed_game_asks_first
+  @test_switching_from_an_unchanged_profile_doesnt_ask
   Scenario: Switching away from a changed game asks first
     Given a game on "Hard mode *"
     When I choose "Easy mode" in the Profile dropdown
     Then I am asked whether to discard this game's changes
     And if I answer No, nothing changes
 
-  @manual
+  @test_deleting_a_profile_asks_to_confirm
+  @test_delete_moves_the_game_to_none_and_clears_the_new_game_profile
   Scenario: Delete a profile
     Given "Hard mode" is the profile for new games and this game is on it
     When I delete "Hard mode" and confirm
@@ -122,7 +129,7 @@ Feature: Settings profiles
     And this game is on "None (custom settings)" with the same values
     And new games start on "Default"
 
-  @manual
+  @test_choosing_the_profile_for_new_games
   Scenario: Change the profile for new games
     When I choose "Easy mode" in "Profile for new games"
     Then the next new game starts on "Easy mode"
@@ -134,7 +141,8 @@ Feature: Settings profiles
     When I restart X4 and load another game
     Then "Hard mode" is in its Profile dropdown
 
-  @manual
+  @test_the_old_defaults_become_a_profile_for_new_games
+  @test_migration_never_overwrites_an_existing_profile
   Scenario: The defaults from the first version become a profile
     Given defaults saved with the first version of the settings page
     When the settings page loads
