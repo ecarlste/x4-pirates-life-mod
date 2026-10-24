@@ -25,7 +25,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] Squash-only merges using the PR title and description, merged branches auto-deleted; Conventional Commits PR titles (72 characters max) required by a CI check ([PR #10](https://github.com/ecarlste/x4-pirates-life-mod/pull/10))
 - [x] `deploy --set NAME=VALUE` (PowerShell `-Set`): override config settings in the deployed copy only, for testing ([PR #22](https://github.com/ecarlste/x4-pirates-life-mod/pull/22))
 - [ ] Autoformat scripts on commit: shfmt and PSScriptAnalyzer's formatter, through a pre-commit hook enabled by `make setup`
-- [ ] `make release`: lint (shellcheck, PSScriptAnalyzer default rules, format check), run the tests, build the release zip from a clean `origin/main`, and write the manual release checklist (`tools/manual-checklist.py`) next to it in `dist/`; drop linting from `make test` and PR CI
+- [ ] `make release`: lint (shellcheck, PSScriptAnalyzer default rules, format check), run the tests, build the release zip from a clean `origin/main`, and write the release checklist (`tools/test-plan-docs.py --checklist dist/release-checklist.md`) next to it in `dist/`; drop linting from `make test` and PR CI
 - [x] Repo README: what the mod is, prerequisites, setup, deploy, test, coming back after a break ([PR #5](https://github.com/ecarlste/x4-pirates-life-mod/pull/5))
 
 **In-game dev tooling** (from [DESIGN.md, Roadmap](DESIGN.md#roadmap): "Dev tooling, early")
@@ -39,7 +39,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] `@manual` scenarios in the game-test plan, checked by hand at every release (separate from `@pending`, which should get a game test), and `tools/manual-checklist.py` to turn them into a Markdown checklist ([PR #40](https://github.com/ecarlste/x4-pirates-life-mod/pull/40))
 - [x] Lua checks in `make test` and CI: luacheck (lint and syntax) on `ui/`, the test extension's Lua and the Lua tests, and LuaUnit unit tests for the settings page's logic under LuaJIT, with X4's functions stubbed (`tests/lua/`). LuaUnit instead of busted, which needs a C compiler for its dependencies ([PR #44](https://github.com/ecarlste/x4-pirates-life-mod/pull/44))
 - [x] Test pyramid and coverage policy in `docs/PROJECT.md`; unit tests count as coverage in the test plan (tagged by name), and a readable test plan generated into `docs/test-plan/` by `make test-plan`, warned about by `make test` and checked in CI. 9 manual settings-profile scenarios moved to unit and UI tests ([PR #45](https://github.com/ecarlste/x4-pirates-life-mod/pull/45))
-- [ ] Release checklist from the same generator: every `@manual` and `@pending` scenario, replacing `tools/manual-checklist.py`; `make release` writes it to `dist/`
+- [x] Release checklist from the same generator: every `@manual` and `@pending` scenario, with its steps (`tools/test-plan-docs.py --checklist <file>`), replacing `tools/manual-checklist.py` ([PR #46](https://github.com/ecarlste/x4-pirates-life-mod/pull/46))
 - [ ] Dev menu, stripped from release builds
 - [ ] Versioned showcase saves, one per feature
 
