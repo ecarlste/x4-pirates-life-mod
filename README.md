@@ -41,6 +41,7 @@ Start X4 and check that **A Pirate's Life** is enabled under Extensions. For now
 | Deploy a pushed branch | `./deploy.sh --ref <branch>` | `.\deploy.ps1 -Ref <branch>` |
 | Deploy with a setting changed (deployed copy only) | `make deploy-local ARGS="--set IntactOnEject=0"` | `.\deploy.ps1 -WorkingTree -Set IntactOnEject=0` |
 | Run the tests | `make test` | `.\tests\run.ps1` |
+| Regenerate the readable test plan (`docs/test-plan/`) | `make test-plan` | `python3 tools/test-plan-docs.py` |
 | Run the in-game tests in X4 (Windows) | `make game-test` | `.\deploy.ps1 -WorkingTree; .\tools\run-game-tests.ps1` |
 | Post the last game-test report to your PR | `make game-test-report` | (bash only for now) |
 

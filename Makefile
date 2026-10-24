@@ -1,4 +1,4 @@
-.PHONY: setup deploy deploy-local deploy-dry-run test game-test game-test-report help
+.PHONY: setup deploy deploy-local deploy-dry-run test test-plan game-test game-test-report help
 
 # Runs the game test runner on Windows through WSL interop; override to run it another way
 GAME_TEST_RUNNER ?= powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$$(wslpath -w tools/run-game-tests.ps1)"
@@ -14,6 +14,7 @@ help:
 	@echo "  make deploy-local   - Sync your working tree instead (uncommitted changes included)"
 	@echo "  make deploy-dry-run - Show what 'make deploy' would change"
 	@echo "  make test           - Run the bats and Pester test suites"
+	@echo "  make test-plan      - Regenerate the readable test plan in docs/test-plan/ from the feature files"
 	@echo "  make game-test      - Deploy your working tree and run the in-game tests in X4 (Windows)"
 	@echo "  make game-test-report - Post the last game-test report to this branch's PR (comment and check)"
 	@echo "  make help           - Show this help message"
@@ -42,6 +43,9 @@ deploy-dry-run:
 
 test:
 	@tests/run.sh
+
+test-plan:
+	@python3 tools/test-plan-docs.py
 
 game-test:
 	@./deploy.sh --working-tree $(ARGS)

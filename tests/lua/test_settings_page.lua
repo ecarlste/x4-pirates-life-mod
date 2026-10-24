@@ -187,9 +187,12 @@ function TestProfiles:test_save_changes_only_into_a_saved_profile_with_changes()
 	page.saveChanges()
 	lu.assertEquals(__userdata_apirateslife.profiles.Hard, { IntactOnEject = 0, IntactOnClaim = 1, CaptureWingFullChance = 0 })
 	lu.assertFalse(page.state.modified)
+	lu.assertFalse(page.canSaveChanges()) -- the button is disabled again
 	lu.assertEquals(x4.sent(env, "ProfileSaved")[1].value, "Hard")
 
 	page.state.profile, page.state.modified = "Default", true
+	lu.assertFalse(page.canSaveChanges())
+	page.state.profile, page.state.modified = "", true
 	lu.assertFalse(page.canSaveChanges())
 end
 
@@ -212,8 +215,9 @@ function TestProfiles:test_delete_moves_the_game_to_none_and_clears_the_new_game
 	userdata.newGameProfile = "Hard"
 	local env = loadWith({ userdata = userdata })
 	local page = env.page
-	page.state.profile = "Hard"
+	page.state.profile, page.state.values = "Hard", { IntactOnEject = 0 }
 	page.deleteProfile("Hard")
+	lu.assertEquals(page.state.values, { IntactOnEject = 0 })
 	lu.assertNil(__userdata_apirateslife.profiles.Hard)
 	lu.assertNotNil(__userdata_apirateslife.profiles.Easy)
 	lu.assertNil(__userdata_apirateslife.newGameProfile)
@@ -284,6 +288,91 @@ function TestOptionsMenu:test_no_page_without_ui_extensions_but_a_log_line()
 	local env = loadWith({ uix = false })
 	lu.assertNil(env.callback)
 	lu.assertStrContains(env.logs[#env.logs], "UI Extensions not found")
+end
+
+function TestProfiles:test_save_as_new_leaves_the_old_profile_alone()
+	local env = loadWith({ userdata = { profiles = { ["Hard mode"] = { IntactOnEject = 1 } } } })
+	local page = env.page
+	page.state.profile, page.state.modified = "Hard mode", true
+	page.state.values = { IntactOnEject = 0, IntactOnClaim = 1, CaptureWingFullChance = 1 }
+	page.saveAsNew("Hard mode lite")
+	lu.assertEquals(__userdata_apirateslife.profiles["Hard mode lite"], { IntactOnEject = 0, IntactOnClaim = 1, CaptureWingFullChance = 1 })
+	lu.assertEquals(__userdata_apirateslife.profiles["Hard mode"], { IntactOnEject = 1 })
+	lu.assertEquals(page.state.profile, "Hard mode lite")
+	lu.assertFalse(page.state.modified)
+	local _, _, text = page.profileDropdown()
+	lu.assertEquals(text, "Hard mode lite") -- no star
+end
+
+function TestProfiles:test_choosing_the_profile_for_new_games()
+	local env = loadWith({ userdata = profilesOf("Easy mode", "Hard mode") })
+	env.page.setNewGameProfile("Easy mode")
+	lu.assertEquals(env.page.newGameProfile(), "Easy mode")
+	-- The next new game starts on it; a game already on another profile keeps that profile
+	local saved = __userdata_apirateslife
+	local newGame = loadWith({ blackboard = { newgame = 1, profile = "Default" }, userdata = saved })
+	lu.assertEquals(x4.sent(newGame, "UseProfile")[1].value[1], "Easy mode")
+	local oldGame = loadWith({ blackboard = { profile = "Hard mode", modified = 0 }, userdata = saved })
+	lu.assertEquals(x4.sent(oldGame, "UseProfile")[1].value[1], "Hard mode")
+end
+
+-- The page's questions (the options menu's dialogs, answered by the test) -------------------------
+
+TestQuestions = {}
+
+function TestQuestions:test_a_refused_name_saves_nothing_and_says_why()
+	local env = loadWith({ userdata = profilesOf("Hard mode") })
+	for _, name in ipairs({ "", string.rep("x", 41), "Default" }) do
+		env.page.askProfileName()
+		x4.answer(env, name)
+		lu.assertEquals(env.page.profileNames(), { "Hard mode" }, name)
+		lu.assertStrContains(env.page.status(), "Not saved:")
+	end
+	lu.assertEquals(#x4.sent(env, "UseProfile"), 0)
+end
+
+function TestQuestions:test_saving_under_an_existing_name_asks_first()
+	local env = loadWith({ userdata = { profiles = { ["Hard mode"] = { IntactOnEject = 0 }, ["Easy mode"] = { IntactOnEject = 1 } } } })
+	local page = env.page
+	page.state.profile, page.state.values = "Hard mode", { IntactOnEject = 0, IntactOnClaim = 0, CaptureWingFullChance = 0 }
+	page.askProfileName()
+	x4.answer(env, "Easy mode")
+	lu.assertEquals(x4.asked(env)[2], "Replace the profile 'Easy mode'?")
+	-- Cancelling is not answering: Easy mode keeps its settings
+	lu.assertEquals(__userdata_apirateslife.profiles["Easy mode"], { IntactOnEject = 1 })
+	x4.answer(env)
+	lu.assertEquals(__userdata_apirateslife.profiles["Easy mode"], { IntactOnEject = 0, IntactOnClaim = 0, CaptureWingFullChance = 0 })
+	lu.assertEquals(page.state.profile, "Easy mode")
+end
+
+function TestQuestions:test_switching_away_from_a_changed_game_asks_first()
+	local env = loadWith({ userdata = profilesOf("Hard mode", "Easy mode") })
+	local page = env.page
+	page.state.profile, page.state.modified = "Hard mode", true
+	page.chooseProfile("Easy mode")
+	lu.assertEquals(x4.asked(env), { "Discard this game's changes and use 'Easy mode'?" })
+	lu.assertEquals(page.state.profile, "Hard mode") -- No: nothing changes
+	lu.assertTrue(page.state.modified)
+	x4.answer(env)
+	lu.assertEquals(page.state.profile, "Easy mode")
+	lu.assertFalse(page.state.modified)
+end
+
+function TestQuestions:test_switching_from_an_unchanged_profile_doesnt_ask()
+	local env = loadWith({ userdata = profilesOf("Hard mode", "Easy mode") })
+	env.page.state.profile, env.page.state.modified = "Hard mode", false
+	env.page.chooseProfile("Easy mode")
+	lu.assertEquals(#env.questions, 0)
+	lu.assertEquals(env.page.state.profile, "Easy mode")
+end
+
+function TestQuestions:test_deleting_a_profile_asks_to_confirm()
+	local env = loadWith({ userdata = profilesOf("Hard mode") })
+	env.page.askDelete("Hard mode")
+	lu.assertEquals(x4.asked(env), { "Delete the profile 'Hard mode'?" })
+	lu.assertNotNil(__userdata_apirateslife.profiles["Hard mode"])
+	x4.answer(env)
+	lu.assertNil(__userdata_apirateslife.profiles["Hard mode"])
 end
 
 os.exit(lu.LuaUnit.run(...))

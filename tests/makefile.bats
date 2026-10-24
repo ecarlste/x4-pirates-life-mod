@@ -13,7 +13,7 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 @test "make help lists every target" {
     run make -C "$REPO" help
     [ "$status" -eq 0 ]
-    for target in setup deploy deploy-local deploy-dry-run test game-test game-test-report; do
+    for target in setup deploy deploy-local deploy-dry-run test test-plan game-test game-test-report; do
         [[ "$output" == *"make $target "* ]] || { echo "missing: $target"; return 1; }
     done
 }
@@ -98,4 +98,15 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     run make -C "$REPO" game-test GAME_TEST_RUNNER='echo runner'
     [ "$status" -eq 0 ]
     [[ "$output" == *"-Branch main -Dirty"* ]]
+}
+
+@test "make test-plan regenerates docs/test-plan/" {
+    mkdir -p "$REPO/tools" "$REPO/tests/game/features" "$REPO/tests/game/apirateslife_tests/md" "$REPO/tests/lua"
+    cp "$REPO_ROOT/tools/test-plan-docs.py" "$REPO_ROOT/tools/check-test-plan.py" "$REPO/tools/"
+    printf "<mdscript>\$name = 'alpha_works'</mdscript>\n" > "$REPO/tests/game/apirateslife_tests/md/apirateslife_tests.xml"
+    printf 'Feature: Alpha\n\n  @alpha_works\n  Scenario: Alpha works\n    Then it works\n' > "$REPO/tests/game/features/alpha.feature"
+    run make -C "$REPO" test-plan
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Updated 2 of 2 test-plan pages"* ]]
+    grep -q '^# Alpha$' "$REPO/docs/test-plan/alpha.md"
 }

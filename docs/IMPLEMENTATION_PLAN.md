@@ -38,6 +38,8 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] `make game-test-report`: post the last game-test report to the branch's PR as a comment and a `game-tests` commit status, only when it's for the PR's latest commit with nothing uncommitted ([PR #30](https://github.com/ecarlste/x4-pirates-life-mod/pull/30))
 - [x] `@manual` scenarios in the game-test plan, checked by hand at every release (separate from `@pending`, which should get a game test), and `tools/manual-checklist.py` to turn them into a Markdown checklist ([PR #40](https://github.com/ecarlste/x4-pirates-life-mod/pull/40))
 - [x] Lua checks in `make test` and CI: luacheck (lint and syntax) on `ui/`, the test extension's Lua and the Lua tests, and LuaUnit unit tests for the settings page's logic under LuaJIT, with X4's functions stubbed (`tests/lua/`). LuaUnit instead of busted, which needs a C compiler for its dependencies ([PR #44](https://github.com/ecarlste/x4-pirates-life-mod/pull/44))
+- [x] Test pyramid and coverage policy in `docs/PROJECT.md`; unit tests count as coverage in the test plan (tagged by name), and a readable test plan generated into `docs/test-plan/` by `make test-plan`, warned about by `make test` and checked in CI. 9 manual settings-profile scenarios moved to unit and UI tests (PR_LINK)
+- [ ] Release checklist from the same generator: every `@manual` and `@pending` scenario, replacing `tools/manual-checklist.py`; `make release` writes it to `dist/`
 - [ ] Dev menu, stripped from release builds
 - [ ] Versioned showcase saves, one per feature
 
@@ -121,7 +123,7 @@ Not yet agreed. Promote an item into a phase once we decide to do it.
 - [ ] PSScriptAnalyzer and shellcheck in PR CI as well as at release
 - [ ] Game tests through Egosoft's NoSteam executable: research and PoC (own arguments, no Steam prompt or session limit; needs its own profile folder): [notes](research/automated-game-testing.md#egosofts-nosteam-executable)
 - [ ] Game-test report on the PR: compare the PR's run with the latest run on `main` (newly failing, newly passing, new tests): [notes](research/automated-game-testing.md#comparing-a-prs-run-with-main)
-- [ ] Game tests in CI before inviting contributors (test machine, dedicated Steam account, approval gate, post-merge gate, automated release whose approval gate, a GitHub Environment needing Erik's approval, shows the manual release checklist in the job summary): [notes](research/automated-game-testing.md#cicd)
+- [ ] Game tests in CI before inviting contributors. Goal: releases with no manual UAT, the by-hand count in `docs/test-plan/` at zero (test machine, dedicated Steam account, approval gate, post-merge gate, automated release whose approval gate, a GitHub Environment needing Erik's approval, shows the manual release checklist in the job summary): [notes](research/automated-game-testing.md#cicd)
 - [ ] Refitting captured ships without legit factions ([research note](research/pirate-refitting.md#design-ideas)). Vanilla gives a pirate only general-use gear at the Vigor wharf early on, so:
   - [ ] Prize-to-prize transfer: move a prize's weapons, turrets and shields onto another ship (`apply_loadout`), stripping the source
   - [ ] Salvage stash: strip prizes into a per-ware parts stash (MD data); refit empty slots from it at a pirate contact and later the hideout (`generate_loadout` limited to stash wares)

@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
-"""Checks the game-test plan (tests/game/features/*.feature) against the game tests.
+"""Checks the test plan (tests/game/features/*.feature) against the game tests and unit tests.
 
 The feature files describe, in Gherkin (Given/When/Then), what the mod should do. Every scenario
-carries a tag: the name of the game test that covers it (the name the test reports, e.g.
-@pilot_bail_intact), @pending when nothing covers it yet but a game test should, or @manual when
-it's checked by hand at every release instead (tools/manual-checklist.py lists those). This
-script fails when:
+carries tags saying how it's verified (docs/PROJECT.md, "Test plan"):
+  - the tests that cover it: game tests by the name they report (e.g. @pilot_bail_intact), unit
+    tests by their test function's name (e.g. @test_refuses_default_in_any_case); or
+  - @pending: no test yet, one is planned; checked by hand until then; or
+  - @manual: checked by hand for now, as automating it is hard; automation is still wanted.
+This script fails when:
   - a feature file isn't valid enough Gherkin to read (unknown step keyword, scenario without a tag)
-  - a scenario's tag names no game test
-  - a game test has no scenario
+  - a scenario's tag names no test, or mixes tests, @pending and @manual
+  - a game test has no scenario (unit tests may test details no scenario names)
+  - two unit tests share a name
   - a spec (docs/specs/*.md) doesn't link a feature file that exists
 Game test names are the $name values the tests report in the harness
-(tests/game/apirateslife_tests/md/apirateslife_tests.xml).
+(tests/game/apirateslife_tests/md/apirateslife_tests.xml); unit tests are the test_* methods of
+the Test* classes in tests/lua/test_*.lua.
 
-Usage: tools/check-test-plan.py [features dir] [harness file] [specs dir]
+Usage: tools/check-test-plan.py [features dir] [harness file] [specs dir] [unit tests dir]
 """
 import glob
 import os
@@ -102,20 +106,51 @@ def game_test_names(harness):
         return set(re.findall(r"\$name = '([a-z0-9_]+)'", f.read()))
 
 
+UNIT_TEST = re.compile(r"^function\s+Test\w*[:.](test_\w+)\s*\(", re.MULTILINE)
+
+
+def unit_test_names(unit_dir):
+    """Returns (names, problems): every LuaUnit test method name in tests/lua/test_*.lua."""
+    names, problems = {}, []
+    for path in sorted(glob.glob(os.path.join(unit_dir, "test_*.lua"))):
+        with open(path, encoding="utf-8") as f:
+            for name in UNIT_TEST.findall(f.read()):
+                where = os.path.basename(path)
+                if name in names:
+                    problems.append(f"unit test {name} is defined twice ({names[name]}, {where}); names must be unique")
+                names[name] = where
+    return set(names), problems
+
+
+def classify(tags, game_tests, unit_tests):
+    """How a scenario is verified: "unit", "game" (its lowest automated level), "manual" or "pending"."""
+    if "pending" in tags:
+        return "pending"
+    if "manual" in tags:
+        return "manual"
+    if any(t in unit_tests for t in tags) and not any(t in game_tests for t in tags):
+        return "unit"
+    return "game"
+
+
 def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     features_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(root, "tests", "game", "features")
     harness = sys.argv[2] if len(sys.argv) > 2 else os.path.join(
         root, "tests", "game", "apirateslife_tests", "md", "apirateslife_tests.xml")
     specs_dir = sys.argv[3] if len(sys.argv) > 3 else os.path.join(root, "docs", "specs")
+    unit_dir = sys.argv[4] if len(sys.argv) > 4 else os.path.join(root, "tests", "lua")
 
     scenarios, problems = read_features(features_dir)
     tests = game_test_names(harness)
-    covered, pending, manual = set(), 0, 0
+    units, unit_problems = unit_test_names(unit_dir)
+    problems += unit_problems
+    covered, pending, manual, by_unit = set(), 0, 0, 0
     for scenario in scenarios:
         name, number, title = scenario["file"], scenario["line"], scenario["title"]
-        if "pending" in scenario["tags"] and "manual" in scenario["tags"]:
-            problems.append(f"{name}:{number}: @pending and @manual contradict each other (scenario: {title})")
+        kinds = {"pending" if t == "pending" else "manual" if t == "manual" else "test" for t in scenario["tags"]}
+        if len(kinds) > 1:
+            problems.append(f"{name}:{number}: tests, @pending and @manual can't be mixed (scenario: {title})")
         for tag in scenario["tags"]:
             if tag == "pending":
                 pending += 1
@@ -123,8 +158,10 @@ def main():
                 manual += 1
             elif tag in tests:
                 covered.add(tag)
-            else:
-                problems.append(f"{name}:{number}: @{tag} is not a game test (scenario: {title})")
+            elif tag not in units:
+                problems.append(f"{name}:{number}: @{tag} is not a game test or unit test (scenario: {title})")
+        if classify(scenario["tags"], tests, units) == "unit":
+            by_unit += 1
     for test in sorted(tests - covered):
         problems.append(f"game test {test} has no scenario in the test plan")
     problems += check_specs(specs_dir, features_dir)
@@ -132,7 +169,8 @@ def main():
     if problems:
         print("\n".join(problems))
         return 1
-    print(f"{len(scenarios)} scenarios ({pending} pending, {manual} manual) cover all {len(tests)} game tests")
+    print(f"{len(scenarios)} scenarios ({pending} pending, {manual} manual) cover all {len(tests)} game tests; "
+          f"{by_unit} covered by unit tests")
     return 0
 
 
