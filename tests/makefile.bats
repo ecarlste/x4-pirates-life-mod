@@ -102,7 +102,7 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 
 @test "make test-plan regenerates docs/test-plan/" {
     mkdir -p "$REPO/tools" "$REPO/tests/game/features" "$REPO/tests/game/apirateslife_tests/md" "$REPO/tests/lua"
-    cp "$REPO_ROOT/tools/test-plan-docs.py" "$REPO_ROOT/tools/check-test-plan.py" "$REPO/tools/"
+    cp "$REPO_ROOT/tools/test_plan_docs.py" "$REPO_ROOT/tools/check_test_plan.py" "$REPO/tools/"
     printf "<mdscript>\$name = 'alpha_works'</mdscript>\n" > "$REPO/tests/game/apirateslife_tests/md/apirateslife_tests.xml"
     printf 'Feature: Alpha\n\n  @alpha_works\n  Scenario: Alpha works\n    Then it works\n' > "$REPO/tests/game/features/alpha.feature"
     run make -C "$REPO" test-plan

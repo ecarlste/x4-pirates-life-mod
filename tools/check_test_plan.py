@@ -17,7 +17,7 @@ Game test names are the $name values the tests report in the harness
 (tests/game/apirateslife_tests/md/apirateslife_tests.xml); unit tests are the test_* methods of
 the Test* classes in tests/lua/test_*.lua.
 
-Usage: tools/check-test-plan.py [features dir] [harness file] [specs dir] [unit tests dir]
+Usage: tools/check_test_plan.py [features dir] [harness file] [specs dir] [unit tests dir]
 """
 import glob
 import os
@@ -133,6 +133,31 @@ def classify(tags, game_tests, unit_tests):
     return "game"
 
 
+def check_tags(scenarios, game_tests, unit_tests):
+    """Returns (problems, counts): every tag must name a test or be @pending/@manual, the three
+    kinds don't mix, and every game test needs a scenario. counts has "pending" and "manual" (tags)
+    and "unit" (scenarios covered only by unit tests)."""
+    problems, covered = [], set()
+    counts = {"pending": 0, "manual": 0, "unit": 0}
+    for scenario in scenarios:
+        name, number, title = scenario["file"], scenario["line"], scenario["title"]
+        kinds = {"pending" if t == "pending" else "manual" if t == "manual" else "test" for t in scenario["tags"]}
+        if len(kinds) > 1:
+            problems.append(f"{name}:{number}: tests, @pending and @manual can't be mixed (scenario: {title})")
+        for tag in scenario["tags"]:
+            if tag in ("pending", "manual"):
+                counts[tag] += 1
+            elif tag in game_tests:
+                covered.add(tag)
+            elif tag not in unit_tests:
+                problems.append(f"{name}:{number}: @{tag} is not a game test or unit test (scenario: {title})")
+        if classify(scenario["tags"], game_tests, unit_tests) == "unit":
+            counts["unit"] += 1
+    for test in sorted(game_tests - covered):
+        problems.append(f"game test {test} has no scenario in the test plan")
+    return problems, counts
+
+
 def main():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     features_dir = sys.argv[1] if len(sys.argv) > 1 else os.path.join(root, "tests", "game", "features")
@@ -144,33 +169,15 @@ def main():
     scenarios, problems = read_features(features_dir)
     tests = game_test_names(harness)
     units, unit_problems = unit_test_names(unit_dir)
-    problems += unit_problems
-    covered, pending, manual, by_unit = set(), 0, 0, 0
-    for scenario in scenarios:
-        name, number, title = scenario["file"], scenario["line"], scenario["title"]
-        kinds = {"pending" if t == "pending" else "manual" if t == "manual" else "test" for t in scenario["tags"]}
-        if len(kinds) > 1:
-            problems.append(f"{name}:{number}: tests, @pending and @manual can't be mixed (scenario: {title})")
-        for tag in scenario["tags"]:
-            if tag == "pending":
-                pending += 1
-            elif tag == "manual":
-                manual += 1
-            elif tag in tests:
-                covered.add(tag)
-            elif tag not in units:
-                problems.append(f"{name}:{number}: @{tag} is not a game test or unit test (scenario: {title})")
-        if classify(scenario["tags"], tests, units) == "unit":
-            by_unit += 1
-    for test in sorted(tests - covered):
-        problems.append(f"game test {test} has no scenario in the test plan")
+    tag_problems, counts = check_tags(scenarios, tests, units)
+    problems += unit_problems + tag_problems
     problems += check_specs(specs_dir, features_dir)
 
     if problems:
         print("\n".join(problems))
         return 1
-    print(f"{len(scenarios)} scenarios ({pending} pending, {manual} manual) cover all {len(tests)} game tests; "
-          f"{by_unit} covered by unit tests")
+    print(f"{len(scenarios)} scenarios ({counts['pending']} pending, {counts['manual']} manual) cover all "
+          f"{len(tests)} game tests; {counts['unit']} covered by unit tests")
     return 0
 
 
