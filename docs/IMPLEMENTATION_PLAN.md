@@ -24,6 +24,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] bats and Pester test suites for all scripts, run locally and in CI on Linux, macOS and Windows ([PR #3](https://github.com/ecarlste/x4-pirates-life-mod/pull/3))
 - [x] Squash-only merges using the PR title and description, merged branches auto-deleted; Conventional Commits PR titles (72 characters max) required by a CI check ([PR #10](https://github.com/ecarlste/x4-pirates-life-mod/pull/10))
 - [x] `deploy --set NAME=VALUE` (PowerShell `-Set`): override config settings in the deployed copy only, for testing ([PR #22](https://github.com/ecarlste/x4-pirates-life-mod/pull/22))
+- [ ] Linting and formatting standards for every language we use (bash, PowerShell, Python, Lua, MD/AI script and library XML, Markdown, YAML): pick a linter and a formatter for each, agree the rules, and wire them into the commit hook, `make release` and CI. Its own session; the two items below become part of it
 - [ ] Autoformat scripts on commit: shfmt and PSScriptAnalyzer's formatter, through a pre-commit hook enabled by `make setup`
 - [ ] `make release`: lint (shellcheck, PSScriptAnalyzer default rules, format check), run the tests, build the release zip from a clean `origin/main`, and write the release checklist (`tools/test_plan_docs.py --checklist dist/release-checklist.md`) next to it in `dist/`; drop linting from `make test` and PR CI
 - [x] Repo README: what the mod is, prerequisites, setup, deploy, test, coming back after a break ([PR #5](https://github.com/ecarlste/x4-pirates-life-mod/pull/5))
