@@ -30,15 +30,17 @@ fetch() {
     [ -f "$2" ] && return 0
     mkdir -p "$(dirname "$2")"
     echo "Fetching $(basename "$2") into .tools/"
-    curl -fsSL --retry 3 -o "$2.part" "$1"
-    local got
-    got=$(sha256 "$2.part")
+    # A unique temporary name, then a rename: parallel runs (bats --jobs) can fetch at the same time
+    local part got
+    part=$(mktemp "$2.XXXXXX")
+    curl -fsSL --retry 3 -o "$part" "$1"
+    got=$(sha256 "$part")
     if [ "$got" != "$3" ]; then
-        rm -f "$2.part"
+        rm -f "$part"
         echo "SHA-256 of $1 is $got, expected $3" >&2
         return 1
     fi
-    mv "$2.part" "$2"
+    mv "$part" "$2"
 }
 
 FAILED=0

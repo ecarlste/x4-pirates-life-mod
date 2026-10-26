@@ -9,11 +9,18 @@
 .PARAMETER CI
     Exit non-zero on failure and write a JUnit report to tests/results.xml.
 
+.PARAMETER SetupOnly
+    Fetch Pester if needed, then stop. tests/run.sh does this once before starting its parallel runs.
+
+.PARAMETER Path
+    Run only these test files (default: every tests/*.Tests.ps1). tests/run.sh runs each file in
+    its own process, in parallel.
+
 .EXAMPLE
     .\tests\run.ps1
 #>
 [CmdletBinding()]
-param([switch] $CI)
+param([switch] $CI, [switch] $SetupOnly, [string[]] $Path)
 
 $ErrorActionPreference = 'Stop'
 $PesterVersion = '5.7.1'
@@ -48,10 +55,12 @@ if (-not (Test-Path $manifest)) {
     Remove-Item $zip
 }
 
+if ($SetupOnly) { return }
+
 Import-Module $manifest -Force
 
 $config = New-PesterConfiguration
-$config.Run.Path = $PSScriptRoot
+$config.Run.Path = if ($Path) { $Path } else { $PSScriptRoot }
 $config.Output.Verbosity = 'Detailed'
 if ($CI) {
     $config.Run.Exit = $true
