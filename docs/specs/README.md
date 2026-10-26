@@ -11,5 +11,5 @@ If the build changes the plan, update the spec in the same PR.
 | [capture-settings.md](capture-settings.md) | Done |
 | [capture-operation.md](capture-operation.md) | Done |
 | [in-game-settings.md](in-game-settings.md) | Done |
-| [settings-profiles.md](settings-profiles.md) | Agreed |
-| [settings-profiles-flows.md](settings-profiles-flows.md) | Agreed (the flows for settings-profiles.md) |
+| [settings-profiles.md](settings-profiles.md) | Done |
+| [settings-profiles-flows.md](settings-profiles-flows.md) | Done (the flows for settings-profiles.md) |

@@ -8,7 +8,7 @@ Source: [`tests/game/features/settings-profiles.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 9 | 8 | 2 | 0 | **2** |
+| 10 | 9 | 3 | 0 | **3** |
 
 ## Scenarios
 
@@ -113,11 +113,42 @@ Source: [`tests/game/features/settings-profiles.feature`](../../tests/game/featu
 ```gherkin
   Given a game on "Hard mode"
   When I change a setting
-  Then the Profile dropdown shows "Hard mode *" straight away, without leaving the page
-  And "Save changes to 'Hard mode'" is enabled straight away
+  Then the Profile dropdown shows "Hard mode *"
+  And "Save changes to 'Hard mode'" is enabled
   When I press it
   Then "Hard mode" has the game's values
-  And the dropdown shows "Hard mode" and the button is disabled again, straight away
+  And the dropdown shows "Hard mode" and the button is disabled again
+```
+
+### Turning a changed setting back removes the star
+
+**Automated:** unit tests `test_turning_a_setting_back_clears_the_mark`, `test_saved_changes_become_the_new_baseline`; in game `settings_undo_clears_modified`
+
+```gherkin
+  Given a game on "Hard mode" with a setting changed, showing "Hard mode *"
+  When I turn that setting back to Hard mode's value
+  Then the dropdown shows "Hard mode" without the star
+  And "Save changes to 'Hard mode'" is disabled
+  And after saving changes into "Hard mode", the saved values are what the star compares against
+```
+
+### The page asks the options menu to redraw after every change
+
+**Automated:** unit test `test_every_change_asks_the_menu_to_redraw`
+
+```gherkin
+  When I change a setting, choose a profile, save changes, save a new profile, choose the profile for new games or delete a profile
+  Then the page asks the options menu to redraw it
+```
+
+### The page updates straight away
+
+- [ ] **Manual:** checked by hand for now
+
+```gherkin
+  Given the settings page is open in a game
+  When I change a setting, save changes, or choose a profile or the profile for new games
+  Then the dropdowns, the star and "Save changes to …" update straight away, without leaving the page
 ```
 
 ### Save changes isn't offered for Default or None
@@ -200,8 +231,7 @@ Source: [`tests/game/features/settings-profiles.feature`](../../tests/game/featu
 
 ```gherkin
   When I choose "Easy mode" in "Profile for new games"
-  Then the dropdown shows "Easy mode" straight away
-  And the next new game starts on "Easy mode"
+  Then the next new game starts on "Easy mode"
   And games I already have keep their profiles
 ```
 

@@ -5,7 +5,7 @@ The agreed behaviour of [settings profiles](settings-profiles.md) (agreed with E
 Stores:
 - **Config file** (`md/apirateslife_config.xml`): a default for every setting, and what "Default" means. Never written.
 - **X4 profile file** (the settings page's Lua `userdata`, shared by every save): the named profiles and the profile for new games. Written when a profile is saved, updated or deleted.
-- **Game state** (in memory): each game's settings state: `profile`, what the Profile dropdown shows ("Default", a saved profile's name, or null for "None (custom settings)"); `modified`, true once a setting was changed since that profile was chosen or saved, so the game no longer follows it; and `inUse`, the values it's using. **Save file**: X4 writes the game state there with every game save, so settings are saved like the rest of the game.
+- **Game state** (in memory): each game's settings state: `profile`, what the Profile dropdown shows ("Default", a saved profile's name, or null for "None (custom settings)"); `modified`, true while the game's values differ from what that profile gave it, so the game no longer follows it; `inUse`, the values it's using; and `baseline`, what the profile gave when it was chosen or saved into (none on None). The save file holds `baseline` too, but it's rebuilt on every load, so the save-file blocks below leave it out. **Save file**: X4 writes the game state there with every game save, so settings are saved like the rest of the game.
 
 How a game's settings are worked out, on every start and load: the config file first (the baseline, and the only source of the tuning values), then, for a game on a profile and not modified, that profile's current values. A modified game, or one on None, keeps its saved `inUse`. A game whose profile is gone switches to None with its saved `inUse`.
 
@@ -47,7 +47,7 @@ sequenceDiagram
     M->>+G: WRITE inUse = config + profile values
     deactivate G
     end
-    M->>+G: WRITE profile = the new-game profile
+    M->>+G: WRITE profile = the new-game profile, baseline = inUse
     deactivate G
     opt the player saves the game (manual, quicksave or autosave)
     G->>+S: WRITE the game's settings state with the rest of the game
@@ -96,8 +96,9 @@ gameState {
 ```js
 gameState {
   ...
-  profile: "Hard mode"  // was not set
-  modified: false       // was not set
+  profile: "Hard mode"                                                        // was not set
+  modified: false                                                             // was not set
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }  // was not set
   ...
 }
 ```
@@ -125,6 +126,7 @@ gameState {
   inUse: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
   profile: "Hard mode"
   modified: false
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 saveFile {
   profile: "Hard mode"
@@ -153,9 +155,9 @@ sequenceDiagram
 
     P->>L: turn on "Intact when marines claim"
     L->>M: IntactOnClaim = 1
-    M->>+G: WRITE inUse.IntactOnClaim = 1, modified = true
+    M->>+G: WRITE inUse.IntactOnClaim = 1, modified = true (inUse now differs from baseline)
     deactivate G
-    Note over L: the dropdown shows "Hard mode *" (unsaved changes), the button "Save changes to 'Hard mode'" is enabled
+    Note over L: the dropdown shows "Hard mode *" (unsaved changes), the button "Save changes to 'Hard mode'" is enabled. Turning the setting back to Hard mode's value makes modified false again and removes the star
     opt the player saves the game (manual, quicksave or autosave)
     G->>+S: WRITE the game's settings state with the rest of the game
     deactivate S
@@ -169,6 +171,7 @@ gameState {
   profile: "Hard mode"
   modified: false
   inUse: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 saveFile {
   profile: "Hard mode"
@@ -206,6 +209,7 @@ gameState {
   profile: "Hard mode"
   modified: true
   inUse: { IntactOnEject: 0, IntactOnClaim: 1, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 saveFile {
   profile: "Hard mode"
@@ -236,7 +240,7 @@ sequenceDiagram
     L->>+U: WRITE profiles[Hard mode] = game C's inUse
     deactivate U
     L->>M: saved into Hard mode
-    M->>+G: WRITE modified = false
+    M->>+G: WRITE modified = false, baseline = inUse
     deactivate G
     Note over L: the dropdown shows "Hard mode", the button is disabled again
 ```
@@ -251,6 +255,7 @@ gameState {
   profile: "Hard mode"
   modified: true
   inUse: { IntactOnEject: 1, IntactOnClaim: 0, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 ```
 
@@ -269,7 +274,8 @@ x4ProfileFile {
 ```js
 gameState {
   ...
-  modified: false  // was true
+  modified: false            // was true
+  baseline.IntactOnEject: 1  // was 0
   ...
 }
 ```
@@ -284,6 +290,7 @@ gameState {
   profile: "Hard mode"
   modified: false
   inUse: { IntactOnEject: 1, IntactOnClaim: 0, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 1, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 ```
 
@@ -315,7 +322,7 @@ sequenceDiagram
     L-->>U: read profiles[Hard mode]
     alt the profile exists
     L->>M: Hard mode's current values
-    M->>+G: WRITE inUse = config + Hard mode's current values
+    M->>+G: WRITE inUse = config + Hard mode's current values, baseline = inUse
     deactivate G
     else the profile is gone
     L->>M: not found
@@ -352,9 +359,10 @@ gameState {
 ```js
 gameState {
   ...
-  profile: "Hard mode"                                                     // was not set
-  modified: false                                                          // was not set
-  inUse: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }  // was not set
+  profile: "Hard mode"                                                        // was not set
+  modified: false                                                             // was not set
+  inUse: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }     // was not set
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }  // was not set
   ...
 }
 ```
@@ -364,7 +372,8 @@ gameState {
 ```js
 gameState {
   ...
-  inUse.IntactOnEject: 1  // was 0
+  inUse.IntactOnEject: 1     // was 0
+  baseline.IntactOnEject: 1  // was 0
   ...
 }
 ```
@@ -386,6 +395,7 @@ gameState {
   profile: "Hard mode"
   modified: false
   inUse: { IntactOnEject: 1, IntactOnClaim: 0, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 1, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 ```
 
@@ -418,6 +428,7 @@ gameState {
   profile: "Hard mode"
   modified: true
   inUse: { IntactOnEject: 0, IntactOnClaim: 1, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 saveFile {
   profile: "Hard mode"
@@ -446,6 +457,7 @@ gameState {
   profile: "Hard mode"
   modified: true
   inUse: { IntactOnEject: 0, IntactOnClaim: 1, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 saveFile {
   profile: "Hard mode"
@@ -482,7 +494,7 @@ sequenceDiagram
     L->>+U: WRITE profiles[Hard mode lite] = this game's inUse
     deactivate U
     L->>M: now on Hard mode lite
-    M->>+G: WRITE profile = Hard mode lite, modified = false
+    M->>+G: WRITE profile = Hard mode lite, modified = false, baseline = inUse
     deactivate G
     Note over L: the dropdown shows "Hard mode lite", "Save changes" is disabled
 ```
@@ -497,6 +509,7 @@ gameState {
   profile: "Hard mode"
   modified: true
   inUse: { IntactOnEject: 0, IntactOnClaim: 1, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 ```
 
@@ -516,6 +529,7 @@ gameState {
   ...
   profile: "Hard mode lite"  // was "Hard mode"
   modified: false            // was true
+  baseline.IntactOnClaim: 1  // was 0
   ...
 }
 ```
@@ -531,6 +545,7 @@ gameState {
   profile: "Hard mode lite"
   modified: false
   inUse: { IntactOnEject: 0, IntactOnClaim: 1, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 0, IntactOnClaim: 1, CaptureWingFullChance: 0 }
 }
 ```
 
@@ -561,7 +576,7 @@ sequenceDiagram
     L-->>U: read profiles[Easy mode]
     L->>M: use Easy mode: its values
     M-->>C: read config values: the baseline
-    M->>+G: WRITE inUse = config + Easy mode, profile = Easy mode, modified = false
+    M->>+G: WRITE inUse = config + Easy mode, profile = Easy mode, modified = false, baseline = inUse
     deactivate G
 ```
 
@@ -576,6 +591,7 @@ gameState {
   profile: "Hard mode"
   modified: true
   inUse: { IntactOnEject: 0, IntactOnClaim: 1, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 ```
 
@@ -584,9 +600,11 @@ gameState {
 ```js
 gameState {
   ...
-  profile: "Easy mode"    // was "Hard mode"
-  modified: false         // was true
-  inUse.IntactOnEject: 1  // was 0
+  profile: "Easy mode"       // was "Hard mode"
+  modified: false            // was true
+  inUse.IntactOnEject: 1     // was 0
+  baseline.IntactOnEject: 1  // was 0
+  baseline.IntactOnClaim: 1  // was 0
   ...
 }
 ```
@@ -602,6 +620,7 @@ gameState {
   profile: "Easy mode"
   modified: false
   inUse: { IntactOnEject: 1, IntactOnClaim: 1, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 1, IntactOnClaim: 1, CaptureWingFullChance: 0 }
 }
 ```
 
@@ -630,7 +649,7 @@ sequenceDiagram
     end
     L->>M: use Default
     M-->>C: read config values
-    M->>+G: WRITE inUse = config values, profile = Default, modified = false
+    M->>+G: WRITE inUse = config values, profile = Default, modified = false, baseline = inUse
     deactivate G
 ```
 
@@ -641,6 +660,7 @@ gameState {
   profile: "Hard mode"
   modified: true
   inUse: { IntactOnEject: 0, IntactOnClaim: 1, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 ```
 
@@ -649,10 +669,11 @@ gameState {
 ```js
 gameState {
   ...
-  profile: "Default"              // was "Hard mode"
-  modified: false                 // was true
-  inUse.IntactOnEject: 1          // was 0
-  inUse.CaptureWingFullChance: 1  // was 0
+  profile: "Default"                                                          // was "Hard mode"
+  modified: false                                                             // was true
+  inUse.IntactOnEject: 1                                                      // was 0
+  inUse.CaptureWingFullChance: 1                                              // was 0
+  baseline: { IntactOnEject: 1, IntactOnClaim: 1, CaptureWingFullChance: 1 }  // was { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
   ...
 }
 ```
@@ -664,6 +685,7 @@ gameState {
   profile: "Default"
   modified: false
   inUse: { IntactOnEject: 1, IntactOnClaim: 1, CaptureWingFullChance: 1 }
+  baseline: { IntactOnEject: 1, IntactOnClaim: 1, CaptureWingFullChance: 1 }
 }
 ```
 
@@ -739,7 +761,7 @@ sequenceDiagram
     deactivate U
     opt this game is on Hard mode
     L->>M: Hard mode is gone
-    M->>+G: WRITE profile = none (custom settings), modified = false, inUse unchanged
+    M->>+G: WRITE profile = none (custom settings), modified = false, inUse unchanged, no baseline
     deactivate G
     end
     Note over L: the dropdown shows "None (custom settings)"
@@ -757,6 +779,7 @@ gameState {
   profile: "Hard mode"
   modified: false
   inUse: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
+  baseline: { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }
 }
 ```
 
@@ -766,7 +789,7 @@ gameState {
 x4ProfileFile {
   // profiles["Hard mode"] deleted (was { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 })
   profiles["Easy mode"]: { IntactOnEject: 1, IntactOnClaim: 1, CaptureWingFullChance: 0 }  // unchanged
-  newGameProfile: "Default"                                                                 // was "Hard mode"
+  newGameProfile: "Default"                                                                // was "Hard mode"
 }
 ```
 
@@ -776,6 +799,7 @@ x4ProfileFile {
 gameState {
   ...
   profile: null  // was "Hard mode"
+  // baseline removed (was { IntactOnEject: 0, IntactOnClaim: 0, CaptureWingFullChance: 0 }): a game on None has none
   ...
 }
 ```
@@ -817,7 +841,7 @@ sequenceDiagram
     L->>M: Hard mode's values
     M-->>C: read config values: the baseline
     Note over M: IntactOnEject 0 is applied. OldSetting isn't a setting, ignored and logged. IntactOnClaim "never" isn't 0 or 1, ignored and logged, keeps its config value
-    M->>+G: WRITE inUse
+    M->>+G: WRITE inUse, baseline = inUse
     deactivate G
 ```
 
@@ -831,6 +855,7 @@ gameState {
   profile: "Hard mode"
   modified: false
   inUse: { IntactOnEject: 1, IntactOnClaim: 1, CaptureWingFullChance: 1 }
+  baseline: { IntactOnEject: 1, IntactOnClaim: 1, CaptureWingFullChance: 1 }
 }
 ```
 
@@ -839,7 +864,8 @@ gameState {
 ```js
 gameState {
   ...
-  inUse.IntactOnEject: 0  // was 1
+  inUse.IntactOnEject: 0     // was 1
+  baseline.IntactOnEject: 0  // was 1
   ...
 }
 ```
@@ -856,12 +882,13 @@ gameState {
   profile: "Hard mode"
   modified: false
   inUse: { IntactOnEject: 0, IntactOnClaim: 1, CaptureWingFullChance: 1 }
+  baseline: { IntactOnEject: 0, IntactOnClaim: 1, CaptureWingFullChance: 1 }
 }
 ```
 
 ## Decisions not drawn above
 
-- **A game's profile is what the Profile dropdown shows:** Default, a saved profile, or null for "None (custom settings)". Changing any setting sets `modified`: the dropdown stays on the profile but reads "Hard mode *", the usual mark for unsaved changes, and the game keeps its own `inUse` and no longer follows the profile. Picking a profile again, or saving into it, clears `modified` (Erik, 2026-10-24).
+- **A game's profile is what the Profile dropdown shows:** Default, a saved profile, or null for "None (custom settings)". Changing a setting so the game's values differ from what the profile gave it (`baseline`) sets `modified`; turning it back clears it (Erik, 2026-10-26). the dropdown stays on the profile but reads "Hard mode *", the usual mark for unsaved changes, and the game keeps its own `inUse` and no longer follows the profile. Picking a profile again, or saving into it, clears `modified` (Erik, 2026-10-24).
 - **"Save changes to 'Hard mode'"** targets whatever profile the dropdown shows. It's enabled only while the game is modified and that profile is a saved one (not Default, not None). It writes the game's values into the profile, clears `modified`, and disables itself. The profile's name is on the button.
 - **Choosing a profile always reloads it and clears `modified`:** picking any profile in the dropdown (including Default, or the same profile again) rebuilds `inUse` from the config plus that profile and sets `modified` to false. So does saving into a profile ("Save changes to …" or "Save as new profile…"). If the game is modified, the page asks first (Erik, 2026-10-24).
 - **`modified` lasts only for the play session:** a game loaded with `modified: true` switches to None (custom settings), clears `modified` and keeps its `inUse`, since the profile may have changed since it was saved. Until then, every time the settings page is opened it shows "Hard mode *" with "Save changes to 'Hard mode'" enabled, and saving the game (autosaves included) doesn't change that. Loading any save counts as the next load, even without quitting X4. After that, its values reach a profile only through "Save as new profile…" (Erik, 2026-10-24).

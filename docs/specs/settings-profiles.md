@@ -1,6 +1,6 @@
 # Spec: Settings profiles
 
-Plan item: Phase 1, "Settings profiles: a game is on a profile or on its own settings" · Status: Agreed
+Plan item: Phase 1, "Settings profiles: a game is on a profile or on its own settings" · Status: Done (PRs #43, #48, #49)
 
 ## Goal
 
@@ -18,7 +18,7 @@ On the settings page the player picks a **profile** for the game: the built-in *
 - **Three stores, each with one job** ([flows: stores](settings-profiles-flows.md#settings-profiles-flows)):
   - **Config file:** a default for every setting, and what "Default" means. Never written.
   - **X4 profile file** (the page's `userdata` saved variable): `profiles[name]` and `newGameProfile`. Written only when the player saves, deletes or picks for new games, never on load.
-  - **Game state** (MD), saved with the game: `profile` (what the Profile dropdown shows: `"Default"`, a profile's name, or `null` for "None (custom settings)"), `modified`, and `inUse` (the values the game runs with).
+  - **Game state** (MD), saved with the game: `profile` (what the Profile dropdown shows: `"Default"`, a profile's name, or `null` for "None (custom settings)"), `modified`, `inUse` (the values the game runs with), and `baseline` (what the profile gave when it was chosen or saved into; rebuilt on every load, none on None).
 - **How a game's settings are worked out, on every start and load:** config first, then the profile's current values for a game on a profile and not modified. A game saved while modified switches to None with its `inUse` (the profile may have changed since). A game whose profile is gone (deleted, another PC) switches to None with its `inUse`. A game on None keeps its `inUse`. The tuning settings always come from the config.
 - **The page**, below the three switches:
   - **Profile** dropdown: Default (config file), then the saved profiles sorted by name; "None (custom settings)" appears only while the game is on None. While modified it reads "Hard mode \*".
@@ -29,10 +29,10 @@ On the settings page the player picks a **profile** for the game: the built-in *
   - A status line says what the last action did.
   - **Removed:** "Reset to config file values" (choose Default) and "Load profile" (the Profile dropdown).
 - **Rules** (details and reasons in [the flows' decisions](settings-profiles-flows.md#decisions-not-drawn-above)):
-  - Changing any setting sets `modified`; it lasts only until the game is next loaded.
+  - `modified` is true while `inUse` differs from `baseline`: changing a setting sets it, turning it back clears it (Erik, 2026-10-26). It lasts only until the game is next loaded.
   - Choosing a profile (including Default, or the same one again) reloads it from the config plus that profile and clears `modified`, asking first if the game is modified.
   - Unknown or invalid settings in a profile are ignored and logged and keep their config value; profiles are cleaned only when the player saves into them. Setting names are never reused.
-- **Lua and MD:** the Lua page owns the X4 profile file; MD owns the game state and is the only writer of `inUse`. Page events (`AddUITriggeredEvent("APiratesLife_Settings", …)`): a setting change, "use this profile" with its values (or Default), "saved into the profile" (clears `modified`), "profile gone" (to None). MD mirrors `profile`, `modified` and `inUse` to the player blackboard for the page.
+- **Lua and MD:** the Lua page owns the X4 profile file; MD owns the game state and is the only writer of `inUse`. Page events (`AddUITriggeredEvent("APiratesLife_Settings", …)`): a setting change, "use this profile" with its values (or Default), "saved into the profile" (clears `modified`), "profile gone" (to None). MD mirrors `profile`, `modified`, `inUse` and `baseline` to the player blackboard for the page, which applies the same rule to show the `*` at once.
 - **Saves from PR #37 and #39** hold `global.$APiratesLife_Chosen` (values chosen on the page) and no profile: on their first load they become None with `inUse` = config plus those values, or Default if nothing was chosen. The X4 profile file's `profiles` and `newGameProfile` keep their #39 shape; #37's `defaults` migration stays.
 - **Testing:** MD behaviour (changes set `modified`, load rules, Default, invalid values) through game tests that send the page's events, as today. The page itself (dropdown labels, buttons enabling, dialogs, profiles surviving an X4 restart) is `@manual`. Game-test isolation for profiles: tests create profiles only through the test extension's Lua, which marks them (`testProfiles` in the same saved variable). A run deletes marked profiles left by a crashed run and copies the settings table first, a test deletes what it created, and the end of the run restores the copy ([flows: decisions](settings-profiles-flows.md#decisions-not-drawn-above)).
 
@@ -42,7 +42,7 @@ On the settings page the player picks a **profile** for the game: the built-in *
 - [x] `ui/apirateslife_options.lua`: the Profile dropdown with Default and "\*", "Save changes to …", "Save as new profile…" rules, delete switching games to None; remove "Load profile" and "Reset"
 - [x] Game tests for the MD rules, two of them end to end through the page Lua, and the test isolation for profiles
 - [x] Update the in-game settings scenarios that this changes (reset becomes choosing Default; changed settings no longer follow the config)
-- [ ] Hand test of the `@manual` scenarios with UI Extensions
+- [x] Hand test of the `@manual` scenarios with UI Extensions (Erik, 2026-10-26: all three pass, including profiles surviving an X4 restart)
 
 ## Done when
 

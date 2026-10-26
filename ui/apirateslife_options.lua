@@ -52,7 +52,9 @@ local hasPage = false
 -- The game's settings state as last read from MD, with this page's own changes applied until MD
 -- has handled them (the game is paused while the menu is open, so MD may only catch up once it
 -- closes). profile: "Default", a profile's name, or "" for None (custom settings).
-local state = { profile = defaultProfile, modified = false, values = {}, config = {} }
+-- baseline: the values the profile gave when it was chosen or saved into (nil on None); a game
+-- is modified while its values differ from it.
+local state = { profile = defaultProfile, modified = false, values = {}, config = {}, baseline = nil }
 local lastHandled = 0 -- MD's count of handled page events, from the blackboard
 local expectHandled   -- the count MD reaches once it has handled everything this page sent
 local status = ""     -- what the last action did, shown under the actions
@@ -95,6 +97,7 @@ local function readState()
 	state.modified = isTrue(data.modified)
 	state.values = data.values or {}
 	state.config = data.config or {}
+	state.baseline = (type(data.baseline) == "table") and data.baseline or nil
 end
 
 -- Asks the options menu to redraw the page a moment later, as vanilla's own option callbacks do.
@@ -204,6 +207,7 @@ local function useProfile(name)
 		end
 	end
 	state.profile, state.modified, state.values = name, false, values
+	state.baseline = currentValues()
 	send("UseProfile", useProfileList(name))
 end
 
@@ -230,11 +234,24 @@ local function reportIn()
 	end
 end
 
+-- True while the game's values differ from its baseline (or there's no baseline to compare with)
+local function differsFromBaseline()
+	if not state.baseline then
+		return true
+	end
+	for _, setting in ipairs(pageSettings) do
+		if state.values[setting.name] ~= state.baseline[setting.name] then
+			return true
+		end
+	end
+	return false
+end
+
 local function toggle(name)
 	local value = (state.values[name] == 1) and 0 or 1
 	state.values[name] = value
 	if state.profile ~= "" then
-		state.modified = true
+		state.modified = differsFromBaseline()
 	end
 	status = ""
 	send(name, value)
@@ -254,7 +271,7 @@ local function saveChanges()
 	end
 	local name = state.profile
 	profiles()[name] = currentValues()
-	state.modified = false
+	state.modified, state.baseline = false, currentValues()
 	status = string.format("Saved this game's changes into the profile '%s'.", name)
 	send("ProfileSaved", name)
 end
@@ -292,7 +309,7 @@ end
 local function saveAsNew(name)
 	local replaced = profiles()[name] ~= nil
 	profiles()[name] = currentValues()
-	state.profile, state.modified = name, false
+	state.profile, state.modified, state.baseline = name, false, currentValues()
 	status = string.format(replaced and "Replaced the profile '%s'." or "Saved the profile '%s'.", name)
 	send("UseProfile", useProfileList(name))
 end
@@ -311,7 +328,7 @@ local function deleteProfile(name)
 		__userdata_apirateslife.newGameProfile = nil
 	end
 	if state.profile == name then
-		state.profile, state.modified = "", false
+		state.profile, state.modified, state.baseline = "", false, nil
 	end
 	status = string.format("Deleted the profile '%s'.", name)
 	send("ProfileGone", name)
