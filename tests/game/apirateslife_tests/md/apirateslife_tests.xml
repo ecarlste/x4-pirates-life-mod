@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -418,6 +418,46 @@
                   <set_value name="$Problems" exact="$Problems + ' after saving into the profile: on %s, modified %s;'.[global.$APiratesLife_Profile, global.$APiratesLife_Modified]"/>
                 </do_if>
                 <signal_cue_instantly cue="Report" param="table[$name = 'settings_change_marks_modified', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'a change marked Test hard modified, saving into it cleared it' else $Problems)]"/>
+                <run_actions ref="md.APiratesLife_Settings.UseProfile">
+                  <param name="List" value="['Default']"/>
+                </run_actions>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Turning a changed setting back to what the profile gave clears modified -->
+    <cue name="SettingsUndoClearsModified">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="md.APiratesLife_Settings.ConfigValues" result="$Config"/>
+        <set_value name="$Profile" exact="1 - $Config.$IntactOnClaim"/>
+        <run_actions ref="md.APiratesLife_Settings.UseProfile">
+          <param name="List" value="['Test hard', 'IntactOnClaim', $Profile]"/>
+        </run_actions>
+        <signal_cue_instantly cue="UiThen" param="table[$events = ['IntactOnClaim|%s'.[1 - $Profile]], $then = SettingsUndoClearsModified_Changed]"/>
+      </actions>
+      <cues>
+        <cue name="SettingsUndoClearsModified_Changed">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <set_value name="$ChangedOk" exact="event.param and global.$APiratesLife_Modified"/>
+            <signal_cue_instantly cue="UiThen" param="table[$events = ['IntactOnClaim|%s'.[$Profile]], $then = SettingsUndoClearsModified_Undone]"/>
+          </actions>
+          <cues>
+            <cue name="SettingsUndoClearsModified_Undone">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <set_value name="$Ok" exact="$ChangedOk and event.param and not global.$APiratesLife_Modified and global.$APiratesLife_Profile == 'Test hard' and global.$APiratesLife_IntactOnClaim == $Profile"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'settings_undo_clears_modified', $ok = $Ok, $detail = 'modified after the change: %s; after turning it back: %s, on %s, IntactOnClaim %s (profile %s)'.[$ChangedOk, global.$APiratesLife_Modified, global.$APiratesLife_Profile, global.$APiratesLife_IntactOnClaim, $Profile]]"/>
                 <run_actions ref="md.APiratesLife_Settings.UseProfile">
                   <param name="List" value="['Default']"/>
                 </run_actions>

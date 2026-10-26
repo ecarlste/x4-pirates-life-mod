@@ -72,11 +72,32 @@ Feature: Settings profiles
   Scenario: A changed game shows the profile with a star, and can save into it
     Given a game on "Hard mode"
     When I change a setting
-    Then the Profile dropdown shows "Hard mode *" straight away, without leaving the page
-    And "Save changes to 'Hard mode'" is enabled straight away
+    Then the Profile dropdown shows "Hard mode *"
+    And "Save changes to 'Hard mode'" is enabled
     When I press it
     Then "Hard mode" has the game's values
-    And the dropdown shows "Hard mode" and the button is disabled again, straight away
+    And the dropdown shows "Hard mode" and the button is disabled again
+
+  @settings_undo_clears_modified
+  @test_turning_a_setting_back_clears_the_mark
+  @test_saved_changes_become_the_new_baseline
+  Scenario: Turning a changed setting back removes the star
+    Given a game on "Hard mode" with a setting changed, showing "Hard mode *"
+    When I turn that setting back to Hard mode's value
+    Then the dropdown shows "Hard mode" without the star
+    And "Save changes to 'Hard mode'" is disabled
+    And after saving changes into "Hard mode", the saved values are what the star compares against
+
+  @test_every_change_asks_the_menu_to_redraw
+  Scenario: The page asks the options menu to redraw after every change
+    When I change a setting, choose a profile, save changes, save a new profile, choose the profile for new games or delete a profile
+    Then the page asks the options menu to redraw it
+
+  @manual
+  Scenario: The page updates straight away
+    Given the settings page is open in a game
+    When I change a setting, save changes, or choose a profile or the profile for new games
+    Then the dropdowns, the star and "Save changes to …" update straight away, without leaving the page
 
   @test_save_changes_only_into_a_saved_profile_with_changes
   Scenario: Save changes isn't offered for Default or None
@@ -132,8 +153,7 @@ Feature: Settings profiles
   @test_choosing_the_profile_for_new_games
   Scenario: Change the profile for new games
     When I choose "Easy mode" in "Profile for new games"
-    Then the dropdown shows "Easy mode" straight away
-    And the next new game starts on "Easy mode"
+    Then the next new game starts on "Easy mode"
     And games I already have keep their profiles
 
   @manual

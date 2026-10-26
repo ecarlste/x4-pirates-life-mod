@@ -210,6 +210,58 @@ function TestProfiles:test_toggling_marks_a_profile_modified_but_not_none()
 	lu.assertFalse(page.state.modified)
 end
 
+-- A game is modified only while its values differ from what its profile gave it
+local CONFIG = { IntactOnEject = 1, IntactOnClaim = 1, CaptureWingFullChance = 1 }
+
+local function onHardMode()
+	local env = loadWith({ userdata = { profiles = { ["Hard mode"] = { IntactOnEject = 0 } } } })
+	env.page.state.config = CONFIG
+	env.page.useProfile("Hard mode")
+	return env.page
+end
+
+function TestProfiles:test_turning_a_setting_back_clears_the_mark()
+	local page = onHardMode()
+	page.toggle("IntactOnClaim")
+	lu.assertTrue(page.state.modified)
+	lu.assertTrue(page.canSaveChanges())
+	page.toggle("IntactOnClaim")
+	lu.assertFalse(page.state.modified)
+	lu.assertFalse(page.canSaveChanges())
+	local _, _, label = page.profileDropdown()
+	lu.assertEquals(label, "Hard mode")
+end
+
+function TestProfiles:test_saved_changes_become_the_new_baseline()
+	local page = onHardMode()
+	page.toggle("IntactOnClaim")
+	page.saveChanges()
+	lu.assertFalse(page.state.modified)
+	-- Back to the old value now differs from what was saved
+	page.toggle("IntactOnClaim")
+	lu.assertTrue(page.state.modified)
+	page.toggle("IntactOnClaim")
+	lu.assertFalse(page.state.modified)
+end
+
+function TestProfiles:test_without_a_baseline_any_change_counts()
+	local page = loadWith({ userdata = profilesOf("Hard mode") }).page
+	page.state.profile, page.state.values, page.state.baseline = "Hard mode", { IntactOnEject = 1 }, nil
+	page.toggle("IntactOnEject")
+	page.toggle("IntactOnEject")
+	lu.assertTrue(page.state.modified)
+end
+
+function TestProfiles:test_reads_the_baseline_from_the_blackboard()
+	local env = loadWith({ blackboard = { profile = "Hard mode", modified = 0, values = { IntactOnEject = 0 }, baseline = { IntactOnEject = 0 }, config = CONFIG, handled = 0 } })
+	env.page.readState()
+	lu.assertEquals(env.page.state.baseline, { IntactOnEject = 0 })
+	-- handled = 10: MD has caught up with the events the page sent when it loaded
+	env.blackboard({ profile = "", modified = 0, values = {}, config = CONFIG, handled = 10 })
+	env.page.readState()
+	lu.assertNil(env.page.state.baseline)
+end
+
 -- The options menu reads a dropdown's text and whether a row can be clicked only when it draws
 -- the row, so without a redraw "Hard mode *" and "Save changes to …" only showed after leaving
 -- the page (found in the hand test of #43)

@@ -10,5 +10,5 @@ What the mod should do, feature by feature, and how each scenario is verified. P
 | [Capture operations](capture-operation.md) | 11 | 0 | 8 | 0 | 3 | **3** |
 | [In-game settings](in-game-settings.md) | 6 | 0 | 6 | 0 | 0 | **0** |
 | [Captured ships arrive intact](intact-captures.md) | 4 | 0 | 4 | 0 | 0 | **0** |
-| [Settings profiles](settings-profiles.md) | 19 | 9 | 8 | 2 | 0 | **2** |
-| **Total** | 43 | 9 | 28 | 2 | 4 | **6** |
+| [Settings profiles](settings-profiles.md) | 22 | 10 | 9 | 3 | 0 | **3** |
+| **Total** | 46 | 10 | 29 | 3 | 4 | **7** |

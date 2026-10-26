@@ -5,10 +5,12 @@
      The game's settings state, saved with the game:
        global.$APiratesLife_Profile   what the page's Profile dropdown shows: 'Default', a saved
                                       profile's name, or '' for "None (custom settings)"
-       global.$APiratesLife_Modified  true once a page setting was changed since that profile was
-                                      chosen or saved: the game no longer follows the profile.
-                                      Lasts until the game is next loaded.
+       global.$APiratesLife_Modified  true while InUse differs from Baseline: the game no longer
+                                      follows the profile. Lasts until the game is next loaded.
        global.$APiratesLife_InUse     the page settings' values the game runs with ('$<Name>' keys)
+       global.$APiratesLife_Baseline  the values the profile gave when it was chosen or saved into
+                                      (the config for Default); turning a setting back to it clears
+                                      Modified. Not kept on None. Rebuilt on every load.
      The patches only ever read global.$APiratesLife_<Name>: the config file
      (md/apirateslife_config.xml) sets them all on every start and load, then InUse goes on top. The
      tuning settings (capture hold line and floor) only ever come from the config.
@@ -85,6 +87,14 @@
           <!-- Default follows the config file, including a changed config -->
           <set_value name="global.$APiratesLife_InUse" exact="$Config.clone"/>
         </do_if>
+        <!-- A game on a profile isn't modified now, so what it runs with is its baseline; for a
+             saved profile the Lua then sends the profile's current values (UseProfile) -->
+        <do_if value="global.$APiratesLife_Profile == ''">
+          <remove_value name="global.$APiratesLife_Baseline"/>
+        </do_if>
+        <do_else>
+          <set_value name="global.$APiratesLife_Baseline" exact="global.$APiratesLife_InUse.clone"/>
+        </do_else>
         <run_actions ref="Apply"/>
         <debug_text text="'[apirateslife] settings: loaded on %s (intact on eject %s, intact on claim %s, wing full chance %s, capture hold hull %s, floor hull %s)'.[if global.$APiratesLife_Profile == '' then 'None (custom settings)' else global.$APiratesLife_Profile, global.$APiratesLife_IntactOnEject, global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureWingFullChance, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull]"/>
       </actions>
@@ -145,7 +155,7 @@
         <param name="Config"/>
       </params>
       <actions>
-        <set_value name="player.entity.$APiratesLife_Settings" exact="table[$profile = @global.$APiratesLife_Profile, $modified = (@global.$APiratesLife_Modified == true), $values = global.$APiratesLife_InUse.clone, $config = $Config, $newgame = @Lua.$NeedsNewGameProfile, $handled = @Lua.$Handled]"/>
+        <set_value name="player.entity.$APiratesLife_Settings" exact="table[$profile = @global.$APiratesLife_Profile, $modified = (@global.$APiratesLife_Modified == true), $values = global.$APiratesLife_InUse.clone, $baseline = (if global.$APiratesLife_Baseline? then global.$APiratesLife_Baseline.clone else null), $config = $Config, $newgame = @Lua.$NeedsNewGameProfile, $handled = @Lua.$Handled]"/>
       </actions>
     </library>
 
@@ -169,7 +179,24 @@
       </actions>
     </library>
 
-    <!-- A page setting changed in this game (flow 2) -->
+    <!-- True if any page setting in InUse differs from Baseline, or if there's no baseline (a save
+         from before baselines on a profile: treat a change as modified, as before) -->
+    <library name="DiffersFromBaseline" purpose="run_actions">
+      <actions>
+        <do_if value="not global.$APiratesLife_Baseline?">
+          <return value="true"/>
+        </do_if>
+        <run_actions ref="PageSettings" result="$Names"/>
+        <do_for_each name="$Name" in="$Names">
+          <do_if value="@global.$APiratesLife_InUse.{'$' + $Name} != @global.$APiratesLife_Baseline.{'$' + $Name}">
+            <return value="true"/>
+          </do_if>
+        </do_for_each>
+        <return value="false"/>
+      </actions>
+    </library>
+
+    <!-- A page setting changed in this game (flow 2): modified while it differs from the baseline -->
     <library name="Change" purpose="run_actions">
       <params>
         <param name="Name"/>
@@ -184,7 +211,8 @@
           <!-- Lua numbers may arrive as floats; store whole numbers like the config does -->
           <set_value name="global.$APiratesLife_InUse.{'$' + $Name}" exact="if $Value == 1 then 1 else 0"/>
           <do_if value="global.$APiratesLife_Profile != ''">
-            <set_value name="global.$APiratesLife_Modified" exact="true"/>
+            <run_actions ref="DiffersFromBaseline" result="$Differs"/>
+            <set_value name="global.$APiratesLife_Modified" exact="$Differs"/>
           </do_if>
           <run_actions ref="Apply"/>
           <debug_text text="'[apirateslife] settings: %s set to %s in this game (on %s%s)'.[$Name, global.$APiratesLife_InUse.{'$' + $Name}, if global.$APiratesLife_Profile == '' then 'None' else global.$APiratesLife_Profile, if global.$APiratesLife_Modified then ', modified' else '']"/>
@@ -220,6 +248,7 @@
         <set_value name="global.$APiratesLife_Profile" exact="$List.{1}"/>
         <set_value name="global.$APiratesLife_Modified" exact="false"/>
         <set_value name="global.$APiratesLife_InUse" exact="$InUse"/>
+        <set_value name="global.$APiratesLife_Baseline" exact="$InUse.clone"/>
         <set_value name="Lua.$NeedsNewGameProfile" exact="false"/>
         <run_actions ref="Apply"/>
         <debug_text text="'[apirateslife] settings: now on %s'.[$List.{1}]"/>
@@ -295,6 +324,7 @@
             <do_elseif value="$Control == 'ProfileSaved'">
               <do_if value="global.$APiratesLife_Profile == $Param">
                 <set_value name="global.$APiratesLife_Modified" exact="false"/>
+                <set_value name="global.$APiratesLife_Baseline" exact="global.$APiratesLife_InUse.clone"/>
                 <debug_text text="'[apirateslife] settings: changes saved into %s'.[$Param]"/>
               </do_if>
             </do_elseif>
@@ -302,6 +332,7 @@
               <do_if value="global.$APiratesLife_Profile == $Param">
                 <set_value name="global.$APiratesLife_Profile" exact="''"/>
                 <set_value name="global.$APiratesLife_Modified" exact="false"/>
+                <remove_value name="global.$APiratesLife_Baseline"/>
                 <debug_text text="'[apirateslife] settings: profile %s is gone, now on None (custom settings)'.[$Param]"/>
               </do_if>
             </do_elseif>
