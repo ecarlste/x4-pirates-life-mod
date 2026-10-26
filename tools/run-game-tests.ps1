@@ -83,14 +83,20 @@ $TestExtensionId = 'apirateslife_tests'
 # Parses debuglog.txt lines into the run's results. Errors are lines that mention the mod and an
 # error, apart from our own markers and the harmless "unsigned file" warnings every mod gets.
 function Read-GameTestLog([string[]] $Lines) {
-    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = '' }
+    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0 }
     $results = New-Object System.Collections.ArrayList
     $errors = New-Object System.Collections.ArrayList
     foreach ($line in $Lines) {
         # X4 follows each script error with "* Expression: ..." and "* Action: ..." lines, which
         # can quote our markers; only the error's own line counts
         if ($line -like '`* *') { continue }
-        if ($line -match "Starting new game using gamestart '[^']*' in (\S+) \((\d+)\)") {
+        if ($line -match 'Game initialisation time until start menu|\[apirateslife-test\] autostart: starting gamestart') {
+            $run.MenuReady = $true
+        }
+        elseif ($line -match '\[apirateslife-test\] SETA was off') {
+            $run.SetaDrops++
+        }
+        elseif ($line -match "Starting new game using gamestart '[^']*' in (\S+) \((\d+)\)") {
             $run.GameVersion = "$($Matches[1]) ($($Matches[2]))"
         }
         elseif ($line -match '\[apirateslife-test\] RUN START (\d+)') {
@@ -153,7 +159,8 @@ function ConvertTo-JUnitXml($Run, [string[]] $Problems) {
 
 # The Markdown report for a PR comment. Its first line is a hidden marker that
 # tools/post-game-test-report.sh reads to check the report matches the PR's commit.
-# $Info: Commit, Branch, Dirty, StartedAt (datetime), DurationSeconds.
+# $Info: Commit, Branch, Dirty, StartedAt (datetime), DurationSeconds, and optionally Phases
+# (an ordered list of @{ Name; Seconds }, from Get-RunPhases).
 function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     $passed = @($Run.Results | Where-Object { $_.Passed }).Count
     $total = [Math]::Max($Run.Expected, $Run.Results.Count)
@@ -176,6 +183,16 @@ function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
         $detail = ($r.Detail -replace '\|', '\|')
         $lines += "| ``$($r.Name)`` | $(if ($r.Passed) { 'PASS' } else { '**FAIL**' }) | $detail |"
     }
+    if ($Run.Started) {
+        $lines += ''
+        $lines += $(if ($Run.SetaDrops) { "SETA dropped $($Run.SetaDrops) times during the run (switched back on each time)." } else { 'SETA stayed on for the whole run.' })
+    }
+    if ($Info.Phases) {
+        $lines += ''
+        $lines += '| Phase | Time |'
+        $lines += '| --- | --- |'
+        foreach ($phase in $Info.Phases) { $lines += "| $($phase.Name) | $(Format-Seconds $phase.Seconds) |" }
+    }
     $runProblems = @($Problems | Where-Object { $_ -notmatch '^\d+ failed: ' })
     if ($runProblems.Count) {
         $lines += ''
@@ -194,6 +211,32 @@ function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     $lines += ''
     $lines += '<sub>Local run of <code>make game-test</code>, posted with <code>make game-test-report</code>.</sub>'
     $lines -join "`n"
+}
+
+function Format-Seconds([double] $Seconds) {
+    $total = [int] [Math]::Round($Seconds)
+    if ($total -lt 60) { return "$total s" }
+    "$([int] [Math]::Floor($total / 60)) min $($total % 60) s"
+}
+
+# How long each phase of a run took, from the moments the runner first saw each milestone
+# ($Seen: milestone name to seconds since launch; missing ones were never reached)
+function Get-RunPhases([hashtable] $Seen, [double] $TotalSeconds) {
+    $steps = @(
+        @{ Key = 'menu'; Name = 'X4 starts, to the main menu' }
+        @{ Key = 'tests'; Name = 'Test game loads, to the first test' }
+        @{ Key = 'done'; Name = 'Tests run' }
+    )
+    $phases = @()
+    $last = 0.0
+    foreach ($step in $steps) {
+        if (-not $Seen.ContainsKey($step.Key)) { break }
+        $phases += [pscustomobject]@{ Name = $step.Name; Seconds = $Seen[$step.Key] - $last }
+        $last = $Seen[$step.Key]
+    }
+    $phases += [pscustomobject]@{ Name = $(if ($Seen.ContainsKey('done')) { 'X4 quits, cleanup' } else { 'Until the run ended' }); Seconds = $TotalSeconds - $last }
+    $phases += [pscustomobject]@{ Name = '**Total**'; Seconds = $TotalSeconds }
+    $phases
 }
 
 # Commit, branch and dirty state from git, for runs not started by make game-test
@@ -286,6 +329,7 @@ try {
     }
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $reported = 0
+    $seen = @{}
     while ($true) {
         Start-Sleep -Milliseconds ([int] ($PollSeconds * 1000))
         $run = Read-GameTestLog (Read-SharedFile $LogPath)
@@ -294,6 +338,10 @@ try {
             Write-Host ("  {0} {1}: {2}" -f $(if ($r.Passed) { 'PASS' } else { 'FAIL' }), $r.Name, $r.Detail)
         }
         $reported = $run.Results.Count
+        $now = ((Get-Date) - $startedAt).TotalSeconds
+        if ($run.MenuReady -and -not $seen.ContainsKey('menu')) { $seen.menu = $now }
+        if ($run.Started -and -not $seen.ContainsKey('tests')) { $seen.tests = $now }
+        if ($run.Done -and -not $seen.ContainsKey('done')) { $seen.done = $now }
         if ($run.Done) { $ending = 'finished'; break }
         if ($game.HasExited) { $ending = 'the game exited early'; break }
         if ((Get-Date) -gt $deadline) { $ending = "timed out after $TimeoutSeconds s"; break }
@@ -318,12 +366,16 @@ $run = Read-GameTestLog (Read-SharedFile $LogPath)
 $problems = @(Get-RunProblems $run $ending)
 New-Item -ItemType Directory -Force -Path (Split-Path $ReportPath -Parent) | Out-Null
 [IO.File]::WriteAllText($ReportPath, (ConvertTo-JUnitXml $run $problems))
-$info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = ((Get-Date) - $startedAt).TotalSeconds }
+$total = ((Get-Date) - $startedAt).TotalSeconds
+$phases = if ($seen) { @(Get-RunPhases $seen $total) } else { @() }
+$info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = $total; Phases = $phases }
 New-Item -ItemType Directory -Force -Path (Split-Path $MarkdownPath -Parent) | Out-Null
 [IO.File]::WriteAllText($MarkdownPath, (ConvertTo-MarkdownReport $run $problems $info) + "`n")
 
 $passed = @($run.Results | Where-Object { $_.Passed }).Count
 foreach ($e in $run.Errors) { Write-Host "  log error: $e" }
+if ($phases) { Write-Host ("Timings: " + (($phases | ForEach-Object { "$($_.Name -replace '\*', '') $(Format-Seconds $_.Seconds)" }) -join '; ')) }
+if ($run.Started -and $run.SetaDrops) { Write-Host "SETA dropped $($run.SetaDrops) times during the run" }
 if ($problems.Count) {
     Write-Host "GAME TESTS FAILED ($passed passed): $($problems -join '; ')"
     Write-Host "Report: $MarkdownPath"

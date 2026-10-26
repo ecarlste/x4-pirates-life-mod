@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The test gamestart: the same quiet start every run. The player sits in a scout in an empty
-     Argon Prime (no god, so no stations; no jobs, so no traffic) and each test spawns what it
-     needs. Also selectable by hand from the "New game" menu for debugging a test. -->
+<!-- The test gamestart: the same quiet start every run. The player sits in a scout in the
+     tutorials' empty one-sector galaxy (no god, so no stations; no jobs, so no traffic) and each
+     test spawns what it needs. Also selectable by hand from the "New game" menu for debugging a test. -->
 <diff>
   <add sel="/gamestarts">
     <gamestart id="apirateslife_test" name="A Pirate's Life: game tests" description="Automated test scenarios for A Pirate's Life. Dev only." image="gamestart_2" group="100" tags="nosave">
-      <location galaxy="xu_ep2_universe_macro" zone="zone003_cluster_14_sector001_macro">
-        <position x="1616.792" y="1465.168" z="19765.754"/>
-        <rotation yaw="154.56161" pitch="-8.86304" roll="0.0"/>
+      <!-- The tutorials' one-sector galaxy: X4 builds it far faster than the full universe -->
+      <location galaxy="basegame_map_tutorial_default_empty_galaxy_macro" sector="basegame_map_tutorial_default_empty_cluster_001_sector_001_macro">
+        <position x="0" y="0" z="0"/>
       </location>
       <player macro="character_player_tutorial_macro" money="10000">
         <ship macro="ship_arg_s_scout_01_a_macro">

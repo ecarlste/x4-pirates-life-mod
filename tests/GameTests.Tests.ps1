@@ -70,6 +70,45 @@ Describe 'Read-GameTestLog' {
     }
 }
 
+Describe 'Read-GameTestLog milestones' {
+    It 'sees the main menu and counts SETA drops' {
+        $run = Read-GameTestLog ($script:PassingLog + @(
+            '[Init   ] 6.48 Game initialisation time until start menu fade-in (because of skipped intro video): 32 seconds'
+            '[Scripts] 50.00 *** Context:md.APiratesLife_Tests.KeepSeta<inst:1>: [apirateslife-test] SETA was off; switched back on (now active: 1)'
+            '[Scripts] 60.00 *** Context:md.APiratesLife_Tests.KeepSeta<inst:2>: [apirateslife-test] SETA was off; switched back on (now active: 1)'
+        ))
+        $run.MenuReady | Should -BeTrue
+        $run.SetaDrops | Should -Be 2
+        $run.Errors.Count | Should -Be 0
+    }
+
+    It 'counts the autostart as reaching the main menu' {
+        (Read-GameTestLog @('[=ERROR=] 8.53 [apirateslife-test] autostart: starting gamestart apirateslife_test')).MenuReady | Should -BeTrue
+        (Read-GameTestLog @('[General] 0.00 nothing yet')).MenuReady | Should -BeFalse
+    }
+}
+
+Describe 'Get-RunPhases' {
+    It 'splits a run into its phases and totals it' {
+        $phases = @(Get-RunPhases @{ menu = 34.0; tests = 80.0; done = 150.0 } 160.0)
+        ($phases | ForEach-Object { $_.Seconds }) | Should -Be @(34.0, 46.0, 70.0, 10.0, 160.0)
+        $phases[0].Name | Should -Be 'X4 starts, to the main menu'
+        $phases[3].Name | Should -Be 'X4 quits, cleanup'
+        $phases[4].Name | Should -Be '**Total**'
+    }
+
+    It 'stops at the last milestone reached' {
+        $phases = @(Get-RunPhases @{ menu = 34.0 } 900.0)
+        ($phases | ForEach-Object { $_.Name }) | Should -Be @('X4 starts, to the main menu', 'Until the run ended', '**Total**')
+        $phases[1].Seconds | Should -Be 866.0
+    }
+
+    It 'formats seconds and minutes' {
+        Format-Seconds 34.4 | Should -Be '34 s'
+        Format-Seconds 161 | Should -Be '2 min 41 s'
+    }
+}
+
 Describe 'Get-RunProblems' {
     It 'finds none in a passing run' {
         @(Get-RunProblems (Read-GameTestLog $script:PassingLog) 'finished').Count | Should -Be 0
@@ -143,5 +182,18 @@ Describe 'ConvertTo-MarkdownReport' {
         $md.Contains('| `pilot_bail_intact` | **FAIL** | hull 72% \| worse, 4 equipment kept, pilot skill 38 |') | Should -BeTrue
         $md | Should -BeLike '*- 1 errors from the mod in debuglog.txt*'
         $md | Should -BeLike '*Error in MD cue md.APiratesLife_Bail.Bailed*'
+    }
+
+    It 'says whether SETA stayed on, and shows the phase timings' {
+        $run = Read-GameTestLog $script:PassingLog
+        $info = $script:Info.Clone()
+        $info.Phases = @(Get-RunPhases @{ menu = 34.0; tests = 80.0; done = 150.0 } 160.0)
+        $md = ConvertTo-MarkdownReport $run (Get-RunProblems $run 'finished') $info
+        $md | Should -BeLike '*SETA stayed on for the whole run.*'
+        $md.Contains('| X4 starts, to the main menu | 34 s |') | Should -BeTrue
+        $md.Contains('| **Total** | 2 min 40 s |') | Should -BeTrue
+
+        $dropped = Read-GameTestLog ($script:PassingLog + @('[Scripts] 9.00 *** Context:x: [apirateslife-test] SETA was off; switched back on'))
+        ConvertTo-MarkdownReport $dropped @() $script:Info | Should -BeLike '*SETA dropped 1 times during the run*'
     }
 }

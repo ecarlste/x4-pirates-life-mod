@@ -25,6 +25,8 @@ Goal: Cypress/Playwright-style regression tests that play a short, controlled sc
 
 - **Gamestarts can switch off the living universe:** `<universe><jobs enabled="false"/><god enabled="false"/></universe>` (vanilla's debug start `thevoid`). No god means no stations; no jobs means no NPC traffic. Every test then spawns exactly what it needs, and runs start the same each time.
 - **Vanilla ships debug test starts** (`group="100"`, `debug="true"`): `test_smallship`, `test_squadron`, `test_battle`, `thevoid` (an empty `blackgalaxy_macro`), `testbed1`, `default`. Ours copies `test_smallship`'s spot in Argon Prime, without `debug="true"`, so it also shows in the New Game menu for starting it by hand.
+- **The test start uses the tutorials' empty galaxy** (`basegame_map_tutorial_default_empty_galaxy_macro`, one cluster with one sector), not the full universe. Measured 2026-10-26: loading to the first test went from 1 min 32 s to 28 s, and a whole run from 2 min 50 s to about 1 min 30 s. The about 380 vanilla "Error in MD cue" lines (DLC and story setup cues looking for stations god never built) are gone too. Tests spawn everything they need in `player.sector`, so nothing depended on Argon Prime.
+- **Ships calling in stop SETA:** the player's global standing orders (Player Info > Global orders) can "ask" before responding to six signals (`attacked`, `foundabandonedship`, `foundlockbox`, `piratehalt`, `policefoundcontraband`, `policehalt`); a ship that asks opens a conversation, and SETA stops. MD can only set "ask" per ship (`set_object_signal_response ... ask="false"`); the global orders are set from Lua with `C.SetDefaultResponseToSignalForFaction2(response, ask, signal, "player", purpose)` for the purposes `""`, `"fight"` and `"auxiliary"`, as vanilla's menu does. The test extension's Lua turns "ask" off for all 18 at the start of a run, keeping each response. With that, SETA stayed on for a whole run (`player.timewarp.active`; the harness's `KeepSeta` cue logs and fixes any drop, and the report says whether SETA held).
 - **The `nosave` tag** (used by tutorials) keeps test games out of the save list.
 - **MD knows which gamestart it's in:** `player.module` is the gamestart ID (vanilla compares it with e.g. `'custom_creative'`). That's the guard for test code.
 - **`md.Setup.GameStart` also fires for the main menu's background game**, which explains the double fire noted in [spike 1](spike-1-bailing-boarding.md#extension-loading). It's another reason to check `player.module`.
@@ -198,11 +200,10 @@ The in-game settings page (planned through kuertee's UI Extensions) is the first
 
 ## Open questions
 
-1. **A faster start:** `thevoid`'s empty galaxy, or the undocumented module option above, could cut the loading time.
-2. **Is SETA on during the tests?** Nothing checks it yet; it only matters once a test waits on travel.
-3. **Other `X4.exe` options** (strings next to the known ones, unverified): `-nocputhrottle` and `-nosoundthrottle` (keep running at full speed in the background, so the PC stays usable during a run), `-disablesound`, `-usedefaultconfig` / `-dontsaveconfig` (a clean, unchanged config), `-noworkshopsync`, `-enablexmlvalidation` (could catch bad XML in our files at load). Through Steam they'd go in the Steam launch options.
-4. **The out-of-sight claim path** (`attention min="unknown"`) needs the player far away. Tests could move the player with `warp`.
-5. **Other enabled mods** would load into test runs too. The runner could list the enabled extensions in its report, so a run is reproducible.
+1. **A faster start still:** about 35–45 s of each run is X4 starting up to its main menu, which we don't control; the undocumented module option above might skip the menu.
+2. **Other `X4.exe` options** (strings next to the known ones, unverified): `-nocputhrottle` and `-nosoundthrottle` (keep running at full speed in the background, so the PC stays usable during a run), `-disablesound`, `-usedefaultconfig` / `-dontsaveconfig` (a clean, unchanged config), `-noworkshopsync`, `-enablexmlvalidation` (could catch bad XML in our files at load). Through Steam they'd go in the Steam launch options.
+3. **The out-of-sight claim path** (`attention min="unknown"`) needs the player far away. Tests could move the player with `warp`.
+4. **Other enabled mods** would load into test runs too. The runner could list the enabled extensions in its report, so a run is reproducible.
 
 ## Next steps
 

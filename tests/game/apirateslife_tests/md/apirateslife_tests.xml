@@ -36,8 +36,8 @@
           <conditions>
             <check_value value="md.APiratesLife_Settings.Lua.$Reported or player.age gt $StartAge + 30s"/>
           </conditions>
-          <!-- Let the game settle after loading -->
-          <delay exact="5s"/>
+          <!-- Let the game settle after loading; it waits for the settings Lua above already -->
+          <delay exact="1s"/>
           <actions>
             <debug_text text="'[apirateslife-test] RUN START %s tests'.[$Tests.count]" filter="general"/>
             <!-- The new game was put on the tester's own profile for new games; go back to Default
@@ -48,6 +48,8 @@
               <param name="List" value="['Default']"/>
             </run_actions>
             <raise_lua_event name="'apirateslife_tests.profiles'" param="'begin'"/>
+            <!-- No ship may call in: a conversation stops SETA (the test extension's Lua) -->
+            <raise_lua_event name="'apirateslife_tests.quietOrders'"/>
             <!-- SETA: up to 6x game time, for tests that wait on travel. Needs SETA in the inventory
                  (the gamestart provides it) and no enemies nearby. The factor is game time per
                  real second. -->
@@ -59,6 +61,15 @@
 
         <!-- SETA drops whenever something interrupts it (a help message, a wingman's comm call, an
              enemy nearby); switch it back on once the game allows it again -->
+        <cue name="QuietOrdersDone">
+          <conditions>
+            <event_ui_triggered screen="'apirateslife_tests'" control="'quietOrders'"/>
+          </conditions>
+          <actions>
+            <debug_text text="'[apirateslife-test] standing orders: ask off for %s signal orders'.[event.param3]" filter="general"/>
+          </actions>
+        </cue>
+
         <cue name="KeepSeta" instantiate="true" checkinterval="2s">
           <conditions>
             <check_value value="Begin.state == cuestate.complete"/>
@@ -714,7 +725,7 @@
         </create_ship>
         <!-- The abandoned-ship interrupt needs a non-priority order to interrupt -->
         <create_order id="'Wait'" object="$Claimer" default="true"/>
-        <set_object_signal_response object="$Claimer" signal="'foundabandonedship'" response="'claim'"/>
+        <set_object_signal_response object="$Claimer" signal="'foundabandonedship'" response="'claim'" ask="false"/>
         <set_object_hull object="$Target" exact="100"/>
         <return value="table[$claimer = $Claimer, $target = $Target]"/>
       </actions>
