@@ -72,11 +72,11 @@ Feature: Settings profiles
   Scenario: A changed game shows the profile with a star, and can save into it
     Given a game on "Hard mode"
     When I change a setting
-    Then the Profile dropdown shows "Hard mode *"
-    And "Save changes to 'Hard mode'" is enabled
+    Then the Profile dropdown shows "Hard mode *" straight away, without leaving the page
+    And "Save changes to 'Hard mode'" is enabled straight away
     When I press it
     Then "Hard mode" has the game's values
-    And the dropdown shows "Hard mode" and the button is disabled again
+    And the dropdown shows "Hard mode" and the button is disabled again, straight away
 
   @test_save_changes_only_into_a_saved_profile_with_changes
   Scenario: Save changes isn't offered for Default or None
@@ -132,7 +132,8 @@ Feature: Settings profiles
   @test_choosing_the_profile_for_new_games
   Scenario: Change the profile for new games
     When I choose "Easy mode" in "Profile for new games"
-    Then the next new game starts on "Easy mode"
+    Then the dropdown shows "Easy mode" straight away
+    And the next new game starts on "Easy mode"
     And games I already have keep their profiles
 
   @manual
