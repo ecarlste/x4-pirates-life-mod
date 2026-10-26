@@ -1,6 +1,6 @@
 # Spec: Settings profiles
 
-Plan item: Phase 1, "Settings profiles: a game is on a profile or on its own settings" · Status: Agreed
+Plan item: Phase 1, "Settings profiles: a game is on a profile or on its own settings" · Status: Done (PRs #43, #48, #49)
 
 ## Goal
 
@@ -42,7 +42,7 @@ On the settings page the player picks a **profile** for the game: the built-in *
 - [x] `ui/apirateslife_options.lua`: the Profile dropdown with Default and "\*", "Save changes to …", "Save as new profile…" rules, delete switching games to None; remove "Load profile" and "Reset"
 - [x] Game tests for the MD rules, two of them end to end through the page Lua, and the test isolation for profiles
 - [x] Update the in-game settings scenarios that this changes (reset becomes choosing Default; changed settings no longer follow the config)
-- [ ] Hand test of the `@manual` scenarios with UI Extensions
+- [x] Hand test of the `@manual` scenarios with UI Extensions (Erik, 2026-10-26: all three pass, including profiles surviving an X4 restart)
 
 ## Done when
 
