@@ -31,8 +31,8 @@ Every career stage runs the same loop; only the scale changes.
 
 1. **Find a target** — scan, buy shipping intel, follow rumors; targets are found, not spawned.
 2. **Take it** — threaten, disable or board; a feared pirate gets surrenders without a fight.
-3. **Cash in** — fence cargo, sell or keep ships, ransom crews; hot goods sell at a cut.
-4. **Spend it** — ships, marines, crew, bribes, hideout upgrades.
+3. **Cash in** — fence cargo, sell or keep ships, hand prizes to pirate factions as [booty](#booty-and-pirate-standing), ransom crews; hot goods sell at a cut.
+4. **Spend it** — ships, marines, crew, bribes, hideout upgrades, and unlocks at pirate factions' stores.
 5. **Manage the heat** — notoriety brings patrols and hunters: lay low, bribe, or fight it out.
 
 Then repeat with bigger ships and bigger targets. Heat is what turns raiding into a career: it is the main difficulty lever and the reason the player keeps moving.
@@ -50,6 +50,21 @@ A pure pirate progresses through four stages, plus an XXL capstone in SWI. Hours
 | Capstone (SWI) | XXL | Endgame | Super Star Destroyer-class captures | Profile-defined, brutal |
 
 The hands-on capture-every-size playthrough follows these stages: S, M, L, XL, then XXL.
+
+## Booty and pirate standing
+
+Handing prizes to pirate factions is how a pirate earns their trust and unlocks their gear. Tentative design (agreed 2026-10-26); the numbers are starting defaults to tune in playtests. Research and open ideas: [research/booty.md](research/booty.md).
+
+- **Booty is a ship's total value, like a sale:** hull condition, fitted equipment, units and cargo. The more intact the prize, the more it's worth.
+- **Handing over pays twice:** credits, a share of the value set below what a vanilla sale would pay (so it never adds a money exploit), plus booty for that pirate faction. Pirates stay a cash outlet even after everything is unlocked.
+- **Any ship counts; stolen ships count for more.** A bought or built ship is a donation. A captured ship earns a stolen bonus on standing and on currency, because pirates trust someone with skin in the game.
+- **Pirates have tastes.** Each pirate faction pays more or less according to who made the ship (its maker race): little for ships they don't want, a lot for ones they crave (e.g. Xenon). Defined in the profile's faction map.
+- **Standing per pirate faction, earned only from booty,** separate from vanilla reputation (which can be locked, start at enemy, or move for other reasons). Turn-ins also raise vanilla rep where it isn't locked. Any faction a profile maps as a pirate faction works, from vanilla's Scale Plate Pact to SWI's Sith.
+- **Levels open bigger turn-ins.** At first a faction only takes S ships; each level opens the next size (M, then L, then XL). An S-only pirate can still climb every level, just far more slowly.
+- **Time targets for one faction, if that's all the player works on:** about 2 h to open M, 8 h to open L, 25 h to open XL, and about 50 h to unlock everything in that faction's store. Level thresholds are worked out from these targets and real capture times.
+- **Currency per pirate faction,** spent at that faction's store to unlock items and their blueprints (blueprints cost more, keeping vanilla's price ratio). The store itself is still being designed ([research/pirate-refitting.md](research/pirate-refitting.md)).
+- **First version:** a "Hand over as booty" order on the prize, targeting a pirate station that can take that size of ship. The captain flies it there, docks, and the handover happens on arrival. At handover, the prize's pilot moves to a free marine slot on one of the player's ships (vanilla crew transfer, nearest first), so marines keep gaining experience; with no free slot, the pilot is lost, as in a sale.
+- **Settings:** standing gain multiplier (how grindy levels are), credit share, stolen bonus (standing and currency), item unlock and blueprint cost multipliers, and the level thresholds.
 
 ## Notoriety, heat, and fear vs. honor
 
@@ -136,7 +151,7 @@ Players get presets with sensible defaults, plus sliders they can change mid-gam
 
 | Group | Sliders |
 | --- | --- |
-| Economy | Payout multiplier, fence cut on hot goods and ships, laundering cost, ransom values, starting capital |
+| Economy | Payout multiplier, fence cut on hot goods and ships, laundering cost, ransom values, starting capital, booty: standing gain, handover credit share, stolen bonus, unlock and blueprint costs |
 | Heat | Notoriety gain and decay, heat gain and decay, police and bounty hunter response, dock closure speed |
 | Combat and capture | Escort density, boarding resistance per tier, surrender and bail likelihood |
 | Fleet | Delegated raid income cap, crew loyalty, mutiny chance |
