@@ -113,11 +113,11 @@ Source: [`tests/game/features/settings-profiles.feature`](../../tests/game/featu
 ```gherkin
   Given a game on "Hard mode"
   When I change a setting
-  Then the Profile dropdown shows "Hard mode *"
-  And "Save changes to 'Hard mode'" is enabled
+  Then the Profile dropdown shows "Hard mode *" straight away, without leaving the page
+  And "Save changes to 'Hard mode'" is enabled straight away
   When I press it
   Then "Hard mode" has the game's values
-  And the dropdown shows "Hard mode" and the button is disabled again
+  And the dropdown shows "Hard mode" and the button is disabled again, straight away
 ```
 
 ### Save changes isn't offered for Default or None
@@ -200,7 +200,8 @@ Source: [`tests/game/features/settings-profiles.feature`](../../tests/game/featu
 
 ```gherkin
   When I choose "Easy mode" in "Profile for new games"
-  Then the next new game starts on "Easy mode"
+  Then the dropdown shows "Easy mode" straight away
+  And the next new game starts on "Easy mode"
   And games I already have keep their profiles
 ```
 
