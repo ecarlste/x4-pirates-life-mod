@@ -11,6 +11,7 @@ A piracy overhaul for **X4: Foundations**. The goal is a full career from small-
   - bash (WSL, Linux or macOS) and `make`; or
   - PowerShell (Windows PowerShell 5.1 or PowerShell 7)
 - For the Lua unit tests: LuaJIT (`sudo apt install luajit`); `make test` skips them without it
+- Optional, for a faster `make test`: GNU parallel and ICU (`sudo apt install parallel libicu78`)
 - To unpack game files for reference: Egosoft's **X Tools** from the Steam library
 
 ## Setup
