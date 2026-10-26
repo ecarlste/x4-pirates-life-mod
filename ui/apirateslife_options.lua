@@ -97,9 +97,21 @@ local function readState()
 	state.config = data.config or {}
 end
 
+-- Asks the options menu to redraw the page a moment later, as vanilla's own option callbacks do.
+-- The menu reads a dropdown's text and whether a row can be clicked only when it draws the row, so
+-- without this the Profile dropdown's " *" and "Save changes to …" only updated after leaving the
+-- page. (The on/off buttons read their text every frame, so they never needed it.)
+local function redraw()
+	if optionsMenu then
+		optionsMenu.delayedRefresh = getElapsedTime() + 0.1
+	end
+end
+
+-- Every action that sends MD an event also changes what the page shows, so it redraws too
 local function send(control, value)
 	expectHandled = (expectHandled or lastHandled) + 1
 	AddUITriggeredEvent(screen, control, value)
+	redraw()
 end
 
 local function profiles()
@@ -288,6 +300,7 @@ end
 local function setNewGameProfile(name)
 	__userdata_apirateslife.newGameProfile = (name ~= defaultProfile) and name or nil
 	status = string.format("New games start on '%s'.", name)
+	redraw()
 end
 
 -- Games on the deleted profile switch to None with the values they have: this one at once, the

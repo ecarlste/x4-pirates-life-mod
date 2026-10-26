@@ -210,6 +210,28 @@ function TestProfiles:test_toggling_marks_a_profile_modified_but_not_none()
 	lu.assertFalse(page.state.modified)
 end
 
+-- The options menu reads a dropdown's text and whether a row can be clicked only when it draws
+-- the row, so without a redraw "Hard mode *" and "Save changes to …" only showed after leaving
+-- the page (found in the hand test of #43)
+function TestProfiles:test_every_change_asks_the_menu_to_redraw()
+	local env = loadWith({ userdata = profilesOf("Hard mode") })
+	local page = env.page
+	page.state.profile, page.state.values = "Hard mode", { IntactOnEject = 1 }
+	local actions = {
+		{ "toggling a setting", function () page.toggle("IntactOnEject") end },
+		{ "saving changes into the profile", function () page.saveChanges() end },
+		{ "saving as a new profile", function () page.saveAsNew("Hard mode lite") end },
+		{ "choosing the profile for new games", function () page.setNewGameProfile("Hard mode") end },
+		{ "choosing a profile", function () page.useProfile("Default") end },
+		{ "deleting a profile", function () page.deleteProfile("Hard mode lite") end },
+	}
+	for _, action in ipairs(actions) do
+		env.menu.delayedRefresh = nil
+		action[2]()
+		lu.assertNotNil(env.menu.delayedRefresh, action[1] .. " didn't ask the menu to redraw")
+	end
+end
+
 function TestProfiles:test_delete_moves_the_game_to_none_and_clears_the_new_game_profile()
 	local userdata = profilesOf("Hard", "Easy")
 	userdata.newGameProfile = "Hard"
