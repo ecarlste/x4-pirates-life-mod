@@ -43,7 +43,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [x] Release checklist from the same generator: every `@manual` and `@pending` scenario, with its steps (`tools/test_plan_docs.py --checklist <file>`), replacing `tools/manual-checklist.py` ([PR #46](https://github.com/ecarlste/x4-pirates-life-mod/pull/46))
 - [x] Python unit tests for `tools/` with `unittest` in `tests/python/`, run by `make test` and CI's bats jobs; Python tools renamed with underscores so the tests import them ([PR #47](https://github.com/ecarlste/x4-pirates-life-mod/pull/47))
 - [x] Fast local `make test` (about 4 min to about 30 s): Pester on PowerShell 7 in WSL, one process per test file in parallel and overlapped with the other suites, slow Pester files split by topic, bats files in parallel with GNU parallel ([PR #50](https://github.com/ecarlste/x4-pirates-life-mod/pull/50))
-- [x] Faster game tests (2 min 50 s to about 1 min 30 s): the test start in the tutorials' one-sector galaxy, no ship calls in (the player's global standing orders don't ask), SETA checked in the report, per-phase timings in the report, shorter fixed waits (PR_LINK)
+- [x] Faster game tests (2 min 50 s to about 1 min 30 s): the test start in the tutorials' one-sector galaxy, no ship calls in (the player's global standing orders don't ask), SETA checked in the report, per-phase timings in the report, shorter fixed waits ([PR #51](https://github.com/ecarlste/x4-pirates-life-mod/pull/51))
 - [ ] Dev menu, stripped from release builds
 - [ ] Versioned showcase saves, one per feature
 
