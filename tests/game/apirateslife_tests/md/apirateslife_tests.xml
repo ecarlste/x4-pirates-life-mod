@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyListsDockedShips, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -2062,6 +2062,36 @@
         <return value="$Ship"/>
       </actions>
     </library>
+
+    <!-- The conversation lists the ships DockedShips finds: a fighter of mine docked at the wharf
+         is among them -->
+    <cue name="BootyListsDockedShips">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="VigorWharf" result="$Wharf"/>
+      </actions>
+      <cues>
+        <cue name="BootyListsDockedShips_Act">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="DockedShip" result="$Ship">
+              <param name="Station" value="$Wharf"/>
+              <param name="Macro" value="macro.ship_arg_s_fighter_01_a_macro"/>
+            </run_actions>
+            <run_actions ref="md.APiratesLife_Booty.DockedShips" result="$Listed">
+              <param name="Station" value="$Wharf"/>
+            </run_actions>
+            <set_value name="$IsListed" exact="$Ship and $Listed.indexof.{$Ship} gt 0"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'booty_lists_docked_ships', $ok = $IsListed, $detail = (if $Ship then '%s ship(s) found docked, the fighter among them: %s'.[$Listed.count, $IsListed] else 'no free S dock at the wharf')]"/>
+            <do_if value="$Ship">
+              <destroy_object object="$Ship"/>
+            </do_if>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
 
     <!-- Level and cut from the vanilla profile's Vigor data and the default settings -->
     <cue name="BootyLevelsAndCut">

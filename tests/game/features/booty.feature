@@ -10,10 +10,16 @@ Feature: Booty
     And M, L and XL turn-ins open at levels 4, 8 and 15
     And the cut is 40% at level 0, 25% at level 10 and 10% at level 20
 
+  @booty_lists_docked_ships
+  Scenario: My ships docked at a Vigor station are found for the list
+    Given a fighter of mine docked at the Vigor wharf
+    When the handover list looks for my ships docked there
+    Then the fighter is among them
+
   @manual
   Scenario: Talking to a Vigor station's staff lists my docked ships
     Given ships of mine docked at the Vigor wharf, one too big for my level
-    When I hail the wharf, or talk to its ship trader, and choose "Hand over booty"
+    When I talk to its manager or its ship trader, and choose "Hand over booty"
     Then my docked ships are listed four to a page, pirated ones marked
     And the one too big can't be chosen, saying why
 

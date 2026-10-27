@@ -380,6 +380,25 @@
       </actions>
     </library>
 
+    <!-- The player's ships docked at Station (on its pads and bays, or on ships docked there), not
+         the one they fly. Found as vanilla's ship trader finds them (md/npc_shiptrader.xml):
+         .docked is a docking bay's list, not a station's. -->
+    <library name="DockedShips" purpose="run_actions">
+      <params>
+        <param name="Station"/>
+      </params>
+      <actions>
+        <find_object_component name="$Found" object="$Station" class="class.ship" includeobjects="true" docked="true" owner="faction.player" multiple="true"/>
+        <set_value name="$Ships" exact="[]"/>
+        <do_for_each name="$Ship" in="$Found">
+          <do_if value="$Ship != player.occupiedship and not $Ship.isunit and not $Ship.isrealclass.spacesuit">
+            <append_to_list name="$Ships" exact="$Ship"/>
+          </do_if>
+        </do_for_each>
+        <return value="$Ships"/>
+      </actions>
+    </library>
+
     <!-- Adds the choices for one page of the player's ships docked at Station: four ships a page,
          "more ships" when there are more, and back -->
     <library name="ListShips" purpose="run_actions">
@@ -388,12 +407,9 @@
         <param name="Page"/>
       </params>
       <actions>
-        <set_value name="$Ships" exact="[]"/>
-        <do_for_each name="$Ship" in="$Station.docked">
-          <do_if value="$Ship.isplayerowned and $Ship.isclass.ship and $Ship != player.occupiedship">
-            <append_to_list name="$Ships" exact="$Ship"/>
-          </do_if>
-        </do_for_each>
+        <run_actions ref="DockedShips" result="$Ships">
+          <param name="Station" value="$Station"/>
+        </run_actions>
         <set_value name="$First" exact="($Page - 1) * 4 + 1"/>
         <do_if value="$Ships.count == 0">
           <add_player_choice text="{1774101, 3}" section="g_apirateslife_booty" position="top_left" selectable="false"/>
