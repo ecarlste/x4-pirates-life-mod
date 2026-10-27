@@ -40,16 +40,24 @@ Capture is the small part of a prize's time. Rough full cycles, including findin
 
 ## Levels and thresholds
 
-Targets for one faction, if that's all the player works on (agreed 2026-10-26):
+Targets for one pirate group, if that's all the player works on (agreed 2026-10-26). Since 2026-10-27 there are more levels than these, several per size tier, opening unlock tiers too; the size milestones stay the time targets:
 
 | Milestone | Target playtime | Prizes at the cycle times above | Standing needed (cumulative, from fitted medians) |
 | --- | --- | --- | --- |
-| Level 1: M turn-ins open | ~2 h | ~15 S | ~5–7M |
-| Level 2: L turn-ins open | ~8 h | + ~18 M | ~20M |
-| Level 3: XL turn-ins open | ~25 h | + ~17 L | ~110M |
-| Everything in that faction's store | ~50 h | XL prizes from there | to set with the store |
+| M turn-ins open | ~2 h | ~15 S | ~5–7M |
+| L turn-ins open | ~8 h | + ~18 M | ~20M |
+| XL turn-ins open | ~25 h | + ~17 L | ~110M |
+| Everything that group offers unlocked | ~50 h | XL prizes from there | to set with the unlock list |
 
-Standing counts booty after the stolen bonus, the faction's taste multiplier and the standing gain setting. The thresholds are settings, to be re-worked from real `.value` numbers and capture times once the metrics exist.
+Standing counts booty after the stolen bonus, the group's taste multiplier and the standing gain setting. The thresholds are settings: we build with these defaults and tune them from the capture-metrics logs and playtesting.
+
+## Unlocks in the build menus
+
+Erik's decision (2026-10-27): no store with its own stock. Booty buys an unlock, and the unlocked ship or item then shows up in the group's stations' normal build and equipment menus, bought with credits, like a military licence opens stronger gear. Whether the game allows that per player is the spike in the plan. The refitting research concluded station stock can't be gated per player ([pirate-refitting.md](pirate-refitting.md), "Selling it"), but these routes weren't tried:
+
+- **Licences from the group's faction.** Our pirate-modified wares are owned by the group's faction and restricted by a licence type; reaching a level grants the player that faction's licence with `add_licence` (`licencefaction` sets whose licence it is; vanilla grants Hatikvah's station licences this way, `base/md/playerreputation.xml:100`). Licence types are a fixed list (`base/libraries/common.xsd:4402`), so this gives a few tiers per faction (general use, military, capital, for equipment and for ships), not one unlock per item. It would also open that faction's vanilla gear under the same licence, against "vanilla rep keeps gating vanilla gear". To check: whether a granted licence works below the faction's relation threshold for it.
+- **Hiding locked wares in the menus.** The wares are owned by the group's faction with no licence restriction (Scale Plate is locked at −5, below the military licence's +10), so the station sells them to anyone; the ship and equipment menus (Lua) hide the ones this player hasn't unlocked, via kuertee's UI Extensions. One unlock per item works this way. To check: whether UI Extensions has a hook in those menus, and what happens without UI Extensions (an optional dependency; without it, everything would show).
+- **Our own refit service** (the refitting research's fallback): a pirate contact fits unlocked gear with `apply_loadout`. Works without UI changes, but isn't the vanilla build menu Erik wants.
 
 ## To verify in game
 
@@ -65,6 +73,9 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 
 - **Drop points.** Some handovers happen at a drop point in space instead of a station: a pirate pickup crew (a tug or escort for big prizes) meets you there. Sometimes the authorities show up, and you defend the crew and the prize for a bonus. No station guns, so the fights are real; XL handovers are the set pieces. Heat should drive how often the authorities come. Still open: whether the pirates or the player choose drop point or station. Vanilla prior art: the "Retrieve Dead Drop" mission chain, including a "Military Police Inspection" variant (`base/md/gmc_retrieve_dead_drop.xml:1826`).
 - **Finding the traitor.** If the authorities come because someone sold out the drop, the leak is a person (a contact, the pickup crew, your own crew, a rival). Clues from the ambush lead to a short hunt; what you do with the traitor is fear vs. honor; a traitor who gets away can come back.
-- **Hailing the station manager.** Dock the prize, then hail the station and pick from a list of eligible docked ships, reverse-engineering style. Lets the player move the pilot by hand first. A later enhancement to the order.
+- **Hailing the station manager.** Now one of the two ways in for v1 (with the order); still open: the flow. Dock the prize, then hail the station and pick from a list of eligible docked ships, reverse-engineering style. Lets the player move the pilot by hand first.
+- **What pirates do with the ships.** In v1 a handed-over ship goes the way of a ship sold at that station. Later, maybe: the group flies it (its fleet really grows; needs a spike on ownership changes, orders and a cap) or strips it for parts.
+- **Group missions and tips,** gated by standing: pirate-side missions like SWI's bounty-hunter missions, and tips on targets.
+- **Notoriety favours:** at random, a group adds extra money to a handover to buy a famous pirate's favour.
 - **Pirate versions of Xenon gear,** made the same way as the pirated gear in [pirate-refitting.md](pirate-refitting.md#raid-a-faction-arm-from-its-enemies).
-- **End-game booty uses,** once a faction's store is fully unlocked.
+- **End-game booty uses,** once a group's unlocks are all bought. Related: the pirate-lord ideas (your own faction first, then taking over a group, joint operations on large targets) in the plan's "Ideas and maybe".
