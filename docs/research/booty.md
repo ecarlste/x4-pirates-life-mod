@@ -4,7 +4,7 @@
 
 ## What scripts can read
 
-- **A ship's value:** `$ship.value`, "the current value of this object, including value of units and upgrades" (`base/libraries/scriptproperties.xml:241`). Vanilla's ship sale uses an engine function, `GetTotalValue(ship, true, shipyard)` (`base/ui/addons/ego_detailmonitor/menu_map.lua`, `createSellShipsContext`), which isn't visible in the Lua files. Whether `.value` already counts hull damage and cargo is to check in game; if not, we add hull % × value and each cargo ware's amount × average price ourselves.
+- **A ship's value:** `$ship.value`, "the current value of this object, including value of units and upgrades" (`base/libraries/scriptproperties.xml:241`). Vanilla's ship sale uses an engine function, `GetTotalValue(ship, true, shipyard)` (`base/ui/addons/ego_detailmonitor/menu_map.lua`, `createSellShipsContext`), which isn't visible in the Lua files. Booty uses the sale's own price (`GetTotalValue`, through our Lua), so whether `.value` counts damage no longer matters for it. The sale price does count hull damage (below).
 - **Who made a ship:** `makerraces`, the maker race list (`scriptproperties.xml:183`). Used for the pirates' tastes.
 - **Fitted equipment:** `weapons`, `turrets`, `shields` with `.operational.list`, and `.macro.ware` (`scriptproperties.xml:531-548`, macro datatype from line 2070).
 - **Moving the pilot to a marine slot:** vanilla's "work somewhere else" reassignment does it (`base/md/conversations.xml:1300-1330`: `set_entity_role`, `create_npc_template` on the new ship). Erik's experience: the transfer takes longer the farther apart the ships are, shows no pod, and survives selling the source ship.
@@ -96,7 +96,9 @@ SWI gates its factions' special ship versions with research (in its normal resea
 
 Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks below, and the capture-metrics check that a real capture's log turns into a CSV row, are done then, comparing `.value` with the Vigor Syndicate wharf's sale price for different ships.
 
-- Does `$ship.value` already count hull damage? Does it include cargo? A first reading from the capture metrics: a fully fitted Argon Nova Vanguard is about 1.6–2.1M, far above the S fitted median of 502k above.
+- ~~Does the price count hull damage?~~ **Yes, on the hull's own price only** (Erik's game, 2026-10-27, PR #63). The same pirated Argon Nova Vanguard (TGW-894) was handed to Vigor twice from one save: at 2316/3100 hull (74.7%) the sale price was 1,147,330 Cr, and repaired to 100% it was 1,181,604 Cr, up 34,274 Cr (3%). That fits a hull price of about 135k scaled by hull %, with the ~1.05M of equipment untouched. So an intact prize is worth more, but for a fitted fighter only a little: its equipment is most of the price.
+- Does the sale price include cargo? Still to check, with a transport carrying cargo.
+- `.value` (capture metrics) for comparison: a fully fitted Nova Vanguard read about 1.6–2.1M, above its sale price of about 1.2M, so `.value` and the sale price differ.
 - Does a crew transfer finish after its source ship has been handed over?
 - How does `makerraces` read for ships with more than one maker?
 - Can Xenon ships be captured in vanilla? They have no crew; the bail code divides the chance by 3 for Xenon, so some path exists.
