@@ -24,6 +24,7 @@ The mod requires Tides of Avarice and nothing else ([PROJECT.md, Key decisions](
 - **Every M frigate is already a mini-carrier:** one external S pad plus internal storage for one S ship (`dockarea_*_s_ship_01` and `shipstorage_gen_s_frigate_01`). A frigate can take a captured fighter aboard and fly it home.
 - **Only ships with a build module repair the ships docked at them** (`issupplyship`: "can repair ships and equipment"; `buildmodule_gen_resupplier_macro`). That's every XL carrier and resupplier, and two L ships: the Boron **Guppy** carrier (16 S docks, 60 crew, Boron DLC) and the Paranid **Hyperion** (3 S docks, 106 crew, 6 guns and 8 turrets, Hyperion Pack). No M ship can repair. Adding a build module to an M hull would mean a new component with a new connection: possible, but a spike of its own (see Ideas).
 - **Transports carry crew.** A cheap M transport holds as many people as a frigate, and an Argon L freighter up to 225: room for marines. Some are fast for their size.
+- **M ships launch boarding pods** (Erik's games): he regularly takes L ships, the Erlking included, with a group of captured M transports full of marines and no L ships at all. So a swarm of boarding transports is a whole boarding fleet, and the cheapest one.
 - **Pirate factions already fly suitable hulls:** Vigor's **Lux** (the fastest gunned S fighter in base and Tides of Avarice) and **Kyd** (the cheapest fighter Vigor sells), and the Yaki **Moreya** and **Kuraokami** (Terran DLC).
 
 ## The candidates, by role
@@ -98,5 +99,4 @@ Mk2 and Mk3 of the gear follow at higher levels; the DLC extras slot in beside t
 - Speed index against real speeds for a few picks, with the same engines.
 - Whether a captured S ship can dock in a frigate's internal storage after the claim, and stays aboard safely.
 - Whether docked prizes are repaired at an Atlas by an order, how fast, and at what cost.
-- Whether M ships can launch boarding pods, or only L and XL (boarding transports depend on it).
 - Whether the Hyperion Pack is installed for every player of 9.00, which would make the Hyperion a base pick.
