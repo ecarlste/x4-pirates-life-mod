@@ -22,6 +22,7 @@ Feature: Booty
     When I talk to its manager or its ship trader, and choose "Hand over booty"
     Then my docked ships are listed four to a page, pirated ones marked
     And the one too big can't be chosen, saying why
+    And choosing a ship asks me to confirm before it's handed over
 
   @booty_handover_pays @test_booty_sells_the_requested_ship_like_a_sale_and_answers_with_the_price
   Scenario: A handover pays credits minus the fence cut, and booty

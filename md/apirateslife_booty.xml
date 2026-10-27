@@ -364,25 +364,37 @@
       </actions>
     </cue>
 
-    <!-- ===== The conversation (our md/conversations.xml patch adds the choice) ===== -->
+    <!-- ===== The conversation ===== -->
 
-    <!-- The group station an NPC belongs to (its own station, or the one it runs), if it takes booty -->
-    <library name="StationOf" purpose="run_actions">
-      <params>
-        <param name="Npc"/>
-      </params>
+    <!-- "Hand over booty" when the player talks to the manager or the ship trader of a group's wharf
+         or shipyard, by comm or in person. Added from this cue, as Mysterial's Ship Reverse
+         Engineering mod adds its choice, rather than by patching vanilla's conversations: the
+         manager's (md/conversations.xml, DefaultComm) and the ship trader's (md/npc_shiptrader.xml)
+         are different scripts. No position: the game puts it in a free slot. Also on returning to
+         the main choices, which vanilla fills again. -->
+    <cue name="Offer" instantiate="true">
+      <conditions>
+        <check_any>
+          <event_conversation_started conversation="default"/>
+          <event_conversation_returned_to_section section="default"/>
+        </check_any>
+        <check_value value="typeof event.object == datatype.component and @event.object.isclass.entity and not event.object.isplayerowned"/>
+        <check_value value="@event.object.station and (event.object.station.shiptrader == event.object or event.object.station.tradenpc == event.object)"/>
+        <check_value value="not event.object.hasrelation.enemy.{faction.player}"/>
+      </conditions>
       <actions>
-        <set_value name="$Station" exact="if @$Npc.controlled.isclass.station then $Npc.controlled else @$Npc.station"/>
         <run_actions ref="GroupAt" result="$Group">
-          <param name="Station" value="$Station"/>
+          <param name="Station" value="event.object.station"/>
         </run_actions>
-        <return value="if $Group then $Station else null"/>
+        <do_if value="$Group">
+          <add_player_choice_sub text="{1774101, 1}" section="g_apirateslife_booty" choiceparam="[event.object.station, 1]"/>
+        </do_if>
       </actions>
-    </library>
+    </cue>
 
     <!-- The player's ships docked at Station (on its pads and bays, or on ships docked there), not
-         the one they fly. Found as vanilla's ship trader finds them (md/npc_shiptrader.xml):
-         .docked is a docking bay's list, not a station's. -->
+         the one they fly. Found as vanilla's ship trader finds them for "Upgrade a ship"
+         (md/npc_shiptrader.xml): .docked is a docking bay's list, not a station's. -->
     <library name="DockedShips" purpose="run_actions">
       <params>
         <param name="Station"/>
@@ -400,13 +412,14 @@
     </library>
 
     <!-- Adds the choices for one page of the player's ships docked at Station: four ships a page,
-         "more ships" when there are more, and back -->
+         "more ships" when there are more, and back. Remembers the page, for coming back to it. -->
     <library name="ListShips" purpose="run_actions">
       <params>
         <param name="Station"/>
         <param name="Page"/>
       </params>
       <actions>
+        <set_value name="global.$APiratesLife_BootyListing" exact="[$Station, $Page]"/>
         <run_actions ref="DockedShips" result="$Ships">
           <param name="Station" value="$Station"/>
         </run_actions>
@@ -424,18 +437,18 @@
             <param name="Ship" value="$Ship"/>
           </run_actions>
           <set_value name="$Text" exact="(if $Mark then {1774101, 11} else {1774101, 10}).[$Ship.knownname, $Ship.idcode]"/>
-          <set_value name="$Param" exact="[$Station, $Ship, $Page]"/>
+          <set_value name="$Param" exact="[$Station, $Ship]"/>
           <do_if value="$i == 1">
-            <add_player_choice text="$Text" section="g_apirateslife_booty_ship" position="top_left" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
+            <add_player_choice_sub text="$Text" section="g_apirateslife_booty_ship" position="top_left" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
           </do_if>
           <do_elseif value="$i == 2">
-            <add_player_choice text="$Text" section="g_apirateslife_booty_ship" position="left" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
+            <add_player_choice_sub text="$Text" section="g_apirateslife_booty_ship" position="left" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
           </do_elseif>
           <do_elseif value="$i == 3">
-            <add_player_choice text="$Text" section="g_apirateslife_booty_ship" position="bottom_left" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
+            <add_player_choice_sub text="$Text" section="g_apirateslife_booty_ship" position="bottom_left" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
           </do_elseif>
           <do_else>
-            <add_player_choice text="$Text" section="g_apirateslife_booty_ship" position="top_right" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
+            <add_player_choice_sub text="$Text" section="g_apirateslife_booty_ship" position="top_right" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
           </do_else>
         </do_all>
         <do_if value="$Ships.count ge $First + 4">
@@ -445,21 +458,42 @@
       </actions>
     </library>
 
+    <!-- The list: from "Hand over booty" or "More ships" (with [station, page]), or back from a
+         ship's confirmation (the page last shown) -->
     <cue name="Choice" instantiate="true">
       <conditions>
-        <event_conversation_next_section section="g_apirateslife_booty"/>
+        <check_any>
+          <event_conversation_next_section section="g_apirateslife_booty"/>
+          <event_conversation_returned_to_section section="g_apirateslife_booty"/>
+        </check_any>
       </conditions>
       <actions>
-        <run_actions ref="ListShips">
-          <param name="Station" value="event.param2.{1}"/>
-          <param name="Page" value="event.param2.{2}"/>
-        </run_actions>
+        <set_value name="$Listing" exact="if event.name == 'event_conversation_next_section' then event.param2 else @global.$APiratesLife_BootyListing"/>
+        <do_if value="@$Listing.{1}.exists">
+          <run_actions ref="ListShips">
+            <param name="Station" value="$Listing.{1}"/>
+            <param name="Page" value="$Listing.{2}"/>
+          </run_actions>
+        </do_if>
       </actions>
     </cue>
 
+    <!-- A ship chosen: confirm first, as a handover can't be undone -->
     <cue name="ShipChoice" instantiate="true">
       <conditions>
         <event_conversation_next_section section="g_apirateslife_booty_ship"/>
+      </conditions>
+      <actions>
+        <set_value name="$Ship" exact="event.param2.{2}"/>
+        <add_player_choice text="{1774101, 12}.[$Ship.knownname, $Ship.idcode]" section="g_apirateslife_booty_confirm" position="top_left" choiceparam="event.param2"/>
+        <add_player_choice_return text="{1002,20}" position="bottom_right" comment="Back"/>
+      </actions>
+    </cue>
+
+    <!-- Confirmed: hand it over, then show the list again -->
+    <cue name="ConfirmChoice" instantiate="true">
+      <conditions>
+        <event_conversation_next_section section="g_apirateslife_booty_confirm"/>
       </conditions>
       <actions>
         <run_actions ref="HandOver">
@@ -468,7 +502,7 @@
         </run_actions>
         <run_actions ref="ListShips">
           <param name="Station" value="event.param2.{1}"/>
-          <param name="Page" value="event.param2.{3}"/>
+          <param name="Page" value="1"/>
         </run_actions>
       </actions>
     </cue>

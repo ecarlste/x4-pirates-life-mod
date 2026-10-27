@@ -33,6 +33,7 @@
     <t id="3">No ships of yours are docked here.</t>
     <t id="10">%s %s</t>
     <t id="11">%s %s: pirated</t>
+    <t id="12">Hand over %s %s for good</t>
 
     <!-- Why a ship can't be handed over -->
     <t id="20">Too big: the %s don't take ships this size from you yet.</t>
