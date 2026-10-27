@@ -19,7 +19,7 @@ Feature: Booty
   @manual
   Scenario: Talking to a Vigor station's staff lists my docked ships
     Given ships of mine docked at the Vigor wharf, one too big for my level
-    When I talk to its manager or its ship trader, and choose "Hand over booty"
+    When I talk to its manager or its ship trader, in person or by comm from the map once 60% of the station is known, and choose "Hand over booty"
     Then my docked ships are listed four to a page, pirated ones marked
     And the one too big can't be chosen, saying why
     And choosing a ship asks me to confirm before it's handed over
