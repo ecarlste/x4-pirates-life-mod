@@ -88,6 +88,8 @@ SWI gates its factions' special ship versions with both rep and research (in its
 
 **Result: one hidden research ware per unlock is the way to build booty unlocks.** The other routes are no longer needed.
 
+**Licences (Erik, 2026-10-27): unlocks add to vanilla's gates, never bypass them.** Since the research replaces the licence check in the menu, the mod checks the licence itself: an unlock is offered only while the player holds the vanilla licence for that tier with the station's faction (general use; military +10; capital +20), and `remove_research` locks it again if they lose it. Open for the spec: catching the loss (a relation-change event, or a check when the player docks), and wording the research name so the one fixed text covers both missing standing and a missing licence.
+
 ## To verify in game
 
 Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks below, and the capture-metrics check that a real capture's log turns into a CSV row, are done then, comparing `.value` with the Vigor Syndicate wharf's sale price for different ships.
@@ -108,5 +110,7 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 - **A bypass quest line** for groups whose stations the player can't reach at first (e.g. a faction locked behind a story or terraforming), switchable in the config.
 - **Unlocking a family of items at once,** for a price that adds up to about the same as buying each; single unlocks let the player buy only what they want.
 - **Notoriety favours:** at random, a group adds extra money to a handover to buy a famous pirate's favour.
+- **More groups after Vigor** (v1 is Vigor only, agreed 2026-10-27). The Riptide Rakers could be the honorable path, with Vigor as the notorious one; the Yaki wharf adds S/M in Savage Spur I. SCA has no wharf or shipyard, so it would either not be a group or sell its unlocks at another group's stations.
+- **Earning past a locked relation.** MD can unlock a faction's relations, set them and lock them again, as Scale Plate's terraforming milestone does (`set_faction_relation_locked`, `base/md/terraforming.xml:2318`). A standing reward or a quest line could do the same for SCA.
 - **Pirate versions of Xenon gear,** made the same way as the pirated gear in [pirate-refitting.md](pirate-refitting.md#raid-a-faction-arm-from-its-enemies).
 - **End-game booty uses,** once a group's unlocks are all bought. Related: the pirate-lord ideas (your own faction first, then taking over a group, joint operations on large targets) in the plan's "Ideas and maybe".
