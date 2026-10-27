@@ -40,16 +40,40 @@ Capture is the small part of a prize's time. Rough full cycles, including findin
 
 ## Levels and thresholds
 
-Targets for one faction, if that's all the player works on (agreed 2026-10-26):
+Targets for one pirate group, if that's all the player works on (agreed 2026-10-26). Since 2026-10-27 there are more levels than these, several per size tier, opening unlock tiers too; the size milestones stay the time targets:
 
 | Milestone | Target playtime | Prizes at the cycle times above | Standing needed (cumulative, from fitted medians) |
 | --- | --- | --- | --- |
-| Level 1: M turn-ins open | ~2 h | ~15 S | ~5–7M |
-| Level 2: L turn-ins open | ~8 h | + ~18 M | ~20M |
-| Level 3: XL turn-ins open | ~25 h | + ~17 L | ~110M |
-| Everything in that faction's store | ~50 h | XL prizes from there | to set with the store |
+| M turn-ins open | ~2 h | ~15 S | ~5–7M |
+| L turn-ins open | ~8 h | + ~18 M | ~20M |
+| XL turn-ins open | ~25 h | + ~17 L | ~110M |
+| Everything that group offers unlocked | ~50 h | XL prizes from there | to set with the unlock list |
 
-Standing counts booty after the stolen bonus, the faction's taste multiplier and the standing gain setting. The thresholds are settings, to be re-worked from real `.value` numbers and capture times once the metrics exist.
+Standing counts booty after the stolen bonus, the group's taste multiplier and the standing gain setting. The thresholds are settings: we build with these defaults and tune them from the capture-metrics logs and playtesting.
+
+## Unlocks in the build menus
+
+Erik's decision (2026-10-27): no store with its own stock. Booty buys an unlock, one ship or weapon at a time, from the group's representative (like vanilla's faction HQ window for licences and blueprints); standing decides which unlocks are offered. The unlocked ship or item can then be bought with credits in the group's wharf or shipyard's normal menus, at the vanilla base price times a multiplier. Locked ones still show, with the reason. Whether the game allows that per player is the spike in the plan. A faction of our own to sell the variants is the last resort.
+
+### Spike findings (2026-10-27, game files only)
+
+**Best route: one hidden research ware per unlock.** The game already gates ships and equipment per player by research, with exactly the "show it, say why" behaviour Erik wants:
+
+- **A ware can need research.** Its `<production>` lists research wares (`<research><ware ware="research_…"/></research>`). Tides of Avarice's Erlking does this: `ship_pir_xl_battleship_01_a` needs `research_erlking_core` (`ego_dlc_pirate/libraries/wares.xml:475`). Equipment mods use it too (`mod_weapon_damage_01_mk1` needs `research_mod_weapon_mk1`).
+- **The build menu shows it locked, with the reason.** `menu.checkLicence` (`base/ui/addons/ego_detailmonitor/menu_ship_configuration.lua:7222`) decides for every ship and piece of equipment in the menu. For a ware with research precursors it checks `HasResearched` and, if missing, colours the entry red and lists the research under "Required research:" (text 1026/8023). The entry still shows, like a ship without its licence. The research ware's name is ours, so it can say what to do, e.g. "Scale Plate standing level 3: unlock with booty".
+- **MD grants it per player.** `<add_research ware="…"/>` and `<remove_research ware="…"/>` (the Erlking story, `ego_dlc_pirate/md/story_research_erlking.xml:527,542`; `base/md/diplomacy.xml:240`). Buying the unlock is then one action.
+- **It stays out of the HQ research tree.** Research wares tagged `hidden` (`tags="hidden research"`, e.g. `research_module_build`) are skipped by the research menu (`menu_research.lua:99`, which excludes the `hidden` tag).
+- **It's all data, with no Lua.** That means no UI Extensions needed and no menu code to break on game updates; for each variant, a diff on `wares.xml` adds the research ware and the precursor, which the generator script can write. Each unlock is one item.
+- **Where it's sold:** a station's build list comes from the ware's `<owner faction="…"/>`, so variants owned by a group's factions show up at that group's wharfs and shipyards. The Vigor Syndicate (`loanshark`) already sells eight ships of its own, from an S transport (`ship_pir_s_trans_container_01_a`, general-use licence) to L miners.
+- **Licences:** `checkLicence` skips the licence check for a ware that needs research (the two are an if/else), so a variant needing research isn't blocked by Scale Plate's locked −5 in the menu. To check in game: whether the engine still checks the licence when the purchase goes through.
+
+**Other routes (fallbacks):**
+
+- **Licences from the group's faction.** Our pirate-modified wares are owned by the group's faction and restricted by a licence type; reaching a level grants the player that faction's licence with `add_licence` (`licencefaction` sets whose licence it is; vanilla grants Hatikvah's station licences this way, `base/md/playerreputation.xml:100`). Licence types are a fixed list (`base/libraries/common.xsd:4402`), so this gives a few tiers per faction, not one unlock per item, and would also open that faction's vanilla gear.
+- **Hiding locked wares in the menus** through kuertee's UI Extensions: per item, but needs Lua, the hook, and shows everything without UI Extensions.
+- **Our own refit service** with `apply_loadout`: works without UI changes, but isn't the vanilla build menu.
+
+**Still to prove in game (a small proof of concept at the Vigor wharf):** patch one Vigor ship to need a hidden research ware of ours, then check: (1) it shows red with our text; (2) after `add_research` it can be bought, and the purchase completes; (3) the same for a ship needing the military licence, to see whether the engine still asks for the licence; (4) the research stays out of the HQ research menu; (5) it survives a save and load.
 
 ## To verify in game
 
@@ -65,6 +89,11 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 
 - **Drop points.** Some handovers happen at a drop point in space instead of a station: a pirate pickup crew (a tug or escort for big prizes) meets you there. Sometimes the authorities show up, and you defend the crew and the prize for a bonus. No station guns, so the fights are real; XL handovers are the set pieces. Heat should drive how often the authorities come. Still open: whether the pirates or the player choose drop point or station. Vanilla prior art: the "Retrieve Dead Drop" mission chain, including a "Military Police Inspection" variant (`base/md/gmc_retrieve_dead_drop.xml:1826`).
 - **Finding the traitor.** If the authorities come because someone sold out the drop, the leak is a person (a contact, the pickup crew, your own crew, a rival). Clues from the ambush lead to a short hunt; what you do with the traitor is fear vs. honor; a traitor who gets away can come back.
-- **Hailing the station manager.** Dock the prize, then hail the station and pick from a list of eligible docked ships, reverse-engineering style. Lets the player move the pilot by hand first. A later enhancement to the order.
+- **Hailing the station manager.** Now one of the two ways in for v1 (with the order); still open: the flow. Dock the prize, then hail the station and pick from a list of eligible docked ships, reverse-engineering style. Lets the player move the pilot by hand first.
+- **What pirates do with the ships.** In v1 a handed-over ship goes the way of a ship sold at that station. Later, maybe: the group flies it (its fleet really grows; needs a spike on ownership changes, orders and a cap) or strips it for parts.
+- **Group missions and tips,** gated by standing: pirate-side missions like SWI's bounty-hunter missions, and tips on targets.
+- **A bypass quest line** for groups whose stations the player can't reach at first (e.g. a faction locked behind a story or terraforming), switchable in the config.
+- **Unlocking a family of items at once,** for a price that adds up to about the same as buying each; single unlocks let the player buy only what they want.
+- **Notoriety favours:** at random, a group adds extra money to a handover to buy a famous pirate's favour.
 - **Pirate versions of Xenon gear,** made the same way as the pirated gear in [pirate-refitting.md](pirate-refitting.md#raid-a-faction-arm-from-its-enemies).
-- **End-game booty uses,** once a faction's store is fully unlocked.
+- **End-game booty uses,** once a group's unlocks are all bought. Related: the pirate-lord ideas (your own faction first, then taking over a group, joint operations on large targets) in the plan's "Ideas and maybe".

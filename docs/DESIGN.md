@@ -31,8 +31,8 @@ Every career stage runs the same loop; only the scale changes.
 
 1. **Find a target** — scan, buy shipping intel, follow rumors; targets are found, not spawned.
 2. **Take it** — threaten, disable or board; a feared pirate gets surrenders without a fight.
-3. **Cash in** — fence cargo, sell or keep ships, hand prizes to pirate factions as [booty](#booty-and-pirate-standing), ransom crews; hot goods sell at a cut.
-4. **Spend it** — ships, marines, crew, bribes, hideout upgrades, and unlocks at pirate factions' stores.
+3. **Cash in** — fence cargo, sell or keep ships, hand prizes to pirate groups as [booty](#booty-and-pirate-standing), ransom crews; hot goods sell at a cut.
+4. **Spend it** — ships, marines, crew, bribes, hideout upgrades, and unlocks from pirate groups.
 5. **Manage the heat** — notoriety brings patrols and hunters: lay low, bribe, or fight it out.
 
 Then repeat with bigger ships and bigger targets. Heat is what turns raiding into a career: it is the main difficulty lever and the reason the player keeps moving.
@@ -53,18 +53,33 @@ The hands-on capture-every-size playthrough follows these stages: S, M, L, XL, t
 
 ## Booty and pirate standing
 
-Handing prizes to pirate factions is how a pirate earns their trust and unlocks their gear. Tentative design (agreed 2026-10-26); the numbers are starting defaults to tune in playtests. Research and open ideas: [research/booty.md](research/booty.md).
+Handing prizes to pirate groups is how a pirate earns their trust and unlocks their designs. Tentative design (agreed 2026-10-26, refined 2026-10-27); the numbers are starting defaults to tune in playtests. Research and open ideas: [research/booty.md](research/booty.md).
 
+- **Pirate groups.** The profile groups pirate factions that share a wharf and shipyard into a group: one dealer network with one currency, one standing ladder, one set of tastes and one list of unlocks. In vanilla each pirate faction starts as its own group; a profile like SWI's can put several factions (the Sith and their offshoots) in one.
 - **Booty is a ship's total value, like a sale:** hull condition, fitted equipment, units and cargo. The more intact the prize, the more it's worth.
-- **Handing over pays twice:** credits, a share of the value set below what a vanilla sale would pay (so it never adds a money exploit), plus booty for that pirate faction. Pirates stay a cash outlet even after everything is unlocked.
+- **Handing over pays twice:** credits, plus booty for that group. Pirates stay a cash outlet even after everything is unlocked.
+  - **The fence cut:** credits are what a vanilla sale at that station would pay, minus a cut. The cut falls as the player's standing with the group rises but never reaches zero, so a pirate never makes as much as a legit seller. Notoriety will lower it too once it exists.
 - **Any ship counts; stolen ships count for more.** A bought or built ship is a donation. A captured ship earns a stolen bonus on standing and on currency, because pirates trust someone with skin in the game.
-- **Pirates have tastes.** Each pirate faction pays more or less according to who made the ship (its maker race): little for ships they don't want, a lot for ones they crave (e.g. Xenon). Defined in the profile's faction map.
-- **Standing per pirate faction, earned only from booty,** separate from vanilla reputation (which can be locked, start at enemy, or move for other reasons). Turn-ins also raise vanilla rep where it isn't locked. Any faction a profile maps as a pirate faction works, from vanilla's Scale Plate Pact to SWI's Sith.
-- **Levels open bigger turn-ins.** At first a faction only takes S ships; each level opens the next size (M, then L, then XL). An S-only pirate can still climb every level, just far more slowly.
-- **Time targets for one faction, if that's all the player works on:** about 2 h to open M, 8 h to open L, 25 h to open XL, and about 50 h to unlock everything in that faction's store. Level thresholds are worked out from these targets and real capture times.
-- **Currency per pirate faction,** spent at that faction's store to unlock items and their blueprints (blueprints cost more, keeping vanilla's price ratio). The store itself is still being designed ([research/pirate-refitting.md](research/pirate-refitting.md)).
-- **First version:** a "Hand over as booty" order on the prize, targeting a pirate station that can take that size of ship. The captain flies it there, docks, and the handover happens on arrival. At handover, the prize's pilot moves to a free marine slot on one of the player's ships (vanilla crew transfer, nearest first), so marines keep gaining experience; with no free slot, the pilot is lost, as in a sale.
-- **Settings:** standing gain multiplier (how grindy levels are), credit share, stolen bonus (standing and currency), item unlock and blueprint cost multipliers, and the level thresholds.
+- **Pirates have tastes.** Each group pays more or less according to who made the ship (its maker race): little for ships they don't want, a lot for ones they crave (e.g. Xenon). Defined per group in the profile.
+- **Standing per group, earned only from booty,** separate from vanilla reputation (which can be locked, start at enemy, or move for other reasons). Vanilla reputation keeps gating vanilla gear as it does now; standing gates the mod's rewards. Turn-ins also raise vanilla rep with the station's owner where it isn't locked. Any faction a profile puts in a group works, from vanilla's Scale Plate Pact to SWI's Sith.
+- **Standing is never spent and, for now, never lost.** Ways to lose it come later.
+- **Many standing levels,** several per ship-size tier, so the player keeps feeling progress. Levels open:
+  - **bigger turn-ins:** at first a group only takes S ships; M, L and XL each open at a later level. An S-only pirate can still climb every level, just far more slowly;
+  - **tiers of unlocks:** e.g. Mk1, then Mk2, then Mk3 engines and shields, and the pirate-modified weapons and ships within each size;
+  - **a lower fence cut.**
+- **Time targets for one group, if that's all the player works on:** about 2 h to open M, 8 h to open L, 25 h to open XL, and about 50 h to unlock everything that group offers. Level thresholds start from these targets and are tuned from the capture-metrics logs and playtesting.
+- **Currency per group, one kind only.** Booty is the only way to pay, so doing business with pirates means doing the mod's piracy. A second kind only if a later way of earning has to be kept apart; prices name their currency in the data so that stays a data change.
+- **Unlocks, not a store.** Booty buys the right to buy, one ship or weapon at a time, so the player buys only what they want:
+  - **Buying an unlock:** from the group's representative, in a window like vanilla's faction HQ window for licences and blueprints. Standing levels decide which unlocks are offered; the group's booty pays for them.
+  - **Buying the ship or item:** at the group's existing wharf or shipyard, in the normal build and equipment menus, bought with credits like any vanilla ship. One place to get ships, not a separate shop.
+  - **Locked ones still show,** with the reason they can't be bought (e.g. "needs standing level 3 with Scale Plate"), the way vanilla shows ships the player has no licence for.
+  - **Credit price:** the vanilla price of the ship or item it's based on, times a configurable multiplier for the variant's stronger stats.
+  - **Blueprints** of unlocked items are separate unlocks, costing more booty (keeping vanilla's price ratio), so the expensive L/XL blueprints are bought only when wanted.
+  - **The group's stations** must be able to build what it unlocks, and the player must be able to reach them.
+  - How to do this per player in the vanilla menus is still to research ([research/booty.md](research/booty.md#unlocks-in-the-build-menus)); a faction of our own to sell the variants is the last resort.
+- **What happens to a handed-over ship:** the same as a ship sold at that station. Only the way in differs.
+- **First version:** the player hands a prize over with an order on the prize ("Hand over as booty") or in a conversation with the station manager, at a station of the group that can take that size of ship. The prize docks and is handed over like a sale. At handover, the prize's pilot moves to a free marine slot on one of the player's ships (vanilla crew transfer, nearest first), so marines keep gaining experience; with no free slot, the pilot is lost, as in a sale.
+- **Settings:** standing gain multiplier (how grindy levels are), fence cut (start and floor), stolen bonus (standing and currency), unlock and blueprint cost multipliers, and the level thresholds.
 
 ## Notoriety, heat, and fear vs. honor
 
@@ -151,7 +166,7 @@ Players get presets with sensible defaults, plus sliders they can change mid-gam
 
 | Group | Sliders |
 | --- | --- |
-| Economy | Payout multiplier, fence cut on hot goods and ships, laundering cost, ransom values, starting capital, booty: standing gain, handover credit share, stolen bonus, unlock and blueprint costs |
+| Economy | Payout multiplier, fence cut on hot goods and ships, laundering cost, ransom values, starting capital, booty: standing gain, fence cut, stolen bonus, unlock and blueprint costs |
 | Heat | Notoriety gain and decay, heat gain and decay, police and bounty hunter response, dock closure speed |
 | Combat and capture | Escort density, boarding resistance per tier, surrender and bail likelihood |
 | Fleet | Delegated raid income cap, crew loyalty, mutiny chance |
