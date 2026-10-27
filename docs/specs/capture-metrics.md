@@ -1,6 +1,6 @@
 # Spec: Capture metrics
 
-Plan item: Phase 2, slice 1, "Capture metrics" · Status: Agreed
+Plan item: Phase 2, slice 1, "Capture metrics" · Status: Done
 
 ## Goal
 
@@ -41,6 +41,6 @@ The scenarios in [`tests/game/features/capture-metrics.feature`](../../tests/gam
 
 ## Open questions
 
-- Whether `.value` counts hull damage (also a booty check); the summary logs it at the start, before any damage. First reading: an Argon Nova Vanguard with a full loadout (level 1.0) is about 1.6–2.1M, far above the booty note's S fitted median of 502k.
+- Whether `.value` counts hull damage (also a booty check); the summary logs it at the start, before any damage. Checked with booty v1, as is the `@manual` CSV scenario ([booty note](../research/booty.md#to-verify-in-game)). First reading: an Argon Nova Vanguard with a full loadout (level 1.0) is about 1.6–2.1M, far above the booty note's S fitted median of 502k.
 
 Found in the first game-test run: `.type` prints plainly (`fighter`), booleans print as `0`/`1`, and `0 == null` is true in MD, so unreached times are left out of the record instead of set to null.
