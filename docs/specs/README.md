@@ -14,4 +14,5 @@ If the build changes the plan, update the spec in the same PR.
 | [settings-profiles.md](settings-profiles.md) | Done |
 | [settings-profiles-flows.md](settings-profiles-flows.md) | Done (the flows for settings-profiles.md) |
 | [capture-metrics.md](capture-metrics.md) | Done |
+| [pirated-ships.md](pirated-ships.md) | Done |
 | [booty.md](booty.md) | Draft |

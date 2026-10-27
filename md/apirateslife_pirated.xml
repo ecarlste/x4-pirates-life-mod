@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pirated ships: marks every ship that becomes the player's as pirated (taken in combat with the
+     player's ships, by boarding or by its crew bailing) or a donation, for booty's stolen bonus.
+     Only marks; it changes nothing in the game. See docs/specs/pirated-ships.md.
+
+     X4 can't hold variables on a ship (only on NPCs), so the marks are global tables keyed by ship,
+     each value a table (never a bare time: in MD 0 == null). Ships that no longer exist are pruned
+     whenever a ship becomes the player's.
+       global.$APiratesLife_BailedToPlayer   ship -> table[$time, $from]: a bail with a player-owned attacker,
+                                             $from its owner then (null if already ownerless)
+       global.$APiratesLife_BoardedByPlayer  ship -> table[$time]: a player boarding operation on it
+       global.$APiratesLife_PiratedShips     ship -> table[$how, $from, $time], once it's the player's -->
+<mdscript name="APiratesLife_Pirated" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <cue name="Init" instantiate="true">
+      <conditions>
+        <check_any>
+          <event_game_started/>
+          <event_game_loaded/>
+        </check_any>
+      </conditions>
+      <actions>
+        <do_if value="not global.$APiratesLife_BailedToPlayer?">
+          <set_value name="global.$APiratesLife_BailedToPlayer" exact="table[]"/>
+        </do_if>
+        <do_if value="not global.$APiratesLife_BoardedByPlayer?">
+          <set_value name="global.$APiratesLife_BoardedByPlayer" exact="table[]"/>
+        </do_if>
+        <do_if value="not global.$APiratesLife_PiratedShips?">
+          <set_value name="global.$APiratesLife_PiratedShips" exact="table[]"/>
+        </do_if>
+      </actions>
+    </cue>
+
+    <!-- The mark for Ship (table[$how, $from, $time]), or null for a donation -->
+    <library name="IsPirated" purpose="run_actions">
+      <params>
+        <param name="Ship"/>
+      </params>
+      <actions>
+        <return value="@global.$APiratesLife_PiratedShips.{$Ship}"/>
+      </actions>
+    </library>
+
+    <!-- Drops the entries of ships that no longer exist from one of the tables above -->
+    <library name="Prune" purpose="run_actions">
+      <params>
+        <param name="Table"/>
+      </params>
+      <actions>
+        <do_for_each name="$Key" in="$Table.keys.list">
+          <do_if value="not $Key.exists">
+            <remove_value name="$Table.{$Key}"/>
+          </do_if>
+        </do_for_each>
+      </actions>
+    </library>
+
+    <!-- Signalled with table[$ship, $how] for every ship that becomes the player's: $how is 'bail',
+         'boarding', or null for a donation. For tests and later features. -->
+    <cue name="Decided" instantiate="true">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+    </cue>
+
+    <!-- Vanilla only checks bails for player-owned attackers (PlayerOwnedShipAttacks); checked
+         again in case that changes -->
+    <cue name="Bailed" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+        <check_value value="@event.param.$attacker.isplayerowned and @event.param.$target.exists and global.$APiratesLife_BailedToPlayer?"/>
+      </conditions>
+      <actions>
+        <set_value name="$Target" exact="event.param.$target"/>
+        <!-- Keep the owner from the first bail: a later one (the pilot) may find the ship ownerless -->
+        <set_value name="$From" exact="@global.$APiratesLife_BailedToPlayer.{$Target}.$from"/>
+        <do_if value="not $From and $Target.trueowner != faction.ownerless">
+          <set_value name="$From" exact="$Target.trueowner"/>
+        </do_if>
+        <set_value name="global.$APiratesLife_BailedToPlayer.{$Target}" exact="table[$time = player.age, $from = $From]"/>
+      </actions>
+    </cue>
+
+    <cue name="Boarding" instantiate="true">
+      <conditions>
+        <event_boarding_operation_created/>
+        <check_value value="event.param.owner == faction.player and @event.param.boardee.exists and global.$APiratesLife_BoardedByPlayer?"/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_BoardedByPlayer.{event.param.boardee}" exact="table[$time = player.age]"/>
+      </actions>
+    </cue>
+
+    <cue name="BecameThePlayers" instantiate="true">
+      <conditions>
+        <event_contained_object_changed_true_owner space="player.galaxy" owner="faction.player"/>
+        <check_value value="event.param.isclass.ship and not event.param.isunit and not event.param.isrealclass.spacesuit and global.$APiratesLife_PiratedShips?"/>
+      </conditions>
+      <actions>
+        <set_value name="$Ship" exact="event.param"/>
+        <set_value name="$From" exact="event.param3"/>
+        <set_value name="$Boarded" exact="global.$APiratesLife_BoardedByPlayer"/>
+        <set_value name="$How" exact="null"/>
+        <!-- Vanilla's boarding also hands over the capturable ships docked at the boarded ship -->
+        <do_if value="$Boarded.{$Ship}? or ($Ship.container and $Boarded.{$Ship.container}?)">
+          <set_value name="$How" exact="'boarding'"/>
+        </do_if>
+        <do_elseif value="$From == faction.ownerless and global.$APiratesLife_BailedToPlayer.{$Ship}?">
+          <set_value name="$How" exact="'bail'"/>
+          <!-- Who it was taken from, not ownerless -->
+          <do_if value="global.$APiratesLife_BailedToPlayer.{$Ship}.$from">
+            <set_value name="$From" exact="global.$APiratesLife_BailedToPlayer.{$Ship}.$from"/>
+          </do_if>
+        </do_elseif>
+        <!-- An old fight can't count for a later change of hands -->
+        <do_if value="global.$APiratesLife_BailedToPlayer.{$Ship}?">
+          <remove_value name="global.$APiratesLife_BailedToPlayer.{$Ship}"/>
+        </do_if>
+        <do_if value="$Boarded.{$Ship}?">
+          <remove_value name="$Boarded.{$Ship}"/>
+        </do_if>
+        <do_if value="$How">
+          <set_value name="global.$APiratesLife_PiratedShips.{$Ship}" exact="table[$how = $How, $from = $From, $time = player.age]"/>
+          <debug_text text="'[apirateslife] pirated: %s (%s) by %s, from %s'.[$Ship.knownname, $Ship.idcode, $How, @$From.id]"/>
+        </do_if>
+        <do_else>
+          <debug_text text="'[apirateslife] donation: %s (%s), from %s'.[$Ship.knownname, $Ship.idcode, @$From.id]"/>
+        </do_else>
+        <run_actions ref="Prune">
+          <param name="Table" value="global.$APiratesLife_BailedToPlayer"/>
+        </run_actions>
+        <run_actions ref="Prune">
+          <param name="Table" value="$Boarded"/>
+        </run_actions>
+        <run_actions ref="Prune">
+          <param name="Table" value="global.$APiratesLife_PiratedShips"/>
+        </run_actions>
+        <signal_cue_instantly cue="Decided" param="table[$ship = $Ship, $how = $How]"/>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -1823,6 +1823,181 @@
                 <cancel_cue cue="CaptureMetricsAttackBecomesOperation_Summary"/>
                 <signal_cue_instantly cue="Report" param="table[$name = 'capture_metrics_attack_becomes_operation', $ok = false, $detail = $Problems + ' no summary within 10s of the target being destroyed']"/>
                 <destroy_object object="$Pair.$attacker"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+    <!-- ===== Pirated ships (md/apirateslife_pirated.xml) ===== -->
+
+    <!-- A fighter bails to one of my ships, then becomes mine (set_owner stands in for the claim,
+         which vanilla does the same way): marked pirated by bail, from the Argon -->
+    <cue name="PiratedBailThenClaim">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <!-- A perfect-skill pilot would scuttle the ship with vanilla damage on -->
+        <set_value name="global.$APiratesLife_IntactOnEject" exact="1"/>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+      </actions>
+      <cues>
+        <cue name="PiratedBailThenClaim_Act">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="ForceBail">
+              <param name="Attacker" value="$Pair.$attacker"/>
+              <param name="Target" value="$Pair.$target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="PiratedBailThenClaim_Bailed">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+                <check_value value="event.param.$target == $Pair.$target"/>
+              </conditions>
+              <delay exact="1s"/>
+              <actions>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <set_owner object="$Pair.$target" faction="faction.player"/>
+              </actions>
+            </cue>
+
+            <cue name="PiratedBailThenClaim_Decided">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Pirated.Decided"/>
+                <check_value value="event.param.$ship == $Pair.$target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="PiratedBailThenClaim_Timeout"/>
+                <run_actions ref="md.APiratesLife_Pirated.IsPirated" result="$Mark">
+                  <param name="Ship" value="$Pair.$target"/>
+                </run_actions>
+                <set_value name="$Ok" exact="$Mark and $Mark.$how == 'bail' and $Mark.$from == faction.argon"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'pirated_bail_then_claim', $ok = $Ok, $detail = (if $Mark then 'marked pirated by %s, from %s'.[$Mark.$how, @$Mark.$from.id] else 'not marked pirated')]"/>
+                <destroy_object object="$Pair.$attacker"/>
+                <destroy_object object="$Pair.$target"/>
+              </actions>
+            </cue>
+
+            <cue name="PiratedBailThenClaim_Timeout">
+              <delay exact="30s"/>
+              <actions>
+                <cancel_cue cue="PiratedBailThenClaim_Bailed"/>
+                <cancel_cue cue="PiratedBailThenClaim_Decided"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'pirated_bail_then_claim', $ok = false, $detail = 'no bail and claim decided within 30s (owner %s)'.[@$Pair.$target.trueowner.id]]"/>
+                <destroy_object object="$Pair.$attacker"/>
+                <destroy_object object="$Pair.$target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- My boarding operation on an Argon frigate, which then becomes mine (set_owner stands in
+         for the boarding's end, which vanilla does the same way): marked pirated by boarding -->
+    <cue name="PiratedBoarding">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <create_ship name="$Target" macro="ship_arg_m_frigate_01_a_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.argon" overridenpc="true"/>
+          <loadout>
+            <level exact="0.5"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.argon" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" z="4km" allowyaxis="true"/>
+        </create_ship>
+        <create_order id="'Wait'" object="$Target" default="true">
+          <param name="noattackresponse" value="true"/>
+        </create_order>
+        <create_boarding_operation faction="faction.player" target="$Target" result="$Op" approach="70" insertion="30"/>
+      </actions>
+      <cues>
+        <cue name="PiratedBoarding_Act">
+          <delay exact="2s"/>
+          <actions>
+            <set_owner object="$Target" faction="faction.player"/>
+          </actions>
+          <cues>
+            <cue name="PiratedBoarding_Decided">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Pirated.Decided"/>
+                <check_value value="event.param.$ship == $Target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="PiratedBoarding_Timeout"/>
+                <run_actions ref="md.APiratesLife_Pirated.IsPirated" result="$Mark">
+                  <param name="Ship" value="$Target"/>
+                </run_actions>
+                <set_value name="$Ok" exact="$Mark and $Mark.$how == 'boarding' and $Mark.$from == faction.argon"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'pirated_boarding', $ok = $Ok, $detail = (if $Mark then 'marked pirated by %s, from %s'.[$Mark.$how, @$Mark.$from.id] else 'not marked pirated (boarding operation created: %s)'.[$Op != null])]"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+
+            <cue name="PiratedBoarding_Timeout">
+              <delay exact="10s"/>
+              <actions>
+                <cancel_cue cue="PiratedBoarding_Decided"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'pirated_boarding', $ok = false, $detail = 'nothing decided within 10s of the frigate becoming mine (owner %s, operation created: %s)'.[@$Target.trueowner.id, $Op != null]]"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- An abandoned fighter that never bailed to me becomes mine: a donation -->
+    <cue name="PiratedClaimWithoutBail">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <create_ship name="$Target" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.ownerless" overridenpc="true"/>
+          <people>
+            <fillpercent exact="0"/>
+          </people>
+          <pilot actor="null"/>
+          <safepos object="player.occupiedship" x="2km" allowyaxis="true"/>
+        </create_ship>
+      </actions>
+      <cues>
+        <cue name="PiratedClaimWithoutBail_Act">
+          <delay exact="2s"/>
+          <actions>
+            <set_owner object="$Target" faction="faction.player"/>
+          </actions>
+          <cues>
+            <cue name="PiratedClaimWithoutBail_Decided">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Pirated.Decided"/>
+                <check_value value="event.param.$ship == $Target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="PiratedClaimWithoutBail_Timeout"/>
+                <run_actions ref="md.APiratesLife_Pirated.IsPirated" result="$Mark">
+                  <param name="Ship" value="$Target"/>
+                </run_actions>
+                <signal_cue_instantly cue="Report" param="table[$name = 'pirated_claim_without_bail', $ok = not $Mark, $detail = (if $Mark then 'marked pirated by %s'.[$Mark.$how] else 'a donation')]"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+
+            <cue name="PiratedClaimWithoutBail_Timeout">
+              <delay exact="10s"/>
+              <actions>
+                <cancel_cue cue="PiratedClaimWithoutBail_Decided"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'pirated_claim_without_bail', $ok = false, $detail = 'nothing decided within 10s of the fighter becoming mine (owner %s)'.[@$Target.trueowner.id]]"/>
+                <destroy_object object="$Target"/>
               </actions>
             </cue>
           </cues>
