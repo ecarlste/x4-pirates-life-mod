@@ -53,7 +53,9 @@ Standing counts booty after the stolen bonus, the faction's taste multiplier and
 
 ## To verify in game
 
-- Does `$ship.value` already count hull damage? Does it include cargo?
+Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks below, and the capture-metrics check that a real capture's log turns into a CSV row, are done then, comparing `.value` with the Vigor Syndicate wharf's sale price for different ships.
+
+- Does `$ship.value` already count hull damage? Does it include cargo? A first reading from the capture metrics: a fully fitted Argon Nova Vanguard is about 1.6–2.1M, far above the S fitted median of 502k above.
 - Does a crew transfer finish after its source ship has been handed over?
 - How does `makerraces` read for ships with more than one maker?
 - Can Xenon ships be captured in vanilla? They have no crew; the bail code divides the chance by 3 for Xenon, so some path exists.
