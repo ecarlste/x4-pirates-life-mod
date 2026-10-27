@@ -1,6 +1,9 @@
 # Pirate variants: which ships and gear, and how they're rigged
 
-**Status: proposal, not agreed.** The booty v1 design says the first variants start small, and that their recipes go to Erik as a design proposal ([DESIGN.md, Booty and pirate standing](../DESIGN.md#booty-and-pirate-standing); [spec](../specs/booty.md#variants)). This note is that proposal: how a pirate operates, which vanilla hulls suit it best at each size, what a "pirate rig" changes, and a first set. Nothing here is decided until Erik signs it off.
+**Status: partly agreed (Erik, 2026-10-27).** The booty v1 design says the first variants start small, and that their recipes go to Erik as a design proposal ([DESIGN.md, Booty and pirate standing](../DESIGN.md#booty-and-pirate-standing); [spec](../specs/booty.md#variants)). This note is that proposal: how a pirate operates, which vanilla hulls suit it best at each size, what a "pirate rig" changes, and a first set.
+
+- **Agreed, now in DESIGN.md:** hulls by pirate role; the core set from base and Tides of Avarice only, other DLCs as extras; pirate gear (combat, all-round and travel engines, quick-recharge shields, the Stripper built on vanilla's ion blaster, a pirate EMP missile at about level 3); the first set; names ("Pirate" for pirate versions of existing tech, fun names for new things).
+- **Still iterating:** the rig recipes. Cargo should stay valuable on some builds: booty for cargo turn-ins is coming later (see Ideas).
 
 Data: every ship macro in X4 9.00 (base and all DLCs, 285 ships), read from the unpacked files under `E:\x4-dev\reference\x4-9.00\` with a throwaway script. The **speed index** is engine slots ÷ forward drag × 100: it ranks ships of one size by how fast the same engines push them, for both combat and travel speed. It isn't a speed in m/s.
 
@@ -64,9 +67,18 @@ Each role gets a trade-off, so a variant is better at piracy and worse at someth
 
 ### Gear
 
-- **Pirate travel engines:** travel thrust ×1.3, combat thrust ×0.9, Mk1–Mk3 for S and M. Faster to catch and to flee, a little worse in a dogfight. (Engine thrust lives in the engine macro, so this is a copied engine.)
-- **Strippers:** a pirate rig of a laser or ion gun, Mk1–Mk3 for S and M: shield damage ×1.3, hull damage ×0.6. Shields go down fast and prizes stay whole, which is exactly what a capture needs and what our capture operation is built around ([pirate-refitting.md](pirate-refitting.md#raid-a-faction-arm-from-its-enemies) had the idea first).
+- **Pirate engines, all three types** (agreed; Erik asked for combat and all-round as well as travel, so players can tailor a ship). Each is a bit better at catching and fleeing and pays with a more fragile engine. Engine thrust lives in the engine macro, so each is a copied engine:
+
+  | Pirate engine | Combat thrust | Travel thrust | Boost | Trade-off |
+  | --- | --- | --- | --- | --- |
+  | Combat | ×1.1 | ×1.15 | ×1.15 | engine hull ×0.8 |
+  | All-round | ×1.05 | ×1.2 | ×1.15 | engine hull ×0.8 |
+  | Travel | ×0.9 | ×1.3 | ×1.1 | weaker in a fight |
+
+- **The Stripper** (agreed; the name stays): a gun built to strip shields, with heavy shield damage and light hull damage, so the bail gate opens fast and stray shots barely scratch the prize ([pirate-refitting.md](pirate-refitting.md#raid-a-faction-arm-from-its-enemies) had the idea first). **Built on vanilla's ion blaster** (agreed), which already does about 4× more shield than hull damage (S Mk1: 268 shield, 68 hull; `bullet_arg_s_ion_01_mk1`). The Stripper pushes that to about 8:1 (shield ×1.3, hull ×0.6). S and M, Mk1 and Mk2, the marks vanilla's ion comes in.
 - **Shields:** a quick-recharge rig (recharge delay ×0.7, capacity ×0.85), for hit-and-run.
+- **A pirate EMP missile** (agreed, about level 3). Vanilla's EMP missile (base game) does 1 damage and shuts down boost and travel drive for 30 s on S and M ships, 18 s on L and XL (`emp_missile` in `libraries/influenceconfigurations.xml`): the missile that stops prey running. A pirate one shuts them down ×1.5 longer (45 s on S and M), at about level 3, and gets a fun name, as something new (e.g. "Cold Feet"). The Split DLC's disruptor missile does the same plus halved acceleration, with 896 damage.
+- **No vanilla weapon damages components more than hull.** Damage is only shield or hull (`<damage value shield hull>` in the bullet macros); turrets and engines on L and XL are surface elements that can be targeted, but every weapon hurts them alike. A disabler for big captures needs a spike (see Ideas).
 
 ## A first set to propose
 
@@ -93,6 +105,9 @@ Mk2 and Mk3 of the gear follow at higher levels; the DLC extras slot in beside t
 - **False colours:** fly under another faction's identification for a while. Far out; needs research.
 - **Decoys and mines** for chases: vanilla has both; a pirate rig of them could cover a getaway.
 - **Swarm orders:** a capture operation that sends a whole swarm from a carrier, then recalls it; ties in with the operation queue in the plan.
+- **Booty for cargo** (Erik, 2026-10-27, later): turning in cargo for booty, mostly from missions, and high-value cargo a target is made to jettison for a big payout. Keeps cargo valuable on some pirate builds, so the rig recipes shouldn't cut it everywhere.
+- **A disabler for L/XL captures:** a weapon or missile that knocks out turrets and engines without hurting the hull, for taking big ships whole. Vanilla has no damage type for it; a spike first.
+- **EMP limpet mines** (`bomb_player_limpet_emp`, vanilla) for a getaway or an ambush kit.
 
 ## To check in game
 
