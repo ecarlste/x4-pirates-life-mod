@@ -63,7 +63,7 @@ Built in four PRs, each with its game tests, after the pirated mark:
   - one research ware per unlock (`tags="hidden research"`), and a separate one per blueprint unlock;
   - the names in `t/0001-l044.xml`: "Pirate" variants of the vanilla name, and research names that say what the unlock needs, e.g. "Vigor unlock: standing level 3, buy with booty".
 - **Kept in sync:** `make test` runs the generator in check mode (on a small fixture of game files, so CI doesn't need the game), failing if the committed output differs from what the list makes.
-- **The first set:** about one ship per size from Vigor's own range and a few S/M weapons and shields in Mk1–Mk3 tiers.
+- **The first set:** as [DESIGN.md](../DESIGN.md#booty-and-pirate-standing) lists it (hulls by pirate role, base game and Tides of Avarice only; pirate engines, shields and the Stripper). The rig recipes are still being worked out in [research/pirate-variants.md](../research/pirate-variants.md#pirate-rigs-the-recipes).
 
 ### Buying unlocks
 
@@ -89,5 +89,5 @@ The scenarios in [`tests/game/features/booty.feature`](../../tests/game/features
 ## Open questions
 
 - **Rep per handover:** built as 0.001 relation per million booty, to tune in playtests. How that shows as reputation points depends on where the player stands (the game's scale isn't linear).
-- **The recipes and the first set:** a design proposal with the variants PR.
+- **The rig recipes:** still iterating (Erik, 2026-10-27): keep cargo valuable on some builds, for cargo turn-ins later. The first set is agreed.
 - **In game, still to check:** at what relation Vigor stops docking and trading; whether Vigor's own ships start using our variants; the conversation at the real Windfall I stations (`@manual`). Answered: the Lua sale works on a ship away from the player (game tests).

@@ -145,6 +145,8 @@ Not yet agreed. Promote an item into a phase once we decide to do it.
 - [ ] Losing standing: betrayal (attacking a group's ships, selling out a drop), handing ships to a rival group, neglect
 - [ ] Notoriety favours: at random, a group adds extra money to a handover to buy the favour of a famous pirate
 - [ ] What pirates do with handed-over ships beyond a sale: the group flies them (its fleet really grows; needs a spike on ownership changes, orders and a cap), or strips them for parts
+- [ ] Booty for cargo: turn in cargo for booty, mostly mission cargo, and high-value cargo a target is made to jettison for a big payout; keeps cargo valuable on some pirate builds ([research note](research/pirate-variants.md#ideas-not-part-of-the-proposal))
+- [ ] A disabler for L/XL captures: a weapon or missile that knocks out turrets and engines without hurting the hull; vanilla has no damage type for it, so a spike first ([research note](research/pirate-variants.md#ideas-not-part-of-the-proposal))
 - [ ] More booty groups after Vigor: the Riptide Rakers as the honorable path (Vigor the notorious one), the Yaki wharf for S/M; SCA has no wharf or shipyard ([research note](research/booty.md#still-iterating))
 - [ ] Earn past a locked relation (e.g. SCA's −5) through piracy: a standing reward or quest line that unlocks, raises and relocks it, as vanilla's terraforming milestone does
 - [ ] Pirate lord: found your own pirate faction (first), take over an existing group (later), joint operations with a group on large targets at high standing and notoriety. Deep dive once playtesting reaches that stage
