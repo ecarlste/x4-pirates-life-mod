@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPIKE ONLY (spike/unlock-research-poc, not for main): proof of concept for booty unlocks
+     (docs/research/booty.md#unlocks-in-the-build-menus). A hidden research ware of ours gates two
+     Vigor Syndicate ships per player: the S container transport (general-use licence) and the S
+     fighter (military licence). md/apirateslife_spike_unlock.xml grants and removes it. -->
+<diff>
+  <!-- "hidden" keeps it out of the HQ research tree (menu_research.lua) -->
+  <add sel="/wares">
+    <ware id="research_apirateslife_poc" name="{1774100,900}" description="{1774100,901}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1"/>
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1"/>
+        </primary>
+      </research>
+    </ware>
+  </add>
+
+  <!-- Like the Erlking's research_erlking_core (ego_dlc_pirate/libraries/wares.xml) -->
+  <add sel="//ware[@id='ship_pir_s_trans_container_01_a']/production[@method='default']">
+    <research>
+      <ware ware="research_apirateslife_poc"/>
+    </research>
+  </add>
+  <add sel="//ware[@id='ship_pir_s_fighter_01_a']/production[@method='default']">
+    <research>
+      <ware ware="research_apirateslife_poc"/>
+    </research>
+  </add>
+</diff>

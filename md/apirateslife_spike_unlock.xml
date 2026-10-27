@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPIKE ONLY (spike/unlock-research-poc, not for main): grants or removes the proof-of-concept
+     unlock (research_apirateslife_poc, libraries/wares.xml) from a comm choice our
+     md/conversations.xml patch adds when hailing any NPC pilot. -->
+<mdscript name="APiratesLife_SpikeUnlock" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <cue name="Toggle" instantiate="true">
+      <conditions>
+        <event_conversation_next_section section="g_apirateslife_poc_unlock"/>
+      </conditions>
+      <actions>
+        <do_if value="ware.research_apirateslife_poc.research.unlocked">
+          <remove_research ware="ware.research_apirateslife_poc"/>
+        </do_if>
+        <do_else>
+          <add_research ware="ware.research_apirateslife_poc"/>
+        </do_else>
+        <set_value name="$Unlocked" exact="ware.research_apirateslife_poc.research.unlocked"/>
+        <show_notification text="'[Spike] Pirate unlock: %s'.[if $Unlocked then 'granted' else 'removed']"/>
+        <debug_text text="'[apirateslife] spike unlock: research_apirateslife_poc unlocked = %s'.[$Unlocked]"/>
+      </actions>
+    </cue>
+
+    <!-- Logs the state on every load, for the save-and-load check -->
+    <cue name="LoadedState" instantiate="true">
+      <conditions>
+        <event_game_loaded/>
+      </conditions>
+      <actions>
+        <debug_text text="'[apirateslife] spike unlock: after load, research_apirateslife_poc unlocked = %s'.[ware.research_apirateslife_poc.research.unlocked]"/>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

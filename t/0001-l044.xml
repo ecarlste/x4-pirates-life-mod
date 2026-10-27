@@ -24,5 +24,10 @@
     <!-- Wingman order -->
     <t id="101">Capture</t>
     <t id="102">Force the target's pilot to bail without destroying the ship.</t>
+
+    <!-- SPIKE ONLY (spike/unlock-research-poc) -->
+    <t id="900">Vigor standing level 1: unlock with booty</t>
+    <t id="901">A pirate unlock, bought with booty from the Vigor Syndicate. Proof of concept.</t>
+    <t id="902">[Spike] Toggle pirate unlock</t>
   </page>
 </language>
