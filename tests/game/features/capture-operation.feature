@@ -54,6 +54,7 @@ Feature: Capture operations
     Then the wingman stops firing
     And for 30 seconds the hull stays below 75% and above 55%
     And the hull never drops below the 35% floor
+    And the wingman keeps moving while it holds fire, never sitting still for 5 seconds
 
   @pending
   Scenario: My wing forces a pilot to bail without killing the ship

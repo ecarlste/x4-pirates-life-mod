@@ -138,9 +138,10 @@
         <resume label="decide"/>
       </do_if>
 
-      <!-- Hold: stop all fire, turrets included, and stay close. Stop moving too: an attack run
-           cut short leaves the ship flying on, and in the game test it drifted to 3 m from the
-           prize. -->
+      <!-- Hold: stop all fire, turrets included, and stay close. Stop the attack run first: one cut
+           short leaves the ship flying on, and in a game test it drifted to 3 m from the prize.
+           Then keep evading near the prize: a wingman sitting still while it holds is an easy
+           kill for anything still shooting (lost one in Erik's game, 2026-10-27). -->
       <do_if value="not $holding?">
         <stop_moving object="this.assignedcontrolled"/>
       </do_if>
@@ -150,13 +151,22 @@
       <do_if value="this.assignedcontrolled.defencenpc.exists">
         <signal_objects object="this.assignedcontrolled.defencenpc" param="'attack'" comment="no target means stop attacking"/>
       </do_if>
-      <do_if value="this.assignedcontrolled.distanceto.{$target} gt 2.5km">
+      <!-- Close enough to knock the shields down again without a long approach: from 2.5 km, the
+           game test's shields went from 34% to 90% while the wingman flew back in -->
+      <do_if value="this.assignedcontrolled.distanceto.{$target} gt 1.5km">
         <move_to object="this.assignedcontrolled" destination="$target" finishonapproach="true" forcesteering="true">
           <interrupt_after_time time="1s"/>
         </move_to>
       </do_if>
       <do_else>
-        <wait exact="1s"/>
+        <!-- Short evasive moves, as vanilla's move.evade makes them, but checking every few
+             seconds whether to fire again -->
+        <select_flight_behaviour entity="this" evasive="true" result="$evade"/>
+        <move_to object="this.assignedcontrolled" destination="this.assignedcontrolled.zone" flightbehaviour="$evade" forcesteering="true">
+          <position object="this.assignedcontrolled" min="300m" max="800m"/>
+          <interrupt_after_time time="3s"/>
+        </move_to>
+        <set_to_default_flight_control_model object="this.assignedcontrolled"/>
       </do_else>
       <resume label="decide"/>
 
