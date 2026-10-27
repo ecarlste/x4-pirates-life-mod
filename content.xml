@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <content id="apirateslife" name="A Pirate's Life" description="A piracy overhaul for X4: Foundations. Early development." author="X4 Modder" version="100" date="2025-10-31" save="false" enabled="true">
   <text language="44" name="A Pirate's Life" description="A piracy overhaul for X4: Foundations. Early development." author="X4 Modder"/>
+  <!-- Required DLC (docs/PROJECT.md, Key decisions); also makes our libraries/ patches load after its wares -->
+  <dependency id="ego_dlc_pirate" name="Tides of Avarice"/>
   <!-- Optional: the in-game settings page needs it; without it the config file applies -->
   <dependency id="kuerteeUIExtensionsAndHUD" optional="true" name="kuertee UI Extensions and HUD"/>
 </content>
