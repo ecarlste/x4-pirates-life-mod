@@ -45,6 +45,24 @@
         <!-- Capture operations: nobody in the operation fires once the target's hull is at or below
              this percentage. -->
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+
+        <!-- Booty: the fence's cut on a handover's credits, in percent of what a sale there would
+             pay. It falls evenly from the start, at standing level 0, to the floor at the top
+             level; it never reaches zero, so a pirate never earns what a legit seller does. -->
+        <set_value name="global.$APiratesLife_BootyCutStart" exact="40"/>
+        <set_value name="global.$APiratesLife_BootyCutFloor" exact="10"/>
+
+        <!-- Booty: how much more booty a pirated ship earns than a donated one (taken by boarding
+             or bailing in combat with your ships, rather than bought or built). -->
+        <set_value name="global.$APiratesLife_BootyStolenBonus" exact="1.5"/>
+
+        <!-- Booty: standing earned per booty. Higher makes standing levels come faster. -->
+        <set_value name="global.$APiratesLife_BootyStandingGain" exact="1.0"/>
+
+        <!-- Booty: reputation with the station's owner per million booty, in the game's internal
+             relation units (0.01 is the +10 reputation of a military licence). Not given when the
+             owner's relations are locked. -->
+        <set_value name="global.$APiratesLife_BootyRepPerMillion" exact="0.001"/>
       </actions>
     </library>
   </cues>

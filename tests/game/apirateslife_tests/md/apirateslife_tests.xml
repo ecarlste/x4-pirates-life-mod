@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -2012,6 +2012,418 @@
                 <cancel_cue cue="PiratedClaimWithoutBail_Decided"/>
                 <signal_cue_instantly cue="Report" param="table[$name = 'pirated_claim_without_bail', $ok = false, $detail = 'nothing decided within 10s of the fighter becoming mine (owner %s)'.[@$Target.trueowner.id]]"/>
                 <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+    <!-- ===== Booty (md/apirateslife_booty.xml, docs/specs/booty.md) ===== -->
+
+    <!-- A Vigor wharf near the player, built from vanilla's own plan, made on first use and kept for
+         the other booty tests. Returns it. -->
+    <library name="VigorWharf" purpose="run_actions">
+      <actions>
+        <do_if value="@global.$APiratesLifeTest_Wharf.isoperational">
+          <return value="global.$APiratesLifeTest_Wharf"/>
+        </do_if>
+        <create_station name="$Wharf" macro="macro.station_gen_factory_base_01_macro" owner="faction.loanshark" sector="player.sector" state="componentstate.operational" constructionplan="'loanshark_wharf'">
+          <safepos object="player.occupiedship" x="8km" allowyaxis="true"/>
+        </create_station>
+        <set_value name="global.$APiratesLifeTest_Wharf" exact="$Wharf"/>
+        <return value="$Wharf"/>
+      </actions>
+    </library>
+
+    <!-- A player-owned ship of Macro docked at Station (an S or M pad). Returns it, or null when the
+         station has no free dock for it. -->
+    <library name="DockedShip" purpose="run_actions">
+      <params>
+        <param name="Station"/>
+        <param name="Macro"/>
+        <param name="Size" default="tag.dock_s"/>
+      </params>
+      <actions>
+        <find_dockingbay name="$Dock" object="$Station" checkoperational="true" multiple="false">
+          <match_dock size="$Size" free="true"/>
+        </find_dockingbay>
+        <do_if value="not $Dock">
+          <return value="null"/>
+        </do_if>
+        <create_ship name="$Ship" macro="$Macro" dock="$Dock">
+          <owner exact="faction.player" overridenpc="true"/>
+          <loadout>
+            <level exact="0.5"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.argon" tags="tag.aipilot"/>
+          </pilot>
+        </create_ship>
+        <return value="$Ship"/>
+      </actions>
+    </library>
+
+    <!-- Level and cut from the vanilla profile's Vigor data and the default settings -->
+    <cue name="BootyLevelsAndCut">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_BootyCutStart" exact="40"/>
+        <set_value name="global.$APiratesLife_BootyCutFloor" exact="10"/>
+        <run_actions ref="md.APiratesLife_Booty.GroupOf" result="$Group">
+          <param name="Faction" value="faction.loanshark"/>
+        </run_actions>
+        <set_value name="$Problems" exact="''"/>
+        <do_if value="not $Group">
+          <set_value name="$Problems" exact="' no group for the Vigor Syndicate;'"/>
+        </do_if>
+        <do_else>
+          <set_value name="$Cases" exact="[[0, 0], [999999, 0], [1000000, 1], [6000000, 4], [320000000, 20], [999000000, 20]]"/>
+          <do_for_each name="$Case" in="$Cases">
+            <run_actions ref="md.APiratesLife_Booty.Level" result="$Level">
+              <param name="Group" value="$Group"/>
+              <param name="Standing" value="$Case.{1}"/>
+            </run_actions>
+            <do_if value="$Level != $Case.{2}">
+              <set_value name="$Problems" exact="$Problems + ' standing %s is level %s, expected %s;'.[$Case.{1}, $Level, $Case.{2}]"/>
+            </do_if>
+          </do_for_each>
+          <do_if value="$Group.$levels.{5}.$size != 2 or $Group.$levels.{9}.$size != 3 or $Group.$levels.{16}.$size != 4">
+            <set_value name="$Problems" exact="$Problems + ' M, L and XL turn-ins should open at levels 4, 8 and 15;'"/>
+          </do_if>
+          <set_value name="$Cuts" exact="[[0, 40], [10, 25], [20, 10]]"/>
+          <do_for_each name="$Case" in="$Cuts">
+            <run_actions ref="md.APiratesLife_Booty.Cut" result="$Cut">
+              <param name="Group" value="$Group"/>
+              <param name="Level" value="$Case.{1}"/>
+            </run_actions>
+            <do_if value="($Cut - $Case.{2})f gt 0.01 or ($Case.{2} - $Cut)f gt 0.01">
+              <set_value name="$Problems" exact="$Problems + ' cut at level %s is %s, expected %s;'.[$Case.{1}, $Cut, $Case.{2}]"/>
+            </do_if>
+          </do_for_each>
+        </do_else>
+        <signal_cue_instantly cue="Report" param="table[$name = 'booty_levels_and_cut', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'levels and cuts as expected' else $Problems)]"/>
+      </actions>
+    </cue>
+
+    <!-- What's wrong with a handover's result, as a problems string: the ship sold, the player paid
+         the price minus the cut, booty with the bonus, standing, and rep with Vigor up -->
+    <library name="CheckHandover" purpose="run_actions">
+      <params>
+        <param name="Result"/>
+        <param name="Ship"/>
+        <param name="MoneyBefore"/>
+        <param name="RelationBefore"/>
+        <param name="Cut"/>
+        <param name="Bonus"/>
+        <param name="StandingBefore"/>
+      </params>
+      <actions>
+        <set_value name="$Problems" exact="''"/>
+        <do_if value="not $Result.$ok">
+          <return value="' the handover failed;'"/>
+        </do_if>
+        <do_if value="$Ship.exists and $Ship.isplayerowned">
+          <set_value name="$Problems" exact="$Problems + ' the ship is still mine;'"/>
+        </do_if>
+        <set_value name="$Price" exact="$Result.$price"/>
+        <do_if value="$Price le 0">
+          <set_value name="$Problems" exact="$Problems + ' price %s;'.[$Price]"/>
+        </do_if>
+        <set_value name="$Want" exact="($Price * (100 - $Cut) / 100.0)L"/>
+        <set_value name="$Paid" exact="((player.money - $MoneyBefore) / 1Cr)L"/>
+        <do_if value="$Paid lt $Want - 1 or $Paid gt $Want + 1 or $Result.$credits lt $Want - 1 or $Result.$credits gt $Want + 1">
+          <set_value name="$Problems" exact="$Problems + ' paid %s Cr (result %s), expected %s (price %s, cut %s%%);'.[$Paid, $Result.$credits, $Want, $Price, $Cut]"/>
+        </do_if>
+        <set_value name="$WantBooty" exact="($Price * $Bonus)L"/>
+        <do_if value="$Result.$booty lt $WantBooty - 1 or $Result.$booty gt $WantBooty + 1">
+          <set_value name="$Problems" exact="$Problems + ' booty %s, expected %s;'.[$Result.$booty, $WantBooty]"/>
+        </do_if>
+        <do_if value="$Result.$standing != $StandingBefore + $Result.$booty">
+          <set_value name="$Problems" exact="$Problems + ' standing %s, expected %s;'.[$Result.$standing, $StandingBefore + $Result.$booty]"/>
+        </do_if>
+        <do_if value="faction.loanshark.relationto.{faction.player} le $RelationBefore">
+          <set_value name="$Problems" exact="$Problems + ' Vigor relation %s, was %s;'.[faction.loanshark.relationto.{faction.player}, $RelationBefore]"/>
+        </do_if>
+        <return value="$Problems"/>
+      </actions>
+    </library>
+
+    <!-- A pirated fighter handed over at the Vigor wharf at level 0: sold like a sale, paid the price
+         minus the 40% cut, booty with the 1.5x stolen bonus (an Argon fighter: Vigor's taste 1),
+         standing, and rep with Vigor. Also the spike: the Lua sale works on a ship the player isn't
+         near, at a station they've never docked at. -->
+    <cue name="BootyHandoverPays">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_BootyStolenBonus" exact="1.5"/>
+        <set_value name="global.$APiratesLife_BootyStandingGain" exact="1.0"/>
+        <set_value name="global.$APiratesLife_BootyCutStart" exact="40"/>
+        <set_value name="global.$APiratesLife_BootyRepPerMillion" exact="0.001"/>
+        <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="table[$standing = 0, $booty = 0, $unlocks = []]"/>
+        <run_actions ref="VigorWharf" result="$Wharf"/>
+      </actions>
+      <cues>
+        <cue name="BootyHandoverPays_Act">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="DockedShip" result="$Ship">
+              <param name="Station" value="$Wharf"/>
+              <param name="Macro" value="macro.ship_arg_s_fighter_01_a_macro"/>
+            </run_actions>
+            <do_if value="$Ship">
+              <!-- Pirated, as md/apirateslife_pirated.xml would mark it after a bail and claim -->
+              <set_value name="global.$APiratesLife_PiratedShips.{$Ship}" exact="table[$how = 'bail', $from = faction.argon, $time = player.age]"/>
+            </do_if>
+            <set_value name="$MoneyBefore" exact="player.money"/>
+            <set_value name="$RelationBefore" exact="faction.loanshark.relationto.{faction.player}"/>
+            <set_value name="$Accepted" exact="false"/>
+            <do_if value="$Ship">
+              <run_actions ref="md.APiratesLife_Booty.HandOver" result="$Accepted">
+                <param name="Ship" value="$Ship"/>
+                <param name="Station" value="$Wharf"/>
+              </run_actions>
+            </do_if>
+            <do_if value="not $Accepted">
+              <signal_cue_instantly cue="Report" param="table[$name = 'booty_handover_pays', $ok = false, $detail = (if $Ship then 'handover refused' else 'no free S dock at the wharf (operational %s)'.[$Wharf.isoperational])]"/>
+              <do_if value="$Ship">
+                <destroy_object object="$Ship"/>
+              </do_if>
+            </do_if>
+          </actions>
+          <cues>
+            <cue name="BootyHandoverPays_Done">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Booty.HandedOver"/>
+                <check_value value="$Accepted and event.param.$ship == $Ship"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="BootyHandoverPays_Timeout"/>
+                <run_actions ref="CheckHandover" result="$Problems">
+                  <param name="Result" value="event.param"/>
+                  <param name="Ship" value="$Ship"/>
+                  <param name="MoneyBefore" value="$MoneyBefore"/>
+                  <param name="RelationBefore" value="$RelationBefore"/>
+                  <param name="Cut" value="40"/>
+                  <param name="Bonus" value="1.5"/>
+                  <param name="StandingBefore" value="0"/>
+                </run_actions>
+                <signal_cue_instantly cue="Report" param="table[$name = 'booty_handover_pays', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'price %s, paid %s, booty %s'.[event.param.$price, event.param.$credits, event.param.$booty] else $Problems)]"/>
+              </actions>
+            </cue>
+            <!-- Only for an accepted handover; a refused one has already reported -->
+            <cue name="BootyHandoverPays_Timeout" checkinterval="1s">
+              <conditions>
+                <check_value value="$Accepted"/>
+              </conditions>
+              <delay exact="40s"/>
+              <actions>
+                <cancel_cue cue="BootyHandoverPays_Done"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'booty_handover_pays', $ok = false, $detail = 'no handover result within 40s (ship exists %s, still mine %s)'.[$Ship.exists, @$Ship.isplayerowned]]"/>
+                <do_if value="$Ship.exists">
+                  <destroy_object object="$Ship"/>
+                </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A fighter that isn't pirated (bought, say) earns booty without the stolen bonus -->
+    <cue name="BootyDonation">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_BootyStolenBonus" exact="1.5"/>
+        <set_value name="global.$APiratesLife_BootyStandingGain" exact="1.0"/>
+        <set_value name="global.$APiratesLife_BootyCutStart" exact="40"/>
+        <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="table[$standing = 0, $booty = 0, $unlocks = []]"/>
+        <run_actions ref="VigorWharf" result="$Wharf"/>
+      </actions>
+      <cues>
+        <cue name="BootyDonation_Act">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="DockedShip" result="$Ship">
+              <param name="Station" value="$Wharf"/>
+              <param name="Macro" value="macro.ship_arg_s_fighter_01_a_macro"/>
+            </run_actions>
+            <set_value name="$MoneyBefore" exact="player.money"/>
+            <set_value name="$RelationBefore" exact="faction.loanshark.relationto.{faction.player}"/>
+            <set_value name="$Accepted" exact="false"/>
+            <do_if value="$Ship">
+              <run_actions ref="md.APiratesLife_Booty.HandOver" result="$Accepted">
+                <param name="Ship" value="$Ship"/>
+                <param name="Station" value="$Wharf"/>
+              </run_actions>
+            </do_if>
+            <do_if value="not $Accepted">
+              <signal_cue_instantly cue="Report" param="table[$name = 'booty_donation', $ok = false, $detail = (if $Ship then 'handover refused' else 'no free S dock at the wharf')]"/>
+              <do_if value="$Ship">
+                <destroy_object object="$Ship"/>
+              </do_if>
+            </do_if>
+          </actions>
+          <cues>
+            <cue name="BootyDonation_Done">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Booty.HandedOver"/>
+                <check_value value="$Accepted and event.param.$ship == $Ship"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="BootyDonation_Timeout"/>
+                <run_actions ref="CheckHandover" result="$Problems">
+                  <param name="Result" value="event.param"/>
+                  <param name="Ship" value="$Ship"/>
+                  <param name="MoneyBefore" value="$MoneyBefore"/>
+                  <param name="RelationBefore" value="$RelationBefore"/>
+                  <param name="Cut" value="40"/>
+                  <param name="Bonus" value="1.0"/>
+                  <param name="StandingBefore" value="0"/>
+                </run_actions>
+                <do_if value="event.param.$pirated">
+                  <set_value name="$Problems" exact="$Problems + ' counted as pirated;'"/>
+                </do_if>
+                <signal_cue_instantly cue="Report" param="table[$name = 'booty_donation', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'price %s, booty %s'.[event.param.$price, event.param.$booty] else $Problems)]"/>
+              </actions>
+            </cue>
+            <!-- Only for an accepted handover; a refused one has already reported -->
+            <cue name="BootyDonation_Timeout" checkinterval="1s">
+              <conditions>
+                <check_value value="$Accepted"/>
+              </conditions>
+              <delay exact="40s"/>
+              <actions>
+                <cancel_cue cue="BootyDonation_Done"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'booty_donation', $ok = false, $detail = 'no handover result within 40s']"/>
+                <do_if value="$Ship.exists">
+                  <destroy_object object="$Ship"/>
+                </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- At level 0 Vigor only takes S ships: an M ship docked at the wharf is refused, saying why -->
+    <cue name="BootyTooBig">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="table[$standing = 0, $booty = 0, $unlocks = []]"/>
+        <run_actions ref="VigorWharf" result="$Wharf"/>
+      </actions>
+      <cues>
+        <cue name="BootyTooBig_Act">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="DockedShip" result="$Ship">
+              <param name="Station" value="$Wharf"/>
+              <param name="Macro" value="macro.ship_arg_m_frigate_01_a_macro"/>
+              <param name="Size" value="tag.dock_m"/>
+            </run_actions>
+            <set_value name="$Problems" exact="''"/>
+            <do_if value="not $Ship">
+              <set_value name="$Problems" exact="' no free M dock at the wharf;'"/>
+            </do_if>
+            <do_else>
+              <run_actions ref="md.APiratesLife_Booty.WhyNot" result="$Why">
+                <param name="Ship" value="$Ship"/>
+                <param name="Station" value="$Wharf"/>
+              </run_actions>
+              <run_actions ref="md.APiratesLife_Booty.HandOver" result="$Accepted">
+                <param name="Ship" value="$Ship"/>
+                <param name="Station" value="$Wharf"/>
+              </run_actions>
+              <do_if value="$Accepted">
+                <set_value name="$Problems" exact="$Problems + ' the M ship was accepted;'"/>
+              </do_if>
+              <do_if value="$Why != {1774101, 20}.[faction.loanshark.name]">
+                <set_value name="$Problems" exact="$Problems + ' reason: %s;'.[$Why]"/>
+              </do_if>
+            </do_else>
+            <signal_cue_instantly cue="Report" param="table[$name = 'booty_too_big', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'refused: %s'.[$Why] else $Problems)]"/>
+            <do_if value="$Ship">
+              <destroy_object object="$Ship"/>
+            </do_if>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Standing just under level 1: a handover takes it over, the result says level 1, and the next
+         handover's cut is level 1's (38.5%) -->
+    <cue name="BootyLevelUp">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_BootyStandingGain" exact="1.0"/>
+        <set_value name="global.$APiratesLife_BootyCutStart" exact="40"/>
+        <set_value name="global.$APiratesLife_BootyCutFloor" exact="10"/>
+        <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="table[$standing = 999999, $booty = 0, $unlocks = []]"/>
+        <run_actions ref="VigorWharf" result="$Wharf"/>
+      </actions>
+      <cues>
+        <cue name="BootyLevelUp_Act">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="DockedShip" result="$Ship">
+              <param name="Station" value="$Wharf"/>
+              <param name="Macro" value="macro.ship_arg_s_fighter_01_a_macro"/>
+            </run_actions>
+            <set_value name="$Accepted" exact="false"/>
+            <do_if value="$Ship">
+              <run_actions ref="md.APiratesLife_Booty.HandOver" result="$Accepted">
+                <param name="Ship" value="$Ship"/>
+                <param name="Station" value="$Wharf"/>
+              </run_actions>
+            </do_if>
+            <do_if value="not $Accepted">
+              <signal_cue_instantly cue="Report" param="table[$name = 'booty_level_up', $ok = false, $detail = (if $Ship then 'handover refused' else 'no free S dock at the wharf')]"/>
+              <do_if value="$Ship">
+                <destroy_object object="$Ship"/>
+              </do_if>
+            </do_if>
+          </actions>
+          <cues>
+            <cue name="BootyLevelUp_Done">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Booty.HandedOver"/>
+                <check_value value="$Accepted and event.param.$ship == $Ship"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="BootyLevelUp_Timeout"/>
+                <run_actions ref="md.APiratesLife_Booty.GroupOf" result="$Group">
+                  <param name="Faction" value="faction.loanshark"/>
+                </run_actions>
+                <run_actions ref="md.APiratesLife_Booty.Cut" result="$Cut">
+                  <param name="Group" value="$Group"/>
+                  <param name="Level" value="event.param.$level"/>
+                </run_actions>
+                <set_value name="$Ok" exact="event.param.$ok and event.param.$level == 1 and $Cut gt 38.49 and $Cut lt 38.51"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'booty_level_up', $ok = $Ok, $detail = 'ok %s, standing %s, level %s, next cut %s%%'.[event.param.$ok, @event.param.$standing, @event.param.$level, $Cut]]"/>
+              </actions>
+            </cue>
+            <!-- Only for an accepted handover; a refused one has already reported -->
+            <cue name="BootyLevelUp_Timeout" checkinterval="1s">
+              <conditions>
+                <check_value value="$Accepted"/>
+              </conditions>
+              <delay exact="40s"/>
+              <actions>
+                <cancel_cue cue="BootyLevelUp_Done"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'booty_level_up', $ok = false, $detail = 'no handover result within 40s']"/>
+                <do_if value="$Ship.exists">
+                  <destroy_object object="$Ship"/>
+                </do_if>
               </actions>
             </cue>
           </cues>

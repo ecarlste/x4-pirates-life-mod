@@ -11,16 +11,20 @@ read_globals = {
 	"DebugError",
 	"GetNPCBlackboard",
 	"GetTopRow",
+	"GetTotalValue",
 	"Helper",
+	"IsValidComponent",
 	"NewGame",
 	"ReadText",
 	"RegisterEvent",
 	"SetScript",
+	"TransferMoneyToPlayer",
 	"getElapsedTime",
 }
 
 -- Saved variables (declared in ui.xml) are globals the files assign
 files["ui/apirateslife_options.lua"] = { globals = { "__userdata_apirateslife", "APiratesLife_TestHooks" } }
+files["ui/apirateslife_booty.lua"] = { globals = { "APiratesLife_TestHooks" } }
 files["tests/game/apirateslife_tests/ui/apirateslife_tests_autostart.lua"] = { globals = { "__userdata_apirateslife" } }
 
 -- The unit tests stub X4's globals and define LuaUnit's test classes (Test*) as globals
@@ -28,6 +32,7 @@ files["tests/lua/"] = {
 	globals = {
 		"AddUITriggeredEvent", "Color", "ConvertStringTo64Bit", "DebugError", "GetNPCBlackboard",
 		"GetTopRow", "Helper", "ReadText", "RegisterEvent", "getElapsedTime",
+		"GetTotalValue", "IsValidComponent", "TransferMoneyToPlayer",
 		"__userdata_apirateslife", "APiratesLife_TestHooks",
 	},
 	allow_defined_top = true,
