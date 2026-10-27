@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Capture metrics: one summary line in debuglog.txt per capture attempt (an operation or a plain
+     attack) when it ends, for tools/capture_metrics.py to turn into a CSV. Only watches; it changes
+     nothing in the game. See docs/specs/capture-metrics.md.
+
+     Attempts in progress are listed in global.$APiratesLife_CaptureMetrics, a list of records
+     (tables with $target and the fields below). A list, not a table keyed by ship, so a destroyed
+     ship can't drop out of it unseen. Times not reached yet ($gates, $firstcheck) are left out of the
+     record, not set to null: in MD, 0 == null, so a stage reached in the first second would look
+     unreached. -->
+<mdscript name="APiratesLife_Metrics" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <!-- S, M, L, XL or XS for a ship, '?' for anything else -->
+    <library name="Size" purpose="run_actions">
+      <params>
+        <param name="Ship"/>
+      </params>
+      <actions>
+        <do_if value="not @$Ship.exists">
+          <return value="'?'"/>
+        </do_if>
+        <do_if value="$Ship.isclass.ship_xl">
+          <return value="'XL'"/>
+        </do_if>
+        <do_if value="$Ship.isclass.ship_l">
+          <return value="'L'"/>
+        </do_if>
+        <do_if value="$Ship.isclass.ship_m">
+          <return value="'M'"/>
+        </do_if>
+        <do_if value="$Ship.isclass.ship_s">
+          <return value="'S'"/>
+        </do_if>
+        <do_if value="$Ship.isclass.ship_xs">
+          <return value="'XS'"/>
+        </do_if>
+        <return value="'?'"/>
+      </actions>
+    </library>
+
+    <!-- The record for Target, or null -->
+    <library name="Find" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+      </params>
+      <actions>
+        <do_if value="not global.$APiratesLife_CaptureMetrics?">
+          <return value="null"/>
+        </do_if>
+        <do_for_each name="$Rec" in="global.$APiratesLife_CaptureMetrics">
+          <do_if value="$Rec.$target == $Target">
+            <return value="$Rec"/>
+          </do_if>
+        </do_for_each>
+        <return value="null"/>
+      </actions>
+    </library>
+
+    <!-- The record for Target, started now if there is none and the target could bail to the
+         player (vanilla's conditions in PlayerOwnedShipAttacks). Null if it can't. -->
+    <library name="Track" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+      </params>
+      <actions>
+        <run_actions ref="Find" result="$Rec">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <do_if value="$Rec">
+          <return value="$Rec"/>
+        </do_if>
+        <do_if value="not @$Target.isoperational or not $Target.isclass.ship or $Target.isunit">
+          <return value="null"/>
+        </do_if>
+        <do_if value="not $Target.pilot.exists or not $Target.iscapturable or $Target.isplayerowned or $Target.trueowner == faction.ownerless">
+          <return value="null"/>
+        </do_if>
+        <run_actions ref="Size" result="$Size">
+          <param name="Ship" value="$Target"/>
+        </run_actions>
+        <set_value name="$Rec" exact="table[
+          $target = $Target, $started = player.age, $mode = 'attack', $outcome = null,
+          $name = $Target.knownname, $idcode = $Target.idcode, $macro = $Target.macro.id, $size = $Size,
+          $type = $Target.type, $owner = $Target.trueowner.id, $value = ($Target.value / 1Cr)i,
+          $crew = $Target.people.count, $crewcap = $Target.people.capacity,
+          $pilotskill = $Target.pilot.combinedskill, $crewskill = $Target.combinedskill, $morale = $Target.pilot.skill.morale,
+          $wing = [], $attackers = [], $playerhits = 0, $lastactive = player.age,
+          $checks = 0, $chances = [], $successes = 0, $crewbailed = 0, $pilotbailed = false]"/>
+        <do_if value="not global.$APiratesLife_CaptureMetrics?">
+          <set_value name="global.$APiratesLife_CaptureMetrics" exact="[]"/>
+        </do_if>
+        <append_to_list name="global.$APiratesLife_CaptureMetrics" exact="$Rec"/>
+        <return value="$Rec"/>
+      </actions>
+    </library>
+
+    <!-- Counts an attacker on Target (a hit, or a bail check when Hit is false). A plain attack
+         only starts when the attacker is the ship the player flies or one of its direct
+         subordinates; once a record runs, every player-owned attacker counts. Returns the record or
+         null. -->
+    <library name="Note" purpose="run_actions">
+      <params>
+        <param name="Attacker"/>
+        <param name="Target"/>
+        <param name="Hit" default="true"/>
+      </params>
+      <actions>
+        <do_if value="not @$Attacker.isplayerowned">
+          <return value="null"/>
+        </do_if>
+        <run_actions ref="Find" result="$Rec">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <do_if value="not $Rec">
+          <do_if value="not @player.occupiedship.exists or ($Attacker != player.occupiedship and @$Attacker.commander != player.occupiedship)">
+            <return value="null"/>
+          </do_if>
+          <run_actions ref="Track" result="$Rec">
+            <param name="Target" value="$Target"/>
+          </run_actions>
+          <do_if value="not $Rec">
+            <return value="null"/>
+          </do_if>
+        </do_if>
+        <set_value name="$Rec.$lastactive" exact="player.age"/>
+        <set_value name="$Entry" exact="null"/>
+        <do_for_each name="$A" in="$Rec.$attackers">
+          <do_if value="$A.$ship == $Attacker">
+            <set_value name="$Entry" exact="$A"/>
+          </do_if>
+        </do_for_each>
+        <do_if value="not $Entry">
+          <run_actions ref="Size" result="$Size">
+            <param name="Ship" value="$Attacker"/>
+          </run_actions>
+          <set_value name="$Entry" exact="table[$ship = $Attacker, $macro = $Attacker.macro.id, $size = $Size, $hits = 0]"/>
+          <append_to_list name="$Rec.$attackers" exact="$Entry"/>
+        </do_if>
+        <do_if value="$Hit">
+          <set_value name="$Entry.$hits" operation="add"/>
+          <do_if value="$Attacker == player.occupiedship">
+            <set_value name="$Rec.$playerhits" operation="add"/>
+          </do_if>
+        </do_if>
+        <return value="$Rec"/>
+      </actions>
+    </library>
+
+    <!-- Logs the summary line for a record and signals Summary with it, then drops it from the list -->
+    <library name="Finish" purpose="run_actions">
+      <params>
+        <param name="Rec"/>
+        <param name="Outcome"/>
+      </params>
+      <actions>
+        <remove_from_list name="global.$APiratesLife_CaptureMetrics" exact="$Rec"/>
+        <set_value name="$Rec.$outcome" exact="$Outcome"/>
+        <set_value name="$Rec.$total" exact="(player.age - $Rec.$started)i"/>
+        <set_value name="$Attackers" exact="''"/>
+        <do_for_each name="$A" in="$Rec.$attackers">
+          <set_value name="$Attackers" exact="$Attackers + (if $Attackers == '' then '' else '+') + '%s:%s:%s'.[$A.$macro, $A.$size, $A.$hits]"/>
+        </do_for_each>
+        <set_value name="$Wing" exact="''"/>
+        <do_for_each name="$W" in="$Rec.$wing">
+          <set_value name="$Wing" exact="$Wing + (if $Wing == '' then '' else '+') + '%s:%s'.[$W.$macro, $W.$size]"/>
+        </do_for_each>
+        <set_value name="$Chances" exact="''"/>
+        <do_for_each name="$C" in="$Rec.$chances">
+          <set_value name="$Chances" exact="$Chances + (if $Chances == '' then '' else '/') + $C"/>
+        </do_for_each>
+        <!-- key=value fields split by " | " (tools/capture_metrics.py); bump v only if a field's meaning changes -->
+        <debug_text text="'[apirateslife] capture metrics: v=1 | mode=%s | outcome=%s | target=%s | id=%s | macro=%s | size=%s | type=%s | owner=%s | value=%s | crew=%s | crewcap=%s | pilotskill=%s | crewskill=%s | morale=%s'.[$Rec.$mode, $Outcome, $Rec.$name, $Rec.$idcode, $Rec.$macro, $Rec.$size, $Rec.$type, $Rec.$owner, $Rec.$value, $Rec.$crew, $Rec.$crewcap, $Rec.$pilotskill, $Rec.$crewskill, $Rec.$morale]
+          + ' | wing=%s | attackers=%s | playerhits=%s | started=%s | gates=%s | firstcheck=%s | checks=%s | chances=%s | successes=%s | crewbailed=%s | pilotbailed=%s | total=%s'.[$Wing, $Attackers, $Rec.$playerhits, ($Rec.$started)i, (if $Rec.$gates? then $Rec.$gates else ''), (if $Rec.$firstcheck? then $Rec.$firstcheck else ''), $Rec.$checks, $Chances, $Rec.$successes, $Rec.$crewbailed, $Rec.$pilotbailed, $Rec.$total]"/>
+        <signal_cue_instantly cue="Summary" param="$Rec"/>
+      </actions>
+    </library>
+
+    <!-- Signalled with each finished record. For tests and future features (booty thresholds). -->
+    <cue name="Summary" instantiate="true">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+    </cue>
+
+    <!-- Every hit by a player-owned ship on another ship -->
+    <cue name="Hit" instantiate="true">
+      <conditions>
+        <event_player_owned_attacked_object/>
+        <check_value value="@event.param2.isclass.ship"/>
+      </conditions>
+      <actions>
+        <run_actions ref="Note">
+          <param name="Attacker" value="event.param"/>
+          <param name="Target" value="event.param2"/>
+        </run_actions>
+      </actions>
+    </cue>
+
+    <!-- Signalled by the bail hook (md/apirateslife_bail.xml) for every evaluated bail check, with
+         table[$attacker, $target, $chance] -->
+    <cue name="BailChecked" instantiate="true">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="Note" result="$Rec">
+          <param name="Attacker" value="event.param.$attacker"/>
+          <param name="Target" value="event.param.$target"/>
+          <param name="Hit" value="false"/>
+        </run_actions>
+        <do_if value="$Rec">
+          <set_value name="$Rec.$checks" operation="add"/>
+          <append_to_list name="$Rec.$chances" exact="event.param.$chance"/>
+          <do_if value="not $Rec.$firstcheck?">
+            <set_value name="$Rec.$firstcheck" exact="(player.age - $Rec.$started)i"/>
+          </do_if>
+        </do_if>
+      </actions>
+    </cue>
+
+    <cue name="Bailed" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+      </conditions>
+      <actions>
+        <run_actions ref="Find" result="$Rec">
+          <param name="Target" value="event.param.$target"/>
+        </run_actions>
+        <do_if value="$Rec">
+          <set_value name="$Rec.$successes" operation="add"/>
+          <set_value name="$Rec.$crewbailed" operation="add" exact="event.param.$crew"/>
+          <do_if value="event.param.$pilot">
+            <set_value name="$Rec.$pilotbailed" exact="true"/>
+          </do_if>
+        </do_if>
+      </actions>
+    </cue>
+
+    <!-- An operation starts a record, or turns a plain attack's record into an operation's -->
+    <cue name="OperationStarted" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.APiratesLife_Capture.Started"/>
+      </conditions>
+      <actions>
+        <run_actions ref="Track" result="$Rec">
+          <param name="Target" value="event.param.$target"/>
+        </run_actions>
+        <do_if value="$Rec">
+          <set_value name="$Rec.$mode" exact="'operation'"/>
+          <set_value name="$Rec.$lastactive" exact="player.age"/>
+          <do_for_each name="$Ship" in="event.param.$members">
+            <run_actions ref="Size" result="$Size">
+              <param name="Ship" value="$Ship"/>
+            </run_actions>
+            <append_to_list name="$Rec.$wing" exact="table[$ship = $Ship, $macro = $Ship.macro.id, $size = $Size]"/>
+          </do_for_each>
+        </do_if>
+      </actions>
+    </cue>
+
+    <!-- An operation's record ends with the operation's outcome -->
+    <cue name="OperationEnded" instantiate="true">
+      <conditions>
+        <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+      </conditions>
+      <actions>
+        <run_actions ref="Find" result="$Rec">
+          <param name="Target" value="event.param.$target"/>
+        </run_actions>
+        <do_if value="$Rec and $Rec.$mode == 'operation'">
+          <run_actions ref="Finish">
+            <param name="Rec" value="$Rec"/>
+            <param name="Outcome" value="event.param.$outcome"/>
+          </run_actions>
+        </do_if>
+      </actions>
+    </cue>
+
+    <!-- Every second: when the bail gates first open (shields under 20% or none, hull under 75%,
+         not docked; vanilla PlayerOwnedShipAttacks), and how plain attacks end. Operations end
+         through OperationEnded instead, which every operation outcome signals. -->
+    <cue name="Tick" instantiate="true" checkinterval="1s">
+      <conditions>
+        <check_value value="@global.$APiratesLife_CaptureMetrics.count"/>
+      </conditions>
+      <actions>
+        <!-- Dev only: seconds without a hit or check before a plain attack counts as dropped -->
+        <set_value name="$DropAfter" exact="if global.$APiratesLife_MetricsDropAfter? then global.$APiratesLife_MetricsDropAfter else 120"/>
+        <set_value name="$Ended" exact="[]"/>
+        <do_for_each name="$Rec" in="global.$APiratesLife_CaptureMetrics">
+          <set_value name="$T" exact="$Rec.$target"/>
+          <set_value name="$Outcome" exact="null"/>
+          <do_if value="not $T.exists or not $T.isoperational">
+            <set_value name="$Outcome" exact="'destroyed'"/>
+          </do_if>
+          <do_elseif value="$T.isplayerowned">
+            <set_value name="$Outcome" exact="'captured'"/>
+          </do_elseif>
+          <do_elseif value="$T.trueowner == faction.ownerless">
+            <set_value name="$Outcome" exact="'abandoned'"/>
+          </do_elseif>
+          <do_elseif value="$Rec.$mode == 'attack' and player.age - $Rec.$lastactive ge $DropAfter">
+            <set_value name="$Outcome" exact="'dropped'"/>
+          </do_elseif>
+          <do_elseif value="not $Rec.$gates? and ((not $T.maxshield) or $T.shieldpercentage lt 20) and $T.hullpercentage lt 75 and not $T.assigneddock">
+            <set_value name="$Rec.$gates" exact="(player.age - $Rec.$started)i"/>
+          </do_elseif>
+          <!-- An operation's record waits for OperationEnded -->
+          <do_if value="$Outcome and $Rec.$mode == 'attack'">
+            <append_to_list name="$Ended" exact="[$Rec, $Outcome]"/>
+          </do_if>
+        </do_for_each>
+        <do_for_each name="$E" in="$Ended">
+          <run_actions ref="Finish">
+            <param name="Rec" value="$E.{1}"/>
+            <param name="Outcome" value="$E.{2}"/>
+          </run_actions>
+        </do_for_each>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

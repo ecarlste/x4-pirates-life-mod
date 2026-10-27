@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -1468,6 +1468,361 @@
                 <do_if value="$Target.exists">
                   <destroy_object object="$Target"/>
                 </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- ===== Capture metrics (docs/specs/capture-metrics.md) ===== -->
+
+    <!-- What's wrong with a finished metrics record for a SpawnBailPair target, as a problems
+         string ('' if nothing) -->
+    <library name="MetricsProblems" purpose="run_actions">
+      <params>
+        <param name="Rec"/>
+        <param name="Mode"/>
+        <param name="Outcome"/>
+      </params>
+      <actions>
+        <set_value name="$P" exact="''"/>
+        <do_if value="$Rec.$mode != $Mode">
+          <set_value name="$P" exact="$P + ' mode %s, expected %s;'.[$Rec.$mode, $Mode]"/>
+        </do_if>
+        <do_if value="$Rec.$outcome != $Outcome">
+          <set_value name="$P" exact="$P + ' outcome %s, expected %s;'.[$Rec.$outcome, $Outcome]"/>
+        </do_if>
+        <do_if value="$Rec.$macro != 'ship_arg_s_fighter_01_a_macro' or $Rec.$size != 'S' or $Rec.$owner != 'argon'">
+          <set_value name="$P" exact="$P + ' target %s, %s, %s, expected the Argon S fighter;'.[$Rec.$macro, $Rec.$size, $Rec.$owner]"/>
+        </do_if>
+        <do_if value="not $Rec.$total? or $Rec.$total lt 0">
+          <set_value name="$P" exact="$P + ' no total time;'"/>
+        </do_if>
+        <run_actions ref="md.APiratesLife_Metrics.Find" result="$Left">
+          <param name="Target" value="$Rec.$target"/>
+        </run_actions>
+        <do_if value="$Left">
+          <set_value name="$P" exact="$P + ' record still listed;'"/>
+        </do_if>
+        <return value="$P"/>
+      </actions>
+    </library>
+
+    <!-- An operation on a crewless fighter ends in one summary: abandoned, the target's details, one
+         check, one success, the pilot bailed -->
+    <cue name="CaptureMetricsOperation">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_IntactOnEject" exact="1"/>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Target" exact="$Pair.$target"/>
+        <set_value name="$Skill" exact="$Target.pilot.combinedskill"/>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="CaptureMetricsOperation_Act">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="ForceBail">
+              <param name="Attacker" value="$Pair.$attacker"/>
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="CaptureMetricsOperation_Summary">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Metrics.Summary"/>
+                <check_value value="event.param.$target == $Target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureMetricsOperation_Timeout"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <set_value name="$Rec" exact="event.param"/>
+                <set_value name="$Extra" exact="false"/>
+              </actions>
+              <cues>
+                <cue name="CaptureMetricsOperation_Extra">
+                  <conditions>
+                    <event_cue_signalled cue="md.APiratesLife_Metrics.Summary"/>
+                    <check_value value="event.param.$target == $Target"/>
+                  </conditions>
+                  <actions>
+                    <set_value name="$Extra" exact="true"/>
+                  </actions>
+                </cue>
+                <!-- Wait a little for a second summary, which would be a bug -->
+                <cue name="CaptureMetricsOperation_Check">
+                  <delay exact="3s"/>
+                  <actions>
+                    <cancel_cue cue="CaptureMetricsOperation_Extra"/>
+                    <run_actions ref="MetricsProblems" result="$Problems">
+                      <param name="Rec" value="$Rec"/>
+                      <param name="Mode" value="'operation'"/>
+                      <param name="Outcome" value="'abandoned'"/>
+                    </run_actions>
+                    <do_if value="not $Started">
+                      <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
+                    </do_if>
+                    <do_if value="$Extra">
+                      <set_value name="$Problems" exact="$Problems + ' more than one summary;'"/>
+                    </do_if>
+                    <do_if value="$Rec.$pilotskill != $Skill">
+                      <set_value name="$Problems" exact="$Problems + ' pilot skill %s, expected %s;'.[$Rec.$pilotskill, $Skill]"/>
+                    </do_if>
+                    <do_if value="$Rec.$checks != 1 or $Rec.$successes != 1 or not $Rec.$pilotbailed or not $Rec.$firstcheck?">
+                      <set_value name="$Problems" exact="$Problems + ' %s checks, %s successes, pilot bailed %s, first check %s; expected 1, 1, true, a time;'.[$Rec.$checks, $Rec.$successes, $Rec.$pilotbailed, @$Rec.$firstcheck]"/>
+                    </do_if>
+                    <signal_cue_instantly cue="Report" param="table[$name = 'capture_metrics_operation', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'one summary, abandoned after %s s, %s check(s)'.[$Rec.$total, $Rec.$checks] else $Problems)]"/>
+                    <destroy_object object="$Pair.$attacker"/>
+                    <destroy_object object="$Target"/>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+            <cue name="CaptureMetricsOperation_Timeout">
+              <delay exact="30s"/>
+              <actions>
+                <cancel_cue cue="CaptureMetricsOperation_Summary"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_metrics_operation', $ok = false, $detail = 'no summary within 30s (owner: %s)'.[@$Target.trueowner]]"/>
+                <destroy_object object="$Pair.$attacker"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A bail check by the ship the player flies, with no operation, starts a plain attack record
+         that ends in a summary when the pilot bails -->
+    <cue name="CaptureMetricsPlainAttack">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_IntactOnEject" exact="1"/>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Target" exact="$Pair.$target"/>
+        <destroy_object object="$Pair.$attacker"/>
+      </actions>
+      <cues>
+        <cue name="CaptureMetricsPlainAttack_Act">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="ForceBail">
+              <param name="Attacker" value="player.occupiedship"/>
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="CaptureMetricsPlainAttack_Summary">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Metrics.Summary"/>
+                <check_value value="event.param.$target == $Target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureMetricsPlainAttack_Timeout"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <set_value name="$Rec" exact="event.param"/>
+                <run_actions ref="MetricsProblems" result="$Problems">
+                  <param name="Rec" value="$Rec"/>
+                  <param name="Mode" value="'attack'"/>
+                  <param name="Outcome" value="'abandoned'"/>
+                </run_actions>
+                <set_value name="$Listed" exact="false"/>
+                <do_for_each name="$A" in="$Rec.$attackers">
+                  <do_if value="$A.$ship == player.occupiedship">
+                    <set_value name="$Listed" exact="true"/>
+                  </do_if>
+                </do_for_each>
+                <do_if value="not $Listed">
+                  <set_value name="$Problems" exact="$Problems + ' the ship I fly is not an attacker (%s listed);'.[$Rec.$attackers.count]"/>
+                </do_if>
+                <do_if value="$Rec.$checks != 1 or $Rec.$successes != 1 or not $Rec.$pilotbailed">
+                  <set_value name="$Problems" exact="$Problems + ' %s checks, %s successes, pilot bailed %s; expected 1, 1, true;'.[$Rec.$checks, $Rec.$successes, $Rec.$pilotbailed]"/>
+                </do_if>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_metrics_plain_attack', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'abandoned after %s s'.[$Rec.$total] else $Problems)]"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+            <cue name="CaptureMetricsPlainAttack_Timeout">
+              <delay exact="30s"/>
+              <actions>
+                <cancel_cue cue="CaptureMetricsPlainAttack_Summary"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_metrics_plain_attack', $ok = false, $detail = 'no summary within 30s (owner: %s)'.[@$Target.trueowner]]"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A plain attack with no hit or check for the drop time (5 s here, 120 s in play) ends as
+         dropped -->
+    <cue name="CaptureMetricsDropped">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_MetricsDropAfter" exact="5"/>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Target" exact="$Pair.$target"/>
+        <destroy_object object="$Pair.$attacker"/>
+        <run_actions ref="md.APiratesLife_Metrics.Note" result="$Started">
+          <param name="Attacker" value="player.occupiedship"/>
+          <param name="Target" value="$Target"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="CaptureMetricsDropped_Summary">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Metrics.Summary"/>
+            <check_value value="event.param.$target == $Target"/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="CaptureMetricsDropped_Timeout"/>
+            <remove_value name="global.$APiratesLife_MetricsDropAfter"/>
+            <set_value name="$Rec" exact="event.param"/>
+            <run_actions ref="MetricsProblems" result="$Problems">
+              <param name="Rec" value="$Rec"/>
+              <param name="Mode" value="'attack'"/>
+              <param name="Outcome" value="'dropped'"/>
+            </run_actions>
+            <do_if value="not $Started">
+              <set_value name="$Problems" exact="$Problems + ' the hit started no record;'"/>
+            </do_if>
+            <do_if value="$Rec.$total lt 5 or $Rec.$playerhits != 1 or $Rec.$checks != 0">
+              <set_value name="$Problems" exact="$Problems + ' total %s s, %s player hits, %s checks; expected at least 5 s, 1, 0;'.[$Rec.$total, $Rec.$playerhits, $Rec.$checks]"/>
+            </do_if>
+            <signal_cue_instantly cue="Report" param="table[$name = 'capture_metrics_dropped', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'dropped after %s s'.[$Rec.$total] else $Problems)]"/>
+            <destroy_object object="$Target"/>
+          </actions>
+        </cue>
+        <cue name="CaptureMetricsDropped_Timeout">
+          <delay exact="30s"/>
+          <actions>
+            <cancel_cue cue="CaptureMetricsDropped_Summary"/>
+            <remove_value name="global.$APiratesLife_MetricsDropAfter"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'capture_metrics_dropped', $ok = false, $detail = 'no summary within 30s']"/>
+            <destroy_object object="$Target"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A hit by a player-owned ship outside the player's wing starts no record. No fighting
+         needed: the hit goes straight to the metrics library. -->
+    <cue name="CaptureMetricsFleetIgnored">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <run_actions ref="md.APiratesLife_Metrics.Note" result="$Rec">
+          <param name="Attacker" value="$Pair.$attacker"/>
+          <param name="Target" value="$Pair.$target"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Metrics.Find" result="$Found">
+          <param name="Target" value="$Pair.$target"/>
+        </run_actions>
+        <set_value name="$Ok" exact="not $Rec and not $Found"/>
+        <signal_cue_instantly cue="Report" param="table[$name = 'capture_metrics_fleet_ignored', $ok = $Ok, $detail = (if $Ok then 'no record' else 'a record started')]"/>
+        <do_if value="$Found">
+          <remove_from_list name="global.$APiratesLife_CaptureMetrics" exact="$Found"/>
+        </do_if>
+        <destroy_object object="$Pair.$attacker"/>
+        <destroy_object object="$Pair.$target"/>
+      </actions>
+    </cue>
+
+    <!-- A plain attack that becomes an operation keeps its record and start time, and ends in one
+         summary as an operation -->
+    <cue name="CaptureMetricsAttackBecomesOperation">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Target" exact="$Pair.$target"/>
+        <set_value name="$Problems" exact="''"/>
+        <run_actions ref="md.APiratesLife_Metrics.Note" result="$First">
+          <param name="Attacker" value="player.occupiedship"/>
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <do_if value="not $First">
+          <set_value name="$Problems" exact="' the hit started no record;'"/>
+        </do_if>
+        <set_value name="$StartedAt" exact="@$First.$started"/>
+      </actions>
+      <cues>
+        <!-- Let some game time pass, so a new record would have a later start -->
+        <cue name="CaptureMetricsAttackBecomesOperation_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <run_actions ref="md.APiratesLife_Metrics.Find" result="$Rec">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <do_if value="not $Started">
+              <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
+            </do_if>
+            <do_if value="@$Rec.$mode != 'operation' or @$Rec.$started != $StartedAt">
+              <set_value name="$Problems" exact="$Problems + ' record is %s from %s, expected operation from %s;'.[@$Rec.$mode, @$Rec.$started, $StartedAt]"/>
+            </do_if>
+            <destroy_object object="$Target"/>
+          </actions>
+          <cues>
+            <cue name="CaptureMetricsAttackBecomesOperation_Summary">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Metrics.Summary"/>
+                <check_value value="event.param.$target == $Target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureMetricsAttackBecomesOperation_Timeout"/>
+                <set_value name="$Summary" exact="event.param"/>
+              </actions>
+              <cues>
+                <cue name="CaptureMetricsAttackBecomesOperation_Extra">
+                  <conditions>
+                    <event_cue_signalled cue="md.APiratesLife_Metrics.Summary"/>
+                    <check_value value="event.param.$target == $Target"/>
+                  </conditions>
+                  <actions>
+                    <set_value name="$Problems" exact="$Problems + ' more than one summary;'"/>
+                  </actions>
+                </cue>
+                <cue name="CaptureMetricsAttackBecomesOperation_Check">
+                  <delay exact="3s"/>
+                  <actions>
+                    <cancel_cue cue="CaptureMetricsAttackBecomesOperation_Extra"/>
+                    <run_actions ref="MetricsProblems" result="$More">
+                      <param name="Rec" value="$Summary"/>
+                      <param name="Mode" value="'operation'"/>
+                      <param name="Outcome" value="'destroyed'"/>
+                    </run_actions>
+                    <set_value name="$Problems" exact="$Problems + $More"/>
+                    <signal_cue_instantly cue="Report" param="table[$name = 'capture_metrics_attack_becomes_operation', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'one record, %s s from the first hit'.[$Summary.$total] else $Problems)]"/>
+                    <destroy_object object="$Pair.$attacker"/>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+            <cue name="CaptureMetricsAttackBecomesOperation_Timeout">
+              <delay exact="10s"/>
+              <actions>
+                <cancel_cue cue="CaptureMetricsAttackBecomesOperation_Summary"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_metrics_attack_becomes_operation', $ok = false, $detail = $Problems + ' no summary within 10s of the target being destroyed']"/>
+                <destroy_object object="$Pair.$attacker"/>
               </actions>
             </cue>
           </cues>

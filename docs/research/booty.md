@@ -36,7 +36,7 @@ From first shot to the ship being abandoned, player-flown:
 | M corvette or miner (~2–4 successes) | ~5–6 min | ~2–3 min |
 | M transport (up to ~8 successes) | ~10–12 min | ~3–4 min |
 
-Capture is the small part of a prize's time. Rough full cycles, including finding the target and bringing the prize in: **S ~8 min, M ~20 min, L ~1 h** (L needs boarding, not built yet). Real numbers will come from the capture metrics logging (see the plan).
+Capture is the small part of a prize's time. Rough full cycles, including finding the target and bringing the prize in: **S ~8 min, M ~20 min, L ~1 h** (L needs boarding, not built yet). Real numbers will come from the [capture metrics](../specs/capture-metrics.md) logging.
 
 ## Levels and thresholds
 
