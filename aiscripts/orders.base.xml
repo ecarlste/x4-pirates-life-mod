@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Diff patch for vanilla aiscripts/orders.base.xml: before starting an order on a docked ship,
+     vanilla undocks it unless the order is one it knows may run docked (DockAt, DockAndWait,
+     Repair, ...) or TransferWorkers, which handles undocking itself. Our booty handover order
+     (aiscripts/order.apirateslife.handover.xml) handles it itself too: it starts again once its
+     DockAt has docked the ship, and must find it still docked to hand it over. Without this, the
+     ship undocked the moment it had docked. See docs/specs/booty.md. -->
+<diff>
+  <replace sel="//do_if[@value=&quot;$object.isclass.ship and ($object.dock or $object.parkedat) and ($object.order.id != 'Undock') and ($object.order.id != 'TransferWorkers')&quot;]/@value">$object.isclass.ship and ($object.dock or $object.parkedat) and ($object.order.id != 'Undock') and ($object.order.id != 'TransferWorkers') and ($object.order.id != 'APiratesLife_HandOver')</replace>
+</diff>

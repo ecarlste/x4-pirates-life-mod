@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- "Hand over as booty": the ship docks at a pirate group's wharf or shipyard and is handed over
+     there, as if the player had chosen it in a talk with the station's staff. See
+     docs/specs/booty.md (Handing a prize over).
+
+     The booty rules live in MD (md/apirateslife_booty.xml), which AI scripts can't call, so the
+     order signals the galaxy and MD answers on this pilot (X4 can't hold variables on a ship):
+       1. 'apirateslife_handover_ask' (param2 this ship, param3 the station chosen or null). MD sets
+          this.$APiratesLife_HandoverStation where to go (the nearest that takes it, when none was
+          chosen), or leaves it unset and tells the player why not.
+       2. The order docks there as vanilla's Dock and Wait does (order.dock.wait.xml): it puts a
+          DockAt order in front of itself, and starts again once that's done. So it starts by
+          checking whether it's docked there already, and gives up after three tries
+          (this.$APiratesLife_HandoverTries).
+       3. 'apirateslife_handover_docked' (param2 this ship, param3 the station): MD hands it over,
+          and the ship stays docked until the sale removes it. -->
+<aiscript name="order.apirateslife.handover" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="1">
+  <order id="APiratesLife_HandOver" name="{1774101, 40}" description="{1774101, 41}" category="trade" allowinloop="false">
+    <params>
+      <param name="station" type="object" default="null" text="{1774101, 42}" comment="Station to hand the ship over at; null for the nearest that takes it">
+        <input_param name="class" value="[class.station]"/>
+      </param>
+      <param name="debugchance" type="bool" default="0" advanced="true" text="{1041, 10086}" comment="Print debug output">
+        <input_param name="truevalue" value="100"/>
+      </param>
+    </params>
+    <requires>
+      <match class="class.spacesuit" negate="true"/>
+      <match shiptype="shiptype.lasertower" negate="true"/>
+    </requires>
+  </order>
+  <attention min="unknown">
+    <actions>
+      <remove_value name="this.$APiratesLife_HandoverStation"/>
+      <signal_objects object="player.galaxy" param="'apirateslife_handover_ask'" param2="this.ship" param3="$station"/>
+      <!-- MD answers on the next update -->
+      <wait exact="1s"/>
+      <do_if value="not this.$APiratesLife_HandoverStation?">
+        <debug_text text="'%s (%s): not handed over (refused)'.[this.ship.knownname, this.ship.idcode]" chance="$debugchance"/>
+        <remove_value name="this.$APiratesLife_HandoverTries"/>
+        <return/>
+      </do_if>
+      <set_value name="$station" exact="this.$APiratesLife_HandoverStation"/>
+      <remove_value name="this.$APiratesLife_HandoverStation"/>
+
+      <debug_text text="'%s (%s): docked at %s, dock assigned at %s, going to %s (try %s)'.[this.ship.knownname, this.ship.idcode, @this.ship.dock.container.knownname, @this.ship.assigneddock.container.knownname, $station.knownname, @this.$APiratesLife_HandoverTries]" chance="$debugchance"/>
+      <!-- Back from DockAt with a dock here assigned but not yet landed in: wait for the landing -->
+      <do_if value="not this.ship.dock and @this.ship.assigneddock.container == $station">
+        <wait max="60s">
+          <interrupt>
+            <conditions>
+              <event_object_docked object="this.ship"/>
+            </conditions>
+          </interrupt>
+        </wait>
+      </do_if>
+      <do_if value="this.ship.dock and this.ship.dock.container == $station">
+        <remove_value name="this.$APiratesLife_HandoverTries"/>
+        <signal_objects object="player.galaxy" param="'apirateslife_handover_docked'" param2="this.ship" param3="$station"/>
+        <return/>
+      </do_if>
+      <do_if value="@this.$APiratesLife_HandoverTries ge 3">
+        <remove_value name="this.$APiratesLife_HandoverTries"/>
+        <debug_text text="'[apirateslife] booty: %s (%s) could not dock at %s to be handed over'.[this.ship.knownname, this.ship.idcode, $station.knownname]"/>
+        <return/>
+      </do_if>
+      <do_if value="not this.$APiratesLife_HandoverTries?">
+        <set_value name="this.$APiratesLife_HandoverTries" exact="0"/>
+      </do_if>
+      <set_value name="this.$APiratesLife_HandoverTries" operation="add"/>
+      <create_order object="this.ship" id="'DockAt'" immediate="true">
+        <param name="destination" value="$station"/>
+        <param name="callerid" value="this.ship.order"/>
+        <param name="debugchance" value="$debugchance"/>
+      </create_order>
+      <!-- DockAt runs now; this order starts again once it's done -->
+      <wait exact="1ms"/>
+    </actions>
+  </attention>
+</aiscript>

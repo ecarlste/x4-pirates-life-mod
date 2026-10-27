@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Diff patch for vanilla libraries/icons.xml: the map and order queue look up an order's icon as
-     order_<order id>, so our capture order reuses vanilla's attack icon (as vanilla's own
-     order_attack_player does). -->
+     order_<order id>, so our orders reuse vanilla's icons (as vanilla's own order_attack_player
+     does): the capture order the attack icon, the booty handover order the dock-and-wait icon. -->
 <diff>
   <add sel="/icons">
     <icon name="order_apirateslife_capture" texture="assets\textures\ui\order\order_attack.tga" height="32" width="32"/>
+    <icon name="order_apirateslife_handover" texture="assets\textures\ui\order\order_dockandwait.tga" height="32" width="32"/>
   </add>
 </diff>

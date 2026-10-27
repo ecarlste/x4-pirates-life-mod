@@ -38,11 +38,17 @@ Feature: Booty
     When I hand it over
     Then I get booty and standing without the stolen bonus
 
-  @pending
-  Scenario: The order docks the prize and hands it over
-    Given a pirated fighter of mine away from Vigor's stations
-    When I give it the "Hand over as booty" order
-    Then it docks at the nearest Vigor station that can take it and is handed over
+  @booty_order_hands_over
+  Scenario: The order flies the prize to the nearest Vigor station, docks and hands it over
+    Given a fighter of mine flying away from Vigor's stations
+    When I give it the "Hand over as booty" order without choosing a station
+    Then it flies to the nearest Vigor station I know that can take it, docks and is handed over
+
+  @booty_order_refuses_too_big
+  Scenario: The order refuses a ship too big for my level before it flies
+    Given standing below the level that opens M turn-ins
+    When I give an M ship the "Hand over as booty" order
+    Then the order ends without flying, and I'm told the Vigor Syndicate don't take ships that size from me yet
 
   @booty_too_big
   Scenario: Ships too big for my level aren't taken
@@ -50,17 +56,24 @@ Feature: Booty
     When I try to hand over an M ship docked at the Vigor wharf
     Then it's refused, saying the Vigor Syndicate don't take ships that size from me yet
 
-  @pending
+  @booty_pilot_moves
   Scenario: The pilot moves to a free marine slot
     Given a prize with a pilot, and another of my ships with a free marine slot
     When I hand the prize over
     Then the pilot is moving to that ship as a marine
+    And they're still there after the prize is sold
 
-  @pending
+  @booty_pilot_skips_full
   Scenario: The pilot skips ships with no free marine slot
-    Given a prize with a pilot, my nearest ship with every marine slot full, and a ship in another sector with a free one
+    Given a prize with a pilot, my nearest ship with every crew slot full, and a farther one with room
     When I hand the prize over
-    Then the pilot is moving to the ship in the other sector as a marine
+    Then the pilot is moving to the farther ship as a marine
+
+  @manual
+  Scenario: The pilot goes to another sector only when this one has no room
+    Given a prize with a pilot, no ship with room in its sector, and ships with room one and two gates away
+    When I hand the prize over
+    Then the pilot is moving to the ship one gate away
 
   @booty_level_up
   Scenario: Enough standing raises my level and lowers the cut
