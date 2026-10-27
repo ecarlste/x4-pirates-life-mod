@@ -65,7 +65,7 @@ Erik's decision (2026-10-27): no store with its own stock. Booty buys an unlock,
 - **It stays out of the HQ research tree.** Research wares tagged `hidden` (`tags="hidden research"`, e.g. `research_module_build`) are skipped by the research menu (`menu_research.lua:99`, which excludes the `hidden` tag).
 - **It's all data, with no Lua.** That means no UI Extensions needed and no menu code to break on game updates; for each variant, a diff on `wares.xml` adds the research ware and the precursor, which the generator script can write. Each unlock is one item.
 - **Where it's sold:** a station's build list comes from the ware's `<owner faction="…"/>`, so variants owned by a group's factions show up at that group's wharfs and shipyards. The Vigor Syndicate (`loanshark`) already sells eight ships of its own, from an S transport (`ship_pir_s_trans_container_01_a`, general-use licence) to L miners.
-- **Licences:** `checkLicence` skips the licence check for a ware that needs research (the two are an if/else), so a variant needing research isn't blocked by Scale Plate's locked −5 in the menu. To check in game: whether the engine still checks the licence when the purchase goes through.
+- **Licences:** `checkLicence` skips the licence check for a ware that needs research (the two are an if/else), so a variant needing research isn't blocked by Scale Plate's locked −5 in the menu. Confirmed in game (below): with the unlock, a military-licence ship can be bought below +10.
 
 **Other routes (fallbacks):**
 
@@ -73,7 +73,20 @@ Erik's decision (2026-10-27): no store with its own stock. Booty buys an unlock,
 - **Hiding locked wares in the menus** through kuertee's UI Extensions: per item, but needs Lua, the hook, and shows everything without UI Extensions.
 - **Our own refit service** with `apply_loadout`: works without UI changes, but isn't the vanilla build menu.
 
-**Still to prove in game (a small proof of concept at the Vigor wharf):** patch one Vigor ship to need a hidden research ware of ours, then check: (1) it shows red with our text; (2) after `add_research` it can be bought, and the purchase completes; (3) the same for a ship needing the military licence, to see whether the engine still asks for the licence; (4) the research stays out of the HQ research menu; (5) it survives a save and load.
+### Proof of concept in game (2026-10-27)
+
+Branch `spike/unlock-research-poc` (not merged; the code stays there for reference): a hidden research ware of ours (`research_apirateslife_poc`, `tags="hidden research"`) added as a precursor to two Vigor ships, the S container transport (general-use licence) and the S fighter (military licence), with a spike-only comm choice to grant or remove it. Erik checked it at the Vigor wharf, below +10 with Vigor:
+
+1. **Locked:** both ships show in the Buy Ships list in red, with our text under "Required research:". ✔
+2. **Unlock:** after `add_research`, both can be bought. ✔ Not yet confirmed: a purchase built and delivered to the end.
+3. **Licence:** the military-licence fighter can be bought with the unlock while below +10, so the research replaces the licence check in the menu. ✔ This is what we want: standing gates our rewards whatever vanilla rep is.
+4. **Hidden:** the unlock doesn't appear in the HQ research tree (the only unresearched entry Erik saw was vanilla's "Xenon Special Equipment"). ✔
+5. **Save and load:** the unlock survives. ✔
+6. **Removing:** `remove_research` locks both ships again. ✔
+
+SWI gates its factions' special ship versions with both rep and research (in its normal research tree), so the mechanism is a familiar one for conversions too. SWI also marks those ships with a star in the Buy Ships dropdown. That's vanilla's own research icon (`gamestart_custom_research`, `base/libraries/icons.xml:772`), which `checkLicence` gives every research-gated ware in vanilla (`menu_ship_configuration.lua:7266`) and in SWI's replacement menu alike (`subst02/ui/addons/ego_detailmonitor/menu_ship_configuration.xpl:7152`). So our unlockable ships get the same marker with no work. To confirm on the next visit: whether the proof-of-concept ships showed it.
+
+**Result: one hidden research ware per unlock is the way to build booty unlocks.** The other routes are no longer needed.
 
 ## To verify in game
 
