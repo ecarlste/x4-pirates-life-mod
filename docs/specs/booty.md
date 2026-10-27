@@ -34,7 +34,7 @@ Built in four PRs, each with its game tests: **groups and handover**, **variants
   - **The station manager:** at a group station, the conversation lists the player's ships docked there that qualify, to hand over one at a time.
 - **Who qualifies:** a player-owned, operational ship that the player isn't flying, whose size the player's level accepts. Ships with the player or the player's ship docked on them don't qualify.
 - **The handover:**
-  1. Move the pilot to a free marine slot on the nearest player ship (vanilla reassignment). With no free slot, the pilot goes with the ship, as in a sale.
+  1. Move the pilot to a free marine slot (vanilla reassignment): on the nearest of the player's ships that has one, searching the whole fleet in every sector, nearest first (same sector by distance, then other sectors by jumps). Only when no ship anywhere has a free slot does the pilot go with the ship, as in a sale.
   2. Ask our Lua for `GetTotalValue(ship, true, station)`: the price a vanilla sale there would pay.
   3. Credits: price × (1 − the level's cut), paid with `TransferMoneyToPlayer`. The ship goes with `C.SellPlayerShip`, the same as a sale.
   4. Booty: price × taste × (stolen bonus if pirated). Standing: booty × the standing gain setting. A level-up shows a notification.

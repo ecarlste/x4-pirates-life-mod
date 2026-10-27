@@ -36,6 +36,12 @@ Feature: Booty
     Then the pilot is moving to that ship as a marine
 
   @pending
+  Scenario: The pilot skips ships with no free marine slot
+    Given a prize with a pilot, my nearest ship with every marine slot full, and a ship in another sector with a free one
+    When I hand the prize over
+    Then the pilot is moving to the ship in the other sector as a marine
+
+  @pending
   Scenario: Enough standing raises my level and lowers the cut
     Given standing just below the next level
     When a handover takes it past the threshold

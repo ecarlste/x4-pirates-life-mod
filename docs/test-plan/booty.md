@@ -8,7 +8,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 0 | 0 | 13 | **13** |
+| 0 | 0 | 0 | 14 | **14** |
 
 ## Scenarios
 
@@ -62,6 +62,16 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
   Given a prize with a pilot, and another of my ships with a free marine slot
   When I hand the prize over
   Then the pilot is moving to that ship as a marine
+```
+
+### The pilot skips ships with no free marine slot
+
+- [ ] **Pending:** checked by hand until its planned automated test exists
+
+```gherkin
+  Given a prize with a pilot, my nearest ship with every marine slot full, and a ship in another sector with a free one
+  When I hand the prize over
+  Then the pilot is moving to the ship in the other sector as a marine
 ```
 
 ### Enough standing raises my level and lowers the cut
