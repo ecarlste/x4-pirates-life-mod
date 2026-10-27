@@ -1395,6 +1395,9 @@
         <set_object_hull object="$Target" exact="80"/>
         <set_value name="$MinHull" exact="100"/>
         <set_value name="$HeldFor" exact="0"/>
+        <!-- Seconds in a row the wingman sat still inside the gate, and the longest run -->
+        <set_value name="$Parked" exact="0"/>
+        <set_value name="$MaxParked" exact="0"/>
       </actions>
       <cues>
         <cue name="CaptureWingHoldsFire_Start">
@@ -1415,7 +1418,7 @@
                 </do_if>
                 <do_else>
                   <set_value name="$MinHull" exact="[$MinHull, $Target.hullpercentage].min"/>
-                  <debug_text text="'[apirateslife-test] trace: hull %s%%, shields %s%%, wingman %sm away, order %s, may attack %s, enemy %s, guns %s, ready %s, dps %s'.[$Target.hullpercentage, $Target.shieldpercentage, $Wingman.distanceto.{$Target}, @$Wingman.order.id, $Wingman.mayattack.{$Target}, $Wingman.hasrelation.enemy.{$Target}, $Wingman.weapons.operational.count, @$Wingman.weapons.operational.list.{1}.isreadytofire, $Wingman.dps.lasers.all]"/>
+                  <debug_text text="'[apirateslife-test] trace: hull %s%%, shields %s%%, wingman %sm away at %s m/s, order %s, may attack %s, enemy %s, guns %s, ready %s, dps %s'.[$Target.hullpercentage, $Target.shieldpercentage, $Wingman.distanceto.{$Target}, $Wingman.speed, @$Wingman.order.id, $Wingman.mayattack.{$Target}, $Wingman.hasrelation.enemy.{$Target}, $Wingman.weapons.operational.count, @$Wingman.weapons.operational.list.{1}.isreadytofire, $Wingman.dps.lasers.all]"/>
                   <do_if value="$Target.hullpercentage lt 35">
                     <set_value name="$Result" exact="' hull %s%%, below the 35%% floor;'.[$Target.hullpercentage]"/>
                   </do_if>
@@ -1423,6 +1426,14 @@
                     <set_value name="$Finished" exact="false"/>
                     <do_if value="$Target.hullpercentage lt 75">
                       <set_value name="$HeldFor" operation="add"/>
+                      <!-- Holding wingmen keep evading: one sitting still got shot down in Erik's game -->
+                      <do_if value="$Wingman.speed lt 10m">
+                        <set_value name="$Parked" operation="add"/>
+                        <set_value name="$MaxParked" exact="[$MaxParked, $Parked].max"/>
+                      </do_if>
+                      <do_else>
+                        <set_value name="$Parked" exact="0"/>
+                      </do_else>
                       <!-- Inside the bail gate long enough to see that the wing stops there -->
                       <set_value name="$Finished" exact="$HeldFor ge 30"/>
                     </do_if>
@@ -1463,7 +1474,10 @@
                 <do_if value="$Problems == '' and $MinHull lt 55">
                   <set_value name="$Problems" exact="' lowest hull %s%%, more than 20 points under the 75%% gate;'.[$MinHull]"/>
                 </do_if>
-                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'held %s s under 75%%, lowest hull %s%%'.[$HeldFor, $MinHull] else $Problems)]"/>
+                <do_if value="$MaxParked ge 5">
+                  <set_value name="$Problems" exact="$Problems + ' the wingman sat still for %s s in a row while holding;'.[$MaxParked]"/>
+                </do_if>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'held %s s under 75%%, lowest hull %s%%, longest still %s s'.[$HeldFor, $MinHull, $MaxParked] else $Problems)]"/>
                 <destroy_object object="$Wingman"/>
                 <do_if value="$Target.exists">
                   <destroy_object object="$Target"/>
