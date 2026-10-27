@@ -2,9 +2,8 @@
 
 **Status: partly agreed (Erik, 2026-10-27).** The booty v1 design says the first variants start small, and that their recipes go to Erik as a design proposal ([DESIGN.md, Booty and pirate standing](../DESIGN.md#booty-and-pirate-standing); [spec](../specs/booty.md#variants)). This note is that proposal: how a pirate operates, which vanilla hulls suit it best at each size, what a "pirate rig" changes, and a first set.
 
-- **Agreed, now in DESIGN.md:** hulls by pirate role; the core set from base and Tides of Avarice only, other DLCs as extras; pirate gear (combat, all-round and travel engines, quick-recharge shields, the Stripper); the first set; names ("Pirate" for pirate versions of existing tech, fun names for new things).
+- **Agreed, now in DESIGN.md:** hulls by pirate role; the core set from base and Tides of Avarice only, other DLCs as extras; pirate gear (combat, all-round and travel engines, quick-recharge shields, the Stripper built on vanilla's ion blaster, a pirate EMP missile at about level 3); the first set; names ("Pirate" for pirate versions of existing tech, fun names for new things).
 - **Still iterating:** the rig recipes. Cargo should stay valuable on some builds: booty for cargo turn-ins is coming later (see Ideas).
-- **Proposed, not yet decided:** strippers built on vanilla's ion blaster, and a pirate EMP missile (both under Gear).
 
 Data: every ship macro in X4 9.00 (base and all DLCs, 285 ships), read from the unpacked files under `E:\x4-dev\reference\x4-9.00\` with a throwaway script. The **speed index** is engine slots ÷ forward drag × 100: it ranks ships of one size by how fast the same engines push them, for both combat and travel speed. It isn't a speed in m/s.
 
@@ -76,9 +75,9 @@ Each role gets a trade-off, so a variant is better at piracy and worse at someth
   | All-round | ×1.05 | ×1.2 | ×1.15 | engine hull ×0.8 |
   | Travel | ×0.9 | ×1.3 | ×1.1 | weaker in a fight |
 
-- **The Stripper** (agreed; the name stays): a gun built to strip shields, with heavy shield damage and light hull damage, so the bail gate opens fast and stray shots barely scratch the prize ([pirate-refitting.md](pirate-refitting.md#raid-a-faction-arm-from-its-enemies) had the idea first). **Proposed basis: vanilla's ion blaster,** which already does about 4× more shield than hull damage (S Mk1: 268 shield, 68 hull; `bullet_arg_s_ion_01_mk1`). The Stripper pushes that to about 8:1 (shield ×1.3, hull ×0.6). S and M, Mk1 and Mk2, the marks vanilla's ion comes in.
+- **The Stripper** (agreed; the name stays): a gun built to strip shields, with heavy shield damage and light hull damage, so the bail gate opens fast and stray shots barely scratch the prize ([pirate-refitting.md](pirate-refitting.md#raid-a-faction-arm-from-its-enemies) had the idea first). **Built on vanilla's ion blaster** (agreed), which already does about 4× more shield than hull damage (S Mk1: 268 shield, 68 hull; `bullet_arg_s_ion_01_mk1`). The Stripper pushes that to about 8:1 (shield ×1.3, hull ×0.6). S and M, Mk1 and Mk2, the marks vanilla's ion comes in.
 - **Shields:** a quick-recharge rig (recharge delay ×0.7, capacity ×0.85), for hit-and-run.
-- **Proposed: a pirate EMP missile.** Vanilla's EMP missile (base game) does 1 damage and shuts down boost and travel drive for 30 s on S and M ships, 18 s on L and XL (`emp_missile` in `libraries/influenceconfigurations.xml`): the missile that stops prey running. A pirate one shuts them down ×1.5 longer (45 s on S and M), at about level 3, and gets a fun name, as something new (e.g. "Cold Feet"). The Split DLC's disruptor missile does the same plus halved acceleration, with 896 damage.
+- **A pirate EMP missile** (agreed, about level 3). Vanilla's EMP missile (base game) does 1 damage and shuts down boost and travel drive for 30 s on S and M ships, 18 s on L and XL (`emp_missile` in `libraries/influenceconfigurations.xml`): the missile that stops prey running. A pirate one shuts them down ×1.5 longer (45 s on S and M), at about level 3, and gets a fun name, as something new (e.g. "Cold Feet"). The Split DLC's disruptor missile does the same plus halved acceleration, with 896 damage.
 - **No vanilla weapon damages components more than hull.** Damage is only shield or hull (`<damage value shield hull>` in the bullet macros); turrets and engines on L and XL are surface elements that can be targeted, but every weapon hurts them alike. A disabler for big captures needs a spike (see Ideas).
 
 ## A first set to propose
