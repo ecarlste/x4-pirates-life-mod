@@ -1,0 +1,510 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Booty: handing prizes to a pirate group at its wharf or shipyard, for credits (a sale minus the
+     fence's cut) and booty, the group's currency, which also raises standing with the group. See
+     docs/specs/booty.md.
+
+     The groups come from the profile (md/apirateslife_profile_vanilla.xml). Per game:
+       global.$APiratesLife_Groups    '$' + group id -> table[$standing, $booty, $unlocks] (MD tables
+                                      need string keys that start with $)
+       global.$APiratesLife_Handovers the handovers waiting for the sale, oldest first; the first is
+                                      with ui/apirateslife_booty.lua, which sells it as vanilla's
+                                      map does and answers with the price.
+     Money values are whole credits. -->
+<mdscript name="APiratesLife_Booty" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <cue name="Init" instantiate="true">
+      <conditions>
+        <check_any>
+          <event_game_started/>
+          <event_game_loaded/>
+        </check_any>
+      </conditions>
+      <actions>
+        <do_if value="not global.$APiratesLife_Groups?">
+          <set_value name="global.$APiratesLife_Groups" exact="table[]"/>
+        </do_if>
+        <!-- A sale asked of the Lua before a save isn't answered after loading it: ask again -->
+        <do_if value="not global.$APiratesLife_Handovers?">
+          <set_value name="global.$APiratesLife_Handovers" exact="[]"/>
+        </do_if>
+        <do_elseif value="global.$APiratesLife_Handovers.count">
+          <run_actions ref="SendNext"/>
+        </do_elseif>
+      </actions>
+    </cue>
+
+    <!-- ===== Groups and standing ===== -->
+
+    <!-- The group whose stations belong to Faction, or null -->
+    <library name="GroupOf" purpose="run_actions">
+      <params>
+        <param name="Faction"/>
+      </params>
+      <actions>
+        <run_actions ref="md.APiratesLife_ProfileVanilla.Groups" result="$Groups"/>
+        <do_for_each name="$Group" in="$Groups">
+          <do_if value="$Group.$factions.indexof.{$Faction}">
+            <return value="$Group"/>
+          </do_if>
+        </do_for_each>
+        <return value="null"/>
+      </actions>
+    </library>
+
+    <!-- The group whose booty Station takes (a group faction's wharf or shipyard), or null -->
+    <library name="GroupAt" purpose="run_actions">
+      <params>
+        <param name="Station"/>
+      </params>
+      <actions>
+        <do_if value="not @$Station.isoperational or not $Station.isclass.station or not ($Station.iswharf or $Station.isshipyard)">
+          <return value="null"/>
+        </do_if>
+        <run_actions ref="GroupOf" result="$Group">
+          <param name="Faction" value="$Station.trueowner"/>
+        </run_actions>
+        <return value="$Group"/>
+      </actions>
+    </library>
+
+    <!-- The player's state with Group: table[$standing, $booty, $unlocks], made on first use -->
+    <library name="State" purpose="run_actions">
+      <params>
+        <param name="Group"/>
+      </params>
+      <actions>
+        <do_if value="not global.$APiratesLife_Groups?">
+          <set_value name="global.$APiratesLife_Groups" exact="table[]"/>
+        </do_if>
+        <set_value name="$Key" exact="'$' + $Group.$id"/>
+        <do_if value="not global.$APiratesLife_Groups.{$Key}?">
+          <set_value name="global.$APiratesLife_Groups.{$Key}" exact="table[$standing = 0, $booty = 0, $unlocks = []]"/>
+        </do_if>
+        <return value="global.$APiratesLife_Groups.{$Key}"/>
+      </actions>
+    </library>
+
+    <!-- The level (from 0) that Standing reaches with Group -->
+    <library name="Level" purpose="run_actions">
+      <params>
+        <param name="Group"/>
+        <param name="Standing"/>
+      </params>
+      <actions>
+        <set_value name="$Level" exact="0"/>
+        <do_for_each name="$Entry" in="$Group.$levels" counter="$i">
+          <do_if value="$Standing ge $Entry.$standing">
+            <set_value name="$Level" exact="$i - 1"/>
+          </do_if>
+        </do_for_each>
+        <return value="$Level"/>
+      </actions>
+    </library>
+
+    <!-- The fence's cut at Level, in percent: BootyCutStart at level 0, falling evenly to
+         BootyCutFloor at the top level -->
+    <library name="Cut" purpose="run_actions">
+      <params>
+        <param name="Group"/>
+        <param name="Level"/>
+      </params>
+      <actions>
+        <set_value name="$Start" exact="if global.$APiratesLife_BootyCutStart? then global.$APiratesLife_BootyCutStart else 40"/>
+        <set_value name="$Floor" exact="if global.$APiratesLife_BootyCutFloor? then global.$APiratesLife_BootyCutFloor else 10"/>
+        <set_value name="$Top" exact="[$Group.$levels.count - 1, 1].max"/>
+        <return value="$Start - ($Start - $Floor) * [$Level, $Top].min / ($Top)f"/>
+      </actions>
+    </library>
+
+    <!-- 1 for S, 2 M, 3 L, 4 XL, 0 for anything else -->
+    <library name="SizeOf" purpose="run_actions">
+      <params>
+        <param name="Ship"/>
+      </params>
+      <actions>
+        <do_if value="$Ship.isclass.ship_xl">
+          <return value="4"/>
+        </do_if>
+        <do_if value="$Ship.isclass.ship_l">
+          <return value="3"/>
+        </do_if>
+        <do_if value="$Ship.isclass.ship_m">
+          <return value="2"/>
+        </do_if>
+        <do_if value="$Ship.isclass.ship_s">
+          <return value="1"/>
+        </do_if>
+        <return value="0"/>
+      </actions>
+    </library>
+
+    <!-- How much Group wants Ship: its own ships' factor, else the highest of its makers' tastes,
+         else 1 -->
+    <library name="Taste" purpose="run_actions">
+      <params>
+        <param name="Group"/>
+        <param name="Ship"/>
+      </params>
+      <actions>
+        <do_if value="$Group.$own.$macros.indexof.{$Ship.macro}">
+          <return value="$Group.$own.$factor"/>
+        </do_if>
+        <set_value name="$Taste" exact="null"/>
+        <do_for_each name="$Race" in="$Ship.makerraces">
+          <do_if value="$Group.$tastes.{$Race}?">
+            <set_value name="$Taste" exact="if $Taste == null then $Group.$tastes.{$Race} else [$Taste, $Group.$tastes.{$Race}].max"/>
+          </do_if>
+        </do_for_each>
+        <return value="if $Taste == null then 1.0 else $Taste"/>
+      </actions>
+    </library>
+
+    <!-- ===== Handing a prize over ===== -->
+
+    <!-- Why Ship can't be handed over at Station: '' if it can, else a text for the player -->
+    <library name="WhyNot" purpose="run_actions">
+      <params>
+        <param name="Ship"/>
+        <param name="Station"/>
+      </params>
+      <actions>
+        <run_actions ref="GroupAt" result="$Group">
+          <param name="Station" value="$Station"/>
+        </run_actions>
+        <do_if value="not $Group">
+          <return value="{1774101, 22}"/>
+        </do_if>
+        <do_if value="not @$Ship.isoperational or not $Ship.isplayerowned or not $Ship.isclass.ship">
+          <return value="{1774101, 22}"/>
+        </do_if>
+        <do_if value="not $Ship.dock or $Ship.dock.container != $Station">
+          <return value="{1774101, 23}"/>
+        </do_if>
+        <!-- The player, or the ship they fly, aboard -->
+        <do_if value="$Ship == player.occupiedship or player.entity.hascontext.{$Ship} or (@player.occupiedship and player.occupiedship.hascontext.{$Ship})">
+          <return value="{1774101, 21}"/>
+        </do_if>
+        <do_for_each name="$H" in="global.$APiratesLife_Handovers">
+          <do_if value="$H.$ship == $Ship">
+            <return value="{1774101, 24}"/>
+          </do_if>
+        </do_for_each>
+        <run_actions ref="State" result="$State">
+          <param name="Group" value="$Group"/>
+        </run_actions>
+        <run_actions ref="Level" result="$Level">
+          <param name="Group" value="$Group"/>
+          <param name="Standing" value="$State.$standing"/>
+        </run_actions>
+        <run_actions ref="SizeOf" result="$Size">
+          <param name="Ship" value="$Ship"/>
+        </run_actions>
+        <do_if value="$Size == 0 or $Size gt $Group.$levels.{$Level + 1}.$size">
+          <return value="{1774101, 20}.[$Group.$faction.name]"/>
+        </do_if>
+        <return value="''"/>
+      </actions>
+    </library>
+
+    <!-- Hands Ship over at Station, if it can be. The sale and the payments follow once the Lua has
+         sold it (Sold); returns whether the handover was accepted. -->
+    <library name="HandOver" purpose="run_actions">
+      <params>
+        <param name="Ship"/>
+        <param name="Station"/>
+      </params>
+      <actions>
+        <run_actions ref="WhyNot" result="$Why">
+          <param name="Ship" value="$Ship"/>
+          <param name="Station" value="$Station"/>
+        </run_actions>
+        <do_if value="$Why != ''">
+          <debug_text text="'[apirateslife] booty: %s (%s) not handed over at %s: %s'.[@$Ship.knownname, @$Ship.idcode, @$Station.knownname, $Why]"/>
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="GroupAt" result="$Group">
+          <param name="Station" value="$Station"/>
+        </run_actions>
+        <run_actions ref="State" result="$State">
+          <param name="Group" value="$Group"/>
+        </run_actions>
+        <run_actions ref="Level" result="$Level">
+          <param name="Group" value="$Group"/>
+          <param name="Standing" value="$State.$standing"/>
+        </run_actions>
+        <run_actions ref="Cut" result="$Cut">
+          <param name="Group" value="$Group"/>
+          <param name="Level" value="$Level"/>
+        </run_actions>
+        <run_actions ref="Taste" result="$Taste">
+          <param name="Group" value="$Group"/>
+          <param name="Ship" value="$Ship"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Pirated.IsPirated" result="$Mark">
+          <param name="Ship" value="$Ship"/>
+        </run_actions>
+        <do_if value="not global.$APiratesLife_HandoverCount?">
+          <set_value name="global.$APiratesLife_HandoverCount" exact="0"/>
+        </do_if>
+        <set_value name="global.$APiratesLife_HandoverCount" operation="add"/>
+        <append_to_list name="global.$APiratesLife_Handovers" exact="table[
+          $id = global.$APiratesLife_HandoverCount, $ship = $Ship, $station = $Station, $group = $Group.$id,
+          $name = $Ship.knownname, $idcode = $Ship.idcode, $cut = $Cut, $taste = $Taste,
+          $pirated = ($Mark != null), $asked = player.age]"/>
+        <do_if value="global.$APiratesLife_Handovers.count == 1">
+          <run_actions ref="SendNext"/>
+        </do_if>
+        <return value="true"/>
+      </actions>
+    </library>
+
+    <!-- Asks the Lua to sell the oldest waiting handover -->
+    <library name="SendNext" purpose="run_actions">
+      <actions>
+        <do_if value="global.$APiratesLife_Handovers.count">
+          <set_value name="$H" exact="global.$APiratesLife_Handovers.{1}"/>
+          <set_value name="$H.$asked" exact="player.age"/>
+          <set_value name="player.entity.$APiratesLife_BootyRequest" exact="table[$id = $H.$id, $ship = $H.$ship, $station = $H.$station, $cut = $H.$cut / 100.0]"/>
+          <raise_lua_event name="'APiratesLife.bootySell'"/>
+        </do_if>
+      </actions>
+    </library>
+
+    <!-- Signalled with table[$ship (gone by now), $name, $idcode, $group, $ok, $price, $credits,
+         $booty, $standing, $level, $pirated] after each handover's sale, or its failure. For tests
+         and later features. -->
+    <cue name="HandedOver" instantiate="true">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+    </cue>
+
+    <!-- The Lua's answer for the oldest waiting handover: "sold" with the price, or "failed" -->
+    <cue name="Sold" instantiate="true">
+      <conditions>
+        <event_ui_triggered screen="'APiratesLife_Booty'"/>
+        <check_value value="@global.$APiratesLife_Handovers.count"/>
+      </conditions>
+      <actions>
+        <set_value name="$H" exact="global.$APiratesLife_Handovers.{1}"/>
+        <remove_value name="global.$APiratesLife_Handovers.{1}"/>
+        <remove_value name="player.entity.$APiratesLife_BootyRequest"/>
+        <run_actions ref="md.APiratesLife_ProfileVanilla.Groups" result="$Groups"/>
+        <set_value name="$Group" exact="null"/>
+        <do_for_each name="$G" in="$Groups">
+          <do_if value="$G.$id == $H.$group">
+            <set_value name="$Group" exact="$G"/>
+          </do_if>
+        </do_for_each>
+        <set_value name="$Result" exact="table[$ship = $H.$ship, $name = $H.$name, $idcode = $H.$idcode, $group = $H.$group, $ok = false, $pirated = $H.$pirated]"/>
+
+        <do_if value="event.param2 == 'sold' and $Group">
+          <set_value name="$Price" exact="(event.param3)L"/>
+          <set_value name="$Credits" exact="($Price * (100 - $H.$cut) / 100.0)L"/>
+          <set_value name="$Stolen" exact="if not $H.$pirated then 1.0 else (if global.$APiratesLife_BootyStolenBonus? then global.$APiratesLife_BootyStolenBonus else 1.5)"/>
+          <set_value name="$Booty" exact="($Price * $H.$taste * $Stolen)L"/>
+          <set_value name="$Gain" exact="($Booty * (if global.$APiratesLife_BootyStandingGain? then global.$APiratesLife_BootyStandingGain else 1.0))L"/>
+          <run_actions ref="State" result="$State">
+            <param name="Group" value="$Group"/>
+          </run_actions>
+          <run_actions ref="Level" result="$Before">
+            <param name="Group" value="$Group"/>
+            <param name="Standing" value="$State.$standing"/>
+          </run_actions>
+          <set_value name="$State.$booty" exact="$State.$booty + $Booty"/>
+          <set_value name="$State.$standing" exact="$State.$standing + $Gain"/>
+          <run_actions ref="Level" result="$After">
+            <param name="Group" value="$Group"/>
+            <param name="Standing" value="$State.$standing"/>
+          </run_actions>
+
+          <!-- Rep with the station's owner, unless its relations are locked -->
+          <set_value name="$Rep" exact="0"/>
+          <set_value name="$Owner" exact="@$H.$station.trueowner"/>
+          <do_if value="$Owner and not $Owner.isrelationlocked">
+            <set_value name="$Rep" exact="$Booty / 1000000.0 * (if global.$APiratesLife_BootyRepPerMillion? then global.$APiratesLife_BootyRepPerMillion else 0.001)"/>
+            <do_if value="$Rep gt 0">
+              <add_faction_relation faction="$Owner" otherfaction="faction.player" value="$Rep" reason="relationchangereason.missioncompleted"/>
+            </do_if>
+          </do_if>
+
+          <set_value name="$Result.$ok" exact="true"/>
+          <set_value name="$Result.$price" exact="$Price"/>
+          <set_value name="$Result.$credits" exact="$Credits"/>
+          <set_value name="$Result.$booty" exact="$Booty"/>
+          <set_value name="$Result.$standing" exact="$State.$standing"/>
+          <set_value name="$Result.$level" exact="$After"/>
+          <debug_text text="'[apirateslife] booty: %s (%s) handed to %s: price %s, cut %s%%, credits %s, taste %s, pirated %s, booty %s (balance %s), standing %s, level %s -> %s, rep +%s'.[$H.$name, $H.$idcode, $Group.$id, $Price, $H.$cut, $Credits, $H.$taste, $H.$pirated, $Booty, $State.$booty, $State.$standing, $Before, $After, $Rep]"/>
+          <show_notification text="{1774101, 30}.[$H.$name, $Credits, $Booty]"/>
+          <do_if value="$After gt $Before">
+            <show_notification text="{1774101, 31}.[$Group.$faction.name, $After]"/>
+          </do_if>
+        </do_if>
+        <do_else>
+          <debug_text text="'[apirateslife] booty: %s (%s) not handed over: the sale failed (%s)'.[$H.$name, $H.$idcode, event.param2]"/>
+          <show_notification text="{1774101, 32}.[$H.$name]"/>
+        </do_else>
+        <signal_cue_instantly cue="HandedOver" param="$Result"/>
+        <run_actions ref="SendNext"/>
+      </actions>
+    </cue>
+
+    <!-- A sale the Lua never answered (it didn't load, or the request was lost): drop it after 30 s of
+         game time so the next can go -->
+    <cue name="Stale" instantiate="true" checkinterval="10s">
+      <conditions>
+        <check_value value="@global.$APiratesLife_Handovers.count and player.age gt global.$APiratesLife_Handovers.{1}.$asked + 30s"/>
+      </conditions>
+      <actions>
+        <set_value name="$H" exact="global.$APiratesLife_Handovers.{1}"/>
+        <remove_value name="global.$APiratesLife_Handovers.{1}"/>
+        <debug_text text="'[apirateslife] booty: no answer from the Lua for %s (%s) in 30 s; dropped (is ui/apirateslife_booty.lua loaded?)'.[$H.$name, $H.$idcode]" filter="error"/>
+        <signal_cue_instantly cue="HandedOver" param="table[$ship = $H.$ship, $name = $H.$name, $idcode = $H.$idcode, $group = $H.$group, $ok = false, $pirated = $H.$pirated]"/>
+        <run_actions ref="SendNext"/>
+      </actions>
+    </cue>
+
+    <!-- ===== The conversation ===== -->
+
+    <!-- "Hand over booty" when the player talks to the manager or the ship trader of a group's wharf
+         or shipyard, by comm or in person. Added from this cue, as Mysterial's Ship Reverse
+         Engineering mod adds its choice, rather than by patching vanilla's conversations: the
+         manager's (md/conversations.xml, DefaultComm) and the ship trader's (md/npc_shiptrader.xml)
+         are different scripts. No position: the game puts it in a free slot. Also on returning to
+         the main choices, which vanilla fills again. -->
+    <cue name="Offer" instantiate="true">
+      <conditions>
+        <check_any>
+          <event_conversation_started conversation="default"/>
+          <event_conversation_returned_to_section section="default"/>
+        </check_any>
+        <check_value value="typeof event.object == datatype.component and @event.object.isclass.entity and not event.object.isplayerowned"/>
+        <check_value value="@event.object.station and (event.object.station.shiptrader == event.object or event.object.station.tradenpc == event.object)"/>
+        <check_value value="not event.object.hasrelation.enemy.{faction.player}"/>
+      </conditions>
+      <actions>
+        <run_actions ref="GroupAt" result="$Group">
+          <param name="Station" value="event.object.station"/>
+        </run_actions>
+        <do_if value="$Group">
+          <add_player_choice_sub text="{1774101, 1}" section="g_apirateslife_booty" choiceparam="[event.object.station, 1]"/>
+        </do_if>
+      </actions>
+    </cue>
+
+    <!-- The player's ships docked at Station (on its pads and bays, or on ships docked there), not
+         the one they fly. Found as vanilla's ship trader finds them for "Upgrade a ship"
+         (md/npc_shiptrader.xml): .docked is a docking bay's list, not a station's. -->
+    <library name="DockedShips" purpose="run_actions">
+      <params>
+        <param name="Station"/>
+      </params>
+      <actions>
+        <find_object_component name="$Found" object="$Station" class="class.ship" includeobjects="true" docked="true" owner="faction.player" multiple="true"/>
+        <set_value name="$Ships" exact="[]"/>
+        <do_for_each name="$Ship" in="$Found">
+          <do_if value="$Ship != player.occupiedship and not $Ship.isunit and not $Ship.isrealclass.spacesuit">
+            <append_to_list name="$Ships" exact="$Ship"/>
+          </do_if>
+        </do_for_each>
+        <return value="$Ships"/>
+      </actions>
+    </library>
+
+    <!-- Adds the choices for one page of the player's ships docked at Station: four ships a page,
+         "more ships" when there are more, and back. Remembers the page, for coming back to it. -->
+    <library name="ListShips" purpose="run_actions">
+      <params>
+        <param name="Station"/>
+        <param name="Page"/>
+      </params>
+      <actions>
+        <set_value name="global.$APiratesLife_BootyListing" exact="[$Station, $Page]"/>
+        <run_actions ref="DockedShips" result="$Ships">
+          <param name="Station" value="$Station"/>
+        </run_actions>
+        <set_value name="$First" exact="($Page - 1) * 4 + 1"/>
+        <do_if value="$Ships.count == 0">
+          <add_player_choice text="{1774101, 3}" section="g_apirateslife_booty" position="top_left" selectable="false"/>
+        </do_if>
+        <do_all exact="[4, $Ships.count - $First + 1].min" counter="$i">
+          <set_value name="$Ship" exact="$Ships.{$First + $i - 1}"/>
+          <run_actions ref="WhyNot" result="$Why">
+            <param name="Ship" value="$Ship"/>
+            <param name="Station" value="$Station"/>
+          </run_actions>
+          <run_actions ref="md.APiratesLife_Pirated.IsPirated" result="$Mark">
+            <param name="Ship" value="$Ship"/>
+          </run_actions>
+          <set_value name="$Text" exact="(if $Mark then {1774101, 11} else {1774101, 10}).[$Ship.knownname, $Ship.idcode]"/>
+          <set_value name="$Param" exact="[$Station, $Ship]"/>
+          <do_if value="$i == 1">
+            <add_player_choice_sub text="$Text" section="g_apirateslife_booty_ship" position="top_left" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
+          </do_if>
+          <do_elseif value="$i == 2">
+            <add_player_choice_sub text="$Text" section="g_apirateslife_booty_ship" position="left" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
+          </do_elseif>
+          <do_elseif value="$i == 3">
+            <add_player_choice_sub text="$Text" section="g_apirateslife_booty_ship" position="bottom_left" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
+          </do_elseif>
+          <do_else>
+            <add_player_choice_sub text="$Text" section="g_apirateslife_booty_ship" position="top_right" choiceparam="$Param" selectable="$Why == ''" tooltip="$Why"/>
+          </do_else>
+        </do_all>
+        <do_if value="$Ships.count ge $First + 4">
+          <add_player_choice text="{1774101, 2}" section="g_apirateslife_booty" position="right" choiceparam="[$Station, $Page + 1]"/>
+        </do_if>
+        <add_player_choice_return text="{1002,20}" position="bottom_right" comment="Back"/>
+      </actions>
+    </library>
+
+    <!-- The list: from "Hand over booty" or "More ships" (with [station, page]), or back from a
+         ship's confirmation (the page last shown) -->
+    <cue name="Choice" instantiate="true">
+      <conditions>
+        <check_any>
+          <event_conversation_next_section section="g_apirateslife_booty"/>
+          <event_conversation_returned_to_section section="g_apirateslife_booty"/>
+        </check_any>
+      </conditions>
+      <actions>
+        <set_value name="$Listing" exact="if event.name == 'event_conversation_next_section' then event.param2 else @global.$APiratesLife_BootyListing"/>
+        <do_if value="@$Listing.{1}.exists">
+          <run_actions ref="ListShips">
+            <param name="Station" value="$Listing.{1}"/>
+            <param name="Page" value="$Listing.{2}"/>
+          </run_actions>
+        </do_if>
+      </actions>
+    </cue>
+
+    <!-- A ship chosen: confirm first, as a handover can't be undone -->
+    <cue name="ShipChoice" instantiate="true">
+      <conditions>
+        <event_conversation_next_section section="g_apirateslife_booty_ship"/>
+      </conditions>
+      <actions>
+        <set_value name="$Ship" exact="event.param2.{2}"/>
+        <add_player_choice text="{1774101, 12}.[$Ship.knownname, $Ship.idcode]" section="g_apirateslife_booty_confirm" position="top_left" choiceparam="event.param2"/>
+        <add_player_choice_return text="{1002,20}" position="bottom_right" comment="Back"/>
+      </actions>
+    </cue>
+
+    <!-- Confirmed: hand it over, then show the list again -->
+    <cue name="ConfirmChoice" instantiate="true">
+      <conditions>
+        <event_conversation_next_section section="g_apirateslife_booty_confirm"/>
+      </conditions>
+      <actions>
+        <run_actions ref="HandOver">
+          <param name="Ship" value="event.param2.{2}"/>
+          <param name="Station" value="event.param2.{1}"/>
+        </run_actions>
+        <run_actions ref="ListShips">
+          <param name="Station" value="event.param2.{1}"/>
+          <param name="Page" value="1"/>
+        </run_actions>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Diff patch for vanilla md/conversations.xml: adds the capture operation's comm choice to the
-     default ship comm (DefaultComm). See docs/specs/capture-operation.md. -->
+     default ship comm (DefaultComm). See docs/specs/capture-operation.md. (Booty adds its choice
+     from its own cue, md/apirateslife_booty.xml, and only names its sections here.) -->
 <diff>
   <!-- Before vanilla decides whether a hostile pilot talks at all: can we start a capture on this
        ship? ($surrenderoption: the player is flying a ship and is talking to a piloting NPC.) -->
@@ -31,6 +32,9 @@
   <add sel="//cue[@name='SectionHandler']/actions/do_elseif[@value=&quot;event.param != 'g_finish' and event.param != 'g_cancel' and event.param != 'g_interactionresult' and event.param != 'g_interactionmenu'&quot;]" pos="before">
     <do_elseif value="event.param == 'g_apirateslife_capture'">
       <debug_text text="'[apirateslife] capture: comm choice made (handled by md.APiratesLife_Capture.CommChoice)'" chance="0"/>
+    </do_elseif>
+    <do_elseif value="event.param == 'g_apirateslife_booty' or event.param == 'g_apirateslife_booty_ship' or event.param == 'g_apirateslife_booty_confirm'">
+      <debug_text text="'[apirateslife] booty: choice made (handled by md.APiratesLife_Booty)'" chance="0"/>
     </do_elseif>
   </add>
 </diff>

@@ -74,6 +74,51 @@ function M.loadPage(opts)
 	return env
 end
 
+-- Loads the booty sale (ui/apirateslife_booty.lua) with X4 stubbed.
+-- opts:
+--   request  the $APiratesLife_BootyRequest table MD would have written (nil: none)
+--   price    what GetTotalValue returns (default 1000)
+--   valid    false: IsValidComponent says no component exists
+-- Returns { booty = the file's functions (APiratesLife_TestHooks.booty), sell = the
+--           "APiratesLife.bootySell" handler, events = { {screen, control, value}, ... },
+--           transfers = { {amount, from, reason}, ... }, sold = { {ship, station}, ... },
+--           logs = { DebugError lines } }
+function M.loadBooty(opts)
+	opts = opts or {}
+	local env = { events = {}, transfers = {}, sold = {}, logs = {}, luaEvents = {} }
+	package.loaded.ffi = {
+		cdef = function () end,
+		C = {
+			GetPlayerID = function () return 1 end,
+			SellPlayerShip = function (ship, station) table.insert(env.sold, { ship = ship, station = station }) end,
+		},
+	}
+	_G.ConvertStringTo64Bit = function (text) return tonumber(text) end
+	_G.GetNPCBlackboard = function (_, key)
+		if key == "$APiratesLife_BootyRequest" then
+			return opts.request
+		end
+	end
+	_G.IsValidComponent = function () return opts.valid ~= false end
+	_G.GetTotalValue = function () return opts.price or 1000 end
+	_G.TransferMoneyToPlayer = function (amount, from, reason)
+		table.insert(env.transfers, { amount = amount, from = from, reason = reason })
+	end
+	_G.AddUITriggeredEvent = function (screen, control, value)
+		table.insert(env.events, { screen = screen, control = control, value = value })
+	end
+	_G.RegisterEvent = function (name, fn) env.luaEvents[name] = fn end
+	_G.DebugError = function (text) table.insert(env.logs, text) end
+	_G.APiratesLife_TestHooks = {}
+
+	dofile("ui/apirateslife_booty.lua")
+
+	env.booty = _G.APiratesLife_TestHooks.booty
+	env.sell = env.luaEvents["APiratesLife.bootySell"]
+	_G.APiratesLife_TestHooks = nil
+	return env
+end
+
 -- Answers the last question the page asked with yes (and the text typed, for a name question)
 function M.answer(env, text)
 	local last = env.questions[#env.questions]

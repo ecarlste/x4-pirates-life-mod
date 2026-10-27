@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The vanilla profile: the universe-specific data the core scripts read, so they name no vanilla
+     faction, race or macro themselves (docs/DESIGN.md, Architecture). A conversion like SWI would
+     ship its own profile with the same libraries. -->
+<mdscript name="APiratesLife_ProfileVanilla" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <!-- The pirate groups booty can be handed to (docs/specs/booty.md, Groups and standing). Each:
+           $id        save key, never shown
+           $faction   the faction named in texts
+           $factions  the factions whose wharfs and shipyards take the group's booty
+           $tastes    maker race -> booty factor (missing: 1); a ship with several makers takes the highest
+           $own       the group's own ship macros, and their factor (they make these, so want them less)
+           $levels    standing needed for each level, from level 0, and the largest ship size each
+                      takes (1 S, 2 M, 3 L, 4 XL). From the time targets in docs/research/booty.md
+                      (Levels and thresholds): M at about 6M, L at about 20M, XL at about 110M.
+         The fence cut per level comes from the settings (BootyCutStart, BootyCutFloor). -->
+    <library name="Groups" purpose="run_actions">
+      <actions>
+        <return value="[
+          table[
+            $id = 'vigor',
+            $faction = faction.loanshark,
+            $factions = [faction.loanshark],
+            $tastes = table[{race.xenon} = 1.5],
+            $own = table[$factor = 0.75, $macros = [
+              macro.ship_pir_s_fighter_01_a_macro, macro.ship_pir_s_fighter_02_a_macro,
+              macro.ship_pir_s_heavyfighter_01_a_macro, macro.ship_pir_s_trans_container_01_a_macro,
+              macro.ship_pir_s_trans_condensate_01_a_macro, macro.ship_pir_l_miner_solid_01_a_macro,
+              macro.ship_pir_l_scavenger_01_a_macro, macro.ship_pir_xl_builder_01_macro]],
+            $levels = [
+              table[$standing = 0, $size = 1],
+              table[$standing = 1000000, $size = 1],
+              table[$standing = 2500000, $size = 1],
+              table[$standing = 4000000, $size = 1],
+              table[$standing = 6000000, $size = 2],
+              table[$standing = 8500000, $size = 2],
+              table[$standing = 11500000, $size = 2],
+              table[$standing = 15000000, $size = 2],
+              table[$standing = 20000000, $size = 3],
+              table[$standing = 27000000, $size = 3],
+              table[$standing = 35000000, $size = 3],
+              table[$standing = 45000000, $size = 3],
+              table[$standing = 57000000, $size = 3],
+              table[$standing = 70000000, $size = 3],
+              table[$standing = 85000000, $size = 3],
+              table[$standing = 110000000, $size = 4],
+              table[$standing = 140000000, $size = 4],
+              table[$standing = 175000000, $size = 4],
+              table[$standing = 215000000, $size = 4],
+              table[$standing = 260000000, $size = 4],
+              table[$standing = 320000000, $size = 4]]]]"/>
+      </actions>
+    </library>
+  </cues>
+</mdscript>
