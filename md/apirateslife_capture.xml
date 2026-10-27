@@ -109,6 +109,7 @@
         <set_value name="$Started" exact="player.age"/>
         <show_notification text="{1774100, 30}.[$Name]"/>
         <debug_text text="'[apirateslife] capture: started on %s (%s), led by %s (%s) with %s wingmen (hold %s%%, floor %s%%)'.[$Name, $Target.idcode, $Leader.knownname, $Leader.idcode, $Members.count, $Hold, $Floor]"/>
+        <signal_cue_instantly cue="md.APiratesLife_Capture.Started" param="table[$target = $Target, $leader = $Leader, $members = $Members]"/>
       </actions>
       <cues>
         <cue name="Tick" checkinterval="1s" instantiate="true">
@@ -249,6 +250,14 @@
           </actions>
         </cue>
       </cues>
+    </cue>
+
+    <!-- Signalled whenever an operation starts, with table[$target, $leader, $members]. For the
+         capture metrics (md/apirateslife_metrics.xml) and future features. -->
+    <cue name="Started" instantiate="true">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
     </cue>
 
     <!-- Signalled whenever an operation ends, with table[$target, $outcome]. For tests and future

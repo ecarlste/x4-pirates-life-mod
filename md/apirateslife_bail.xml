@@ -38,6 +38,8 @@
           <set_value name="$Op.$lastchance" exact="$Chance"/>
         </do_if>
         <debug_text text="'[apirateslife] bail check: %s (%s) attacking %s (%s): chance %s -> %s%s'.[@$Attacker.knownname, @$Attacker.idcode, @$Target.knownname, @$Target.idcode, $EjectChance, $Chance, $Note]"/>
+        <!-- Every call is an evaluated check, for the capture metrics (md/apirateslife_metrics.xml) -->
+        <signal_cue_instantly cue="md.APiratesLife_Metrics.BailChecked" param="table[$attacker = $Attacker, $target = $Target, $chance = $Chance]"/>
         <return value="$Chance"/>
       </actions>
     </library>
