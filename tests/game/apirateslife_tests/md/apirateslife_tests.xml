@@ -2165,6 +2165,7 @@
         <set_value name="global.$APiratesLife_BootyRepPerMillion" exact="0.001"/>
         <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="table[$standing = 0, $booty = 0, $unlocks = []]"/>
         <run_actions ref="VigorWharf" result="$Wharf"/>
+        <set_value name="$Accepted" exact="false"/>
       </actions>
       <cues>
         <cue name="BootyHandoverPays_Act">
@@ -2198,7 +2199,7 @@
             <cue name="BootyHandoverPays_Done">
               <conditions>
                 <event_cue_signalled cue="md.APiratesLife_Booty.HandedOver"/>
-                <check_value value="$Accepted and event.param.$ship == $Ship"/>
+                <check_value value="@$Accepted and event.param.$ship == $Ship"/>
               </conditions>
               <actions>
                 <cancel_cue cue="BootyHandoverPays_Timeout"/>
@@ -2217,7 +2218,7 @@
             <!-- Only for an accepted handover; a refused one has already reported -->
             <cue name="BootyHandoverPays_Timeout" checkinterval="1s">
               <conditions>
-                <check_value value="$Accepted"/>
+                <check_value value="@$Accepted"/>
               </conditions>
               <delay exact="40s"/>
               <actions>
@@ -2244,6 +2245,7 @@
         <set_value name="global.$APiratesLife_BootyCutStart" exact="40"/>
         <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="table[$standing = 0, $booty = 0, $unlocks = []]"/>
         <run_actions ref="VigorWharf" result="$Wharf"/>
+        <set_value name="$Accepted" exact="false"/>
       </actions>
       <cues>
         <cue name="BootyDonation_Act">
@@ -2273,7 +2275,7 @@
             <cue name="BootyDonation_Done">
               <conditions>
                 <event_cue_signalled cue="md.APiratesLife_Booty.HandedOver"/>
-                <check_value value="$Accepted and event.param.$ship == $Ship"/>
+                <check_value value="@$Accepted and event.param.$ship == $Ship"/>
               </conditions>
               <actions>
                 <cancel_cue cue="BootyDonation_Timeout"/>
@@ -2295,7 +2297,7 @@
             <!-- Only for an accepted handover; a refused one has already reported -->
             <cue name="BootyDonation_Timeout" checkinterval="1s">
               <conditions>
-                <check_value value="$Accepted"/>
+                <check_value value="@$Accepted"/>
               </conditions>
               <delay exact="40s"/>
               <actions>
@@ -2370,6 +2372,7 @@
         <set_value name="global.$APiratesLife_BootyCutFloor" exact="10"/>
         <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="table[$standing = 999999, $booty = 0, $unlocks = []]"/>
         <run_actions ref="VigorWharf" result="$Wharf"/>
+        <set_value name="$Accepted" exact="false"/>
       </actions>
       <cues>
         <cue name="BootyLevelUp_Act">
@@ -2397,7 +2400,7 @@
             <cue name="BootyLevelUp_Done">
               <conditions>
                 <event_cue_signalled cue="md.APiratesLife_Booty.HandedOver"/>
-                <check_value value="$Accepted and event.param.$ship == $Ship"/>
+                <check_value value="@$Accepted and event.param.$ship == $Ship"/>
               </conditions>
               <actions>
                 <cancel_cue cue="BootyLevelUp_Timeout"/>
@@ -2415,7 +2418,7 @@
             <!-- Only for an accepted handover; a refused one has already reported -->
             <cue name="BootyLevelUp_Timeout" checkinterval="1s">
               <conditions>
-                <check_value value="$Accepted"/>
+                <check_value value="@$Accepted"/>
               </conditions>
               <delay exact="40s"/>
               <actions>
