@@ -73,6 +73,7 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
 
 - [ ] 1. Wingman forces an S ship to bail; a prize crew flies it home
   - [x] Capture operation: wingmen that capture, not kill, started from a comm choice: [spec](specs/capture-operation.md) ([PR #31](https://github.com/ecarlste/x4-pirates-life-mod/pull/31))
+  - [ ] Bug: overlapping capture operations (found in Erik's game, 2026-10-27, three operations started from comms while paused). Each start takes the whole wing, so the earlier operations lose their wingmen but still list them as members (so their hits still get the ×4 wing bonus). When the last operation ends, the wingmen go back to their defence assignment and attack the other prizes with vanilla's attack: no hold line, missiles allowed. One of Erik's prizes only survived because it bailed on its first check. Tentative fix, to agree before a spec: a queue, for players on vanilla and Tides of Avarice alone (no UI mod). Operations started while one runs wait their turn in the order they were hailed, and when one ends the wing moves on to the next instead of going back to formation; the readout shows what's next. A way to pick several targets with UI Extensions can come later.
   - [ ] Start a capture operation from the right-click/F interact menu (kuertee's UI Extensions, optional)
   - [ ] Capture hotkeys: "wing: make target bail" and "call off capture" (Chem O'Dun's Native Hotkey API on UI Extensions, optional)
   - [ ] Bail pressure in capture operations (agreed in chat 2026-10-20; spec to write):
