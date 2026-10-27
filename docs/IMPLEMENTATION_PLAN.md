@@ -93,7 +93,7 @@ Each slice is demo-able and gets a video. Each one goes through: design agreed, 
     - [x] Spike: make an unlocked ship or item show up in a group station's build and equipment menus for this player only, like a licence. Answer: one hidden research ware per unlock, proven in game at the Vigor wharf ([research note](research/booty.md#proof-of-concept-in-game-2026-10-27))
     - [x] Pirated-ship mark: ships the player takes by boarding or bailing in combat with any of their ships are marked pirated; everything else counts as a donation ([spec](specs/pirated-ships.md)), [PR #60](https://github.com/ecarlste/x4-pirates-life-mod/pull/60)
     - [x] Handover by conversation at Vigor stations, the Lua sale, groups, levels, fence cut, booty and standing, the booty settings: [PR #63](https://github.com/ecarlste/x4-pirates-life-mod/pull/63)
-    - [ ] Handover order, and the pilot's move to a free marine slot
+    - [ ] Handover order, and the pilot's move to a free marine slot: [PR #64](https://github.com/ecarlste/x4-pirates-life-mod/pull/64)
     - [ ] Variants: the list, the generator and its sync check, the first set
     - [ ] Unlocks bought with booty, and blueprint unlocks
     - [ ] Pirate lord window (after v1): with kuertee's UI Extensions, a full window for unlocks, standing and booty in place of the conversation, and a README line teasing the landlubbers who don't install it
