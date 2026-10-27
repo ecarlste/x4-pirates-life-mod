@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The test gamestart: the same quiet start every run. The player sits in a scout in the
-     tutorials' empty one-sector galaxy (no god, so no stations; no jobs, so no traffic) and each
-     test spawns what it needs. Also selectable by hand from the "New game" menu for debugging a test. -->
+<!-- The test gamestart: the same quiet start every run. The player sits in a scout in the docking
+     tutorial's one-sector galaxy, next to its Argon wharf (no god, so no other stations; no jobs, so
+     no traffic), and each test spawns what it needs. The wharf is there because stations spawned
+     at runtime (create_station) only let their own faction dock, while map-placed ones let the
+     player's ships dock too: the booty tests give it to Vigor (docs/specs/booty.md). Also
+     selectable by hand from the "New game" menu for debugging a test. -->
 <diff>
   <add sel="/gamestarts">
     <gamestart id="apirateslife_test" name="A Pirate's Life: game tests" description="Automated test scenarios for A Pirate's Life. Dev only." image="gamestart_2" group="100" tags="nosave">
-      <!-- The tutorials' one-sector galaxy: X4 builds it far faster than the full universe -->
-      <location galaxy="basegame_map_tutorial_default_empty_galaxy_macro" sector="basegame_map_tutorial_default_empty_cluster_001_sector_001_macro">
-        <position x="0" y="0" z="0"/>
+      <!-- A tutorial's one-sector galaxy: X4 builds it far faster than the full universe. Where the
+           docking tutorial starts (vanilla libraries/gamestarts.xml, tutorial_docking). -->
+      <location galaxy="basegame_map_tutorial_default_wharf_galaxy_macro" sector="basegame_map_tutorial_default_wharf_cluster_001_sector_001_macro">
+        <position x="82000" y="80" z="64500"/>
       </location>
       <player macro="character_player_tutorial_macro" money="10000">
         <ship macro="ship_arg_s_scout_01_a_macro">

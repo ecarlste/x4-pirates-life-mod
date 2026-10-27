@@ -161,11 +161,13 @@
 
     <!-- ===== Handing a prize over ===== -->
 
-    <!-- Why Ship can't be handed over at Station: '' if it can, else a text for the player -->
+    <!-- Why Ship can't be handed over at Station: '' if it can, else a text for the player. With
+         Docked false, it needn't be docked there yet (the handover order checks before flying). -->
     <library name="WhyNot" purpose="run_actions">
       <params>
         <param name="Ship"/>
         <param name="Station"/>
+        <param name="Docked" default="true"/>
       </params>
       <actions>
         <run_actions ref="GroupAt" result="$Group">
@@ -177,7 +179,11 @@
         <do_if value="not @$Ship.isoperational or not $Ship.isplayerowned or not $Ship.isclass.ship">
           <return value="{1774101, 22}"/>
         </do_if>
-        <do_if value="not $Ship.dock or $Ship.dock.container != $Station">
+        <!-- The station must be able to take this size, as a sale there needs -->
+        <do_if value="not $Station.canequipclass.{$Ship.class}">
+          <return value="{1774101, 25}"/>
+        </do_if>
+        <do_if value="$Docked and (not $Ship.dock or $Ship.dock.container != $Station)">
           <return value="{1774101, 23}"/>
         </do_if>
         <!-- The player, or the ship they fly, aboard -->
@@ -243,6 +249,9 @@
         <run_actions ref="md.APiratesLife_Pirated.IsPirated" result="$Mark">
           <param name="Ship" value="$Ship"/>
         </run_actions>
+        <run_actions ref="MovePilot">
+          <param name="Ship" value="$Ship"/>
+        </run_actions>
         <do_if value="not global.$APiratesLife_HandoverCount?">
           <set_value name="global.$APiratesLife_HandoverCount" exact="0"/>
         </do_if>
@@ -257,6 +266,189 @@
         <return value="true"/>
       </actions>
     </library>
+
+    <!-- The pilot's new ship: the nearest of the player's other ships with room for one more
+         crew, in the same sector by distance first, then other sectors by gates. Null if none. -->
+    <library name="PilotDestination" purpose="run_actions">
+      <params>
+        <param name="Ship"/>
+      </params>
+      <actions>
+        <find_ship name="$Ships" space="player.galaxy" owner="faction.player" multiple="true"/>
+        <set_value name="$Best" exact="null"/>
+        <set_value name="$BestGates" exact="0"/>
+        <set_value name="$BestDistance" exact="0m"/>
+        <do_for_each name="$S" in="$Ships">
+          <do_if value="$S != $Ship and $S.isoperational and not $S.isunit and not $S.isrealclass.spacesuit and $S.people.capacity gt $S.people.count">
+            <set_value name="$Gates" exact="if $S.sector == $Ship.sector then 0 else $S.gatedistance.{$Ship}"/>
+            <do_if value="$Gates ge 0">
+              <set_value name="$Distance" exact="if $Gates == 0 then $S.distanceto.{$Ship} else 0m"/>
+              <do_if value="not $Best or $Gates lt $BestGates or ($Gates == $BestGates and $Distance lt $BestDistance)">
+                <set_value name="$Best" exact="$S"/>
+                <set_value name="$BestGates" exact="$Gates"/>
+                <set_value name="$BestDistance" exact="$Distance"/>
+              </do_if>
+            </do_if>
+          </do_if>
+        </do_for_each>
+        <return value="$Best"/>
+      </actions>
+    </library>
+
+    <!-- Moves Ship's pilot to a marine slot on the nearest ship with room, as vanilla's "work
+         somewhere else" reassigns an instanced NPC (md/conversations.xml, around line 1240): off
+         their post, into the new role on the new ship, and their state machine moves them there.
+         With no room anywhere, or no pilot, nothing moves: the pilot goes with the ship, as in a
+         sale. Returns the new ship, or null. -->
+    <library name="MovePilot" purpose="run_actions">
+      <params>
+        <param name="Ship"/>
+      </params>
+      <actions>
+        <set_value name="$Pilot" exact="@$Ship.assignedaipilot"/>
+        <do_if value="not $Pilot or $Pilot == player.entity or not $Pilot.isclass.npc">
+          <return value="null"/>
+        </do_if>
+        <run_actions ref="PilotDestination" result="$Dest">
+          <param name="Ship" value="$Ship"/>
+        </run_actions>
+        <do_if value="not $Dest">
+          <debug_text text="'[apirateslife] booty: no ship has room for %s, the pilot of %s (%s); they go with it'.[$Pilot.knownname, $Ship.knownname, $Ship.idcode]"/>
+          <return value="null"/>
+        </do_if>
+        <do_if value="not $Pilot.isplayerowned">
+          <set_owner object="$Pilot" faction="faction.player"/>
+        </do_if>
+        <dismiss_control_entity actor="$Pilot" object="$Ship"/>
+        <do_if value="$Ship.people.{$Pilot.npctemplate}.exists">
+          <remove_npc_template object="$Ship" template="$Pilot.npctemplate"/>
+        </do_if>
+        <set_entity_traits entity="$Pilot" intransit="true"/>
+        <set_entity_role entity="$Pilot" role="entityrole.marine"/>
+        <set_entity_role_object entity="$Pilot" object="$Dest"/>
+        <set_entity_traits entity="$Pilot" temporary="true"/>
+        <create_npc_template object="$Dest" entity="$Pilot" role="entityrole.marine" name="$Template"/>
+        <remove_value name="$Pilot.$Stay"/>
+        <signal_objects object="$Pilot" param="'npc_state_reinit'"/>
+        <debug_text text="'[apirateslife] booty: %s, the pilot of %s (%s), moves to %s (%s) as a marine (template %s)'.[$Pilot.knownname, $Ship.knownname, $Ship.idcode, $Dest.knownname, $Dest.idcode, $Template != null]"/>
+        <signal_cue_instantly cue="PilotMoved" param="table[$pilot = $Pilot, $ship = $Ship, $to = $Dest]"/>
+        <return value="$Dest"/>
+      </actions>
+    </library>
+
+    <!-- Signalled with table[$pilot, $ship, $to] when a prize's pilot moves to a marine slot. For
+         tests and later features. -->
+    <cue name="PilotMoved" instantiate="true">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+    </cue>
+
+    <!-- ===== The handover order (aiscripts/order.apirateslife.handover.xml) ===== -->
+
+    <!-- The nearest station known to the player where Ship could be handed over (a group's wharf
+         or shipyard that can take its size), by gates then distance; null if none. The player's
+         level isn't checked here, so the order can say when the ship is too big for it. -->
+    <library name="NearestStation" purpose="run_actions">
+      <params>
+        <param name="Ship"/>
+      </params>
+      <actions>
+        <run_actions ref="md.APiratesLife_ProfileVanilla.Groups" result="$Groups"/>
+        <set_value name="$Best" exact="null"/>
+        <set_value name="$BestGates" exact="0"/>
+        <set_value name="$BestDistance" exact="0m"/>
+        <do_for_each name="$Group" in="$Groups">
+          <do_for_each name="$Faction" in="$Group.$factions">
+            <find_station_by_true_owner name="$Stations" faction="$Faction" space="player.galaxy" multiple="true" knownto="faction.player"/>
+            <do_for_each name="$Station" in="$Stations">
+              <run_actions ref="GroupAt" result="$AtGroup">
+                <param name="Station" value="$Station"/>
+              </run_actions>
+              <do_if value="$AtGroup and $Station.canequipclass.{$Ship.class}">
+                <set_value name="$Gates" exact="if $Station.sector == $Ship.sector then 0 else $Ship.gatedistance.{$Station}"/>
+                <do_if value="$Gates ge 0">
+                  <set_value name="$Distance" exact="$Ship.distanceto.{$Station}"/>
+                  <do_if value="not $Best or $Gates lt $BestGates or ($Gates == $BestGates and $Distance lt $BestDistance)">
+                    <set_value name="$Best" exact="$Station"/>
+                    <set_value name="$BestGates" exact="$Gates"/>
+                    <set_value name="$BestDistance" exact="$Distance"/>
+                  </do_if>
+                </do_if>
+              </do_if>
+            </do_for_each>
+          </do_for_each>
+        </do_for_each>
+        <return value="$Best"/>
+      </actions>
+    </library>
+
+    <!-- Signalled with table[$ship, $station, $why] when the order has been answered: $station
+         where to go, or null with $why. For tests. -->
+    <cue name="OrderAnswered" instantiate="true">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+    </cue>
+
+    <!-- The order asks where it may go (param2 the ship, param3 the station chosen or null). The
+         answer goes on the pilot running the order (X4 can't hold variables on a ship):
+         $APiratesLife_HandoverStation, or nothing and a notification saying why not. -->
+    <cue name="OrderAsk" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'apirateslife_handover_ask'"/>
+      </conditions>
+      <actions>
+        <set_value name="$Ship" exact="event.param2"/>
+        <set_value name="$Station" exact="event.param3"/>
+        <set_value name="$Why" exact="''"/>
+        <do_if value="not $Station">
+          <run_actions ref="NearestStation" result="$Station">
+            <param name="Ship" value="$Ship"/>
+          </run_actions>
+        </do_if>
+        <do_if value="not $Station">
+          <set_value name="$Why" exact="{1774101, 26}"/>
+        </do_if>
+        <do_else>
+          <run_actions ref="WhyNot" result="$Why">
+            <param name="Ship" value="$Ship"/>
+            <param name="Station" value="$Station"/>
+            <param name="Docked" value="false"/>
+          </run_actions>
+        </do_else>
+        <do_if value="$Why == ''">
+          <set_value name="$Ship.assignedaipilot.$APiratesLife_HandoverStation" exact="$Station"/>
+          <debug_text text="'[apirateslife] booty: %s (%s) heads for %s to be handed over'.[$Ship.knownname, $Ship.idcode, $Station.knownname]"/>
+        </do_if>
+        <do_else>
+          <set_value name="$Station" exact="null"/>
+          <debug_text text="'[apirateslife] booty: %s (%s) cannot be handed over: %s'.[$Ship.knownname, $Ship.idcode, $Why]"/>
+          <show_notification text="{1774101, 33}.[$Ship.knownname, $Why]"/>
+        </do_else>
+        <signal_cue_instantly cue="OrderAnswered" param="table[$ship = $Ship, $station = $Station, $why = $Why]"/>
+      </actions>
+    </cue>
+
+    <!-- The order has docked (param2 the ship, param3 the station): hand it over -->
+    <cue name="OrderDocked" instantiate="true">
+      <conditions>
+        <event_object_signalled object="player.galaxy" param="'apirateslife_handover_docked'"/>
+      </conditions>
+      <actions>
+        <run_actions ref="HandOver" result="$Accepted">
+          <param name="Ship" value="event.param2"/>
+          <param name="Station" value="event.param3"/>
+        </run_actions>
+        <do_if value="not $Accepted">
+          <run_actions ref="WhyNot" result="$Why">
+            <param name="Ship" value="event.param2"/>
+            <param name="Station" value="event.param3"/>
+          </run_actions>
+          <show_notification text="{1774101, 33}.[@event.param2.knownname, $Why]"/>
+        </do_if>
+      </actions>
+    </cue>
 
     <!-- Asks the Lua to sell the oldest waiting handover -->
     <library name="SendNext" purpose="run_actions">

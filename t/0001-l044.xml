@@ -41,10 +41,18 @@
     <t id="22">This station doesn't take booty.</t>
     <t id="23">Dock it here first.</t>
     <t id="24">Already being handed over.</t>
+    <t id="25">This station can't take ships this size.</t>
+    <t id="26">No station you know of takes it as booty.</t>
 
     <!-- Notifications -->
     <t id="30">Handed over %s: %s Cr and %s booty.</t>
     <t id="31">%s: standing level %s.</t>
     <t id="32">Handover of %s failed.</t>
+    <t id="33">%s can't be handed over: %s</t>
+
+    <!-- The handover order -->
+    <t id="40">Hand over as booty</t>
+    <t id="41">Dock at a pirate group's wharf or shipyard and hand this ship over as booty: credits, like a sale minus the fence's cut, and booty for that group. Its pilot moves to a free marine slot on your nearest ship with room.</t>
+    <t id="42">Station</t>
   </page>
 </language>

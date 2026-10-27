@@ -8,7 +8,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 7 | 1 | 9 | **10** |
+| 0 | 11 | 2 | 6 | **8** |
 
 ## Scenarios
 
@@ -67,14 +67,24 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
   Then I get booty and standing without the stolen bonus
 ```
 
-### The order docks the prize and hands it over
+### The order flies the prize to the nearest Vigor station, docks and hands it over
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+**Automated:** in game `booty_order_hands_over`
 
 ```gherkin
-  Given a pirated fighter of mine away from Vigor's stations
-  When I give it the "Hand over as booty" order
-  Then it docks at the nearest Vigor station that can take it and is handed over
+  Given a fighter of mine flying away from Vigor's stations
+  When I give it the "Hand over as booty" order without choosing a station
+  Then it flies to the nearest Vigor station I know that can take it, docks and is handed over
+```
+
+### The order refuses a ship too big for my level before it flies
+
+**Automated:** in game `booty_order_refuses_too_big`
+
+```gherkin
+  Given standing below the level that opens M turn-ins
+  When I give an M ship the "Hand over as booty" order
+  Then the order ends without flying, and I'm told the Vigor Syndicate don't take ships that size from me yet
 ```
 
 ### Ships too big for my level aren't taken
@@ -89,22 +99,33 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 ### The pilot moves to a free marine slot
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+**Automated:** in game `booty_pilot_moves`
 
 ```gherkin
   Given a prize with a pilot, and another of my ships with a free marine slot
   When I hand the prize over
   Then the pilot is moving to that ship as a marine
+  And they're still there after the prize is sold
 ```
 
 ### The pilot skips ships with no free marine slot
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+**Automated:** in game `booty_pilot_skips_full`
 
 ```gherkin
-  Given a prize with a pilot, my nearest ship with every marine slot full, and a ship in another sector with a free one
+  Given a prize with a pilot, my nearest ship with every crew slot full, and a farther one with room
   When I hand the prize over
-  Then the pilot is moving to the ship in the other sector as a marine
+  Then the pilot is moving to the farther ship as a marine
+```
+
+### The pilot goes to another sector only when this one has no room
+
+- [ ] **Manual:** checked by hand for now
+
+```gherkin
+  Given a prize with a pilot, no ship with room in its sector, and ships with room one and two gates away
+  When I hand the prize over
+  Then the pilot is moving to the ship one gate away
 ```
 
 ### Enough standing raises my level and lowers the cut
