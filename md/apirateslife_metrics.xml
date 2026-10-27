@@ -5,7 +5,9 @@
 
      Attempts in progress are listed in global.$APiratesLife_CaptureMetrics, a list of records
      (tables with $target and the fields below). A list, not a table keyed by ship, so a destroyed
-     ship can't drop out of it unseen. -->
+     ship can't drop out of it unseen. Times not reached yet ($gates, $firstcheck) are left out of the
+     record, not set to null: in MD, 0 == null, so a stage reached in the first second would look
+     unreached. -->
 <mdscript name="APiratesLife_Metrics" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
     <!-- S, M, L, XL or XS for a ship, '?' for anything else -->
@@ -42,7 +44,10 @@
         <param name="Target"/>
       </params>
       <actions>
-        <do_for_each name="$Rec" in="@global.$APiratesLife_CaptureMetrics">
+        <do_if value="not global.$APiratesLife_CaptureMetrics?">
+          <return value="null"/>
+        </do_if>
+        <do_for_each name="$Rec" in="global.$APiratesLife_CaptureMetrics">
           <do_if value="$Rec.$target == $Target">
             <return value="$Rec"/>
           </do_if>
@@ -80,7 +85,7 @@
           $crew = $Target.people.count, $crewcap = $Target.people.capacity,
           $pilotskill = $Target.pilot.combinedskill, $crewskill = $Target.combinedskill, $morale = $Target.pilot.skill.morale,
           $wing = [], $attackers = [], $playerhits = 0, $lastactive = player.age,
-          $gates = null, $firstcheck = null, $checks = 0, $chances = [], $successes = 0, $crewbailed = 0, $pilotbailed = false]"/>
+          $checks = 0, $chances = [], $successes = 0, $crewbailed = 0, $pilotbailed = false]"/>
         <do_if value="not global.$APiratesLife_CaptureMetrics?">
           <set_value name="global.$APiratesLife_CaptureMetrics" exact="[]"/>
         </do_if>
@@ -165,7 +170,7 @@
         </do_for_each>
         <!-- key=value fields split by " | " (tools/capture_metrics.py); bump v only if a field's meaning changes -->
         <debug_text text="'[apirateslife] capture metrics: v=1 | mode=%s | outcome=%s | target=%s | id=%s | macro=%s | size=%s | type=%s | owner=%s | value=%s | crew=%s | crewcap=%s | pilotskill=%s | crewskill=%s | morale=%s'.[$Rec.$mode, $Outcome, $Rec.$name, $Rec.$idcode, $Rec.$macro, $Rec.$size, $Rec.$type, $Rec.$owner, $Rec.$value, $Rec.$crew, $Rec.$crewcap, $Rec.$pilotskill, $Rec.$crewskill, $Rec.$morale]
-          + ' | wing=%s | attackers=%s | playerhits=%s | started=%s | gates=%s | firstcheck=%s | checks=%s | chances=%s | successes=%s | crewbailed=%s | pilotbailed=%s | total=%s'.[$Wing, $Attackers, $Rec.$playerhits, ($Rec.$started)i, (if $Rec.$gates == null then '' else $Rec.$gates), (if $Rec.$firstcheck == null then '' else $Rec.$firstcheck), $Rec.$checks, $Chances, $Rec.$successes, $Rec.$crewbailed, $Rec.$pilotbailed, $Rec.$total]"/>
+          + ' | wing=%s | attackers=%s | playerhits=%s | started=%s | gates=%s | firstcheck=%s | checks=%s | chances=%s | successes=%s | crewbailed=%s | pilotbailed=%s | total=%s'.[$Wing, $Attackers, $Rec.$playerhits, ($Rec.$started)i, (if $Rec.$gates? then $Rec.$gates else ''), (if $Rec.$firstcheck? then $Rec.$firstcheck else ''), $Rec.$checks, $Chances, $Rec.$successes, $Rec.$crewbailed, $Rec.$pilotbailed, $Rec.$total]"/>
         <signal_cue_instantly cue="Summary" param="$Rec"/>
       </actions>
     </library>
@@ -206,7 +211,7 @@
         <do_if value="$Rec">
           <set_value name="$Rec.$checks" operation="add"/>
           <append_to_list name="$Rec.$chances" exact="event.param.$chance"/>
-          <do_if value="$Rec.$firstcheck == null">
+          <do_if value="not $Rec.$firstcheck?">
             <set_value name="$Rec.$firstcheck" exact="(player.age - $Rec.$started)i"/>
           </do_if>
         </do_if>
@@ -297,7 +302,7 @@
           <do_elseif value="$Rec.$mode == 'attack' and player.age - $Rec.$lastactive ge $DropAfter">
             <set_value name="$Outcome" exact="'dropped'"/>
           </do_elseif>
-          <do_elseif value="$Rec.$gates == null and ((not $T.maxshield) or $T.shieldpercentage lt 20) and $T.hullpercentage lt 75 and not $T.assigneddock">
+          <do_elseif value="not $Rec.$gates? and ((not $T.maxshield) or $T.shieldpercentage lt 20) and $T.hullpercentage lt 75 and not $T.assigneddock">
             <set_value name="$Rec.$gates" exact="(player.age - $Rec.$started)i"/>
           </do_elseif>
           <!-- An operation's record waits for OperationEnded -->

@@ -1496,7 +1496,7 @@
         <do_if value="$Rec.$macro != 'ship_arg_s_fighter_01_a_macro' or $Rec.$size != 'S' or $Rec.$owner != 'argon'">
           <set_value name="$P" exact="$P + ' target %s, %s, %s, expected the Argon S fighter;'.[$Rec.$macro, $Rec.$size, $Rec.$owner]"/>
         </do_if>
-        <do_if value="$Rec.$total == null or $Rec.$total lt 0">
+        <do_if value="not $Rec.$total? or $Rec.$total lt 0">
           <set_value name="$P" exact="$P + ' no total time;'"/>
         </do_if>
         <run_actions ref="md.APiratesLife_Metrics.Find" result="$Left">
@@ -1574,8 +1574,8 @@
                     <do_if value="$Rec.$pilotskill != $Skill">
                       <set_value name="$Problems" exact="$Problems + ' pilot skill %s, expected %s;'.[$Rec.$pilotskill, $Skill]"/>
                     </do_if>
-                    <do_if value="$Rec.$checks != 1 or $Rec.$successes != 1 or not $Rec.$pilotbailed or $Rec.$firstcheck == null">
-                      <set_value name="$Problems" exact="$Problems + ' %s checks, %s successes, pilot bailed %s, first check %s; expected 1, 1, true, a time;'.[$Rec.$checks, $Rec.$successes, $Rec.$pilotbailed, $Rec.$firstcheck]"/>
+                    <do_if value="$Rec.$checks != 1 or $Rec.$successes != 1 or not $Rec.$pilotbailed or not $Rec.$firstcheck?">
+                      <set_value name="$Problems" exact="$Problems + ' %s checks, %s successes, pilot bailed %s, first check %s; expected 1, 1, true, a time;'.[$Rec.$checks, $Rec.$successes, $Rec.$pilotbailed, @$Rec.$firstcheck]"/>
                     </do_if>
                     <signal_cue_instantly cue="Report" param="table[$name = 'capture_metrics_operation', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'one summary, abandoned after %s s, %s check(s)'.[$Rec.$total, $Rec.$checks] else $Problems)]"/>
                     <destroy_object object="$Pair.$attacker"/>
