@@ -84,11 +84,13 @@ Branch `spike/unlock-research-poc` (not merged; the code stays there for referen
 5. **Save and load:** the unlock survives. ✔
 6. **Removing:** `remove_research` locks both ships again. ✔
 
-SWI gates its factions' special ship versions with both rep and research (in its normal research tree), so the mechanism is a familiar one for conversions too. SWI also marks those ships with a star in the Buy Ships dropdown. That's vanilla's own research icon (`gamestart_custom_research`, `base/libraries/icons.xml:772`), which `checkLicence` gives every research-gated ware in vanilla (`menu_ship_configuration.lua:7266`) and in SWI's replacement menu alike (`subst02/ui/addons/ego_detailmonitor/menu_ship_configuration.xpl:7152`). So our unlockable ships get the same marker with no work. To confirm on the next visit: whether the proof-of-concept ships showed it.
+SWI gates its factions' special ship versions with research (in its normal research tree; see the SWI comparison below), so the mechanism is a familiar one for conversions too. SWI also marks those ships with a star in the Buy Ships dropdown. That's vanilla's own research icon (`gamestart_custom_research`, `base/libraries/icons.xml:772`), which `checkLicence` gives every research-gated ware in vanilla (`menu_ship_configuration.lua:7266`) and in SWI's replacement menu alike (`subst02/ui/addons/ego_detailmonitor/menu_ship_configuration.xpl:7152`). So our unlockable ships get the same marker with no work. To confirm on the next visit: whether the proof-of-concept ships showed it.
 
 **Result: one hidden research ware per unlock is the way to build booty unlocks.** The other routes are no longer needed.
 
-**Licences (Erik, 2026-10-27): unlocks add to vanilla's gates, never bypass them.** Since the research replaces the licence check in the menu, the mod checks the licence itself: an unlock is offered only while the player holds the vanilla licence for that tier with the station's faction (general use; military +10; capital +20), and `remove_research` locks it again if they lose it. Open for the spec: catching the loss (a relation-change event, or a check when the player docks), and wording the research name so the one fixed text covers both missing standing and a missing licence.
+**Licences (Erik, 2026-10-27): our variants are gated by research only.** A first decision kept the vanilla licence on top, enforced by the mod; it was dropped the same day, because taking the research back on a lost licence would also stop the player building the variant at their own wharf, and the research gates both. Instead rep decides where the player can buy (an enemy group won't let them dock or trade), the research is never taken back, and vanilla's own wares keep every licence gate. So nothing has to catch a lost licence, and each unlock's research name only has to say what the unlock needs, which the generator writes per item.
+
+**SWI for comparison (0.90):** its research-gated ships (the XXL Executor, Bellator, Praetor, Subjugator, MC85, TIE Silencer) use ordinary research in the visible HQ tree, named plainly ("TIE Silencer Prototype"). They still declare a licence (`capitalship`), which the menu skips, and no SWI script checks it. They're also tagged `blueprintsaleonly`, which locks them at every station the player doesn't own (`checkLicence`, text 1026/8019): they're built from blueprints at the player's own yards, never bought.
 
 ## To verify in game
 
@@ -99,6 +101,9 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 - How does `makerraces` read for ships with more than one maker?
 - Can Xenon ships be captured in vanilla? They have no crew; the bail code divides the chance by 3 for Xenon, so some path exists.
 - Which pirate stations can dock each size, and can the player dock there at their current relation? The Yaki start at −25 (enemy), which blocks docking.
+- At what relation does Vigor stop the player docking and trading, and does the buy menu itself refuse an enemy faction's station? That's what keeps a player at war with Vigor from buying its variants.
+- Do variants owned by Vigor turn up in Vigor's own NPC ships and loadouts? If so, decide whether that's wanted.
+- A purchase of an unlocked variant built and delivered to the end, and the research star icon on it in the Buy Ships list (not yet seen on the proof-of-concept ships).
 
 ## Still iterating
 
