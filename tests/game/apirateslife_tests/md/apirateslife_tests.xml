@@ -2193,11 +2193,9 @@
         <run_actions ref="md.APiratesLife_Booty.StandingTexts" result="$Texts">
           <param name="Group" value="$Group"/>
         </run_actions>
-        <run_actions ref="md.APiratesLife_Booty.Cut" result="$Cut">
-          <param name="Group" value="$Group"/>
-          <param name="Level" value="3"/>
-        </run_actions>
-        <do_if value="$Texts.{1} != {1774101, 4}.[3] or $Texts.{2} != {1774101, 5}.[faction.loanshark.name, 3, '4.0M', 4, '6.0M', $Cut]">
+        <!-- Compared with the English the player reads, not the text references, so a text X4 mangles
+             (it drops anything in parentheses) fails -->
+        <do_if value="$Texts.{1} != 'Hand over booty: standing level 3' or $Texts.{2} != 'The Vigor Syndicate: standing level 3, at 4.0M standing. Level 4 at 6.0M. Fence cut 35.5%.'">
           <set_value name="$Problems" exact="$Problems + ' at 4004911: %s / %s;'.[$Texts.{1}, $Texts.{2}]"/>
         </do_if>
         <set_value name="$Shown" exact="$Texts.{2}"/>
@@ -2209,7 +2207,7 @@
           <param name="Group" value="$Group"/>
           <param name="Level" value="20"/>
         </run_actions>
-        <do_if value="$Texts.{2} != {1774101, 6}.[faction.loanshark.name, 20, '320.0M', $Cut]">
+        <do_if value="$Texts.{2} != 'The Vigor Syndicate: standing level 20, the top level, at 320.0M standing. Fence cut %s%%.'.[$Cut]">
           <set_value name="$Problems" exact="$Problems + ' at the top: %s;'.[$Texts.{2}]"/>
         </do_if>
         <set_value name="$Sizes" exact="[[1, 0], [2, 4], [3, 8], [4, 15]]"/>
