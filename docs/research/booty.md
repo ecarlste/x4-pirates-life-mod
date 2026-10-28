@@ -104,6 +104,7 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 - **Comm with a station's people from the map** (the station's people list, right-click a person, Comm) needs the station's `operator_name` info, unlocked at 60% of its information (`base/libraries/infounlocklist.xml:25`; `menu_map.lua:26152`, `:26243`); before that their names show empty and Comm is disabled. Erik's Vigor wharf was at 18%, still under it after scanning. The station's secrecy level caps each scanner level (e.g. secrecy 2: 33% at scan level 0, 66% at level 1), so passing 60% may need a better scanner or the station's data leaks. Once Erik got the wharf past 60%, he could comm both the manager and the ship trader from the map's crew list, and both offered "Hand over booty" (2026-10-27). Erik normally plays with a mod that skips station scans, "Skip Station Scan".
 - ~~Does the sale price include cargo?~~ **Yes** (Erik's game, 2026-10-27): the same Nova's vanilla Sell Ships price went from 1,147,330 Cr to 1,148,390 Cr after it bought 40 water, +1,060 Cr or 26.5 Cr a unit: exactly half water's average price (53 Cr; its range is 32–74, `base/libraries/wares.xml`). So a prize's cargo is paid for too, at about half its average price, and earns booty with the rest. One ware checked; others may differ.
 - `.value` (capture metrics) for comparison: a fully fitted Nova Vanguard read about 1.6–2.1M, above its sale price of about 1.2M, so `.value` and the sale price differ.
+- What happens to a handed-over ship? The sale runs through the engine's `C.SellPlayerShip` (`base/ui/addons/ego_detailmonitor/menu_map.lua:3856`), whose effects aren't visible in the scripts. Check whether the ship is removed or kept, and whether the buying station's owner gains anything (wares, money, a ship). This matters for spawned ships too: one captured and handed over would turn into booty and credits from nothing.
 - Does a crew transfer finish after its source ship has been handed over?
 - How does `makerraces` read for ships with more than one maker?
 - Can Xenon ships be captured in vanilla? They have no crew; the bail code divides the chance by 3 for Xenon, so some path exists.
@@ -112,13 +113,48 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 - Do variants owned by Vigor turn up in Vigor's own NPC ships and loadouts? If so, decide whether that's wanted.
 - A purchase of an unlocked variant built and delivered to the end. (The research icon on locked variants is seen: a beaker.)
 
+## Supply raids
+
+**Status: idea, being drawn up** (Erik, 2026-10-28). Not agreed design yet; nothing here is in `DESIGN.md`.
+
+**Why:** a low-tier pirate depends on the group's wharf for ships and gear, and that wharf's economy is thin. In Erik's game (2026-10-28), refitting four S ships with the new variant gear left the Vigor wharf waiting 10–15 minutes and counting for about 200 advanced electronics and weapon components. Supply raids let the player fix the shortage the pirate way, by taking the wares from someone else.
+
+**Shape so far** (Erik's calls, 2026-10-28):
+
+- **A small-crew job.** Sized for one ship, at most an M with four S escorts: S/M freighters, or part of an L freighter's cargo forced out, never an escorted convoy. A big shortage may take several targets or partial deliveries.
+- **Trigger:** a ware the group's station needs, with none in stock and no trade orders already coming to fill it. Then the group asks the player to bring it in as booty.
+- **The wares just join the station's stock,** as any delivery would. The game's own build queue uses them; the mod doesn't finish or speed up the player's orders.
+- **How the job reaches the player** (Erik, 2026-10-28), one of two ways, not yet picked:
+  - **Added for you:** when the chance comes up, the mission is put straight into the player's mission list, as vanilla does with the trip to a faction's HQ after a promotion (`base/md/playerreputation.xml:169`).
+  - **Offered at the station** (less intrusive): the mission joins the station's available missions, the way minefield clearing or pirate hunting offers turn up when the player flies past their mission giver. Vanilla's generic missions do this with `create_offer` on the station (`base/md/gm_supplyfactory.xml:326`).
+- **Finding a carrier in real traffic** (Erik, 2026-10-28). A freighter tagged at the start may unload before the player reaches it, so the mission works with live traffic instead. Spawning a loaded freighter for the job is a last resort ([DESIGN.md, Design pillars](../DESIGN.md#design-pillars-and-compatibility-architecture)), used only if no way through real traffic works: its wares were never mined or made, so delivering them adds goods to the economy that shouldn't exist. Ships spawned for a mission are fine when nothing they carry reaches the economy, like a freighter the player rescues from mines that is removed once it's out of the player's sight. The steps:
+  1. **Stake out a source:** drop an advanced satellite in range of a nearby station that has a surplus of the ware.
+  2. **Spot a carrier:** when the satellite sees a ship leave that station freshly loaded with the ware, the mission moves on and marks that ship.
+  3. **Take the cargo:** force a drop, capture the ship, or destroy it for its cargo, and deliver the wares to the group's station.
+  4. **If the carrier docks and sells the ware first,** the mission goes back to step 2, watching the station.
+
+  Vanilla pieces that fit: the coverage mission already has the player deploy satellites and reads an advanced satellite's range (`macro.eq_arg_satellite_02_macro.maxradarrange`, `base/md/gm_achievecoverage.xml:785`); the script events include `event_object_undocked_from` and `event_trade_completed` (`base/libraries/md.xsd`), for spotting a loaded ship leaving and a sale. Still to check: whether a trade event names the ware and amount, or the ship's cargo has to be read on undocking.
+- **Rewards are mostly not booty:** materials for crafting better equipment mods, rarer as standing climbs, and pirate paint jobs. Booty is small or none; standing still comes mainly from handing over ships.
+
+**What vanilla gives us:**
+
+- **Shortages:** vanilla's build-storage supply mission reads what a station's build is still missing from `$storage.buildprocessor.neededsequenceresources` (`base/md/rml_supplybuildstorage.xml:61`), and `gm_supplyfactory.xml` reads a factory's `resources`. Whether either covers a wharf's ship and equipment builds, and how to see trade orders already on their way, is unknown.
+- **Item rewards:** generic missions add a non-credit reward through `md.LIB_Reward_Balancing.DetermineAdditionalReward`, weighted between a mod part (`Reward_ModPart`) and a seminar, and give inventory rewards with `add_inventory` (`base/md/gm_ambush.xml:328`, `:876`).
+- **Paint jobs:** the Tides of Avarice starts give the player paint mods 0006, 0048–0050, 0097–0100 and 0126 (`ego_dlc_pirate/libraries/gamestarts.xml:74`), the first candidates for pirate paints; our own paints would need new textures, later.
+- Vanilla also drip-feeds a stalled build storage every 15 minutes so builds finish without the player (`rml_supplybuildstorage.xml:210`); worth knowing whether wharfs get anything like it.
+
+**Open:**
+
+- Whether only stolen wares count, and how to tell (X4 doesn't record where cargo came from): don't check, count wares unloaded from a pirated ship, or only the named target's cargo.
+- Which mod materials and paints, and how rewards scale with standing.
+
 ## Still iterating
 
 - **Drop points.** Some handovers happen at a drop point in space instead of a station: a pirate pickup crew (a tug or escort for big prizes) meets you there. Sometimes the authorities show up, and you defend the crew and the prize for a bonus. No station guns, so the fights are real; XL handovers are the set pieces. Heat should drive how often the authorities come. Still open: whether the pirates or the player choose drop point or station. Vanilla prior art: the "Retrieve Dead Drop" mission chain, including a "Military Police Inspection" variant (`base/md/gmc_retrieve_dead_drop.xml:1826`).
 - **Finding the traitor.** If the authorities come because someone sold out the drop, the leak is a person (a contact, the pickup crew, your own crew, a rival). Clues from the ambush lead to a short hunt; what you do with the traitor is fear vs. honor; a traitor who gets away can come back.
 - **Hailing the station manager.** Now one of the two ways in for v1 (with the order); still open: the flow. Dock the prize, then hail the station and pick from a list of eligible docked ships, reverse-engineering style. Lets the player move the pilot by hand first.
 - **What pirates do with the ships.** In v1 a handed-over ship goes the way of a ship sold at that station. Later, maybe: the group flies it (its fleet really grows; needs a spike on ownership changes, orders and a cap) or strips it for parts.
-- **Group missions and tips,** gated by standing: pirate-side missions like SWI's bounty-hunter missions, and tips on targets.
+- **Group missions and tips,** gated by standing: pirate-side missions like SWI's bounty-hunter missions, and tips on targets. The first one being drawn up: [supply raids](#supply-raids).
 - **A bypass quest line** for groups whose stations the player can't reach at first (e.g. a faction locked behind a story or terraforming), switchable in the config.
 - **Unlocking a family of items at once,** for a price that adds up to about the same as buying each; single unlocks let the player buy only what they want.
 - **Notoriety favours:** at random, a group adds extra money to a handover to buy a famous pirate's favour.

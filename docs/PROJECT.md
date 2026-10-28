@@ -14,6 +14,7 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 - **Target version:** latest X4 (9.x), vanilla first. SWI support comes later through a profile, once SWI ports to 9.x.
 - **Required DLC:** Tides of Avarice (`ego_dlc_pirate`).
 - **Profile-driven core:** no hardcoded vanilla faction/ship/ware/sector IDs in scripts. Universe-specific data lives in profiles; vanilla is the first profile.
+- **Use X4's own systems, always:** do things with existing assets, traffic, stations and economy, and rely on the game's natural systems. Magic (spawning ships, wares or stations, adding credits or cargo, effects with no cause in the universe) only when there's no organic way and fun needs it. See [DESIGN.md, Design pillars](DESIGN.md#design-pillars-and-compatibility-architecture).
 - **Capture tiers are data**, not engine classes (vanilla S/M/L/XL; SWI adds XXL).
 - **XML diff patches only** for library changes; never overwrite base files.
 - **UI** builds on kuertee's UI Extensions (actively maintained, and what SWI uses), declared as an optional dependency with the mod working without it. SirNukes' Mod Support APIs only where there's no alternative (not updated since Dec 2025; unreliable on 9.0). See [research/third-party-ui-apis.md](research/third-party-ui-apis.md).
