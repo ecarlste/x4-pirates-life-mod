@@ -27,7 +27,10 @@
                standing level whose unlock offers it, and the role (for the reader).
      <equipment> the same for an engine, shield generator, weapon, turret or missile; name gives something
                new a fun name in place of its base name (docs/DESIGN.md: "Pirate" for a pirate version
-               of existing gear, a fun name for something new). -->
+               of existing gear, a fun name for something new). mark and step build a mark the base
+               game stops short of (docs/DESIGN.md: pirate gear goes up to the highest mark any DLC
+               has): from the base game's top mark, the step rig applied once per mark up, on top of
+               the rig, and named as that mark. A step rig's price multiplies the ware's price. -->
 <variants>
   <group id="vigor" factions="loanshark" name="Vigor Syndicate"/>
 
@@ -49,6 +52,9 @@
        starts at about 2:3 shield to hull, so it needs a stronger rig to reach the Stripper's 8:1 -->
   <rig id="stripper_turret" hulldamage="0.33" shielddamage="4"/>
   <rig id="emp_long" disable="1.5"/>
+  <!-- One mark up, about vanilla's own step (Argon S Mk2 to Mk3, M and L Mk1 to Mk2, Boron XL Mk1
+       to Mk2: capacity x1.2 to x1.4, recharge rate x1.35 to x1.55, price about x4.8) -->
+  <rig id="shield_mark" capacity="1.25" rate="1.45" price="4.8"/>
 
   <ship id="kyd" macro="ship_pir_s_fighter_01_a_macro" rig="swarm" level="1" role="swarm skiff"/>
   <ship id="lux" macro="ship_pir_s_fighter_02_a_macro" rig="raider" level="2" role="raider"/>
@@ -70,4 +76,29 @@
   <equipment id="travel_m" macro="engine_arg_m_travel_01_mk1_macro" rig="engine_travel" level="6"/>
   <equipment id="quick_m" macro="shield_arg_m_standard_01_mk1_macro" rig="shield_quick" level="6"/>
   <equipment id="stripper_turret_m" macro="turret_tel_m_shotgun_01_mk1_macro" rig="stripper_turret" name="Stripper Turret" level="6"/>
+
+  <!-- Mk2 and Mk3 (docs/DESIGN.md, the first set): S at 5 and 7, M at 9 to 12, L and XL shields from 9 -->
+  <equipment id="combat_s_mk2" macro="engine_arg_s_combat_01_mk2_macro" rig="engine_combat" level="5"/>
+  <equipment id="allround_s_mk2" macro="engine_arg_s_allround_01_mk2_macro" rig="engine_allround" level="5"/>
+  <equipment id="travel_s_mk2" macro="engine_arg_s_travel_01_mk2_macro" rig="engine_travel" level="5"/>
+  <equipment id="quick_s_mk2" macro="shield_arg_s_standard_01_mk2_macro" rig="shield_quick" level="5"/>
+  <equipment id="stripper_s_mk2" macro="weapon_arg_s_ion_01_mk2_macro" rig="stripper" name="Stripper" level="5"/>
+  <equipment id="combat_s_mk3" macro="engine_arg_s_combat_01_mk3_macro" rig="engine_combat" level="7"/>
+  <equipment id="allround_s_mk3" macro="engine_arg_s_allround_01_mk3_macro" rig="engine_allround" level="7"/>
+  <equipment id="travel_s_mk3" macro="engine_arg_s_travel_01_mk3_macro" rig="engine_travel" level="7"/>
+  <equipment id="quick_s_mk3" macro="shield_arg_s_standard_01_mk3_macro" rig="shield_quick" level="7"/>
+  <equipment id="combat_m_mk2" macro="engine_arg_m_combat_01_mk2_macro" rig="engine_combat" level="9"/>
+  <equipment id="allround_m_mk2" macro="engine_arg_m_allround_01_mk2_macro" rig="engine_allround" level="9"/>
+  <equipment id="travel_m_mk2" macro="engine_arg_m_travel_01_mk2_macro" rig="engine_travel" level="9"/>
+  <equipment id="quick_m_mk2" macro="shield_arg_m_standard_01_mk2_macro" rig="shield_quick" level="9"/>
+  <equipment id="quick_l" macro="shield_arg_l_standard_01_mk1_macro" rig="shield_quick" level="9"/>
+  <equipment id="stripper_m_mk2" macro="weapon_arg_m_ion_01_mk2_macro" rig="stripper" name="Stripper" level="10"/>
+  <equipment id="quick_l_mk2" macro="shield_arg_l_standard_01_mk2_macro" rig="shield_quick" level="11"/>
+  <equipment id="combat_m_mk3" macro="engine_arg_m_combat_01_mk3_macro" rig="engine_combat" level="12"/>
+  <equipment id="allround_m_mk3" macro="engine_arg_m_allround_01_mk3_macro" rig="engine_allround" level="12"/>
+  <equipment id="travel_m_mk3" macro="engine_arg_m_travel_01_mk3_macro" rig="engine_travel" level="12"/>
+  <equipment id="quick_m_mk3" macro="shield_arg_m_standard_01_mk2_macro" rig="shield_quick" mark="3" step="shield_mark" level="12"/>
+  <equipment id="quick_l_mk3" macro="shield_arg_l_standard_01_mk2_macro" rig="shield_quick" mark="3" step="shield_mark" level="14"/>
+  <equipment id="quick_xl" macro="shield_arg_xl_standard_01_mk1_macro" rig="shield_quick" level="16"/>
+  <equipment id="quick_xl_mk2" macro="shield_arg_xl_standard_01_mk1_macro" rig="shield_quick" mark="2" step="shield_mark" level="18"/>
 </variants>

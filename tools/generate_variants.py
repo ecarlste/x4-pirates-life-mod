@@ -132,8 +132,13 @@ def parse_list(text):
         seen.add(sid)
         if s.get("rig") not in rigs:
             raise ValueError("%s %s: unknown rig %r" % (s.tag, sid, s.get("rig")))
+        if (s.get("mark") is None) != (s.get("step") is None):
+            raise ValueError("%s %s: a mark needs a step rig, and a step rig a mark" % (s.tag, sid))
+        if s.get("step") is not None and s.get("step") not in rigs:
+            raise ValueError("%s %s: unknown step rig %r" % (s.tag, sid, s.get("step")))
         items.append({"kind": s.tag, "id": sid, "macro": s.get("macro"), "rig": s.get("rig"),
-                      "level": int(s.get("level", "0")), "name": s.get("name")})
+                      "level": int(s.get("level", "0")), "name": s.get("name"),
+                      "mark": int(s.get("mark")) if s.get("mark") else None, "step": s.get("step")})
     return group, rigs, items
 
 
@@ -197,8 +202,9 @@ def unlock_name(group, item):
 
 
 def unlock_description(group, item, vanilla_name):
-    return ("The %s's pirate rig of the %s. Reach standing level %d with the %s, by handing them prizes, "
-            "and their wharfs and shipyards sell it to you." % (group["name"], vanilla_name, item["level"], group["name"]))
+    built_up = ", built up to a Mk%d" % item["mark"] if item.get("mark") else ""
+    return ("The %s's pirate rig of the %s%s. Reach standing level %d with the %s, by handing them prizes, "
+            "and their wharfs and shipyards sell it to you." % (group["name"], vanilla_name, built_up, item["level"], group["name"]))
 
 
 def unlocks_md(group, items):
@@ -282,10 +288,10 @@ class Reference:
         root = next(r for r in self.roots if path.startswith(r + os.sep))
         return os.path.dirname(os.path.relpath(path, root)).lower()
 
-    def equipment_name(self, ident, fun=None):
+    def equipment_name(self, ident, fun=None, mark=None):
         """A pirate name for equipment from its identification: vanilla names are references like
         "{maker} {size} {base name} {Mk}". The maker becomes "Pirate"; with a fun name, the maker
-        goes and the fun name replaces the base name."""
+        goes and the fun name replaces the base name; with a mark, the Mk is that mark."""
         raw = self.texts.get(tuple(re.findall(r"\d+", ident.get("name"))[:2]), "")
         raw = re.sub(r"(?<!\\)\([^)]*\)", "", raw)
         base = ident.get("basename", "").replace(" ", "")
@@ -298,6 +304,11 @@ class Reference:
                     parts.append("Pirate")
             elif fun and token.replace(" ", "") == base:
                 parts.append(fun)
+            elif mark and re.fullmatch(r"\{20111,\s*\d01\}", token):
+                mk = self.text("{20111,%d01}" % mark)
+                if not mk:
+                    raise ValueError("no text for Mk%d" % mark)
+                parts.append(mk)
             else:
                 parts.append(self.text(token))
         if not fun and not has_maker:
@@ -311,7 +322,7 @@ def generate(ref, list_text, list_bytes, script_bytes):
     files, index, wares, texts, influences = {}, [], [], [], []
     for n, s in enumerate(items, 1):
         if s["kind"] == "equipment":
-            generate_equipment(ref, group, s, rigs[s["rig"]], n, files, index, wares, texts, influences)
+            generate_equipment(ref, group, s, rigs, n, files, index, wares, texts, influences)
             continue
         rig = rigs[s["rig"]]
         sid = s["id"]
@@ -368,9 +379,9 @@ def generate(ref, list_text, list_bytes, script_bytes):
     return files
 
 
-def variant_ware(ref, group, vanilla_macro, new_macro, research_id, n):
+def variant_ware(ref, group, vanilla_macro, new_macro, research_id, n, price_step=1.0):
     """A copy of the ware built from the vanilla macro, built from the new one: priced x the group's
-    multiplier, owned by the group's factions, every production method needing the unlock"""
+    multiplier (and x the price step of marks built up beyond the vanilla gear's), owned by the group's factions, every production method needing the unlock"""
     vware = ref.wares.get(vanilla_macro)
     if vware is None:
         raise ValueError("no ware is built from %s" % vanilla_macro)
@@ -379,7 +390,7 @@ def variant_ware(ref, group, vanilla_macro, new_macro, research_id, n):
     w.set("name", "{%d,%d}" % (TEXT_PAGE, 10 * n + 1))
     price = w.find("price")
     for a in ("min", "average", "max"):
-        price.set(a, scaled(price.get(a), group_price(group), integer=True))
+        price.set(a, scaled(price.get(a), group_price(group) * price_step, integer=True))
     for prod in w.findall("production"):
         for old in prod.findall("research"):
             prod.remove(old)
@@ -393,11 +404,11 @@ def variant_ware(ref, group, vanilla_macro, new_macro, research_id, n):
     return w
 
 
-def variant_wares(ref, group, item, n):
+def variant_wares(ref, group, item, n, price_step=1.0):
     """The variant's ware (a copy of the vanilla one: priced x the group's multiplier, owned by the
     group's factions, every production method needing the unlock) and its unlock research"""
     research_id = "research_apl_%s" % item["id"]
-    w = variant_ware(ref, group, item["macro"], macro_name(item), research_id, n)
+    w = variant_ware(ref, group, item["macro"], macro_name(item), research_id, n, price_step)
     rw = ET.Element("ware", {"id": research_id, "name": "{%d,%d}" % (TEXT_PAGE, 10 * n + 2),
                              "description": "{%d,%d}" % (TEXT_PAGE, 10 * n + 3),
                              "transport": "research", "volume": "1", "tags": "hidden research"})
@@ -424,13 +435,31 @@ def apply_rig(props, rig, table):
             e.set(attr, scaled(e.get(attr), rig[key], integer))
 
 
-def generate_equipment(ref, group, item, rig, n, files, index, wares, texts, influences):
+def stepped_rig(rig, step, steps):
+    """The rig with a step rig applied steps times, for a mark built up beyond the vanilla gear's:
+    (the rig, the price multiplier)"""
+    out = dict(rig)
+    for key, factor in step.items():
+        if key != "price":
+            out[key] = out.get(key, 1.0) * factor ** steps
+    return out, step.get("price", 1.0) ** steps
+
+
+def generate_equipment(ref, group, item, rigs, n, files, index, wares, texts, influences):
     root = ref.macro(item["macro"])
     mac = root.find("macro")
     cls = mac.get("class")
     props = mac.find("properties")
     ident = props.find("identification")
-    name = ref.equipment_name(ident, item["name"])
+    rig, price_step, rig_label = rigs[item["rig"]], 1.0, item["rig"]
+    if item["mark"]:
+        # Gear vanilla's base game stops short of: built from its top mark, a step rig per mark up
+        steps = item["mark"] - int(ident.get("mk", "1"))
+        if steps < 1:
+            raise ValueError("%s: mark %d is not above the vanilla gear's Mk%s" % (item["id"], item["mark"], ident.get("mk")))
+        rig, price_step = stepped_rig(rig, rigs[item["step"]], steps)
+        rig_label = "%s, %s x%d" % (item["rig"], item["step"], steps)
+    name = ref.equipment_name(ident, item["name"], item["mark"])
     vanilla_name = ref.equipment_name(ident, None).replace("Pirate ", "", 1)
     texts += [(10 * n + 1, name),
               (10 * n + 2, unlock_name(group, item)),
@@ -440,6 +469,8 @@ def generate_equipment(ref, group, item, rig, n, files, index, wares, texts, inf
     ident.set("name", "{%d,%d}" % (TEXT_PAGE, 10 * n + 1))
     ident.set("shortname", "{%d,%d}" % (TEXT_PAGE, 10 * n + 1))
     ident.attrib.pop("basename", None)
+    if item["mark"]:
+        ident.set("mk", str(item["mark"]))
     if cls == "engine":
         apply_rig(props, rig, ENGINE_RIG)
     elif cls == "shieldgenerator":
@@ -481,8 +512,9 @@ def generate_equipment(ref, group, item, rig, n, files, index, wares, texts, inf
         amac.set("name", alias_name)
         aprops = amac.find("properties")
         aident = aprops.find("identification")
-        for a in ("name", "shortname"):
-            aident.set(a, ident.get(a))
+        for a in ("name", "shortname", "mk"):
+            if ident.get(a) is not None:
+                aident.set(a, ident.get(a))
         aident.attrib.pop("basename", None)
         if cls == "engine":
             apply_rig(aprops, rig, ENGINE_RIG)
@@ -493,14 +525,14 @@ def generate_equipment(ref, group, item, rig, n, files, index, wares, texts, inf
         else:
             aprops.find("missile").set("influencelist", props.find("missile").get("influencelist"))
         apath = os.path.join(ref.macro_folder(vanilla_alias), alias_name + ".xml")
-        files[apath] = to_text(aroot, header("the destructible twin of the %s variant (%s), rig %s" % (item["id"], vanilla_alias, item["rig"])))
+        files[apath] = to_text(aroot, header("the destructible twin of the %s variant (%s), rig %s" % (item["id"], vanilla_alias, rig_label)))
         index.append((alias_name, apath))
         mac.set("alias", alias_name)
-        wares.append(variant_ware(ref, group, vanilla_alias, alias_name, "research_apl_%s" % item["id"], n))
+        wares.append(variant_ware(ref, group, vanilla_alias, alias_name, "research_apl_%s" % item["id"], n, price_step))
     path = os.path.join(ref.macro_folder(item["macro"]), new_name + ".xml")
-    files[path] = to_text(root, header("the %s variant of %s, rig %s" % (item["id"], item["macro"], item["rig"])))
+    files[path] = to_text(root, header("the %s variant of %s, rig %s" % (item["id"], item["macro"], rig_label)))
     index.append((new_name, path))
-    wares += variant_wares(ref, group, item, n)
+    wares += variant_wares(ref, group, item, n, price_step)
 
 
 def group_price(group):

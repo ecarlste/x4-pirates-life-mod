@@ -2956,22 +2956,18 @@
             <set_value name="$Problems" exact="$Problems + ' the Stripper did not fit;'"/>
           </do_if>
         </do_else>
-        <!-- Wares and unlocks, numbered as the generator numbers its texts (the n-th list entry's
-             name is text 10 n + 1); the gear follows the six ships -->
-        <!-- [ware, list id] in list order -->
-        <set_value name="$Gear" exact="[['weapon_apl_stripper_s', 'stripper_s'], ['engine_apl_combat_s', 'combat_s'], ['engine_apl_allround_s', 'allround_s'], ['engine_apl_travel_s', 'travel_s'], ['shield_apl_quick_s', 'quick_s'], ['missile_apl_coldfeet', 'coldfeet'], ['weapon_apl_stripper_m', 'stripper_m'], ['engine_apl_combat_m', 'combat_m'], ['engine_apl_allround_m', 'allround_m'], ['engine_apl_travel_m', 'travel_m'], ['shield_apl_quick_m', 'quick_m'], ['turret_apl_stripper_turret_m', 'stripper_turret_m']]"/>
-        <do_for_each name="$Entry" in="$Gear" counter="$i">
-          <set_value name="$N" exact="6 + $i"/>
-          <set_value name="$Ware" exact="ware.{$Entry.{1}}"/>
-          <set_value name="$Research" exact="ware.{'research_apl_' + $Entry.{2}}"/>
-          <do_if value="@$Ware.name != readtext.{1774110}.{$N * 10 + 1}">
-            <set_value name="$Problems" exact="$Problems + ' %s missing or misnamed (%s);'.[$Entry.{1}, @$Ware.name]"/>
+        <!-- Every listed variant's ware and unlock, from the generated library in list order, so new
+             gear is checked as it's listed: the n-th entry's name is text 10 n + 1, its unlock's 10 n + 2 -->
+        <run_actions ref="md.APiratesLife_VariantsVanilla.Unlocks" result="$Gear"/>
+        <do_for_each name="$Entry" in="$Gear" counter="$N">
+          <do_if value="@$Entry.$ware.name != readtext.{1774110}.{$N * 10 + 1}">
+            <set_value name="$Problems" exact="$Problems + ' entry %s missing or misnamed (%s);'.[$N, @$Entry.$ware.name]"/>
           </do_if>
-          <do_if value="@$Research.name != readtext.{1774110}.{$N * 10 + 2} or @$Research.research.unlocked">
-            <set_value name="$Problems" exact="$Problems + ' research_apl_%s missing, misnamed or already unlocked;'.[$Entry.{2}]"/>
+          <do_if value="@$Entry.$research.name != readtext.{1774110}.{$N * 10 + 2} or @$Entry.$research.research.unlocked">
+            <set_value name="$Problems" exact="$Problems + ' unlock of entry %s missing, misnamed or already unlocked;'.[$N]"/>
           </do_if>
         </do_for_each>
-        <signal_cue_instantly cue="Report" param="table[$name = 'variant_gear', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'pirate engines x%s speed, x%s boost speed, shield x%s; %s gear wares named'.[$Speed, $Boost, $ShieldRatio, $Gear.count] else $Problems)]"/>
+        <signal_cue_instantly cue="Report" param="table[$name = 'variant_gear', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'pirate engines x%s speed, x%s boost speed, shield x%s; %s variant wares named'.[$Speed, $Boost, $ShieldRatio, $Gear.count] else $Problems)]"/>
         <do_if value="$Pirate">
           <destroy_object object="$Pirate"/>
         </do_if>
