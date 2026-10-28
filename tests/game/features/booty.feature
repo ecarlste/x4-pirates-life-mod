@@ -10,6 +10,14 @@ Feature: Booty
     And M, L and XL turn-ins open at levels 4, 8 and 15
     And the cut is 40% at level 0, 25% at level 10 and 10% at level 20
 
+  @booty_standing_shown
+  Scenario: The conversation shows my standing
+    Given standing of 4.0M with Vigor, level 3
+    When I talk to the staff of a Vigor wharf or shipyard
+    Then "Hand over booty" names my level, and its tooltip my standing, the next level and its threshold, and my fence cut
+    And at the top level it says so in place of the next level
+    And each ship size's turn-in level is known: S from 0, M from 4, L from 8, XL from 15
+
   @booty_lists_docked_ships
   Scenario: My ships docked at a Vigor station are found for the list
     Given a fighter of mine docked at the Vigor wharf
@@ -48,13 +56,13 @@ Feature: Booty
   Scenario: The order refuses a ship too big for my level before it flies
     Given standing below the level that opens M turn-ins
     When I give an M ship the "Hand over as booty" order
-    Then the order ends without flying, and I'm told the Vigor Syndicate don't take ships that size from me yet
+    Then the order ends without flying, and I'm told the Vigor Syndicate take ships that size from me from level 4, and that I'm level 0
 
   @booty_too_big
   Scenario: Ships too big for my level aren't taken
     Given standing below the level that opens M turn-ins
     When I try to hand over an M ship docked at the Vigor wharf
-    Then it's refused, saying the Vigor Syndicate don't take ships that size from me yet
+    Then it's refused, saying the Vigor Syndicate take ships that size from me from level 4, and that I'm level 0
 
   @booty_pilot_moves
   Scenario: The pilot moves to a free marine slot

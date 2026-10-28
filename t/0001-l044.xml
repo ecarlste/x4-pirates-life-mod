@@ -28,15 +28,17 @@
 
   <page id="1774101" title="A Pirate's Life" descr="Booty" voice="no">
     <!-- Conversation with a pirate group's station staff -->
-    <t id="1">Hand over booty</t>
     <t id="2">More ships</t>
     <t id="3">No ships of yours are docked here.</t>
+    <t id="4">Hand over booty (standing level %s)</t>
+    <t id="5">The %s: standing level %s (%s). Level %s at %s. Fence cut %s%%.</t>
+    <t id="6">The %s: standing level %s (%s), the top level. Fence cut %s%%.</t>
     <t id="10">%s %s</t>
     <t id="11">%s %s: pirated</t>
     <t id="12">Hand over %s %s for good</t>
 
     <!-- Why a ship can't be handed over -->
-    <t id="20">Too big: the %s don't take ships this size from you yet.</t>
+    <t id="20">Too big: the %s take ships this size from you from standing level %s. You're level %s.</t>
     <t id="21">Not while you're aboard.</t>
     <t id="22">This station doesn't take booty.</t>
     <t id="23">Dock it here first.</t>

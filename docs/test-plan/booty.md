@@ -8,7 +8,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 7 | 16 | 5 | 4 | **9** |
+| 7 | 17 | 5 | 4 | **9** |
 
 ## Scenarios
 
@@ -21,6 +21,18 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
   Then standing 0 is level 0, 1M is level 1, 6M is level 4 and 320M is the top level, 20
   And M, L and XL turn-ins open at levels 4, 8 and 15
   And the cut is 40% at level 0, 25% at level 10 and 10% at level 20
+```
+
+### The conversation shows my standing
+
+**Automated:** in game `booty_standing_shown`
+
+```gherkin
+  Given standing of 4.0M with Vigor, level 3
+  When I talk to the staff of a Vigor wharf or shipyard
+  Then "Hand over booty" names my level, and its tooltip my standing, the next level and its threshold, and my fence cut
+  And at the top level it says so in place of the next level
+  And each ship size's turn-in level is known: S from 0, M from 4, L from 8, XL from 15
 ```
 
 ### My ships docked at a Vigor station are found for the list
@@ -84,7 +96,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 ```gherkin
   Given standing below the level that opens M turn-ins
   When I give an M ship the "Hand over as booty" order
-  Then the order ends without flying, and I'm told the Vigor Syndicate don't take ships that size from me yet
+  Then the order ends without flying, and I'm told the Vigor Syndicate take ships that size from me from level 4, and that I'm level 0
 ```
 
 ### Ships too big for my level aren't taken
@@ -94,7 +106,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 ```gherkin
   Given standing below the level that opens M turn-ins
   When I try to hand over an M ship docked at the Vigor wharf
-  Then it's refused, saying the Vigor Syndicate don't take ships that size from me yet
+  Then it's refused, saying the Vigor Syndicate take ships that size from me from level 4, and that I'm level 0
 ```
 
 ### The pilot moves to a free marine slot
