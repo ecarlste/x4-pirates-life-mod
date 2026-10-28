@@ -12,11 +12,13 @@ For each <ship> in the list, from the vanilla files in an unpacked X4 install:
     and the unlock research ware (hidden from the HQ research tree).
   - t/0001-l044.xml: page 1774110 (between generated markers) with the variants' names
     ("Pirate <vanilla name>") and the unlock research's name and description.
-Each <equipment> (an engine, shield generator, weapon or missile) gets the same: a rigged copy of
+Each <equipment> (an engine, shield generator, weapon, turret or missile) gets the same: a rigged copy of
 its macro under the vanilla macro's folder (lowercased), its ware and unlock research, and its
 name: the vanilla name with "Pirate" for the maker ("Pirate S Combat Engine Mk1"), or, with a fun
 name in the list, the fun name for the base name ("S Stripper Mk1"). A weapon also gets a copy of
-its bullet macro (assets/fx/weaponfx/macros/bullet_apl_<id>_macro.xml) with the damage rigged; a
+its bullet macro (assets/fx/weaponfx/macros/bullet_apl_<id>_macro.xml) with the damage rigged, and
+a turret with a destructible twin (its macro's alias, a ware of its own for L and XL hulls) a copy of that and its
+ware, under the same unlock; a
 missile gets a copy of its effect list (libraries/influenceconfigurations.xml, apl_<id>) with the
 durations rigged.
 See docs/specs/booty.md (Variants) and docs/research/booty.md (Unlocks in the build menus).
@@ -295,15 +297,14 @@ def generate(ref, list_text, list_bytes, script_bytes):
     return files
 
 
-def variant_wares(ref, group, item, n):
-    """The variant's ware (a copy of the vanilla one: priced x the group's multiplier, owned by the
-    group's factions, every production method needing the unlock) and its unlock research"""
-    vware = ref.wares.get(item["macro"])
+def variant_ware(ref, group, vanilla_macro, new_macro, research_id, n):
+    """A copy of the ware built from the vanilla macro, built from the new one: priced x the group's
+    multiplier, owned by the group's factions, every production method needing the unlock"""
+    vware = ref.wares.get(vanilla_macro)
     if vware is None:
-        raise ValueError("no ware is built from %s" % item["macro"])
-    research_id = "research_apl_%s" % item["id"]
+        raise ValueError("no ware is built from %s" % vanilla_macro)
     w = copy.deepcopy(vware)
-    w.set("id", ware_id(item))
+    w.set("id", new_macro[: -len("_macro")])
     w.set("name", "{%d,%d}" % (TEXT_PAGE, 10 * n + 1))
     price = w.find("price")
     for a in ("min", "average", "max"):
@@ -313,11 +314,19 @@ def variant_wares(ref, group, item, n):
             prod.remove(old)
         r = ET.SubElement(prod, "research")
         ET.SubElement(r, "ware", {"ware": research_id})
-    w.find("component").set("ref", macro_name(item))
+    w.find("component").set("ref", new_macro)
     for o in w.findall("owner"):
         w.remove(o)
     for f in group["factions"]:
         ET.SubElement(w, "owner", {"faction": f})
+    return w
+
+
+def variant_wares(ref, group, item, n):
+    """The variant's ware (a copy of the vanilla one: priced x the group's multiplier, owned by the
+    group's factions, every production method needing the unlock) and its unlock research"""
+    research_id = "research_apl_%s" % item["id"]
+    w = variant_ware(ref, group, item["macro"], macro_name(item), research_id, n)
     rw = ET.Element("ware", {"id": research_id, "name": "{%d,%d}" % (TEXT_PAGE, 10 * n + 2),
                              "description": "{%d,%d}" % (TEXT_PAGE, 10 * n + 3),
                              "transport": "research", "volume": "1", "tags": "hidden research"})
@@ -366,7 +375,7 @@ def generate_equipment(ref, group, item, rig, n, st, files, index, wares, texts,
         apply_rig(props, rig, ENGINE_RIG)
     elif cls == "shieldgenerator":
         apply_rig(props, rig, SHIELD_RIG)
-    elif cls == "weapon":
+    elif cls in ("weapon", "turret"):
         bullet = props.find("bullet")
         bullet_name = "bullet_apl_%s_macro" % item["id"]
         broot = ref.macro(bullet.get("class"))
@@ -381,6 +390,25 @@ def generate_equipment(ref, group, item, rig, n, st, files, index, wares, texts,
         files[bpath] = to_text(broot, header(st, "the bullet of the %s variant (%s)" % (item["id"], bullet.get("class"))))
         index.append((bullet_name, bpath))
         bullet.set("class", bullet_name)
+        if mac.get("alias"):
+            # A turret's alias is its destructible twin, a ware of its own for the slots where turrets
+            # can be shot off (L and XL hulls): it gets the same name, bullet and unlock
+            alias_name = new_name[: -len("_macro")] + "_alias_macro"
+            mac_alias = mac.get("alias")
+            aroot = ref.macro(mac_alias)
+            amac = aroot.find("macro")
+            amac.set("name", alias_name)
+            aprops = amac.find("properties")
+            aident = aprops.find("identification")
+            for a in ("name", "shortname"):
+                aident.set(a, ident.get(a))
+            aident.attrib.pop("basename", None)
+            aprops.find("bullet").set("class", bullet_name)
+            apath = os.path.join(ref.macro_folder(mac.get("alias")), alias_name + ".xml")
+            files[apath] = to_text(aroot, header(st, "the destructible twin of the %s variant (%s)" % (item["id"], mac.get("alias"))))
+            index.append((alias_name, apath))
+            mac.set("alias", alias_name)
+            wares.append(variant_ware(ref, group, mac_alias, alias_name, "research_apl_%s" % item["id"], n))
     elif cls == "missile":
         m = props.find("missile")
         il = copy.deepcopy(ref.influences[m.get("influencelist")])
@@ -431,7 +459,7 @@ def expected_macros(list_text):
     """The file names of the variant macros the list makes (storage macros aside), known without the game files"""
     _, _, items = parse_list(list_text)
     names = {macro_name(s) + ".xml" for s in items}
-    names |= {"bullet_apl_%s_macro.xml" % s["id"] for s in items if s["macro"].startswith("weapon_")}
+    names |= {"bullet_apl_%s_macro.xml" % s["id"] for s in items if s["macro"].startswith(("weapon_", "turret_"))}
     return names
 
 
@@ -456,11 +484,17 @@ def check_stamps(repo, list_text, current):
     for p in sorted(needed - on_disk):
         problems.append("missing: %s" % p)
     want = expected_macros(list_text)
-    have = {os.path.basename(p) for p in macro_files}
+    # A turret's destructible twin (_alias) comes with its turret: the list can't tell which have one
+    have = {os.path.basename(p).replace("_alias_macro", "_macro") for p in macro_files}
     for name in sorted(want - have):
         problems.append("missing: macro %s" % name)
     for name in sorted(have - want):
         problems.append("left over: macro %s (no longer in the list)" % name)
+    names = {os.path.basename(p) for p in macro_files}
+    for p in sorted(macro_files):
+        alias = ET.parse(os.path.join(repo, p)).getroot().find("macro").get("alias")
+        if alias and alias + ".xml" not in names:
+            problems.append("missing: macro %s (the destructible twin of %s)" % (alias + ".xml", os.path.basename(p)))
     for p in sorted(on_disk):
         with open(os.path.join(repo, p), encoding="utf-8", errors="replace") as fh:
             m = STAMP.search(fh.read(400))

@@ -65,11 +65,11 @@ Built in four PRs, each with its game tests, after the pirated mark:
 - **Gear:** the generator copies an engine, shield generator, weapon or missile macro into its vanilla folder (lowercased) and rigs it:
   - **engines:** combat, reverse, travel and boost thrust, boost duration, and the boost recharge *rate* (the UI's "Boost Recharge Rate"; below 1 is slower);
   - **shields:** capacity, recharge rate and delay;
-  - **weapons:** a copy of the weapon's bullet macro (`assets/fx/weaponfx/macros/bullet_apl_<id>_macro.xml`) with hull damage (`value`) and shield damage rigged;
+  - **weapons and turrets:** a copy of the weapon's bullet macro (`assets/fx/weaponfx/macros/bullet_apl_<id>_macro.xml`) with hull damage (`value`) and shield damage rigged. A turret whose macro has an `alias` (its destructible twin: a ware of its own, the one the hittable turret slots of L and XL hulls take) gets a copy of that too (`turret_apl_<id>_alias_macro`) and its ware (`turret_apl_<id>_alias`), with the same name, bullet and unlock;
   - **missiles:** a copy of the missile's effect list (`libraries/influenceconfigurations.xml`, `apl_<id>`, a diff patch) with every duration rigged.
-  Names: the vanilla gear name is "{maker} {size} {base name} {Mk}"; the maker becomes "Pirate" ("Pirate S Combat Engine Mk1"), or, with a fun name, the maker goes and the fun name replaces the base name ("S Stripper Mk1", "Cold Feet Mk1"). Ware IDs follow the macro: `engine_apl_combat_s`, `weapon_apl_stripper_s`, `missile_apl_coldfeet`.
+  Names: the vanilla gear name is "{maker} {size} {base name} {Mk}"; the maker becomes "Pirate" ("Pirate S Combat Engine Mk1"), or, with a fun name, the maker goes and the fun name replaces the base name ("S Stripper Mk1", "M Stripper Turret Mk1", "Cold Feet Mk1"). Ware IDs follow the macro: `engine_apl_combat_s`, `weapon_apl_stripper_s`, `missile_apl_coldfeet`.
 - **Kept in sync:** every generated file carries a stamp, a hash of the list and the generator. `make test` runs `generate_variants.py --check`: with the game files, it regenerates in memory and compares; without them (as in CI), it checks that every expected file is there, none is left over, and all carry the current stamp. Unit tests run the generator on a small made-up install written in the test (`tests/python/test_generate_variants.py`), so no game data is committed. Python unit tests count as test-plan coverage, as the Lua ones do.
-- **The first set:** as [DESIGN.md](../DESIGN.md#booty-and-pirate-standing) lists it (hulls by pirate role, base game and Tides of Avarice only; pirate engines, shields and the Stripper). The rig recipes are still being worked out in [research/pirate-variants.md](../research/pirate-variants.md#pirate-rigs-the-recipes).
+- **The first set:** as [DESIGN.md](../DESIGN.md#booty-and-pirate-standing) lists it (hulls by pirate role, base game and Tides of Avarice only; pirate engines, shields, the Stripper and the Stripper turret). The rig recipes are still being worked out in [research/pirate-variants.md](../research/pirate-variants.md#pirate-rigs-the-recipes).
 
 ### Buying unlocks
 
@@ -87,6 +87,7 @@ In `md/apirateslife_config.xml`, under Tuning, each added by the PR that first u
 - [x] The handover order, and the pilot's move to a marine slot
 - [x] Variant list, generator with its tests and sync check, the first set of ships
 - [x] The first set's gear: pirate engines, shields, the Stripper, the pirate EMP missile
+- [ ] The Stripper turret
 - [ ] Unlock conversation and blueprint unlocks
 
 ## Done when

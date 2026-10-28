@@ -8,7 +8,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 3 | 13 | 4 | 4 | **8** |
+| 4 | 14 | 4 | 4 | **8** |
 
 ## Scenarios
 
@@ -157,6 +157,29 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
   When a Nova is fitted with pirate combat engines, a pirate shield and a Stripper, and another with the vanilla gear they're rigs of
   Then the pirate Nova is about 10% faster and boosts faster still, and its shield holds 15% less
   And every gear ware and its unlock research exist, named as generated, and I don't have the research yet
+```
+
+### The Stripper turret fits M and L hulls
+
+**Automated:** in game `variant_turret`
+
+```gherkin
+  Given the Stripper turret generated from the list, built on the Teladi muon blaster turret
+  When a Gorgon and a Barbarossa are fitted with two each
+  Then both carry two working Stripper turrets, the Barbarossa's as their destructible twin
+  And the twin's ware has the Stripper turret's name
+```
+
+### The Stripper turret is rigged for shields, with a destructible twin
+
+**Automated:** unit test `test_variants_stripper_turret_rigs_its_bullet_and_destructible_twin`
+
+```gherkin
+  Given the Stripper turret in the list, on a vanilla turret whose macro has a destructible twin (alias)
+  When the variants are generated
+  Then its bullet does about 8 times more shield than hull damage, both macros fire it and carry its name
+  And the twin is a ware of its own under the same unlock
+  And the stamp check without game files notices a missing twin
 ```
 
 ### A rig changes a copy of the vanilla gear
