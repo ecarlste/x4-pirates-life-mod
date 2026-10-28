@@ -123,6 +123,9 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 - **A small-crew job.** Sized for one ship, at most an M with four S escorts: S/M freighters, or part of an L freighter's cargo forced out, never an escorted convoy. A big shortage may take several targets or partial deliveries.
 - **Trigger:** a ware the group's station needs, with none in stock and no trade orders already coming to fill it. Then the group asks the player to bring it in as booty.
 - **The wares just join the station's stock,** as any delivery would. The game's own build queue uses them; the mod doesn't finish or speed up the player's orders.
+- **How the job reaches the player** (Erik, 2026-10-28), one of two ways, not yet picked:
+  - **Added for you:** when the chance comes up, the mission is put straight into the player's mission list, as vanilla does with the trip to a faction's HQ after a promotion (`base/md/playerreputation.xml:169`).
+  - **Offered at the station** (less intrusive): the mission joins the station's available missions, the way minefield clearing or pirate hunting offers turn up when the player flies past their mission giver. Vanilla's generic missions do this with `create_offer` on the station (`base/md/gm_supplyfactory.xml:326`).
 - **Rewards are mostly not booty:** materials for crafting better equipment mods, rarer as standing climbs, and pirate paint jobs. Booty is small or none; standing still comes mainly from handing over ships.
 
 **What vanilla gives us:**
@@ -134,7 +137,6 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 
 **Open:**
 
-- How the job reaches the player: a conversation with the manager or ship trader like the handover, a vanilla-style mission offer, or both.
 - How the target is chosen and shown: a named freighter carrying the ware, or any source.
 - Whether only stolen wares count, and how to tell (X4 doesn't record where cargo came from): don't check, count wares unloaded from a pirated ship, or only the named target's cargo.
 - Which mod materials and paints, and how rewards scale with standing.
