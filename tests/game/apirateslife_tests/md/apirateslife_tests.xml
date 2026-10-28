@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyListsDockedShips, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, BootyOrderHandsOver, BootyOrderRefusesTooBig, BootyPilotMoves, BootyPilotSkipsFull, VariantShips, VariantGear, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyListsDockedShips, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, BootyOrderHandsOver, BootyOrderRefusesTooBig, BootyPilotMoves, BootyPilotSkipsFull, VariantShips, VariantGear, VariantTurret, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -2904,7 +2904,7 @@
         <!-- Wares and unlocks, numbered as the generator numbers its texts (the n-th list entry's
              name is text 10 n + 1); the gear follows the six ships -->
         <!-- [ware, list id] in list order -->
-        <set_value name="$Gear" exact="[['weapon_apl_stripper_s', 'stripper_s'], ['engine_apl_combat_s', 'combat_s'], ['engine_apl_allround_s', 'allround_s'], ['engine_apl_travel_s', 'travel_s'], ['shield_apl_quick_s', 'quick_s'], ['missile_apl_coldfeet', 'coldfeet'], ['weapon_apl_stripper_m', 'stripper_m'], ['engine_apl_combat_m', 'combat_m'], ['engine_apl_allround_m', 'allround_m'], ['engine_apl_travel_m', 'travel_m'], ['shield_apl_quick_m', 'quick_m']]"/>
+        <set_value name="$Gear" exact="[['weapon_apl_stripper_s', 'stripper_s'], ['engine_apl_combat_s', 'combat_s'], ['engine_apl_allround_s', 'allround_s'], ['engine_apl_travel_s', 'travel_s'], ['shield_apl_quick_s', 'quick_s'], ['missile_apl_coldfeet', 'coldfeet'], ['weapon_apl_stripper_m', 'stripper_m'], ['engine_apl_combat_m', 'combat_m'], ['engine_apl_allround_m', 'allround_m'], ['engine_apl_travel_m', 'travel_m'], ['shield_apl_quick_m', 'quick_m'], ['turret_apl_stripper_turret_m', 'stripper_turret_m']]"/>
         <do_for_each name="$Entry" in="$Gear" counter="$i">
           <set_value name="$N" exact="6 + $i"/>
           <set_value name="$Ware" exact="ware.{$Entry.{1}}"/>
@@ -2924,6 +2924,72 @@
           <destroy_object object="$Vanilla"/>
         </do_if>
       </actions>
+    </cue>
+
+    <!-- The Stripper turret fits: on a Gorgon (M, turrets can't be shot off) and, as its destructible
+         twin (the turret macro's alias, a ware of its own), on a Barbarossa (L), with the pirate M
+         shield's twin; the twins' wares have their gear's names -->
+    <cue name="VariantTurret">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <create_ship name="$Gorgon" macro="macro.ship_par_m_frigate_01_a_macro" sector="player.sector">
+          <owner exact="faction.player" overridenpc="true"/>
+          <loadout ref="apirateslife_test_gorgon_stripperturret"/>
+          <safepos object="player.occupiedship" x="15km" z="-25km" allowyaxis="true"/>
+        </create_ship>
+        <create_ship name="$Barbarossa" macro="macro.ship_pir_l_scavenger_01_a_macro" sector="player.sector">
+          <owner exact="faction.player" overridenpc="true"/>
+          <loadout ref="apirateslife_test_barbarossa_stripperturret"/>
+          <safepos object="player.occupiedship" x="-15km" z="-25km" allowyaxis="true"/>
+        </create_ship>
+      </actions>
+      <cues>
+        <!-- Checked a moment after the ships spawn, to give them time to fit their turrets -->
+        <cue name="VariantTurretCheck">
+          <delay exact="3s"/>
+          <actions>
+            <set_value name="$Gorgon" exact="parent.$Gorgon"/>
+            <set_value name="$Barbarossa" exact="parent.$Barbarossa"/>
+            <set_value name="$Problems" exact="''"/>
+            <set_value name="$Found" exact="''"/>
+            <do_for_each name="$Ship" in="[$Gorgon, $Barbarossa]">
+              <set_value name="$Ours" exact="0"/>
+              <set_value name="$Macros" exact="''"/>
+              <do_if value="$Ship">
+                <do_for_each name="$Turret" in="$Ship.turrets.operational.list">
+                  <set_value name="$Macros" exact="$Macros + ' ' + $Turret.macro.id"/>
+                  <do_if value="$Turret.macro == (if $Ship == $Gorgon then macro.turret_apl_stripper_turret_m_macro else macro.turret_apl_stripper_turret_m_alias_macro)">
+                    <set_value name="$Ours" operation="add"/>
+                  </do_if>
+                </do_for_each>
+              </do_if>
+              <set_value name="$Found" exact="$Found + ' %s: %s Stripper turret(s) (%s; %s turrets, %s being built);'.[@$Ship.knownname, $Ours, $Macros, @$Ship.turrets.all.count, @$Ship.turrets.construction.count]"/>
+              <do_if value="$Ours lt 2">
+                <set_value name="$Problems" exact="$Problems + ' %s has %s Stripper turrets, expected 2;'.[@$Ship.knownname, $Ours]"/>
+              </do_if>
+            </do_for_each>
+            <find_object_component name="$Shields" object="$Barbarossa" macro="macro.shield_apl_quick_m_alias_macro" multiple="true"/>
+            <set_value name="$Found" exact="$Found + ' %s pirate M shield twin(s) on the Barbarossa;'.[$Shields.count]"/>
+            <do_if value="$Shields.count lt 2">
+              <set_value name="$Problems" exact="$Problems + ' the Barbarossa has %s pirate M shield twins, expected 2;'.[$Shields.count]"/>
+            </do_if>
+            <do_for_each name="$Pair" in="[[ware.turret_apl_stripper_turret_m_alias, ware.turret_apl_stripper_turret_m], [ware.shield_apl_quick_m_alias, ware.shield_apl_quick_m]]">
+              <do_if value="@$Pair.{1}.name != $Pair.{2}.name">
+                <set_value name="$Problems" exact="$Problems + ' a twin ware is missing or misnamed (%s, %s);'.[@$Pair.{1}.name, $Pair.{2}.name]"/>
+              </do_if>
+            </do_for_each>
+            <signal_cue_instantly cue="Report" param="table[$name = 'variant_turret', $ok = ($Problems == ''), $detail = (if $Problems == '' then $Found else $Problems + $Found)]"/>
+            <do_if value="$Gorgon">
+              <destroy_object object="$Gorgon"/>
+            </do_if>
+            <do_if value="$Barbarossa">
+              <destroy_object object="$Barbarossa"/>
+            </do_if>
+          </actions>
+        </cue>
+      </cues>
     </cue>
   </cues>
 </mdscript>

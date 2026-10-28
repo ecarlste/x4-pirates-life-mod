@@ -40,5 +40,20 @@
         <thruster macro="thruster_gen_s_allround_01_mk1_macro"/>
       </virtualmacros>
     </loadout>
+    <!-- Stripper turrets on an M hull, where turrets can't be shot off, and on an L hull, which
+         takes the destructible twins of M turrets and shields, as vanilla's L loadouts do (the
+         variant_turret game test) -->
+    <loadout id="apirateslife_test_gorgon_stripperturret" macro="ship_par_m_frigate_01_a_macro">
+      <macros>
+        <turret macro="turret_apl_stripper_turret_m_macro" path="../con_turret_front_R"/>
+        <turret macro="turret_apl_stripper_turret_m_macro" path="../con_turret_front_L"/>
+      </macros>
+    </loadout>
+    <loadout id="apirateslife_test_barbarossa_stripperturret" macro="ship_pir_l_scavenger_01_a_macro">
+      <groups>
+        <turrets macro="turret_apl_stripper_turret_m_alias_macro" path=".." group="group_back_mid_down" min="2" max="2"/>
+        <shields macro="shield_apl_quick_m_alias_macro" path=".." group="group_back_mid_down" min="2" max="2"/>
+      </groups>
+    </loadout>
   </add>
 </diff>
