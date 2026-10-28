@@ -98,13 +98,16 @@ Handing prizes to pirate groups is how a pirate earns their trust and unlocks th
     | 6 | 11.5M | Pirate Gorgon prize runner; M gear: Stripper, engines, shield, Stripper turret | |
     | 7 | 15M | Pirate S engines and shield Mk3 | |
     | 8 | 20M | | L |
-    | 9 | 27M | Pirate Barbarossa flagship; pirate M engines and shield Mk2 | |
+    | 9 | 27M | Pirate Barbarossa flagship; pirate M engines and shield Mk2; pirate L shield Mk1 | |
     | 10 | 35M | M Stripper Mk2 | |
-    | 12 | 57M | Pirate M engines Mk3 | |
+    | 11 | 45M | Pirate L shield Mk2 | |
+    | 12 | 57M | Pirate M engines Mk3, pirate M shield Mk3 | |
+    | 14 | 85M | Pirate L shield Mk3 | |
     | 15 | 110M | | XL |
-    | 16 | 140M | Pirate Atlas mothership | |
+    | 16 | 140M | Pirate Atlas mothership; pirate XL shield Mk1 | |
+    | 18 | 215M | Pirate XL shield Mk2 | |
 
-    Vanilla's M shields stop at Mk2 in the base game (Mk3 only in the Boron and Terran DLCs), so a pirate M shield Mk3 is a DLC extra. The Stripper turret stays Mk1: vanilla's muon blaster turret has no Mk2.
+    **Pirate gear goes up to the highest mark any DLC has** (agreed 2026-10-28), even though the mod requires none of them. Where the base game stops short, the pirate mark is built from the base game's top one, rigged up a step (about vanilla's own Mk1 to Mk2 step) and named as the next mark: the base game's shields stop at Mk2 for M and L and Mk1 for XL, while the Boron and Terran DLCs go to Mk3 for M and L and Mk2 for XL, so the pirate M and L shield Mk3 and XL shield Mk2 are built from base-game shields. The Stripper turret stays Mk1: the muon blaster turret has no Mk2.
   - **Names:** a pirate version of an existing ship or item takes the standard name with "Pirate" for the maker (Pirate Lux, Pirate travel engine Mk1). Something new and different gets a fun name, a pun the adults catch (the Stripper).
 - **What happens to a handed-over ship:** the same as a ship sold at that station. Only the way in differs.
 - **First version:** the player hands a prize over with an order on the prize ("Hand over as booty") or in a conversation with the station manager, at a Vigor station that can take that size of ship. The prize docks and is handed over like a sale. At handover, the prize's pilot moves to a free marine slot on one of the player's ships (vanilla crew transfer, nearest first), so marines keep gaining experience; with no free slot, the pilot is lost, as in a sale.
