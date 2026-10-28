@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyListsDockedShips, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, BootyOrderHandsOver, BootyOrderRefusesTooBig, BootyPilotMoves, BootyPilotSkipsFull, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyListsDockedShips, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, BootyOrderHandsOver, BootyOrderRefusesTooBig, BootyPilotMoves, BootyPilotSkipsFull, VariantShips, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -2760,6 +2760,77 @@
           </actions>
         </cue>
       </cues>
+    </cue>
+    <!-- ===== Pirate variants (tools/generate_variants.py, profiles/vanilla/variants.xml) ===== -->
+
+    <!-- Every generated variant loads: it spawns, takes its "Pirate" name, and has its rig against
+         the vanilla ship (hull for all, crew for the boarding transport); its ware and its hidden
+         unlock research exist, and the player doesn't have the research yet -->
+    <cue name="VariantShips">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <!-- id, vanilla macro, hull factor, crew factor (0: unchanged), from the list's rigs -->
+        <set_value name="$Cases" exact="[
+          ['kyd', macro.ship_pir_s_fighter_01_a_macro, 0.8, 0],
+          ['lux', macro.ship_pir_s_fighter_02_a_macro, 0.85, 0],
+          ['hermes', macro.ship_par_m_trans_container_02_a_macro, 1.1, 1.5],
+          ['gorgon', macro.ship_par_m_frigate_01_a_macro, 0.9, 1.25],
+          ['barbarossa', macro.ship_pir_l_scavenger_01_a_macro, 0.9, 1.25],
+          ['atlas', macro.ship_par_xl_resupplier_02_a_macro, 0.9, 1.2]]"/>
+        <set_value name="$Problems" exact="''"/>
+        <do_for_each name="$Case" in="$Cases" counter="$i">
+          <set_value name="$Variant" exact="null"/>
+          <set_value name="$Vanilla" exact="null"/>
+          <create_ship name="$Variant" macro="macro.{'ship_apl_' + $Case.{1} + '_macro'}" sector="player.sector">
+            <owner exact="faction.player" overridenpc="true"/>
+            <safepos object="player.occupiedship" x="30km" z="$i * 6km" allowyaxis="true"/>
+          </create_ship>
+          <create_ship name="$Vanilla" macro="$Case.{2}" sector="player.sector">
+            <owner exact="faction.player" overridenpc="true"/>
+            <safepos object="player.occupiedship" x="-30km" z="$i * 6km" allowyaxis="true"/>
+          </create_ship>
+          <do_if value="not $Variant or not $Vanilla">
+            <set_value name="$Problems" exact="$Problems + ' %s: did not spawn (variant %s, vanilla %s);'.[$Case.{1}, $Variant != null, $Vanilla != null]"/>
+          </do_if>
+          <do_else>
+            <set_value name="$Want" exact="($Vanilla.maxhull * $Case.{3})i"/>
+            <do_if value="($Variant.maxhull)i lt $Want - 2 or ($Variant.maxhull)i gt $Want + 2">
+              <set_value name="$Problems" exact="$Problems + ' %s: hull %s, expected %s;'.[$Case.{1}, $Variant.maxhull, $Want]"/>
+            </do_if>
+            <do_if value="$Case.{4} gt 0 and $Variant.people.capacity le $Vanilla.people.capacity">
+              <set_value name="$Problems" exact="$Problems + ' %s: crew %s, vanilla %s;'.[$Case.{1}, $Variant.people.capacity, $Vanilla.people.capacity]"/>
+            </do_if>
+            <!-- The generator numbers the texts: variant n's name is text 10 n + 1 of page 1774110 -->
+            <do_if value="$Variant.name != readtext.{1774110}.{$i * 10 + 1}">
+              <set_value name="$Problems" exact="$Problems + ' %s: named %s, expected %s;'.[$Case.{1}, $Variant.name, readtext.{1774110}.{$i * 10 + 1}]"/>
+            </do_if>
+            <set_value name="$Ware" exact="ware.{'ship_apl_' + $Case.{1}}"/>
+            <set_value name="$Research" exact="ware.{'research_apl_' + $Case.{1}}"/>
+            <!-- Both wares are there under their generated names. (That the ship's ware needs the
+                 research is checked on the generated wares.xml by the unit tests: MD can't read a
+                 ship ware's research needs, as research.precursors and requiredprecursors are for
+                 researchable wares.) -->
+            <do_if value="@$Ware.name != readtext.{1774110}.{$i * 10 + 1}">
+              <set_value name="$Problems" exact="$Problems + ' %s: ware ship_apl_%s missing or misnamed (%s);'.[$Case.{1}, $Case.{1}, @$Ware.name]"/>
+            </do_if>
+            <do_if value="@$Research.name != readtext.{1774110}.{$i * 10 + 2}">
+              <set_value name="$Problems" exact="$Problems + ' %s: research_apl_%s missing or misnamed (%s);'.[$Case.{1}, $Case.{1}, @$Research.name]"/>
+            </do_if>
+            <do_if value="$Research.research.unlocked">
+              <set_value name="$Problems" exact="$Problems + ' %s: already unlocked;'.[$Case.{1}]"/>
+            </do_if>
+          </do_else>
+          <do_if value="$Variant">
+            <destroy_object object="$Variant"/>
+          </do_if>
+          <do_if value="$Vanilla">
+            <destroy_object object="$Vanilla"/>
+          </do_if>
+        </do_for_each>
+        <signal_cue_instantly cue="Report" param="table[$name = 'variant_ships', $ok = ($Problems == ''), $detail = (if $Problems == '' then '%s variants load with their rigs, names and locked research'.[$Cases.count] else $Problems)]"/>
+      </actions>
     </cue>
   </cues>
 </mdscript>

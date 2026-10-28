@@ -1,0 +1,215 @@
+"""Unit tests for tools/generate_variants.py (the pirate variants from profiles/vanilla/variants.xml).
+
+The game files are a tiny made-up install written here, shaped like the real ones; no game data
+is committed."""
+import io
+import os
+import tempfile
+import unittest
+import xml.etree.ElementTree as ET
+from contextlib import redirect_stderr, redirect_stdout
+
+import generate_variants as gv
+from helpers import write
+
+SHIP = """<?xml version="1.0" encoding="utf-8"?>
+<macros>
+  <macro name="ship_tst_s_fighter_01_a_macro" class="ship_s">
+    <component ref="ship_tst_s_fighter_01" />
+    <properties>
+      <identification name="{20101,102}" basename="{20101,101}" makerrace="argon" description="{20101,103}" variation="{20111,1101}" />
+      <jerk>
+        <forward accel="0.3" />
+        <forward_travel accel="0.4" decel="0.9" ratio="3" />
+      </jerk>
+      <hull max="3000" />
+      <people capacity="2" />
+      <physics mass="5">
+        <drag forward="4" reverse="10" horizontal="4" vertical="4" pitch="3" yaw="3" roll="3" />
+      </physics>
+    </properties>
+    <connections>
+      <connection ref="con_storage01">
+        <macro ref="storage_tst_s_fighter_01_a_macro" connection="ShipConnection" />
+      </connection>
+    </connections>
+  </macro>
+</macros>
+"""
+STORAGE = """<?xml version="1.0" encoding="utf-8"?>
+<macros>
+  <macro name="storage_tst_s_fighter_01_a_macro" class="storage">
+    <component ref="generic_storage" />
+    <properties>
+      <cargo max="400" tags="container" />
+    </properties>
+  </macro>
+</macros>
+"""
+WARES = """<?xml version="1.0" encoding="utf-8"?>
+<wares>
+  <ware id="ship_tst_s_fighter_01_a" name="{20101,101}" transport="ship" volume="1" tags="ship">
+    <price min="80" average="100" max="120" />
+    <production time="10" amount="1" method="default">
+      <primary>
+        <ware ware="hullparts" amount="10" />
+      </primary>
+    </production>
+    <component ref="ship_tst_s_fighter_01_a_macro" />
+    <restriction licence="militaryship" />
+    <owner faction="argon" />
+  </ware>
+</wares>
+"""
+TEXTS = """<?xml version="1.0" encoding="utf-8"?>
+<language id="44">
+  <page id="20101">
+    <t id="101">Tester</t>
+    <t id="102">(Tester V){20101,101} {20111,1101}</t>
+    <t id="103">A test ship.</t>
+  </page>
+  <page id="20111">
+    <t id="1101">Vanguard</t>
+  </page>
+</language>
+"""
+OUR_TEXTS = """<?xml version="1.0" encoding="utf-8"?>
+<language id="44">
+  <page id="1774100" title="A Pirate's Life">
+    <t id="1">Ours</t>
+  </page>
+</language>
+"""
+LIST = """<?xml version="1.0" encoding="utf-8"?>
+<variants>
+  <group id="vigor" factions="loanshark scavenger" name="Vigor Syndicate"/>
+  <rig id="raider" drag="0.85" travelaccel="1.25" hull="0.85" cargo="1.5"/>
+  <rig id="boarder" crew="1.5" hull="1.1"/>
+  <ship id="tester" macro="ship_tst_s_fighter_01_a_macro" rig="raider" level="2"/>
+</variants>
+"""
+
+
+class Variants(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.ref = os.path.join(self.tmp.name, "ref")
+        write(self.ref, "base/assets/units/size_s/macros/ship_tst_s_fighter_01_a_macro.xml", SHIP)
+        write(self.ref, "base/assets/props/storagemodules/macros/storage_tst_s_fighter_01_a_macro.xml", STORAGE)
+        write(self.ref, "base/libraries/wares.xml", WARES)
+        write(self.ref, "base/t/0001-l044.xml", TEXTS)
+        self.repo = os.path.join(self.tmp.name, "repo")
+        write(self.repo, "t/0001-l044.xml", OUR_TEXTS)
+        self.write_list(LIST)
+
+    def write_list(self, text):
+        write(self.repo, gv.LIST, text)
+
+    def run_tool(self, *args):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = gv.main(["--repo", self.repo, "--reference", self.ref, *args])
+        return code, out.getvalue() + err.getvalue()
+
+    def read(self, path):
+        with open(os.path.join(self.repo, path), encoding="utf-8") as f:
+            return f.read()
+
+    def macro(self, path):
+        return ET.fromstring(self.read(path).split("\n", 2)[2]).find("macro")
+
+    def test_variants_rig_scales_hull_drag_and_travel_and_names_the_variant(self):
+        self.assertEqual(self.run_tool()[0], 0)
+        mac = self.macro("assets/units/size_s/macros/ship_apl_tester_macro.xml")
+        p = mac.find("properties")
+        self.assertEqual(mac.get("name"), "ship_apl_tester_macro")
+        self.assertEqual(mac.find("component").get("ref"), "ship_tst_s_fighter_01")
+        self.assertEqual(p.find("hull").get("max"), "2550")
+        self.assertEqual(p.find("physics/drag").get("forward"), "3.4")
+        self.assertEqual(p.find("physics/drag").get("pitch"), "3")
+        self.assertEqual(p.find("jerk/forward_travel").get("accel"), "0.5")
+        ident = p.find("identification")
+        self.assertEqual(ident.get("name"), "{1774110,11}")
+        self.assertIsNone(ident.get("variation"))
+        self.assertIn('<t id="11">Pirate Tester</t>', self.read("t/0001-l044.xml"))
+
+    def test_variants_cargo_rig_copies_the_storage_macro(self):
+        self.run_tool()
+        mac = self.macro("assets/units/size_s/macros/ship_apl_tester_macro.xml")
+        refs = [m.get("ref") for m in mac.iter("macro") if m.get("ref")]
+        self.assertIn("storage_apl_tester_macro", refs)
+        storage = self.macro("assets/props/storagemodules/macros/storage_apl_tester_macro.xml")
+        self.assertEqual(storage.find("properties/cargo").get("max"), "600")
+        index = self.read("index/macros.xml")
+        self.assertIn('name="ship_apl_tester_macro" value="extensions\\apirateslife\\assets\\units\\size_s\\macros\\ship_apl_tester_macro"', index)
+        self.assertIn('name="storage_apl_tester_macro"', index)
+
+    def test_variants_crew_rises_by_at_least_one(self):
+        self.write_list(LIST.replace('rig="raider"', 'rig="boarder"'))
+        self.run_tool()
+        p = self.macro("assets/units/size_s/macros/ship_apl_tester_macro.xml").find("properties")
+        self.assertEqual(p.find("people").get("capacity"), "3")
+        self.assertEqual(p.find("hull").get("max"), "3300")
+
+    def test_variants_ware_needs_its_hidden_research_and_belongs_to_the_group(self):
+        self.run_tool()
+        diff = ET.fromstring(self.read("libraries/wares.xml").split("\n", 2)[2])
+        wares = {w.get("id"): w for w in diff.iter("ware") if w.get("id")}
+        ship = wares["ship_apl_tester"]
+        self.assertEqual(ship.find("price").get("average"), "125")
+        self.assertEqual(ship.find("component").get("ref"), "ship_apl_tester_macro")
+        self.assertEqual([o.get("faction") for o in ship.findall("owner")], ["loanshark", "scavenger"])
+        self.assertEqual(ship.find("production/research/ware").get("ware"), "research_apl_tester")
+        research = wares["research_apl_tester"]
+        self.assertEqual(research.get("tags"), "hidden research")
+        self.assertIn("standing level 2", self.read("t/0001-l044.xml"))
+
+    def test_variants_texts_replace_their_own_page_and_keep_ours(self):
+        self.run_tool()
+        self.run_tool()
+        text = self.read("t/0001-l044.xml")
+        self.assertEqual(text.count(gv.TEXT_BEGIN), 1)
+        self.assertIn('<t id="1">Ours</t>', text)
+        ET.fromstring(text.split("\n", 1)[1])
+
+    def test_variants_check_passes_when_up_to_date_and_fails_when_the_list_changes(self):
+        self.run_tool()
+        self.assertEqual(self.run_tool("--check")[0], 0)
+        self.write_list(LIST.replace('level="2"', 'level="3"'))
+        code, out = self.run_tool("--check")
+        self.assertEqual(code, 1)
+        self.assertIn("differs", out)
+
+    def check_without_game_files(self):
+        out = io.StringIO()
+        with redirect_stdout(out), redirect_stderr(out):
+            code = gv.main(["--repo", self.repo, "--reference", os.path.join(self.tmp.name, "none"), "--check"])
+        return code, out.getvalue()
+
+    def test_variants_stamp_check_without_game_files(self):
+        self.run_tool()
+        self.assertEqual(self.check_without_game_files()[0], 0)
+        self.write_list(LIST + "<!-- changed -->")
+        code, out = self.check_without_game_files()
+        self.assertEqual(code, 1)
+        self.assertIn("stale", out)
+
+    def test_variants_a_ship_dropped_from_the_list_is_left_over_then_removed(self):
+        self.run_tool()
+        self.write_list(LIST.replace('  <ship id="tester" macro="ship_tst_s_fighter_01_a_macro" rig="raider" level="2"/>\n', ""))
+        code, out = self.run_tool("--check")
+        self.assertEqual(code, 1)
+        self.assertIn("left over", out)
+        self.run_tool()
+        self.assertFalse(os.path.exists(os.path.join(self.repo, "assets/units/size_s/macros/ship_apl_tester_macro.xml")))
+
+    def test_variants_list_refuses_unknown_rigs_and_repeated_ids(self):
+        with self.assertRaises(ValueError):
+            gv.parse_list(LIST.replace('rig="raider" level', 'rig="nope" level'))
+        with self.assertRaises(ValueError):
+            gv.parse_list(LIST.replace("</variants>", '<ship id="tester" macro="x" rig="raider"/></variants>'))
+
+
+if __name__ == "__main__":
+    unittest.main()

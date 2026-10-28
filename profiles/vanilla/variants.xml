@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The vanilla profile's pirate variants: which vanilla ships (and later gear) get a pirate
+     version, with which rig, and at which standing level a group offers its unlock. Read by
+     tools/generate_variants.py, which writes the variants into the mod (see docs/specs/booty.md,
+     Variants, and docs/DESIGN.md, Booty and pirate standing). Not shipped: only the generated files
+     are. After changing this file, run `make variants` and commit what it writes.
+
+     <group>   the pirate group the variants are sold by: its id (as in the profile's Groups), the
+               factions that own the variants (so their wharfs and shipyards sell them), and the
+               shown name used in unlock texts.
+     <rig>     a pirate rig: multipliers on the vanilla ship's properties.
+                 drag         all forward, reverse and sideways drag (lower is faster, in every mode)
+                 travelaccel  the travel drive's acceleration (jerk forward_travel accel)
+                 hull         maximum hull
+                 crew         crew capacity (people), rounded, at least the vanilla value + 1
+                 cargo        cargo capacity, through a copy of the ship's storage macro
+               Still being worked out (docs/research/pirate-variants.md, Pirate rigs).
+     <ship>    a variant: id (short, unique, used in generated IDs), the vanilla macro, its rig, the
+               standing level whose unlock offers it, and the role (for the reader). -->
+<variants>
+  <group id="vigor" factions="loanshark" name="Vigor Syndicate"/>
+
+  <rig id="raider" drag="0.85" travelaccel="1.25" hull="0.85" cargo="1.5"/>
+  <rig id="swarm" drag="0.9" travelaccel="1.25" hull="0.8"/>
+  <rig id="prizerunner" drag="0.9" travelaccel="1.15" hull="0.9" crew="1.25" cargo="1.5"/>
+  <rig id="boarder" drag="0.9" travelaccel="1.15" hull="1.1" crew="1.5" cargo="0.6"/>
+  <rig id="flagship" drag="0.85" travelaccel="1.2" hull="0.9" crew="1.25" cargo="1.25"/>
+  <rig id="mothership" drag="0.8" travelaccel="1.2" hull="0.9" crew="1.2"/>
+
+  <ship id="kyd" macro="ship_pir_s_fighter_01_a_macro" rig="swarm" level="1" role="swarm skiff"/>
+  <ship id="lux" macro="ship_pir_s_fighter_02_a_macro" rig="raider" level="2" role="raider"/>
+  <ship id="hermes" macro="ship_par_m_trans_container_02_a_macro" rig="boarder" level="4" role="boarding transport"/>
+  <ship id="gorgon" macro="ship_par_m_frigate_01_a_macro" rig="prizerunner" level="6" role="prize runner"/>
+  <ship id="barbarossa" macro="ship_pir_l_scavenger_01_a_macro" rig="flagship" level="9" role="raider flagship"/>
+  <ship id="atlas" macro="ship_par_xl_resupplier_02_a_macro" rig="mothership" level="16" role="mothership"/>
+</variants>
