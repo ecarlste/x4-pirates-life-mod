@@ -110,7 +110,7 @@ Feature: Booty
     And the twin carries the gear's name and is a ware of its own under the same unlock
     And the stamp check without game files notices a missing twin, or a variant still pointing at vanilla's twin
 
-  @test_variants_engine_rig_burst_boost_and_weak_reverse @test_variants_shield_rig_scales_capacity_and_recharge_delay @test_variants_stripper_copies_the_bullet_with_shield_up_and_hull_down @test_variants_missile_copies_its_effect_list_with_longer_shutdowns @test_variants_gear_is_named_pirate_or_given_its_fun_name @test_variants_stamp_check_knows_the_gear_files_without_game_files
+  @test_variants_engine_rig_burst_boost_and_weak_reverse @test_variants_shield_rig_scales_capacity_and_recharge_delay @test_variants_stripper_copies_the_bullet_with_shield_up_and_hull_down @test_variants_missile_copies_its_effect_list_with_longer_shutdowns @test_variants_gear_is_named_pirate_or_given_its_fun_name @test_variants_manifest_check_knows_the_gear_files_without_game_files
   Scenario: A rig changes a copy of the vanilla gear
     Given a vanilla engine, shield, weapon or missile and a rig in the list
     When the generator runs
@@ -183,8 +183,14 @@ Feature: Booty
     When my relation with Vigor drops to enemy
     Then my own wharf can still build it
 
-  @test_variants_check_passes_when_up_to_date_and_fails_when_the_list_changes @test_variants_stamp_check_without_game_files @test_variants_a_ship_dropped_from_the_list_is_left_over_then_removed
+  @test_variants_a_change_that_keeps_the_content_changes_only_the_manifest
+  Scenario: Regenerating changes only what changed
+    Given the generated variants
+    When the list or the generator changes in a way that keeps a file's content
+    Then that file is left as it was, and only the manifest's stamp changes
+
+  @test_variants_check_passes_when_up_to_date_and_fails_when_the_list_changes @test_variants_manifest_check_without_game_files @test_variants_a_ship_dropped_from_the_list_is_left_over_then_removed @test_variants_manifest_check_catches_hand_edits
   Scenario: The generated variants match the list
     Given the variant list and the committed generated files
-    When the tests run the generator in check mode (in full with the game files, by their stamps without them)
-    Then it finds no difference, nothing missing and nothing left over
+    When the tests run the generator in check mode (in full with the game files, by the manifest without them)
+    Then it finds no difference, nothing missing, nothing left over and nothing changed by hand
