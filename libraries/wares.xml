@@ -486,5 +486,630 @@
         </primary>
       </research>
     </ware>
+    <ware id="engine_apl_combat_s_mk2" name="{1774110,191}" description="{20107,1242}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="50630" average="56256" max="61881" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="12" />
+          <ware ware="energycells" amount="20" />
+          <ware ware="engineparts" amount="16" />
+        </primary>
+        <research>
+          <ware ware="research_apl_combat_s_mk2" />
+        </research>
+      </production>
+      <component ref="engine_apl_combat_s_mk2_macro" />
+      <icon video="engine_arg_s_combat_01_mk2_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.41" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_combat_s_mk2" name="{1774110,192}" description="{1774110,193}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="engine_apl_allround_s_mk2" name="{1774110,201}" description="{20107,1042}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="32962" average="36625" max="40288" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="8" />
+          <ware ware="energycells" amount="20" />
+          <ware ware="engineparts" amount="10" />
+        </primary>
+        <research>
+          <ware ware="research_apl_allround_s_mk2" />
+        </research>
+      </production>
+      <component ref="engine_apl_allround_s_mk2_macro" />
+      <icon video="engine_arg_s_allround_01_mk2_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.31" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_allround_s_mk2" name="{1774110,202}" description="{1774110,203}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="engine_apl_travel_s_mk2" name="{1774110,211}" description="{20107,1442}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="43415" average="48239" max="53062" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="10" />
+          <ware ware="energycells" amount="20" />
+          <ware ware="engineparts" amount="14" />
+        </primary>
+        <research>
+          <ware ware="research_apl_travel_s_mk2" />
+        </research>
+      </production>
+      <component ref="engine_apl_travel_s_mk2_macro" />
+      <icon video="engine_arg_s_travel_01_mk2_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.31" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_travel_s_mk2" name="{1774110,212}" description="{1774110,213}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="shield_apl_quick_s_mk2" name="{1774110,221}" description="{20106,1042}" group="shields" transport="equipment" volume="1" tags="equipment shield">
+      <price min="12732" average="14148" max="15561" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="energycells" amount="17" />
+          <ware ware="fieldcoils" amount="4" />
+          <ware ware="shieldcomponents" amount="3" />
+        </primary>
+        <research>
+          <ware ware="research_apl_quick_s_mk2" />
+        </research>
+      </production>
+      <component ref="shield_apl_quick_s_mk2_macro" />
+      <icon video="shield_arg_s_standard_01_mk2_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.31" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_quick_s_mk2" name="{1774110,222}" description="{1774110,223}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="weapon_apl_stripper_s_mk2" name="{1774110,231}" description="{20105,1192}" group="weapons" transport="equipment" volume="1" tags="equipment weapon">
+      <price min="210889" average="234321" max="257754" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="advancedelectronics" amount="42" />
+          <ware ware="energycells" amount="386" />
+          <ware ware="weaponcomponents" amount="43" />
+        </primary>
+        <research>
+          <ware ware="research_apl_stripper_s_mk2" />
+        </research>
+      </production>
+      <component ref="weapon_apl_stripper_s_mk2_macro" />
+      <restriction licence="militaryequipment" />
+      <use threshold="0.91" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_stripper_s_mk2" name="{1774110,232}" description="{1774110,233}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="engine_apl_combat_s_mk3" name="{1774110,241}" description="{20107,1282}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="226279" average="251421" max="276562" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="60" />
+          <ware ware="energycells" amount="40" />
+          <ware ware="engineparts" amount="65" />
+        </primary>
+        <research>
+          <ware ware="research_apl_combat_s_mk3" />
+        </research>
+      </production>
+      <component ref="engine_apl_combat_s_mk3_macro" />
+      <icon video="engine_arg_s_combat_01_mk3_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.7" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_combat_s_mk3" name="{1774110,242}" description="{1774110,243}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="engine_apl_allround_s_mk3" name="{1774110,251}" description="{20107,1082}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="154126" average="171251" max="188376" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="40" />
+          <ware ware="energycells" amount="40" />
+          <ware ware="engineparts" amount="45" />
+        </primary>
+        <research>
+          <ware ware="research_apl_allround_s_mk3" />
+        </research>
+      </production>
+      <component ref="engine_apl_allround_s_mk3_macro" />
+      <icon video="engine_arg_s_allround_01_mk3_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.41" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_allround_s_mk3" name="{1774110,252}" description="{1774110,253}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="engine_apl_travel_s_mk3" name="{1774110,261}" description="{20107,1482}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="208240" average="231379" max="254516" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="55" />
+          <ware ware="energycells" amount="40" />
+          <ware ware="engineparts" amount="60" />
+        </primary>
+        <research>
+          <ware ware="research_apl_travel_s_mk3" />
+        </research>
+      </production>
+      <component ref="engine_apl_travel_s_mk3_macro" />
+      <icon video="engine_arg_s_travel_01_mk3_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.41" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_travel_s_mk3" name="{1774110,262}" description="{1774110,263}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="shield_apl_quick_s_mk3" name="{1774110,271}" description="{20106,1082}" group="shields" transport="equipment" volume="1" tags="equipment shield">
+      <price min="62365" average="69295" max="76224" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="energycells" amount="114" />
+          <ware ware="fieldcoils" amount="28" />
+          <ware ware="shieldcomponents" amount="24" />
+        </primary>
+        <research>
+          <ware ware="research_apl_quick_s_mk3" />
+        </research>
+      </production>
+      <component ref="shield_apl_quick_s_mk3_macro" />
+      <icon video="shield_arg_s_standard_01_mk3_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.41" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_quick_s_mk3" name="{1774110,272}" description="{1774110,273}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="engine_apl_combat_m_mk2" name="{1774110,281}" description="{20107,2242}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="87139" average="96821" max="106502" />
+      <production time="15" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="22" />
+          <ware ware="energycells" amount="30" />
+          <ware ware="engineparts" amount="26" />
+        </primary>
+        <research>
+          <ware ware="research_apl_combat_m_mk2" />
+        </research>
+      </production>
+      <component ref="engine_apl_combat_m_mk2_macro" />
+      <icon video="engine_arg_m_combat_01_mk2_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.41" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_combat_m_mk2" name="{1774110,282}" description="{1774110,283}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="engine_apl_allround_m_mk2" name="{1774110,291}" description="{20107,2042}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="72708" average="80786" max="88865" />
+      <production time="15" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="18" />
+          <ware ware="energycells" amount="30" />
+          <ware ware="engineparts" amount="22" />
+        </primary>
+        <research>
+          <ware ware="research_apl_allround_m_mk2" />
+        </research>
+      </production>
+      <component ref="engine_apl_allround_m_mk2_macro" />
+      <icon video="engine_arg_m_allround_01_mk2_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.31" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_allround_m_mk2" name="{1774110,292}" description="{1774110,293}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="engine_apl_travel_m_mk2" name="{1774110,301}" description="{20107,2442}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="81542" average="90602" max="99662" />
+      <production time="15" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="20" />
+          <ware ware="energycells" amount="30" />
+          <ware ware="engineparts" amount="25" />
+        </primary>
+        <research>
+          <ware ware="research_apl_travel_m_mk2" />
+        </research>
+      </production>
+      <component ref="engine_apl_travel_m_mk2_macro" />
+      <icon video="engine_arg_m_travel_01_mk2_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.31" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_travel_m_mk2" name="{1774110,302}" description="{1774110,303}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="shield_apl_quick_m_mk2_alias" name="{1774110,311}" description="{20106,2042}" group="shields" transport="equipment" volume="1" tags="equipment shield">
+      <price min="92395" average="102661" max="112928" />
+      <production time="20" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="energycells" amount="128" />
+          <ware ware="fieldcoils" amount="32" />
+          <ware ware="shieldcomponents" amount="27" />
+        </primary>
+        <research>
+          <ware ware="research_apl_quick_m_mk2" />
+        </research>
+      </production>
+      <component ref="shield_apl_quick_m_mk2_alias_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.31" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="shield_apl_quick_m_mk2" name="{1774110,311}" description="{20106,2042}" group="shields" transport="equipment" volume="1" tags="equipment shield">
+      <price min="93172" average="103525" max="113878" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="energycells" amount="129" />
+          <ware ware="fieldcoils" amount="32" />
+          <ware ware="shieldcomponents" amount="27" />
+        </primary>
+        <research>
+          <ware ware="research_apl_quick_m_mk2" />
+        </research>
+      </production>
+      <component ref="shield_apl_quick_m_mk2_macro" />
+      <icon video="shield_arg_m_standard_01_mk2_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.31" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_quick_m_mk2" name="{1774110,312}" description="{1774110,313}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="shield_apl_quick_l" name="{1774110,321}" description="{20106,3002}" group="shields" transport="equipment" volume="1" tags="equipment shield">
+      <price min="52708" average="58564" max="64420" />
+      <production time="20" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="energycells" amount="58" />
+          <ware ware="fieldcoils" amount="14" />
+          <ware ware="shieldcomponents" amount="12" />
+        </primary>
+        <research>
+          <ware ware="research_apl_quick_l" />
+        </research>
+      </production>
+      <component ref="shield_apl_quick_l_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_quick_l" name="{1774110,322}" description="{1774110,323}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="weapon_apl_stripper_m_mk2" name="{1774110,331}" description="{20105,2192}" group="weapons" transport="equipment" volume="1" tags="equipment weapon">
+      <price min="316334" average="351481" max="386630" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="advancedelectronics" amount="64" />
+          <ware ware="energycells" amount="579" />
+          <ware ware="weaponcomponents" amount="65" />
+        </primary>
+        <research>
+          <ware ware="research_apl_stripper_m_mk2" />
+        </research>
+      </production>
+      <component ref="weapon_apl_stripper_m_mk2_macro" />
+      <restriction licence="militaryequipment" />
+      <use threshold="0.91" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_stripper_m_mk2" name="{1774110,332}" description="{1774110,333}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="shield_apl_quick_l_mk2" name="{1774110,341}" description="{20106,3042}" group="shields" transport="equipment" volume="1" tags="equipment shield">
+      <price min="257055" average="285618" max="314179" />
+      <production time="20" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="energycells" amount="357" />
+          <ware ware="fieldcoils" amount="90" />
+          <ware ware="shieldcomponents" amount="75" />
+        </primary>
+        <research>
+          <ware ware="research_apl_quick_l_mk2" />
+        </research>
+      </production>
+      <component ref="shield_apl_quick_l_mk2_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.31" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_quick_l_mk2" name="{1774110,342}" description="{1774110,343}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="engine_apl_combat_m_mk3" name="{1774110,351}" description="{20107,2282}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="431805" average="479784" max="527761" />
+      <production time="15" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="110" />
+          <ware ware="energycells" amount="60" />
+          <ware ware="engineparts" amount="130" />
+        </primary>
+        <research>
+          <ware ware="research_apl_combat_m_mk3" />
+        </research>
+      </production>
+      <component ref="engine_apl_combat_m_mk3_macro" />
+      <icon video="engine_arg_m_combat_01_mk3_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.7" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_combat_m_mk3" name="{1774110,352}" description="{1774110,353}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="engine_apl_allround_m_mk3" name="{1774110,361}" description="{20107,2082}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="359652" average="399614" max="439575" />
+      <production time="15" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="90" />
+          <ware ware="energycells" amount="60" />
+          <ware ware="engineparts" amount="110" />
+        </primary>
+        <research>
+          <ware ware="research_apl_allround_m_mk3" />
+        </research>
+      </production>
+      <component ref="engine_apl_allround_m_mk3_macro" />
+      <icon video="engine_arg_m_allround_01_mk3_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.41" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_allround_m_mk3" name="{1774110,362}" description="{1774110,363}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="engine_apl_travel_m_mk3" name="{1774110,371}" description="{20107,2482}" group="engines" transport="equipment" volume="1" tags="engine equipment">
+      <price min="413766" average="459741" max="505715" />
+      <production time="15" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="antimatterconverters" amount="105" />
+          <ware ware="energycells" amount="60" />
+          <ware ware="engineparts" amount="125" />
+        </primary>
+        <research>
+          <ware ware="research_apl_travel_m_mk3" />
+        </research>
+      </production>
+      <component ref="engine_apl_travel_m_mk3_macro" />
+      <icon video="engine_arg_m_travel_01_mk3_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.41" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_travel_m_mk3" name="{1774110,372}" description="{1774110,373}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="shield_apl_quick_m_mk3_alias" name="{1774110,381}" description="{20106,2042}" group="shields" transport="equipment" volume="1" tags="equipment shield">
+      <price min="443496" average="492774" max="542052" />
+      <production time="20" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="energycells" amount="128" />
+          <ware ware="fieldcoils" amount="32" />
+          <ware ware="shieldcomponents" amount="27" />
+        </primary>
+        <research>
+          <ware ware="research_apl_quick_m_mk3" />
+        </research>
+      </production>
+      <component ref="shield_apl_quick_m_mk3_alias_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.31" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="shield_apl_quick_m_mk3" name="{1774110,381}" description="{20106,2042}" group="shields" transport="equipment" volume="1" tags="equipment shield">
+      <price min="447228" average="496920" max="546612" />
+      <production time="10" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="energycells" amount="129" />
+          <ware ware="fieldcoils" amount="32" />
+          <ware ware="shieldcomponents" amount="27" />
+        </primary>
+        <research>
+          <ware ware="research_apl_quick_m_mk3" />
+        </research>
+      </production>
+      <component ref="shield_apl_quick_m_mk3_macro" />
+      <icon video="shield_arg_m_standard_01_mk2_video_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.31" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_quick_m_mk3" name="{1774110,382}" description="{1774110,383}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="shield_apl_quick_l_mk3" name="{1774110,391}" description="{20106,3042}" group="shields" transport="equipment" volume="1" tags="equipment shield">
+      <price min="1233864" average="1370964" max="1508058" />
+      <production time="20" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="energycells" amount="357" />
+          <ware ware="fieldcoils" amount="90" />
+          <ware ware="shieldcomponents" amount="75" />
+        </primary>
+        <research>
+          <ware ware="research_apl_quick_l_mk3" />
+        </research>
+      </production>
+      <component ref="shield_apl_quick_l_mk3_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0.31" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_quick_l_mk3" name="{1774110,392}" description="{1774110,393}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="shield_apl_quick_xl" name="{1774110,401}" description="{20106,4002}" group="shields" transport="equipment" volume="1" tags="equipment shield">
+      <price min="282089" average="313431" max="344775" />
+      <production time="20" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="energycells" amount="313" />
+          <ware ware="fieldcoils" amount="79" />
+          <ware ware="shieldcomponents" amount="66" />
+        </primary>
+        <research>
+          <ware ware="research_apl_quick_xl" />
+        </research>
+      </production>
+      <component ref="shield_apl_quick_xl_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_quick_xl" name="{1774110,402}" description="{1774110,403}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
+    <ware id="shield_apl_quick_xl_mk2" name="{1774110,411}" description="{20106,4002}" group="shields" transport="equipment" volume="1" tags="equipment shield">
+      <price min="1354026" average="1504470" max="1654920" />
+      <production time="20" amount="1" method="default" name="{20206,101}">
+        <primary>
+          <ware ware="energycells" amount="313" />
+          <ware ware="fieldcoils" amount="79" />
+          <ware ware="shieldcomponents" amount="66" />
+        </primary>
+        <research>
+          <ware ware="research_apl_quick_xl_mk2" />
+        </research>
+      </production>
+      <component ref="shield_apl_quick_xl_mk2_macro" />
+      <restriction licence="generaluseequipment" />
+      <use threshold="0" />
+      <owner faction="loanshark" />
+    </ware>
+    <ware id="research_apl_quick_xl_mk2" name="{1774110,412}" description="{1774110,413}" transport="research" volume="1" tags="hidden research">
+      <price min="1" average="1" max="1" />
+      <research time="1">
+        <primary>
+          <ware ware="energycells" amount="1" />
+        </primary>
+      </research>
+    </ware>
   </add>
 </diff>

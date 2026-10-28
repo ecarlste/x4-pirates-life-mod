@@ -73,6 +73,7 @@ TEXTS = """<?xml version="1.0" encoding="utf-8"?>
     <t id="5011">S</t>
     <t id="5021">M</t>
     <t id="101">Mk1</t>
+    <t id="301">Mk3</t>
   </page>
 </language>
 """
@@ -498,11 +499,33 @@ class Variants(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("apirateslife_variants_vanilla.xml", out)
 
+    def test_variants_mark_beyond_vanilla_steps_the_rig_and_price_and_names_the_mark(self):
+        self.write_list(LIST.replace("</variants>\n", GEAR_LIST.replace("</variants>\n", """  <rig id="mark" capacity="1.25" rate="1.5" price="4"/>
+  <equipment id="quick_s_mk3" macro="shield_tst_s_standard_01_mk1_macro" rig="quick" mark="3" step="mark" level="7"/>
+</variants>
+""")))
+        self.assertEqual(self.run_tool()[0], 0)
+        shield = self.macro("assets/props/surfaceelements/macros/shield_apl_quick_s_mk3_macro.xml").find("properties")
+        r = shield.find("recharge")
+        # Two marks up from Mk1: capacity x0.85 x1.25^2, rate x1.5^2, delay only the rig's
+        self.assertEqual((r.get("max"), r.get("rate"), r.get("delay")), ("1328", "112.5", "7"))
+        self.assertEqual(shield.find("identification").get("mk"), "3")
+        text = self.read("t/0001-l044.xml")
+        self.assertIn(">Pirate S Shield Generator Mk3</t>", text)
+        self.assertIn("rig of the S Shield Generator Mk1, built up to a Mk3.", text)
+        diff = ET.fromstring(self.read("libraries/wares.xml").split("\n", 2)[2])
+        price = next(w for w in diff.iter("ware") if w.get("id") == "shield_apl_quick_s_mk3").find("price")
+        self.assertEqual(price.get("average"), "2000")  # 100 x the group's 1.25 x 4^2
+        self.assertIn(">Pirate S Shield Generator Mk1</t>", text)
+
     def test_variants_list_refuses_unknown_rigs_and_repeated_ids(self):
         with self.assertRaises(ValueError):
             gv.parse_list(LIST.replace('rig="raider" level', 'rig="nope" level'))
         with self.assertRaises(ValueError):
             gv.parse_list(LIST.replace("</variants>", '<ship id="tester" macro="x" rig="raider"/></variants>'))
+        for extra in ('mark="3"', 'step="raider"', 'mark="3" step="nope"'):
+            with self.assertRaises(ValueError):
+                gv.parse_list(LIST.replace('rig="raider" level', 'rig="raider" %s level' % extra))
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 6 | 17 | 5 | 4 | **9** |
+| 7 | 17 | 5 | 4 | **9** |
 
 ## Scenarios
 
@@ -168,7 +168,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
   Given the pirate gear generated from the list
   When a Nova is fitted with pirate combat engines, a pirate shield and a Stripper, and another with the vanilla gear they're rigs of
   Then the pirate Nova is about 10% faster and boosts faster still, and its shield holds 15% less
-  And every gear ware and its unlock research exist, named as generated, and I don't have the research yet
+  And every listed variant's ware and its unlock research exist, named as generated, and I don't have the research yet
 ```
 
 ### The Stripper turret and the pirate M shield fit M and L hulls
@@ -207,6 +207,17 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
   And a Stripper fires a copy of its bullet with more shield damage and less hull damage
   And a pirate missile has a copy of its effect list with the shutdowns lasting longer
   And each is named "Pirate" for the maker, or by its fun name for its base name ("S Stripper Mk1", "Cold Feet Mk1")
+```
+
+### Marks the base game stops short of are built up from its top mark
+
+**Automated:** unit test `test_variants_mark_beyond_vanilla_steps_the_rig_and_price_and_names_the_mark`
+
+```gherkin
+  Given gear in the list with a mark above its vanilla macro's, and a step rig
+  When the generator runs
+  Then the step rig is applied once per mark up, on top of the gear's rig, and the price goes up by the step's price each mark
+  And the gear is named as that mark, and its unlock says what it was built up from
 ```
 
 ### Locked pirate gear shows what it needs
