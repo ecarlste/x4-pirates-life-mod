@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyListsDockedShips, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, BootyOrderHandsOver, BootyOrderRefusesTooBig, BootyPilotMoves, BootyPilotSkipsFull, VariantShips, VariantGear, VariantTurret, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyListsDockedShips, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, BootyUnlocksCatchUp, BootyOrderHandsOver, BootyOrderRefusesTooBig, BootyPilotMoves, BootyPilotSkipsFull, VariantShips, VariantGear, VariantTurret, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -2026,6 +2026,19 @@
          dock (dockingallowed false for the player's ships and for a friendly Teladi ship, whatever
          the relation, docking software, manager or ship trader), while a map-placed one lets the
          player's ships dock, still after set_owner to Vigor at -5 (found 2026-10-27). -->
+    <!-- Takes back every variant unlock, so a test starts with none (handovers in earlier tests may
+         have reached their levels) -->
+    <library name="LockUnlocks" purpose="run_actions">
+      <actions>
+        <run_actions ref="md.APiratesLife_VariantsVanilla.Unlocks" result="$Unlocks"/>
+        <do_for_each name="$Unlock" in="$Unlocks">
+          <do_if value="$Unlock.$research.research.unlocked">
+            <remove_research ware="$Unlock.$research"/>
+          </do_if>
+        </do_for_each>
+      </actions>
+    </library>
+
     <library name="VigorWharf" purpose="run_actions">
       <actions>
         <do_if value="@global.$APiratesLifeTest_Wharf.isoperational">
@@ -2421,8 +2434,8 @@
       </cues>
     </cue>
 
-    <!-- Standing just under level 1: a handover takes it over, the result says level 1, and the next
-         handover's cut is level 1's (38.5%) -->
+    <!-- Standing just under level 1: a handover takes it over, the result says level 1, the next
+         handover's cut is level 1's (38.5%), and level 1's unlocks (the Pirate Kyd) come with it -->
     <cue name="BootyLevelUp">
       <conditions>
         <event_cue_signalled/>
@@ -2432,6 +2445,7 @@
         <set_value name="global.$APiratesLife_BootyCutStart" exact="40"/>
         <set_value name="global.$APiratesLife_BootyCutFloor" exact="10"/>
         <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="table[$standing = 999999, $booty = 0, $unlocks = []]"/>
+        <run_actions ref="LockUnlocks"/>
         <run_actions ref="VigorWharf" result="$Wharf"/>
         <set_value name="$Accepted" exact="false"/>
       </actions>
@@ -2476,8 +2490,12 @@
                      handover may pass level 2 (2.5M) as well: check the level went up, and that the
                      next cut is that level's (40% falling 1.5 points a level) -->
                 <set_value name="$WantCut" exact="40 - 1.5 * @event.param.$level"/>
-                <set_value name="$Ok" exact="event.param.$ok and event.param.$level ge 1 and $Cut gt $WantCut - 0.01 and $Cut lt $WantCut + 0.01"/>
-                <signal_cue_instantly cue="Report" param="table[$name = 'booty_level_up', $ok = $Ok, $detail = 'ok %s, standing %s, level %s, next cut %s%%'.[event.param.$ok, @event.param.$standing, @event.param.$level, $Cut]]"/>
+                <!-- The level's unlocks come with it, and none above it: level 1 unlocks the Pirate
+                     Kyd, level 6 the Pirate Gorgon -->
+                <set_value name="$Unlocked" exact="@event.param.$unlocked"/>
+                <set_value name="$KydListed" exact="$Unlocked and $Unlocked.indexof.{ware.ship_apl_kyd} gt 0"/>
+                <set_value name="$Ok" exact="event.param.$ok and event.param.$level ge 1 and $Cut gt $WantCut - 0.01 and $Cut lt $WantCut + 0.01 and $KydListed and ware.research_apl_kyd.research.unlocked and not ware.research_apl_gorgon.research.unlocked"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'booty_level_up', $ok = $Ok, $detail = 'ok %s, standing %s, level %s, next cut %s%%; unlocked %s (Kyd listed %s, Kyd %s, Gorgon %s)'.[event.param.$ok, @event.param.$standing, @event.param.$level, $Cut, @$Unlocked.count, $KydListed, ware.research_apl_kyd.research.unlocked, ware.research_apl_gorgon.research.unlocked]]"/>
                 <!-- A sale leaves the ship docked, now the station's faction's: free the pad -->
                 <do_if value="$Ship.exists">
                   <destroy_object object="$Ship"/>
@@ -2767,6 +2785,41 @@
     </cue>
     <!-- ===== Pirate variants (tools/generate_variants.py, profiles/vanilla/variants.xml) ===== -->
 
+    <!-- A game past an unlock's level that doesn't have it yet (saved before the variant was listed,
+         or before unlocks came with the level) catches up on load: at level 4 (6M standing), every
+         Vigor unlock at level 4 or below is granted (the Pirate Hermes among them), none above (the
+         Pirate Gorgon at 6), and a second catch-up grants nothing -->
+    <cue name="BootyUnlocksCatchUp">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="LockUnlocks"/>
+        <set_value name="$Saved" exact="@global.$APiratesLife_Groups.{'$vigor'}"/>
+        <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="table[$standing = 6000000, $booty = 0, $unlocks = []]"/>
+        <run_actions ref="md.APiratesLife_VariantsVanilla.Unlocks" result="$Unlocks"/>
+        <set_value name="$Want" exact="0"/>
+        <do_for_each name="$Unlock" in="$Unlocks">
+          <do_if value="$Unlock.$group == 'vigor' and $Unlock.$level le 4">
+            <set_value name="$Want" operation="add"/>
+          </do_if>
+        </do_for_each>
+        <run_actions ref="md.APiratesLife_Booty.CatchUpUnlocks" result="$First"/>
+        <run_actions ref="md.APiratesLife_Booty.CatchUpUnlocks" result="$Second"/>
+        <set_value name="$Hermes" exact="ware.research_apl_hermes.research.unlocked"/>
+        <set_value name="$Gorgon" exact="ware.research_apl_gorgon.research.unlocked"/>
+        <set_value name="$Ok" exact="$Want gt 0 and $First == $Want and $Second == 0 and $Hermes and not $Gorgon"/>
+        <signal_cue_instantly cue="Report" param="table[$name = 'booty_unlocks_catch_up', $ok = $Ok, $detail = 'granted %s of %s at level 4, then %s; Hermes %s, Gorgon %s'.[$First, $Want, $Second, $Hermes, $Gorgon]]"/>
+        <do_if value="$Saved">
+          <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="$Saved"/>
+        </do_if>
+        <do_else>
+          <remove_value name="global.$APiratesLife_Groups.{'$vigor'}"/>
+        </do_else>
+        <run_actions ref="LockUnlocks"/>
+      </actions>
+    </cue>
+
     <!-- Every generated variant loads: it spawns, takes its "Pirate" name, and has its rig against
          the vanilla ship (hull for all, crew for the boarding transport); its ware and its hidden
          unlock research exist, and the player doesn't have the research yet -->
@@ -2775,6 +2828,7 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
+        <run_actions ref="LockUnlocks"/>
         <!-- id, vanilla macro, hull factor, crew factor (0: unchanged), from the list's rigs -->
         <set_value name="$Cases" exact="[
           ['kyd', macro.ship_pir_s_fighter_01_a_macro, 0.8, 0],
@@ -2871,6 +2925,7 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
+        <run_actions ref="LockUnlocks"/>
         <run_actions ref="GearedNova" result="$Pirate">
           <param name="Pirate" value="true"/>
           <param name="X" value="10km"/>

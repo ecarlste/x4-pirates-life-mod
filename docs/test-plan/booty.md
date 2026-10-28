@@ -8,7 +8,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 5 | 14 | 4 | 6 | **10** |
+| 6 | 16 | 5 | 4 | **9** |
 
 ## Scenarios
 
@@ -204,7 +204,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 ```gherkin
   Given pirate gear I haven't unlocked
   When I look at it in the Vigor wharf's equipment or upgrade menu
-  Then it shows in red with the beaker, naming the standing level and that it's bought with booty
+  Then it shows in red with the beaker, naming the standing level that unlocks it
 ```
 
 ### A locked variant shows what it needs
@@ -214,7 +214,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 ```gherkin
   Given a variant I haven't unlocked
   When I look at it in the Vigor wharf's build menu
-  Then it shows in red, naming the standing level and that it's bought with booty
+  Then it shows in red, naming the standing level that unlocks it
 ```
 
 ### Every listed variant loads with its rig, name and locked unlock
@@ -240,25 +240,46 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
   And its ware costs the vanilla price times the price multiplier, belongs to the group and needs a hidden research
 ```
 
-### Reaching a level unlocks its variants for buying
+### Reaching a level unlocks its variants
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+**Automated:** in game `booty_level_up`
 
 ```gherkin
-  Given standing just below the level a variant needs
+  Given standing just below level 1, which unlocks the Pirate Kyd, and no unlocks
   When a handover takes me to that level
-  Then I have the variant's unlock, with no booty taken, and it can be bought at the Vigor wharf
-  And I'm told what the level unlocked
+  Then I have the Kyd's unlock, the handover's result lists it, and nothing above my level is unlocked
+```
+
+### A level's unlocks can be bought, and I'm told about them
+
+- [ ] **Manual:** checked by hand for now
+
+```gherkin
+  Given a handover that takes me to a level with unlocks
+  Then a notification and a logbook entry name what the Vigor Syndicate now sell me
+  And the Vigor wharf sells me those variants for credits, built and delivered as usual
+```
+
+### The generator lists each variant's unlock and level for the booty script
+
+**Automated:** unit test `test_variants_unlocks_library_lists_each_variant_at_its_level`
+
+```gherkin
+  Given the variant list
+  When the generator runs
+  Then md/apirateslife_variants_vanilla.xml lists every variant's group, level, unlock research and ware
+  And each unlock's research is named for the standing level that unlocks it, with nothing about buying it with booty
+  And the stamp check without game files notices the library missing
 ```
 
 ### Unlocks are granted to a game already past their level
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+**Automated:** in game `booty_unlocks_catch_up`
 
 ```gherkin
-  Given a game whose standing is past a variant's level, saved before that variant was in the list
+  Given standing at level 4 and none of the unlocks, as in a game saved before they were listed
   When the game loads with the mod
-  Then I have the variant's unlock
+  Then every Vigor unlock at level 4 or below is granted, none above, and loading again grants nothing more
 ```
 
 ### Buying a blueprint with booty
