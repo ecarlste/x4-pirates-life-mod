@@ -132,7 +132,7 @@ fi
 
 echo "== Pirate variants"
 # The generated variants must match profiles/vanilla/variants.xml: in full with the unpacked game
-# files, by their stamps without them (as in CI)
+# files, by profiles/vanilla/variants.manifest without them (as in CI)
 if command -v python3 >/dev/null; then
     python3 tools/generate_variants.py --check || FAILED=1
 else
