@@ -22,7 +22,30 @@
           table[$group = 'vigor', $level = 6, $research = ware.research_apl_allround_m, $ware = ware.engine_apl_allround_m],
           table[$group = 'vigor', $level = 6, $research = ware.research_apl_travel_m, $ware = ware.engine_apl_travel_m],
           table[$group = 'vigor', $level = 6, $research = ware.research_apl_quick_m, $ware = ware.shield_apl_quick_m],
-          table[$group = 'vigor', $level = 6, $research = ware.research_apl_stripper_turret_m, $ware = ware.turret_apl_stripper_turret_m]]"/>
+          table[$group = 'vigor', $level = 6, $research = ware.research_apl_stripper_turret_m, $ware = ware.turret_apl_stripper_turret_m],
+          table[$group = 'vigor', $level = 5, $research = ware.research_apl_combat_s_mk2, $ware = ware.engine_apl_combat_s_mk2],
+          table[$group = 'vigor', $level = 5, $research = ware.research_apl_allround_s_mk2, $ware = ware.engine_apl_allround_s_mk2],
+          table[$group = 'vigor', $level = 5, $research = ware.research_apl_travel_s_mk2, $ware = ware.engine_apl_travel_s_mk2],
+          table[$group = 'vigor', $level = 5, $research = ware.research_apl_quick_s_mk2, $ware = ware.shield_apl_quick_s_mk2],
+          table[$group = 'vigor', $level = 5, $research = ware.research_apl_stripper_s_mk2, $ware = ware.weapon_apl_stripper_s_mk2],
+          table[$group = 'vigor', $level = 7, $research = ware.research_apl_combat_s_mk3, $ware = ware.engine_apl_combat_s_mk3],
+          table[$group = 'vigor', $level = 7, $research = ware.research_apl_allround_s_mk3, $ware = ware.engine_apl_allround_s_mk3],
+          table[$group = 'vigor', $level = 7, $research = ware.research_apl_travel_s_mk3, $ware = ware.engine_apl_travel_s_mk3],
+          table[$group = 'vigor', $level = 7, $research = ware.research_apl_quick_s_mk3, $ware = ware.shield_apl_quick_s_mk3],
+          table[$group = 'vigor', $level = 9, $research = ware.research_apl_combat_m_mk2, $ware = ware.engine_apl_combat_m_mk2],
+          table[$group = 'vigor', $level = 9, $research = ware.research_apl_allround_m_mk2, $ware = ware.engine_apl_allround_m_mk2],
+          table[$group = 'vigor', $level = 9, $research = ware.research_apl_travel_m_mk2, $ware = ware.engine_apl_travel_m_mk2],
+          table[$group = 'vigor', $level = 9, $research = ware.research_apl_quick_m_mk2, $ware = ware.shield_apl_quick_m_mk2],
+          table[$group = 'vigor', $level = 9, $research = ware.research_apl_quick_l, $ware = ware.shield_apl_quick_l],
+          table[$group = 'vigor', $level = 10, $research = ware.research_apl_stripper_m_mk2, $ware = ware.weapon_apl_stripper_m_mk2],
+          table[$group = 'vigor', $level = 11, $research = ware.research_apl_quick_l_mk2, $ware = ware.shield_apl_quick_l_mk2],
+          table[$group = 'vigor', $level = 12, $research = ware.research_apl_combat_m_mk3, $ware = ware.engine_apl_combat_m_mk3],
+          table[$group = 'vigor', $level = 12, $research = ware.research_apl_allround_m_mk3, $ware = ware.engine_apl_allround_m_mk3],
+          table[$group = 'vigor', $level = 12, $research = ware.research_apl_travel_m_mk3, $ware = ware.engine_apl_travel_m_mk3],
+          table[$group = 'vigor', $level = 12, $research = ware.research_apl_quick_m_mk3, $ware = ware.shield_apl_quick_m_mk3],
+          table[$group = 'vigor', $level = 14, $research = ware.research_apl_quick_l_mk3, $ware = ware.shield_apl_quick_l_mk3],
+          table[$group = 'vigor', $level = 16, $research = ware.research_apl_quick_xl, $ware = ware.shield_apl_quick_xl],
+          table[$group = 'vigor', $level = 18, $research = ware.research_apl_quick_xl_mk2, $ware = ware.shield_apl_quick_xl_mk2]]"/>
       </actions>
     </library>
   </cues>

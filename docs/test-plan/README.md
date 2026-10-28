@@ -7,11 +7,11 @@ What the mod should do, feature by feature, and how each scenario is verified. P
 | Feature | Scenarios | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- | --- | --- |
 | [Bail hook](bail-hook.md) | 3 | 0 | 2 | 0 | 1 | **1** |
-| [Booty](booty.md) | 31 | 6 | 16 | 5 | 4 | **9** |
+| [Booty](booty.md) | 32 | 7 | 16 | 5 | 4 | **9** |
 | [Capture metrics](capture-metrics.md) | 6 | 0 | 5 | 1 | 0 | **1** |
 | [Capture operations](capture-operation.md) | 11 | 0 | 8 | 0 | 3 | **3** |
 | [In-game settings](in-game-settings.md) | 6 | 0 | 6 | 0 | 0 | **0** |
 | [Captured ships arrive intact](intact-captures.md) | 4 | 0 | 4 | 0 | 0 | **0** |
 | [Pirated ships](pirated-ships.md) | 4 | 0 | 3 | 1 | 0 | **1** |
 | [Settings profiles](settings-profiles.md) | 22 | 10 | 9 | 3 | 0 | **3** |
-| **Total** | 87 | 16 | 53 | 10 | 8 | **18** |
+| **Total** | 88 | 17 | 53 | 10 | 8 | **18** |
