@@ -15,7 +15,8 @@ This script fails when:
   - a spec (docs/specs/*.md) doesn't link a feature file that exists
 Game test names are the $name values the tests report in the harness
 (tests/game/apirateslife_tests/md/apirateslife_tests.xml); unit tests are the test_* methods of
-the Test* classes in tests/lua/test_*.lua.
+the Test* classes in tests/lua/test_*.lua and the test_* methods in tests/python/test_*.py (the Python
+tools' tests, such as the variant generator's, which build part of the mod).
 
 Usage: tools/check_test_plan.py [features dir] [harness file] [specs dir] [unit tests dir]
 """
@@ -107,14 +108,21 @@ def game_test_names(harness):
 
 
 UNIT_TEST = re.compile(r"^function\s+Test\w*[:.](test_\w+)\s*\(", re.MULTILINE)
+PYTHON_TEST = re.compile(r"^\s+def\s+(test_\w+)\s*\(self", re.MULTILINE)
 
 
-def unit_test_names(unit_dir):
-    """Returns (names, problems): every LuaUnit test method name in tests/lua/test_*.lua."""
+def unit_test_names(unit_dir, python_dir=None):
+    """Returns (names, problems): every LuaUnit test method name in unit_dir/test_*.lua, and every
+    unittest method name in python_dir/test_*.py (by default the python folder beside unit_dir,
+    tests/python for tests/lua). Names must be unique across both."""
+    if python_dir is None:
+        python_dir = os.path.join(os.path.dirname(os.path.normpath(unit_dir)), "python")
     names, problems = {}, []
-    for path in sorted(glob.glob(os.path.join(unit_dir, "test_*.lua"))):
+    files = [(p, UNIT_TEST) for p in sorted(glob.glob(os.path.join(unit_dir, "test_*.lua")))]
+    files += [(p, PYTHON_TEST) for p in sorted(glob.glob(os.path.join(python_dir, "test_*.py")))]
+    for path, pattern in files:
         with open(path, encoding="utf-8") as f:
-            for name in UNIT_TEST.findall(f.read()):
+            for name in pattern.findall(f.read()):
                 where = os.path.basename(path)
                 if name in names:
                     problems.append(f"unit test {name} is defined twice ({names[name]}, {where}); names must be unique")

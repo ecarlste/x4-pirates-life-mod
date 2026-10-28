@@ -8,7 +8,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 11 | 2 | 6 | **8** |
+| 2 | 12 | 3 | 4 | **7** |
 
 ## Scenarios
 
@@ -150,12 +150,35 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 ### A locked variant shows what it needs
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+- [ ] **Manual:** checked by hand for now
 
 ```gherkin
   Given a variant I haven't unlocked
   When I look at it in the Vigor wharf's build menu
   Then it shows in red, naming the standing level and that it's bought with booty
+```
+
+### Every listed variant loads with its rig, name and locked unlock
+
+**Automated:** in game `variant_ships`
+
+```gherkin
+  Given the variants generated from the list
+  When each is spawned beside its vanilla ship
+  Then it has the rig's hull, and more crew where the rig adds crew
+  And it's named "Pirate" and the vanilla name
+  And its ware and its own unlock research exist, and I don't have the research yet
+```
+
+### A rig changes a copy of the vanilla ship
+
+**Automated:** unit tests `test_variants_rig_scales_hull_drag_and_travel_and_names_the_variant`, `test_variants_cargo_rig_copies_the_storage_macro`, `test_variants_crew_rises_by_at_least_one`, `test_variants_ware_needs_its_hidden_research_and_belongs_to_the_group`
+
+```gherkin
+  Given a vanilla ship and a rig in the list
+  When the generator runs
+  Then the variant is a copy on the same model with the rig's hull, crew, drag, travel acceleration and cargo
+  And its ware costs the vanilla price times the price multiplier, belongs to the group and needs a hidden research
 ```
 
 ### Buying an unlock with booty
@@ -200,10 +223,10 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 ### The generated variants match the list
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+**Automated:** unit tests `test_variants_check_passes_when_up_to_date_and_fails_when_the_list_changes`, `test_variants_stamp_check_without_game_files`, `test_variants_a_ship_dropped_from_the_list_is_left_over_then_removed`
 
 ```gherkin
   Given the variant list and the committed generated files
-  When the tests run the generator in check mode
-  Then it finds no difference
+  When the tests run the generator in check mode (in full with the game files, by their stamps without them)
+  Then it finds no difference, nothing missing and nothing left over
 ```

@@ -89,6 +89,23 @@ class TestNames(unittest.TestCase):
         self.assertEqual(names, {"test_one", "test_two"})
         self.assertEqual(problems, [])
 
+    def test_unit_test_names_include_the_python_tests_beside_the_lua_ones(self):
+        with tempfile.TemporaryDirectory() as folder:
+            write(folder, "lua/test_a.lua", "function TestA:test_lua()\nend\n")
+            write(folder, "python/test_tool.py", "class T(unittest.TestCase):\n    def test_python(self):\n        pass\n"
+                                                  "    def helper(self):\n        pass\n")
+            write(folder, "python/helpers.py", "    def test_not_a_test_file(self):\n")
+            names, problems = plan.unit_test_names(os.path.join(folder, "lua"))
+        self.assertEqual(names, {"test_lua", "test_python"})
+        self.assertEqual(problems, [])
+
+    def test_unit_test_names_must_be_unique_across_lua_and_python(self):
+        with tempfile.TemporaryDirectory() as folder:
+            write(folder, "lua/test_a.lua", "function TestA:test_same()\nend\n")
+            write(folder, "python/test_b.py", "    def test_same(self):\n")
+            _, problems = plan.unit_test_names(os.path.join(folder, "lua"))
+        self.assertEqual(problems, ["unit test test_same is defined twice (test_a.lua, test_b.py); names must be unique"])
+
     def test_unit_test_names_must_be_unique(self):
         with tempfile.TemporaryDirectory() as folder:
             write(folder, "test_a.lua", "function TestA:test_same()\nend\n")

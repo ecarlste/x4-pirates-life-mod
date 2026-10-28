@@ -87,11 +87,26 @@ Feature: Booty
     When I hand a prize over
     Then my relation with Vigor goes up
 
-  @pending
+  @manual
   Scenario: A locked variant shows what it needs
     Given a variant I haven't unlocked
     When I look at it in the Vigor wharf's build menu
     Then it shows in red, naming the standing level and that it's bought with booty
+
+  @variant_ships
+  Scenario: Every listed variant loads with its rig, name and locked unlock
+    Given the variants generated from the list
+    When each is spawned beside its vanilla ship
+    Then it has the rig's hull, and more crew where the rig adds crew
+    And it's named "Pirate" and the vanilla name
+    And its ware and its own unlock research exist, and I don't have the research yet
+
+  @test_variants_rig_scales_hull_drag_and_travel_and_names_the_variant @test_variants_cargo_rig_copies_the_storage_macro @test_variants_crew_rises_by_at_least_one @test_variants_ware_needs_its_hidden_research_and_belongs_to_the_group
+  Scenario: A rig changes a copy of the vanilla ship
+    Given a vanilla ship and a rig in the list
+    When the generator runs
+    Then the variant is a copy on the same model with the rig's hull, crew, drag, travel acceleration and cargo
+    And its ware costs the vanilla price times the price multiplier, belongs to the group and needs a hidden research
 
   @pending
   Scenario: Buying an unlock with booty
@@ -117,8 +132,8 @@ Feature: Booty
     When my relation with Vigor drops to enemy
     Then my own wharf can still build it
 
-  @pending
+  @test_variants_check_passes_when_up_to_date_and_fails_when_the_list_changes @test_variants_stamp_check_without_game_files @test_variants_a_ship_dropped_from_the_list_is_left_over_then_removed
   Scenario: The generated variants match the list
     Given the variant list and the committed generated files
-    When the tests run the generator in check mode
-    Then it finds no difference
+    When the tests run the generator in check mode (in full with the game files, by their stamps without them)
+    Then it finds no difference, nothing missing and nothing left over
