@@ -324,13 +324,53 @@ class Variants(unittest.TestCase):
             code = gv.main(["--repo", self.repo, "--reference", os.path.join(self.tmp.name, "none"), "--check"])
         return code, out.getvalue()
 
-    def test_variants_stamp_check_without_game_files(self):
+    def test_variants_manifest_check_without_game_files(self):
         self.run_tool()
         self.assertEqual(self.check_without_game_files()[0], 0)
         self.write_list(LIST + "<!-- changed -->")
         code, out = self.check_without_game_files()
         self.assertEqual(code, 1)
         self.assertIn("stale", out)
+
+    def test_variants_a_change_that_keeps_the_content_changes_only_the_manifest(self):
+        self.run_tool()
+        before = {p: self.read(p) for p in self.generated()}
+        manifest = self.read(gv.MANIFEST)
+        self.write_list(LIST + "<!-- a comment, no new content -->")
+        self.run_tool()
+        self.assertEqual({p: self.read(p) for p in self.generated()}, before)
+        self.assertNotEqual(self.read(gv.MANIFEST), manifest)
+        self.assertNotIn("stamp", self.read("assets/units/size_s/macros/ship_apl_tester_macro.xml").split("\n")[1])
+
+    def test_variants_manifest_check_catches_hand_edits(self):
+        self.run_tool()
+        path = os.path.join(self.repo, "assets/units/size_s/macros/ship_apl_tester_macro.xml")
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text.replace("<macros>", "<macros>\n  <!-- edited -->"))
+        code, out = self.check_without_game_files()
+        self.assertEqual(code, 1)
+        self.assertIn("changed by hand: assets", out)
+        self.run_tool()
+        text_path = os.path.join(self.repo, "t/0001-l044.xml")
+        with open(text_path, encoding="utf-8") as f:
+            text = f.read()
+        with open(text_path, "w", encoding="utf-8") as f:
+            f.write(text.replace("Pirate Tester", "Pirate Tasted"))
+        code, out = self.check_without_game_files()
+        self.assertEqual(code, 1)
+        self.assertIn("changed by hand: t", out)
+        with open(text_path, "w", encoding="utf-8") as f:
+            f.write(text.replace("<t id=\"1\">Ours</t>", "<t id=\"1\">Still ours</t>"))
+        self.assertEqual(self.check_without_game_files()[0], 0)
+        os.remove(os.path.join(self.repo, gv.MANIFEST))
+        code, out = self.check_without_game_files()
+        self.assertEqual(code, 1)
+        self.assertIn("missing: profiles", out)
+
+    def generated(self):
+        return [p.replace(os.sep, "/") for p in gv.read_manifest(self.repo)[1]]
 
     def test_variants_a_ship_dropped_from_the_list_is_left_over_then_removed(self):
         self.run_tool()
@@ -432,7 +472,7 @@ class Variants(unittest.TestCase):
         ids = {w.get("id") for w in diff.iter("ware") if w.get("id")}
         self.assertTrue({"engine_apl_combat_s", "research_apl_combat_s", "weapon_apl_stripper_s", "missile_apl_coldfeet"} <= ids)
 
-    def test_variants_stamp_check_knows_the_gear_files_without_game_files(self):
+    def test_variants_manifest_check_knows_the_gear_files_without_game_files(self):
         self.with_gear()
         self.assertEqual(self.check_without_game_files()[0], 0)
         os.remove(os.path.join(self.repo, "assets/fx/weaponfx/macros/bullet_apl_stripper_s_macro.xml"))
