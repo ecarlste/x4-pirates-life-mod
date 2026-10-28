@@ -17,14 +17,14 @@ its macro under the vanilla macro's folder (lowercased), its ware and unlock res
 name: the vanilla name with "Pirate" for the maker ("Pirate S Combat Engine Mk1"), or, with a fun
 name in the list, the fun name for the base name ("S Stripper Mk1"). A weapon also gets a copy of
 its bullet macro (assets/fx/weaponfx/macros/bullet_apl_<id>_macro.xml) with the damage rigged, and
-a turret with a destructible twin (its macro's alias, a ware of its own for L and XL hulls) a copy of that and its
-ware, under the same unlock; a
+gear with a destructible twin (its macro's alias, a ware of its own for L and XL hulls: M turrets and
+shields) gets a copy of that too, rigged the same, with its ware under the same unlock; a
 missile gets a copy of its effect list (libraries/influenceconfigurations.xml, apl_<id>) with the
 durations rigged.
 See docs/specs/booty.md (Variants) and docs/research/booty.md (Unlocks in the build menus).
 
 Every generated file is stamped with a hash of the list and of this script. `--check` compares
-the committed files with what would be generated: in full when the unpacked game files are there,
+the committed files with what would be generated: in full when the unpacked game files are there (and then by the stamps too),
 and otherwise (as in CI) by checking that every expected file exists and carries the current stamp.
 
 Usage: tools/generate_variants.py [--reference DIR] [--check]
@@ -390,25 +390,6 @@ def generate_equipment(ref, group, item, rig, n, st, files, index, wares, texts,
         files[bpath] = to_text(broot, header(st, "the bullet of the %s variant (%s)" % (item["id"], bullet.get("class"))))
         index.append((bullet_name, bpath))
         bullet.set("class", bullet_name)
-        if mac.get("alias"):
-            # A turret's alias is its destructible twin, a ware of its own for the slots where turrets
-            # can be shot off (L and XL hulls): it gets the same name, bullet and unlock
-            alias_name = new_name[: -len("_macro")] + "_alias_macro"
-            mac_alias = mac.get("alias")
-            aroot = ref.macro(mac_alias)
-            amac = aroot.find("macro")
-            amac.set("name", alias_name)
-            aprops = amac.find("properties")
-            aident = aprops.find("identification")
-            for a in ("name", "shortname"):
-                aident.set(a, ident.get(a))
-            aident.attrib.pop("basename", None)
-            aprops.find("bullet").set("class", bullet_name)
-            apath = os.path.join(ref.macro_folder(mac.get("alias")), alias_name + ".xml")
-            files[apath] = to_text(aroot, header(st, "the destructible twin of the %s variant (%s)" % (item["id"], mac.get("alias"))))
-            index.append((alias_name, apath))
-            mac.set("alias", alias_name)
-            wares.append(variant_ware(ref, group, mac_alias, alias_name, "research_apl_%s" % item["id"], n))
     elif cls == "missile":
         m = props.find("missile")
         il = copy.deepcopy(ref.influences[m.get("influencelist")])
@@ -421,6 +402,32 @@ def generate_equipment(ref, group, item, rig, n, st, files, index, wares, texts,
         m.set("influencelist", "apl_%s" % item["id"])
     else:
         raise ValueError("%s: no rig for equipment of class %s" % (item["macro"], cls))
+    if mac.get("alias"):
+        # The alias is the gear's destructible twin (M turrets and shields), a ware of its own for the
+        # slots where it can be shot off (L and XL hulls): it gets the same rig, name and unlock
+        vanilla_alias = mac.get("alias")
+        alias_name = new_name[: -len("_macro")] + "_alias_macro"
+        aroot = ref.macro(vanilla_alias)
+        amac = aroot.find("macro")
+        amac.set("name", alias_name)
+        aprops = amac.find("properties")
+        aident = aprops.find("identification")
+        for a in ("name", "shortname"):
+            aident.set(a, ident.get(a))
+        aident.attrib.pop("basename", None)
+        if cls == "engine":
+            apply_rig(aprops, rig, ENGINE_RIG)
+        elif cls == "shieldgenerator":
+            apply_rig(aprops, rig, SHIELD_RIG)
+        elif cls in ("weapon", "turret"):
+            aprops.find("bullet").set("class", props.find("bullet").get("class"))
+        else:
+            aprops.find("missile").set("influencelist", props.find("missile").get("influencelist"))
+        apath = os.path.join(ref.macro_folder(vanilla_alias), alias_name + ".xml")
+        files[apath] = to_text(aroot, header(st, "the destructible twin of the %s variant (%s), rig %s" % (item["id"], vanilla_alias, item["rig"])))
+        index.append((alias_name, apath))
+        mac.set("alias", alias_name)
+        wares.append(variant_ware(ref, group, vanilla_alias, alias_name, "research_apl_%s" % item["id"], n))
     path = os.path.join(ref.macro_folder(item["macro"]), new_name + ".xml")
     files[path] = to_text(root, header(st, "the %s variant of %s, rig %s" % (item["id"], item["macro"], item["rig"])))
     index.append((new_name, path))
@@ -484,7 +491,7 @@ def check_stamps(repo, list_text, current):
     for p in sorted(needed - on_disk):
         problems.append("missing: %s" % p)
     want = expected_macros(list_text)
-    # A turret's destructible twin (_alias) comes with its turret: the list can't tell which have one
+    # Gear's destructible twin (_alias) comes with it: the list can't tell which gear has one
     have = {os.path.basename(p).replace("_alias_macro", "_macro") for p in macro_files}
     for name in sorted(want - have):
         problems.append("missing: macro %s" % name)
@@ -493,7 +500,9 @@ def check_stamps(repo, list_text, current):
     names = {os.path.basename(p) for p in macro_files}
     for p in sorted(macro_files):
         alias = ET.parse(os.path.join(repo, p)).getroot().find("macro").get("alias")
-        if alias and alias + ".xml" not in names:
+        if alias and "_apl_" not in alias:
+            problems.append("stale: %s still points at the vanilla twin %s" % (p, alias))
+        elif alias and alias + ".xml" not in names:
             problems.append("missing: macro %s (the destructible twin of %s)" % (alias + ".xml", os.path.basename(p)))
     for p in sorted(on_disk):
         with open(os.path.join(repo, p), encoding="utf-8", errors="replace") as fh:
@@ -554,6 +563,9 @@ def main(argv):
                     if fh.read() != content:
                         problems.append("differs: %s" % p)
         problems += ["left over: %s" % p for p in sorted(stale)]
+        if not problems:
+            # The stamp check CI runs, so a local run fails wherever CI would
+            problems = check_stamps(args.repo, list_text, current)
         for p in problems:
             print(p, file=sys.stderr)
         if problems:

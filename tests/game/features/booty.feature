@@ -95,19 +95,20 @@ Feature: Booty
     And every gear ware and its unlock research exist, named as generated, and I don't have the research yet
 
   @variant_turret
-  Scenario: The Stripper turret fits M and L hulls
+  Scenario: The Stripper turret and the pirate M shield fit M and L hulls
     Given the Stripper turret generated from the list, built on the Teladi muon blaster turret
-    When a Gorgon and a Barbarossa are fitted with two each
+    When a Gorgon and a Barbarossa are fitted with two each, and the Barbarossa with two pirate M shields
     Then both carry two working Stripper turrets, the Barbarossa's as their destructible twin
-    And the twin's ware has the Stripper turret's name
+    And the Barbarossa carries the pirate M shield's destructible twin
+    And the twins' wares have their gear's names
 
-  @test_variants_stripper_turret_rigs_its_bullet_and_destructible_twin
-  Scenario: The Stripper turret is rigged for shields, with a destructible twin
-    Given the Stripper turret in the list, on a vanilla turret whose macro has a destructible twin (alias)
+  @test_variants_stripper_turret_rigs_its_bullet_and_destructible_twin @test_variants_shield_twin_gets_the_same_rig
+  Scenario: Gear with a destructible twin gets a rigged twin
+    Given gear in the list whose vanilla macro has a destructible twin (alias), as M turrets and shields do
     When the variants are generated
-    Then its bullet does about 8 times more shield than hull damage, both macros fire it and carry its name
-    And the twin is a ware of its own under the same unlock
-    And the stamp check without game files notices a missing twin
+    Then the twin is copied and rigged the same: the Stripper turret's twin fires its bullet, which does about 8 times more shield than hull damage, and the pirate shield's twin holds less and recharges sooner
+    And the twin carries the gear's name and is a ware of its own under the same unlock
+    And the stamp check without game files notices a missing twin, or a variant still pointing at vanilla's twin
 
   @test_variants_engine_rig_burst_boost_and_weak_reverse @test_variants_shield_rig_scales_capacity_and_recharge_delay @test_variants_stripper_copies_the_bullet_with_shield_up_and_hull_down @test_variants_missile_copies_its_effect_list_with_longer_shutdowns @test_variants_gear_is_named_pirate_or_given_its_fun_name @test_variants_stamp_check_knows_the_gear_files_without_game_files
   Scenario: A rig changes a copy of the vanilla gear

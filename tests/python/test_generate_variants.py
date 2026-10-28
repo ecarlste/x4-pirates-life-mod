@@ -392,6 +392,28 @@ class Variants(unittest.TestCase):
         os.remove(os.path.join(self.repo, folder + "turret_apl_stripper_turret_m_alias_macro.xml"))
         self.assertEqual(self.check_without_game_files()[0], 1)
 
+    def test_variants_shield_twin_gets_the_same_rig(self):
+        twin = SHIELD.replace("shield_tst_s_standard_01_mk1", "shield_tst_s_standard_02_mk1")
+        write(self.ref, "base/assets/props/SurfaceElements/macros/shield_tst_s_standard_01_mk1_macro.xml",
+              SHIELD.replace('class="shieldgenerator"', 'class="shieldgenerator" alias="shield_tst_s_standard_02_mk1_macro"'))
+        write(self.ref, "base/assets/props/SurfaceElements/macros/shield_tst_s_standard_02_mk1_macro.xml", twin)
+        write(self.ref, "base/libraries/wares.xml", WARES.replace("</wares>", GEAR_WARES + GEAR_WARES.replace(
+            "shield_tst_s_standard_01_mk1", "shield_tst_s_standard_02_mk1") + "</wares>"))
+        self.with_gear()
+        folder = "assets/props/surfaceelements/macros/"
+        self.assertEqual(self.macro(folder + "shield_apl_quick_s_macro.xml").get("alias"), "shield_apl_quick_s_alias_macro")
+        r = self.macro(folder + "shield_apl_quick_s_alias_macro.xml").find("properties/recharge")
+        self.assertEqual((r.get("max"), r.get("delay")), ("850", "7"))
+        self.assertIn('id="shield_apl_quick_s_alias"', self.read("libraries/wares.xml"))
+        path = os.path.join(self.repo, folder + "shield_apl_quick_s_macro.xml")
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text.replace('alias="shield_apl_quick_s_alias_macro"', 'alias="shield_tst_s_standard_02_mk1_macro"'))
+        code, out = self.check_without_game_files()
+        self.assertEqual(code, 1)
+        self.assertIn("vanilla twin", out)
+
     def test_variants_missile_copies_its_effect_list_with_longer_shutdowns(self):
         self.with_gear()
         m = self.macro("assets/props/weaponsystems/missile/macros/missile_apl_coldfeet_macro.xml")

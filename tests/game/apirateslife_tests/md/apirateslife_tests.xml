@@ -2927,8 +2927,8 @@
     </cue>
 
     <!-- The Stripper turret fits: on a Gorgon (M, turrets can't be shot off) and, as its destructible
-         twin (the turret macro's alias, a ware of its own), on a Barbarossa (L); the twin's ware has
-         the turret's name and unlock -->
+         twin (the turret macro's alias, a ware of its own), on a Barbarossa (L), with the pirate M
+         shield's twin; the twins' wares have their gear's names -->
     <cue name="VariantTurret">
       <conditions>
         <event_cue_signalled/>
@@ -2970,10 +2970,16 @@
                 <set_value name="$Problems" exact="$Problems + ' %s has %s Stripper turrets, expected 2;'.[@$Ship.knownname, $Ours]"/>
               </do_if>
             </do_for_each>
-            <set_value name="$Twin" exact="ware.turret_apl_stripper_turret_m_alias"/>
-            <do_if value="@$Twin.name != ware.turret_apl_stripper_turret_m.name">
-              <set_value name="$Problems" exact="$Problems + ' the twin ware is missing or misnamed (%s);'.[@$Twin.name]"/>
+            <find_object_component name="$Shields" object="$Barbarossa" macro="macro.shield_apl_quick_m_alias_macro" multiple="true"/>
+            <set_value name="$Found" exact="$Found + ' %s pirate M shield twin(s) on the Barbarossa;'.[$Shields.count]"/>
+            <do_if value="$Shields.count lt 2">
+              <set_value name="$Problems" exact="$Problems + ' the Barbarossa has %s pirate M shield twins, expected 2;'.[$Shields.count]"/>
             </do_if>
+            <do_for_each name="$Pair" in="[[ware.turret_apl_stripper_turret_m_alias, ware.turret_apl_stripper_turret_m], [ware.shield_apl_quick_m_alias, ware.shield_apl_quick_m]]">
+              <do_if value="@$Pair.{1}.name != $Pair.{2}.name">
+                <set_value name="$Problems" exact="$Problems + ' a twin ware is missing or misnamed (%s, %s);'.[@$Pair.{1}.name, $Pair.{2}.name]"/>
+              </do_if>
+            </do_for_each>
             <signal_cue_instantly cue="Report" param="table[$name = 'variant_turret', $ok = ($Problems == ''), $detail = (if $Problems == '' then $Found else $Problems + $Found)]"/>
             <do_if value="$Gorgon">
               <destroy_object object="$Gorgon"/>
