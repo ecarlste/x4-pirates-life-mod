@@ -440,6 +440,24 @@ class Variants(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("bullet_apl_stripper_s_macro", out)
 
+    def test_variants_unlocks_library_lists_each_variant_at_its_level(self):
+        self.with_gear()
+        text = self.read("md/apirateslife_variants_vanilla.xml")
+        mdscript = ET.fromstring(text.split("\n", 2)[2])
+        self.assertEqual(mdscript.get("name"), "APiratesLife_VariantsVanilla")
+        value = mdscript.find("cues/library[@name='Unlocks']/actions/return").get("value")
+        self.assertIn("table[$group = 'vigor', $level = 2, $research = ware.research_apl_tester, $ware = ware.ship_apl_tester]", value)
+        self.assertIn("table[$group = 'vigor', $level = 6, $research = ware.research_apl_stripper_turret_m, "
+                      "$ware = ware.turret_apl_stripper_turret_m]", value)
+        self.assertEqual(value.count("table["), 6)
+        research = "Vigor Syndicate unlock: standing level 2</t>"
+        self.assertIn(research, self.read("t/0001-l044.xml"))
+        self.assertNotIn("bought with booty", self.read("t/0001-l044.xml"))
+        os.remove(os.path.join(self.repo, "md/apirateslife_variants_vanilla.xml"))
+        code, out = self.check_without_game_files()
+        self.assertEqual(code, 1)
+        self.assertIn("apirateslife_variants_vanilla.xml", out)
+
     def test_variants_list_refuses_unknown_rigs_and_repeated_ids(self):
         with self.assertRaises(ValueError):
             gv.parse_list(LIST.replace('rig="raider" level', 'rig="nope" level'))

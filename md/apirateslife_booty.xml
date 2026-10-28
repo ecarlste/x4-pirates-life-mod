@@ -9,6 +9,8 @@
        global.$APiratesLife_Handovers the handovers waiting for the sale, oldest first; the first is
                                       with ui/apirateslife_booty.lua, which sells it as vanilla's
                                       map does and answers with the price.
+     Reaching a standing level grants that level's unlocks (the variants' hidden research, listed by
+     the generated md/apirateslife_variants_vanilla.xml); loading a game grants any it missed.
      Money values are whole credits. -->
 <mdscript name="APiratesLife_Booty" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
@@ -30,6 +32,7 @@
         <do_elseif value="global.$APiratesLife_Handovers.count">
           <run_actions ref="SendNext"/>
         </do_elseif>
+        <run_actions ref="CatchUpUnlocks"/>
       </actions>
     </cue>
 
@@ -98,6 +101,52 @@
           </do_if>
         </do_for_each>
         <return value="$Level"/>
+      </actions>
+    </library>
+
+    <!-- Grants every unlock at or below the player's level with each group, so variants added to the
+         list since a game was saved, and games saved before unlocks came with the level, catch up.
+         Returns how many it granted. -->
+    <library name="CatchUpUnlocks" purpose="run_actions">
+      <actions>
+        <set_value name="$Count" exact="0"/>
+        <run_actions ref="md.APiratesLife_ProfileVanilla.Groups" result="$Groups"/>
+        <do_for_each name="$Group" in="$Groups">
+          <run_actions ref="Level" result="$Level">
+            <param name="Group" value="$Group"/>
+            <param name="Standing" value="@global.$APiratesLife_Groups.{'$' + $Group.$id}.$standing"/>
+          </run_actions>
+          <run_actions ref="GrantUnlocks" result="$Granted">
+            <param name="Group" value="$Group"/>
+            <param name="Level" value="$Level"/>
+          </run_actions>
+          <do_if value="$Granted.count">
+            <debug_text text="'[apirateslife] booty: %s unlocks caught up at %s level %s'.[$Granted.count, $Group.$id, $Level]"/>
+            <set_value name="$Count" operation="add" exact="$Granted.count"/>
+          </do_if>
+        </do_for_each>
+        <return value="$Count"/>
+      </actions>
+    </library>
+
+    <!-- Grants the player every unlock of Group at or below Level they don't have yet (the variants'
+         hidden research, from the generated md/apirateslife_variants_vanilla.xml); returns the wares
+         they unlock -->
+    <library name="GrantUnlocks" purpose="run_actions">
+      <params>
+        <param name="Group"/>
+        <param name="Level"/>
+      </params>
+      <actions>
+        <set_value name="$Granted" exact="[]"/>
+        <run_actions ref="md.APiratesLife_VariantsVanilla.Unlocks" result="$Unlocks"/>
+        <do_for_each name="$Unlock" in="$Unlocks">
+          <do_if value="$Unlock.$group == $Group.$id and $Unlock.$level le $Level and not $Unlock.$research.research.unlocked">
+            <add_research ware="$Unlock.$research"/>
+            <append_to_list name="$Granted" exact="$Unlock.$ware"/>
+          </do_if>
+        </do_for_each>
+        <return value="$Granted"/>
       </actions>
     </library>
 
@@ -530,6 +579,20 @@
           <show_notification text="{1774101, 30}.[$H.$name, $Credits, $Booty]"/>
           <do_if value="$After gt $Before">
             <show_notification text="{1774101, 31}.[$Group.$faction.name, $After]"/>
+            <run_actions ref="GrantUnlocks" result="$Granted">
+              <param name="Group" value="$Group"/>
+              <param name="Level" value="$After"/>
+            </run_actions>
+            <set_value name="$Result.$unlocked" exact="$Granted"/>
+            <do_if value="$Granted.count">
+              <set_value name="$Names" exact="''"/>
+              <do_for_each name="$Ware" in="$Granted" counter="$i">
+                <set_value name="$Names" exact="$Names + (if $i gt 1 then ', ' else '') + $Ware.name"/>
+              </do_for_each>
+              <debug_text text="'[apirateslife] booty: level %s with %s unlocks %s'.[$After, $Group.$id, $Names]"/>
+              <show_notification text="{1774101, 34}.[$Group.$faction.name, $Names]"/>
+              <write_to_logbook category="general" title="{1774101, 31}.[$Group.$faction.name, $After]" text="{1774101, 34}.[$Group.$faction.name, $Names]"/>
+            </do_if>
           </do_if>
         </do_if>
         <do_else>

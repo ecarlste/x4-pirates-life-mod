@@ -124,13 +124,13 @@ Feature: Booty
   Scenario: Locked pirate gear shows what it needs
     Given pirate gear I haven't unlocked
     When I look at it in the Vigor wharf's equipment or upgrade menu
-    Then it shows in red with the beaker, naming the standing level and that it's bought with booty
+    Then it shows in red with the beaker, naming the standing level that unlocks it
 
   @manual
   Scenario: A locked variant shows what it needs
     Given a variant I haven't unlocked
     When I look at it in the Vigor wharf's build menu
-    Then it shows in red, naming the standing level and that it's bought with booty
+    Then it shows in red, naming the standing level that unlocks it
 
   @variant_ships
   Scenario: Every listed variant loads with its rig, name and locked unlock
@@ -147,18 +147,31 @@ Feature: Booty
     Then the variant is a copy on the same model with the rig's hull, crew, drag, travel acceleration and cargo
     And its ware costs the vanilla price times the price multiplier, belongs to the group and needs a hidden research
 
-  @pending
-  Scenario: Reaching a level unlocks its variants for buying
-    Given standing just below the level a variant needs
+  @booty_level_up
+  Scenario: Reaching a level unlocks its variants
+    Given standing just below level 1, which unlocks the Pirate Kyd, and no unlocks
     When a handover takes me to that level
-    Then I have the variant's unlock, with no booty taken, and it can be bought at the Vigor wharf
-    And I'm told what the level unlocked
+    Then I have the Kyd's unlock, the handover's result lists it, and nothing above my level is unlocked
 
-  @pending
+  @manual
+  Scenario: A level's unlocks can be bought, and I'm told about them
+    Given a handover that takes me to a level with unlocks
+    Then a notification and a logbook entry name what the Vigor Syndicate now sell me
+    And the Vigor wharf sells me those variants for credits, built and delivered as usual
+
+  @test_variants_unlocks_library_lists_each_variant_at_its_level
+  Scenario: The generator lists each variant's unlock and level for the booty script
+    Given the variant list
+    When the generator runs
+    Then md/apirateslife_variants_vanilla.xml lists every variant's group, level, unlock research and ware
+    And each unlock's research is named for the standing level that unlocks it, with nothing about buying it with booty
+    And the stamp check without game files notices the library missing
+
+  @booty_unlocks_catch_up
   Scenario: Unlocks are granted to a game already past their level
-    Given a game whose standing is past a variant's level, saved before that variant was in the list
+    Given standing at level 4 and none of the unlocks, as in a game saved before they were listed
     When the game loads with the mod
-    Then I have the variant's unlock
+    Then every Vigor unlock at level 4 or below is granted, none above, and loading again grants nothing more
 
   @pending
   Scenario: Buying a blueprint with booty

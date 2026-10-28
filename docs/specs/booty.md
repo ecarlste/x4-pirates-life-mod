@@ -74,7 +74,7 @@ Built in four PRs, each with its game tests, after the pirated mark:
 
 ### Unlocks and blueprints
 
-- **Unlocks come with the level** (Erik, 2026-10-28): when standing reaches a variant's level, the player is granted its research (`add_research`), with no booty taken, and told what the level unlocked. On loading a game, every variant at or below the player's level is granted too, so a variant added to the list later, or a save from before, catches up. The generator writes each variant's level where MD can read it.
+- **Unlocks come with the level** (Erik, 2026-10-28): when standing reaches a variant's level, the player is granted its research (`add_research`), with no booty taken, and told what the level unlocked. On loading a game, every variant at or below the player's level is granted too, so a variant added to the list later, or a save from before, catches up. The generator writes each variant's group, level, research and ware into `md/apirateslife_variants_vanilla.xml` (library `Unlocks`), which the booty script reads. The player is told by a notification and a logbook entry naming what the group now sells them.
 - **Blueprints are bought in the conversation** with the manager or ship trader of a group station: the player's booty, standing and level, then the blueprints of unlocked variants not bought yet, each with its booty cost. Buying one takes the booty and grants the blueprint (`add_blueprints`).
 - **Blueprint cost:** vanilla's blueprint price for the variant × `BootyBlueprintCost` (high; the default to set when building it), and at least `BootyBlueprintFloor` (250,000) booty, so cheap items, missiles above all, aren't trivially cheap.
 - **Nothing is taken back:** no `remove_research`, ever. Losing rep with Vigor only stops docking and trading at its stations.
@@ -90,7 +90,8 @@ In `md/apirateslife_config.xml`, under Tuning, each added by the PR that first u
 - [x] Variant list, generator with its tests and sync check, the first set of ships
 - [x] The first set's gear: pirate engines, shields, the Stripper, the pirate EMP missile
 - [x] The Stripper turret
-- [ ] Unlocks granted with the level, and blueprints bought with booty
+- [ ] Unlocks granted with the level
+- [ ] Blueprints bought with booty
 
 ## Done when
 
