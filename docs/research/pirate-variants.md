@@ -67,13 +67,15 @@ Each role gets a trade-off, so a variant is better at piracy and worse at someth
 
 ### Gear
 
-- **Pirate engines, all three types** (agreed; Erik asked for combat and all-round as well as travel, so players can tailor a ship). Each is a bit better at catching and fleeing and pays with a more fragile engine. Engine thrust lives in the engine macro, so each is a copied engine:
+- **Pirate engines, all three types** (agreed; Erik asked for combat and all-round as well as travel, so players can tailor a ship). Built for the burst (agreed 2026-10-27, to tweak by feel): each is a bit better at catching and fleeing, with a bigger boost that's shorter and slower to come back (use it at the right moment or be stuck), and a weak reverse (come in hot and you overshoot). The first idea, a more fragile engine, can't work: engines have no hull of their own (`hull integrated="1"`). A slower travel-drive spool-up was rejected too: that's exactly what a pirate wants to be fast. Engine thrust lives in the engine macro, so each is a copied engine:
 
-  | Pirate engine | Combat thrust | Travel thrust | Boost | Trade-off |
-  | --- | --- | --- | --- | --- |
-  | Combat | ×1.1 | ×1.15 | ×1.15 | engine hull ×0.8 |
-  | All-round | ×1.05 | ×1.2 | ×1.15 | engine hull ×0.8 |
-  | Travel | ×0.9 | ×1.3 | ×1.1 | weaker in a fight |
+  | Pirate engine | Combat thrust | Travel thrust | Boost thrust | Boost duration | Boost recharge | Reverse thrust |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | Combat | ×1.1 | ×1.15 | ×1.3 | ×0.7 | ×1.3 slower | ×0.7 |
+  | All-round | ×1.05 | ×1.2 | ×1.3 | ×0.7 | ×1.3 slower | ×0.7 |
+  | Travel | ×0.9 | ×1.3 | ×1.3 | ×0.7 | ×1.3 slower | ×0.7 |
+
+  The boost recharge in the engine macro is a rate (the UI's "Boost Recharge Rate", %/s), so ×1.3 slower is the rate ×0.77. The price stays ×1.25, like every variant.
 
 - **The Stripper** (agreed; the name stays): a gun built to strip shields, with heavy shield damage and light hull damage, so the bail gate opens fast and stray shots barely scratch the prize ([pirate-refitting.md](pirate-refitting.md#raid-a-faction-arm-from-its-enemies) had the idea first). **Built on vanilla's ion blaster** (agreed), which already does about 4× more shield than hull damage (S Mk1: 268 shield, 68 hull; `bullet_arg_s_ion_01_mk1`). The Stripper pushes that to about 8:1 (shield ×1.3, hull ×0.6). S and M, Mk1 and Mk2, the marks vanilla's ion comes in.
 - **Shields:** a quick-recharge rig (recharge delay ×0.7, capacity ×0.85), for hit-and-run.

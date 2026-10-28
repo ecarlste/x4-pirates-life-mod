@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyListsDockedShips, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, BootyOrderHandsOver, BootyOrderRefusesTooBig, BootyPilotMoves, BootyPilotSkipsFull, VariantShips, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyListsDockedShips, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, BootyOrderHandsOver, BootyOrderRefusesTooBig, BootyPilotMoves, BootyPilotSkipsFull, VariantShips, VariantGear, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -2472,7 +2472,11 @@
                   <param name="Group" value="$Group"/>
                   <param name="Level" value="event.param.$level"/>
                 </run_actions>
-                <set_value name="$Ok" exact="event.param.$ok and event.param.$level == 1 and $Cut gt 38.49 and $Cut lt 38.51"/>
+                <!-- The test fighter's random loadout makes its price vary (1.2M to over 1.5M), so the
+                     handover may pass level 2 (2.5M) as well: check the level went up, and that the
+                     next cut is that level's (40% falling 1.5 points a level) -->
+                <set_value name="$WantCut" exact="40 - 1.5 * @event.param.$level"/>
+                <set_value name="$Ok" exact="event.param.$ok and event.param.$level ge 1 and $Cut gt $WantCut - 0.01 and $Cut lt $WantCut + 0.01"/>
                 <signal_cue_instantly cue="Report" param="table[$name = 'booty_level_up', $ok = $Ok, $detail = 'ok %s, standing %s, level %s, next cut %s%%'.[event.param.$ok, @event.param.$standing, @event.param.$level, $Cut]]"/>
                 <!-- A sale leaves the ship docked, now the station's faction's: free the pad -->
                 <do_if value="$Ship.exists">
@@ -2830,6 +2834,95 @@
           </do_if>
         </do_for_each>
         <signal_cue_instantly cue="Report" param="table[$name = 'variant_ships', $ok = ($Problems == ''), $detail = (if $Problems == '' then '%s variants load with their rigs, names and locked research'.[$Cases.count] else $Problems)]"/>
+      </actions>
+    </cue>
+    <!-- A Nova with a named loadout from this extension's libraries/loadouts.xml: pirate combat
+         engines, a pirate shield and a Stripper, or the vanilla gear they're rigs of. (create_ship
+         takes a loadout by ref; a list of macros under <loadout> is ignored.) Returns the ship. -->
+    <library name="GearedNova" purpose="run_actions">
+      <params>
+        <param name="Pirate"/>
+        <param name="X"/>
+      </params>
+      <actions>
+        <do_if value="$Pirate">
+          <create_ship name="$Ship" macro="macro.ship_arg_s_fighter_01_a_macro" sector="player.sector">
+            <owner exact="faction.player" overridenpc="true"/>
+            <loadout ref="apirateslife_test_nova_pirategear"/>
+            <safepos object="player.occupiedship" x="$X" z="-20km" allowyaxis="true"/>
+          </create_ship>
+        </do_if>
+        <do_else>
+          <create_ship name="$Ship" macro="macro.ship_arg_s_fighter_01_a_macro" sector="player.sector">
+            <owner exact="faction.player" overridenpc="true"/>
+            <loadout ref="apirateslife_test_nova_vanillagear"/>
+            <safepos object="player.occupiedship" x="$X" z="-20km" allowyaxis="true"/>
+          </create_ship>
+        </do_else>
+        <return value="$Ship"/>
+      </actions>
+    </library>
+
+    <!-- The pirate gear loads and fits: on a Nova, pirate combat engines are faster than vanilla's
+         (×1.1 thrust, ×1.3 boost thrust) and the pirate shield holds less (×0.85); the Stripper
+         fits; every gear ware and its unlock exist, named as generated, and are locked -->
+    <cue name="VariantGear">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="GearedNova" result="$Pirate">
+          <param name="Pirate" value="true"/>
+          <param name="X" value="10km"/>
+        </run_actions>
+        <run_actions ref="GearedNova" result="$Vanilla">
+          <param name="Pirate" value="false"/>
+          <param name="X" value="-10km"/>
+        </run_actions>
+        <set_value name="$Problems" exact="''"/>
+        <do_if value="not $Pirate or not $Vanilla">
+          <set_value name="$Problems" exact="' a Nova did not spawn;'"/>
+        </do_if>
+        <do_else>
+          <!-- Speed is thrust over drag: ×1.1 combat, ×1.3 boost -->
+          <set_value name="$Speed" exact="$Pirate.maxspeed / $Vanilla.maxspeed"/>
+          <set_value name="$Boost" exact="$Pirate.boost.maxspeed / $Vanilla.boost.maxspeed"/>
+          <set_value name="$ShieldRatio" exact="$Pirate.maxshield / ($Vanilla.maxshield)f"/>
+          <do_if value="$Speed lt 1.08 or $Speed gt 1.12">
+            <set_value name="$Problems" exact="$Problems + ' speed x%s, expected x1.1;'.[$Speed]"/>
+          </do_if>
+          <do_if value="$Boost lt 1.15">
+            <set_value name="$Problems" exact="$Problems + ' boost speed x%s, expected faster;'.[$Boost]"/>
+          </do_if>
+          <do_if value="$ShieldRatio lt 0.83 or $ShieldRatio gt 0.87">
+            <set_value name="$Problems" exact="$Problems + ' shield x%s, expected x0.85;'.[$ShieldRatio]"/>
+          </do_if>
+          <do_if value="$Pirate.weapons.operational.count lt 1">
+            <set_value name="$Problems" exact="$Problems + ' the Stripper did not fit;'"/>
+          </do_if>
+        </do_else>
+        <!-- Wares and unlocks, numbered as the generator numbers its texts (the n-th list entry's
+             name is text 10 n + 1); the gear follows the six ships -->
+        <!-- [ware, list id] in list order -->
+        <set_value name="$Gear" exact="[['weapon_apl_stripper_s', 'stripper_s'], ['engine_apl_combat_s', 'combat_s'], ['engine_apl_allround_s', 'allround_s'], ['engine_apl_travel_s', 'travel_s'], ['shield_apl_quick_s', 'quick_s'], ['missile_apl_coldfeet', 'coldfeet'], ['weapon_apl_stripper_m', 'stripper_m'], ['engine_apl_combat_m', 'combat_m'], ['engine_apl_allround_m', 'allround_m'], ['engine_apl_travel_m', 'travel_m'], ['shield_apl_quick_m', 'quick_m']]"/>
+        <do_for_each name="$Entry" in="$Gear" counter="$i">
+          <set_value name="$N" exact="6 + $i"/>
+          <set_value name="$Ware" exact="ware.{$Entry.{1}}"/>
+          <set_value name="$Research" exact="ware.{'research_apl_' + $Entry.{2}}"/>
+          <do_if value="@$Ware.name != readtext.{1774110}.{$N * 10 + 1}">
+            <set_value name="$Problems" exact="$Problems + ' %s missing or misnamed (%s);'.[$Entry.{1}, @$Ware.name]"/>
+          </do_if>
+          <do_if value="@$Research.name != readtext.{1774110}.{$N * 10 + 2} or @$Research.research.unlocked">
+            <set_value name="$Problems" exact="$Problems + ' research_apl_%s missing, misnamed or already unlocked;'.[$Entry.{2}]"/>
+          </do_if>
+        </do_for_each>
+        <signal_cue_instantly cue="Report" param="table[$name = 'variant_gear', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'pirate engines x%s speed, x%s boost speed, shield x%s; %s gear wares named'.[$Speed, $Boost, $ShieldRatio, $Gear.count] else $Problems)]"/>
+        <do_if value="$Pirate">
+          <destroy_object object="$Pirate"/>
+        </do_if>
+        <do_if value="$Vanilla">
+          <destroy_object object="$Vanilla"/>
+        </do_if>
       </actions>
     </cue>
   </cues>

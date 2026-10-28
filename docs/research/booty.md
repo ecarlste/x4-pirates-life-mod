@@ -84,7 +84,7 @@ Branch `spike/unlock-research-poc` (not merged; the code stays there for referen
 5. **Save and load:** the unlock survives. ✔
 6. **Removing:** `remove_research` locks both ships again. ✔
 
-SWI gates its factions' special ship versions with research (in its normal research tree; see the SWI comparison below), so the mechanism is a familiar one for conversions too. SWI also marks those ships with a star in the Buy Ships dropdown. That's vanilla's own research icon (`gamestart_custom_research`, `base/libraries/icons.xml:772`), which `checkLicence` gives every research-gated ware in vanilla (`menu_ship_configuration.lua:7266`) and in SWI's replacement menu alike (`subst02/ui/addons/ego_detailmonitor/menu_ship_configuration.xpl:7152`). So our unlockable ships get the same marker with no work. To confirm on the next visit: whether the proof-of-concept ships showed it.
+SWI gates its factions' special ship versions with research (in its normal research tree; see the SWI comparison below), so the mechanism is a familiar one for conversions too. `checkLicence` gives every research-gated ware vanilla's research icon (`gamestart_custom_research`, `base/libraries/icons.xml:772`; `menu_ship_configuration.lua:7266`, and SWI's replacement menu alike, `subst02/ui/addons/ego_detailmonitor/menu_ship_configuration.xpl:7152`). In game it's a **beaker** (Erik, 2026-10-27, on our generated variants at the Vigor wharf); the star in the Buy Ships list marks a military licence, not research, so the star seen on SWI's special ships is their licence.
 
 **Result: one hidden research ware per unlock is the way to build booty unlocks.** The other routes are no longer needed.
 
@@ -108,7 +108,7 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 - Which pirate stations can dock each size, and can the player dock there at their current relation? The Yaki start at −25 (enemy), which blocks docking.
 - At what relation does Vigor stop the player docking and trading, and does the buy menu itself refuse an enemy faction's station? That's what keeps a player at war with Vigor from buying its variants.
 - Do variants owned by Vigor turn up in Vigor's own NPC ships and loadouts? If so, decide whether that's wanted.
-- A purchase of an unlocked variant built and delivered to the end, and the research star icon on it in the Buy Ships list (not yet seen on the proof-of-concept ships).
+- A purchase of an unlocked variant built and delivered to the end. (The research icon on locked variants is seen: a beaker.)
 
 ## Still iterating
 
