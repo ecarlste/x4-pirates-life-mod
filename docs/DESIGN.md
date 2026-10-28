@@ -18,6 +18,7 @@ Everything game-specific lives in data profiles, so the same core runs on vanill
 - **No hardcoded vanilla IDs.** Factions, ship macros, wares and sectors come from a profile, never from scripts.
 - **Queries over lists.** Find targets by tag, class, owner relation or license where possible, so behavior adapts to whatever universe is loaded.
 - **Core plus profiles.** Gameplay systems live in the core. Each profile maps a universe onto them: which factions are pirates or police, where fences are, which ships fall in which capture tier.
+- **Work with the living universe; spawn only as a last resort** (agreed 2026-10-28). Features use what the universe already has (its traffic, stations and economy) and spawn ships, wares or stations only when no organic way works. When something must be spawned, nothing it carries may reach the economy: no wares that were never mined or made. A ship spawned for a mission is removed once it's out of the player's sight.
 - **Detect, don't assume.** At game start, check which extensions are enabled and pick the profile.
 - **Diff patches only.** Library changes use XML diff patches with tolerant selectors, never file overwrites.
 - **UI on shared foundations.** Build on kuertee's UI Extensions and SirNukes' Mod Support APIs rather than replacing Lua files.
