@@ -20,11 +20,12 @@
                               boostrecharge (the boost recharge *rate*: below 1 is slower)
                  shields      capacity, rate, delay (the wait before recharging)
                  weapons      hulldamage, shielddamage, through a copy of the weapon's bullet macro
+                              (turrets the same)
                  missiles     disable: how long the missile's effects (the EMP's boost and travel
                               shutdown) last
      <ship>    a variant: id (short, unique, used in generated IDs), the vanilla macro, its rig, the
                standing level whose unlock offers it, and the role (for the reader).
-     <equipment> the same for an engine, shield generator, weapon or missile; name gives something
+     <equipment> the same for an engine, shield generator, weapon, turret or missile; name gives something
                new a fun name in place of its base name (docs/DESIGN.md: "Pirate" for a pirate version
                of existing gear, a fun name for something new). -->
 <variants>
@@ -44,6 +45,9 @@
   <rig id="engine_travel" thrust="0.9" travelthrust="1.3" boostthrust="1.3" boostduration="0.7" boostrecharge="0.77" reverse="0.7"/>
   <rig id="shield_quick" capacity="0.85" delay="0.7"/>
   <rig id="stripper" hulldamage="0.6" shielddamage="1.3"/>
+  <!-- No ion turret in vanilla: the Stripper turret is built on the Teladi muon blaster turret, which
+       starts at about 2:3 shield to hull, so it needs a stronger rig to reach the Stripper's 8:1 -->
+  <rig id="stripper_turret" hulldamage="0.33" shielddamage="4"/>
   <rig id="emp_long" disable="1.5"/>
 
   <ship id="kyd" macro="ship_pir_s_fighter_01_a_macro" rig="swarm" level="1" role="swarm skiff"/>
@@ -65,4 +69,5 @@
   <equipment id="allround_m" macro="engine_arg_m_allround_01_mk1_macro" rig="engine_allround" level="6"/>
   <equipment id="travel_m" macro="engine_arg_m_travel_01_mk1_macro" rig="engine_travel" level="6"/>
   <equipment id="quick_m" macro="shield_arg_m_standard_01_mk1_macro" rig="shield_quick" level="6"/>
+  <equipment id="stripper_turret_m" macro="turret_tel_m_shotgun_01_mk1_macro" rig="stripper_turret" name="Stripper Turret" level="6"/>
 </variants>

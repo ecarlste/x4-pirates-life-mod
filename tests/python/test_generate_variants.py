@@ -71,6 +71,7 @@ TEXTS = """<?xml version="1.0" encoding="utf-8"?>
   <page id="20111">
     <t id="1101">Vanguard</t>
     <t id="5011">S</t>
+    <t id="5021">M</t>
     <t id="101">Mk1</t>
   </page>
 </language>
@@ -121,6 +122,20 @@ BULLET = """<?xml version="1.0" encoding="utf-8"?>
   </macro>
 </macros>
 """
+TURRET = """<?xml version="1.0" encoding="utf-8"?>
+<macros>
+  <macro name="turret_tst_m_blaster_01_mk1_macro" class="turret" alias="turret_tst_m_blaster_02_mk1_macro">
+    <component ref="turret_tst_m_blaster_01_mk1" />
+    <properties>
+      <identification name="{20105,7114}" basename="{20105,7111}" makerrace="teladi" mk="1" />
+      <bullet class="bullet_tst_s_ion_01_mk1_macro" />
+      <hull threshold="0.2" integrated="1" />
+    </properties>
+  </macro>
+</macros>
+"""
+TURRET_ALIAS = TURRET.replace("_01_mk1", "_02_mk1").replace(' alias="turret_tst_m_blaster_02_mk1_macro"', "").replace(
+    'integrated="1"', 'max="1500" integrated="0"')
 MISSILE = """<?xml version="1.0" encoding="utf-8"?>
 <macros>
   <macro name="missile_tst_emp_mk1_macro" class="missile">
@@ -153,7 +168,8 @@ GEAR_WARES = "".join("""  <ware id="%s" name="{1,1}" transport="equipment" volum
     <component ref="%s_macro" />
     <owner faction="argon" />
   </ware>
-""" % (w, w) for w in ("engine_tst_s_combat_01_mk1", "shield_tst_s_standard_01_mk1", "weapon_tst_s_ion_01_mk1", "missile_tst_emp_mk1"))
+""" % (w, w) for w in ("engine_tst_s_combat_01_mk1", "shield_tst_s_standard_01_mk1", "weapon_tst_s_ion_01_mk1", "missile_tst_emp_mk1",
+                                    "turret_tst_m_blaster_01_mk1", "turret_tst_m_blaster_02_mk1"))
 GEAR_TEXTS = """  <page id="20202">
     <t id="103">ARG</t>
   </page>
@@ -170,16 +186,20 @@ GEAR_TEXTS = """  <page id="20202">
     <t id="1184">(ARG S Ion Blaster Mk1){20202,103} {20111,5011} {20105,1181} {20111,101}</t>
     <t id="6161">EMP Missile</t>
     <t id="6164">(EMP Missile Mk1){20105,6161} {20111,101}</t>
+    <t id="7111">Muon Blaster Turret</t>
+    <t id="7114">(TEL M Muon Blaster Turret Mk1){20202,103} {20111,5021} {20105,7111} {20111,101}</t>
   </page>
 """
 GEAR_LIST = """  <rig id="combat" thrust="1.1" travelthrust="1.15" boostthrust="1.3" boostduration="0.7" boostrecharge="0.77" reverse="0.7"/>
   <rig id="quick" capacity="0.85" delay="0.7"/>
   <rig id="stripper" hulldamage="0.6" shielddamage="1.3"/>
   <rig id="emp" disable="1.5"/>
+  <rig id="stripper_turret" hulldamage="0.33" shielddamage="4"/>
   <equipment id="combat_s" macro="engine_tst_s_combat_01_mk1_macro" rig="combat" level="3"/>
   <equipment id="quick_s" macro="shield_tst_s_standard_01_mk1_macro" rig="quick" level="3"/>
   <equipment id="stripper_s" macro="weapon_tst_s_ion_01_mk1_macro" rig="stripper" name="Stripper" level="2"/>
   <equipment id="coldfeet" macro="missile_tst_emp_mk1_macro" rig="emp" name="Cold Feet" level="3"/>
+  <equipment id="stripper_turret_m" macro="turret_tst_m_blaster_01_mk1_macro" rig="stripper_turret" name="Stripper Turret" level="6"/>
 </variants>
 """
 OUR_TEXTS = """<?xml version="1.0" encoding="utf-8"?>
@@ -211,6 +231,8 @@ class Variants(unittest.TestCase):
         write(self.ref, "base/assets/props/SurfaceElements/macros/shield_tst_s_standard_01_mk1_macro.xml", SHIELD)
         write(self.ref, "base/assets/props/WeaponSystems/energy/macros/weapon_tst_s_ion_01_mk1_macro.xml", WEAPON)
         write(self.ref, "base/assets/fx/weaponFx/macros/bullet_tst_s_ion_01_mk1_macro.xml", BULLET)
+        write(self.ref, "base/assets/props/WeaponSystems/standard/macros/turret_tst_m_blaster_01_mk1_macro.xml", TURRET)
+        write(self.ref, "base/assets/props/WeaponSystems/standard/macros/turret_tst_m_blaster_02_mk1_macro.xml", TURRET_ALIAS)
         write(self.ref, "base/assets/props/WeaponSystems/missile/macros/missile_tst_emp_mk1_macro.xml", MISSILE)
         write(self.ref, "base/libraries/influenceconfigurations.xml", INFLUENCES)
         write(self.ref, "base/libraries/wares.xml", WARES.replace("</wares>", GEAR_WARES + "</wares>"))
@@ -344,6 +366,53 @@ class Variants(unittest.TestCase):
         dmg = self.macro("assets/fx/weaponfx/macros/bullet_apl_stripper_s_macro.xml").find("properties/damage")
         self.assertEqual((dmg.get("value"), dmg.get("shield")), ("60", "520"))
         self.assertIn('name="bullet_apl_stripper_s_macro"', self.read("index/macros.xml"))
+
+    def test_variants_stripper_turret_rigs_its_bullet_and_destructible_twin(self):
+        self.with_gear()
+        folder = "assets/props/weaponsystems/standard/macros/"
+        turret = self.macro(folder + "turret_apl_stripper_turret_m_macro.xml")
+        self.assertEqual(turret.get("alias"), "turret_apl_stripper_turret_m_alias_macro")
+        twin = self.macro(folder + "turret_apl_stripper_turret_m_alias_macro.xml")
+        for t in (turret, twin):
+            self.assertEqual(t.find("properties/bullet").get("class"), "bullet_apl_stripper_turret_m_macro")
+            self.assertEqual(t.find("properties/identification").get("name"), turret.find("properties/identification").get("name"))
+        self.assertEqual(twin.find("properties/hull").get("integrated"), "0")
+        diff = ET.fromstring(self.read("libraries/wares.xml").split("\n", 2)[2])
+        wares = {w.get("id"): w for w in diff.iter("ware") if w.get("id")}
+        twin_ware = wares["turret_apl_stripper_turret_m_alias"]
+        self.assertEqual(twin_ware.find("component").get("ref"), "turret_apl_stripper_turret_m_alias_macro")
+        self.assertEqual(twin_ware.find("production/research/ware").get("ware"), "research_apl_stripper_turret_m")
+        self.assertEqual(twin_ware.get("name"), wares["turret_apl_stripper_turret_m"].get("name"))
+        dmg = self.macro("assets/fx/weaponfx/macros/bullet_apl_stripper_turret_m_macro.xml").find("properties/damage")
+        self.assertEqual((dmg.get("value"), dmg.get("shield")), ("33", "1600"))
+        self.assertIn(">M Stripper Turret Mk1</t>", self.read("t/0001-l044.xml"))
+        index = self.read("index/macros.xml")
+        self.assertIn('name="turret_apl_stripper_turret_m_alias_macro"', index)
+        self.assertEqual(self.check_without_game_files()[0], 0)
+        os.remove(os.path.join(self.repo, folder + "turret_apl_stripper_turret_m_alias_macro.xml"))
+        self.assertEqual(self.check_without_game_files()[0], 1)
+
+    def test_variants_shield_twin_gets_the_same_rig(self):
+        twin = SHIELD.replace("shield_tst_s_standard_01_mk1", "shield_tst_s_standard_02_mk1")
+        write(self.ref, "base/assets/props/SurfaceElements/macros/shield_tst_s_standard_01_mk1_macro.xml",
+              SHIELD.replace('class="shieldgenerator"', 'class="shieldgenerator" alias="shield_tst_s_standard_02_mk1_macro"'))
+        write(self.ref, "base/assets/props/SurfaceElements/macros/shield_tst_s_standard_02_mk1_macro.xml", twin)
+        write(self.ref, "base/libraries/wares.xml", WARES.replace("</wares>", GEAR_WARES + GEAR_WARES.replace(
+            "shield_tst_s_standard_01_mk1", "shield_tst_s_standard_02_mk1") + "</wares>"))
+        self.with_gear()
+        folder = "assets/props/surfaceelements/macros/"
+        self.assertEqual(self.macro(folder + "shield_apl_quick_s_macro.xml").get("alias"), "shield_apl_quick_s_alias_macro")
+        r = self.macro(folder + "shield_apl_quick_s_alias_macro.xml").find("properties/recharge")
+        self.assertEqual((r.get("max"), r.get("delay")), ("850", "7"))
+        self.assertIn('id="shield_apl_quick_s_alias"', self.read("libraries/wares.xml"))
+        path = os.path.join(self.repo, folder + "shield_apl_quick_s_macro.xml")
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(text.replace('alias="shield_apl_quick_s_alias_macro"', 'alias="shield_tst_s_standard_02_mk1_macro"'))
+        code, out = self.check_without_game_files()
+        self.assertEqual(code, 1)
+        self.assertIn("vanilla twin", out)
 
     def test_variants_missile_copies_its_effect_list_with_longer_shutdowns(self):
         self.with_gear()

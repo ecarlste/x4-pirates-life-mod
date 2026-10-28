@@ -8,7 +8,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 3 | 13 | 4 | 6 | **10** |
+| 4 | 14 | 4 | 6 | **10** |
 
 ## Scenarios
 
@@ -157,6 +157,30 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
   When a Nova is fitted with pirate combat engines, a pirate shield and a Stripper, and another with the vanilla gear they're rigs of
   Then the pirate Nova is about 10% faster and boosts faster still, and its shield holds 15% less
   And every gear ware and its unlock research exist, named as generated, and I don't have the research yet
+```
+
+### The Stripper turret and the pirate M shield fit M and L hulls
+
+**Automated:** in game `variant_turret`
+
+```gherkin
+  Given the Stripper turret generated from the list, built on the Teladi muon blaster turret
+  When a Gorgon and a Barbarossa are fitted with two each, and the Barbarossa with two pirate M shields
+  Then both carry two working Stripper turrets, the Barbarossa's as their destructible twin
+  And the Barbarossa carries the pirate M shield's destructible twin
+  And the twins' wares have their gear's names
+```
+
+### Gear with a destructible twin gets a rigged twin
+
+**Automated:** unit tests `test_variants_stripper_turret_rigs_its_bullet_and_destructible_twin`, `test_variants_shield_twin_gets_the_same_rig`
+
+```gherkin
+  Given gear in the list whose vanilla macro has a destructible twin (alias), as M turrets and shields do
+  When the variants are generated
+  Then the twin is copied and rigged the same: the Stripper turret's twin fires its bullet, which does about 8 times more shield than hull damage, and the pirate shield's twin holds less and recharges sooner
+  And the twin carries the gear's name and is a ware of its own under the same unlock
+  And the stamp check without game files notices a missing twin, or a variant still pointing at vanilla's twin
 ```
 
 ### A rig changes a copy of the vanilla gear
