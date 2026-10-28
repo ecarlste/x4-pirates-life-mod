@@ -10,7 +10,7 @@ Feature: Booty
     And M, L and XL turn-ins open at levels 4, 8 and 15
     And the cut is 40% at level 0, 25% at level 10 and 10% at level 20
 
-  @booty_standing_shown
+  @booty_standing_shown @test_texts_have_no_unescaped_parentheses
   Scenario: The conversation shows my standing
     Given standing of 4.0M with Vigor, level 3
     When I talk to the staff of a Vigor wharf or shipyard

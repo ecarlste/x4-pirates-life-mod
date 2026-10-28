@@ -30,9 +30,9 @@
     <!-- Conversation with a pirate group's station staff -->
     <t id="2">More ships</t>
     <t id="3">No ships of yours are docked here.</t>
-    <t id="4">Hand over booty (standing level %s)</t>
-    <t id="5">The %s: standing level %s (%s). Level %s at %s. Fence cut %s%%.</t>
-    <t id="6">The %s: standing level %s (%s), the top level. Fence cut %s%%.</t>
+    <t id="4">Hand over booty: standing level %s</t>
+    <t id="5">The %s: standing level %s, at %s standing. Level %s at %s. Fence cut %s%%.</t>
+    <t id="6">The %s: standing level %s, the top level, at %s standing. Fence cut %s%%.</t>
     <t id="10">%s %s</t>
     <t id="11">%s %s: pirated</t>
     <t id="12">Hand over %s %s for good</t>

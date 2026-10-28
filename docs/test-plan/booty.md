@@ -25,7 +25,7 @@ Source: [`tests/game/features/booty.feature`](../../tests/game/features/booty.fe
 
 ### The conversation shows my standing
 
-**Automated:** in game `booty_standing_shown`
+**Automated:** unit test `test_texts_have_no_unescaped_parentheses`; in game `booty_standing_shown`
 
 ```gherkin
   Given standing of 4.0M with Vigor, level 3
