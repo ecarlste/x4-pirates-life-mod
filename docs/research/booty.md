@@ -112,13 +112,40 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 - Do variants owned by Vigor turn up in Vigor's own NPC ships and loadouts? If so, decide whether that's wanted.
 - A purchase of an unlocked variant built and delivered to the end. (The research icon on locked variants is seen: a beaker.)
 
+## Supply raids
+
+**Status: idea, being drawn up** (Erik, 2026-10-28). Not agreed design yet; nothing here is in `DESIGN.md`.
+
+**Why:** a low-tier pirate depends on the group's wharf for ships and gear, and that wharf's economy is thin. In Erik's game (2026-10-28), refitting four S ships with the new variant gear left the Vigor wharf waiting 10–15 minutes and counting for about 200 advanced electronics and weapon components. Supply raids let the player fix the shortage the pirate way, by taking the wares from someone else.
+
+**Shape so far** (Erik's calls, 2026-10-28):
+
+- **A small-crew job.** Sized for one ship, at most an M with four S escorts: S/M freighters, or part of an L freighter's cargo forced out, never an escorted convoy. A big shortage may take several targets or partial deliveries.
+- **Trigger:** a ware the group's station needs, with none in stock and no trade orders already coming to fill it. Then the group asks the player to bring it in as booty.
+- **The wares just join the station's stock,** as any delivery would. The game's own build queue uses them; the mod doesn't finish or speed up the player's orders.
+- **Rewards are mostly not booty:** materials for crafting better equipment mods, rarer as standing climbs, and pirate paint jobs. Booty is small or none; standing still comes mainly from handing over ships.
+
+**What vanilla gives us:**
+
+- **Shortages:** vanilla's build-storage supply mission reads what a station's build is still missing from `$storage.buildprocessor.neededsequenceresources` (`base/md/rml_supplybuildstorage.xml:61`), and `gm_supplyfactory.xml` reads a factory's `resources`. Whether either covers a wharf's ship and equipment builds, and how to see trade orders already on their way, is unknown.
+- **Item rewards:** generic missions add a non-credit reward through `md.LIB_Reward_Balancing.DetermineAdditionalReward`, weighted between a mod part (`Reward_ModPart`) and a seminar, and give inventory rewards with `add_inventory` (`base/md/gm_ambush.xml:328`, `:876`).
+- **Paint jobs:** the Tides of Avarice starts give the player paint mods 0006, 0048–0050, 0097–0100 and 0126 (`ego_dlc_pirate/libraries/gamestarts.xml:74`), the first candidates for pirate paints; our own paints would need new textures, later.
+- Vanilla also drip-feeds a stalled build storage every 15 minutes so builds finish without the player (`rml_supplybuildstorage.xml:210`); worth knowing whether wharfs get anything like it.
+
+**Open:**
+
+- How the job reaches the player: a conversation with the manager or ship trader like the handover, a vanilla-style mission offer, or both.
+- How the target is chosen and shown: a named freighter carrying the ware, or any source.
+- Whether only stolen wares count, and how to tell (X4 doesn't record where cargo came from): don't check, count wares unloaded from a pirated ship, or only the named target's cargo.
+- Which mod materials and paints, and how rewards scale with standing.
+
 ## Still iterating
 
 - **Drop points.** Some handovers happen at a drop point in space instead of a station: a pirate pickup crew (a tug or escort for big prizes) meets you there. Sometimes the authorities show up, and you defend the crew and the prize for a bonus. No station guns, so the fights are real; XL handovers are the set pieces. Heat should drive how often the authorities come. Still open: whether the pirates or the player choose drop point or station. Vanilla prior art: the "Retrieve Dead Drop" mission chain, including a "Military Police Inspection" variant (`base/md/gmc_retrieve_dead_drop.xml:1826`).
 - **Finding the traitor.** If the authorities come because someone sold out the drop, the leak is a person (a contact, the pickup crew, your own crew, a rival). Clues from the ambush lead to a short hunt; what you do with the traitor is fear vs. honor; a traitor who gets away can come back.
 - **Hailing the station manager.** Now one of the two ways in for v1 (with the order); still open: the flow. Dock the prize, then hail the station and pick from a list of eligible docked ships, reverse-engineering style. Lets the player move the pilot by hand first.
 - **What pirates do with the ships.** In v1 a handed-over ship goes the way of a ship sold at that station. Later, maybe: the group flies it (its fleet really grows; needs a spike on ownership changes, orders and a cap) or strips it for parts.
-- **Group missions and tips,** gated by standing: pirate-side missions like SWI's bounty-hunter missions, and tips on targets.
+- **Group missions and tips,** gated by standing: pirate-side missions like SWI's bounty-hunter missions, and tips on targets. The first one being drawn up: [supply raids](#supply-raids).
 - **A bypass quest line** for groups whose stations the player can't reach at first (e.g. a faction locked behind a story or terraforming), switchable in the config.
 - **Unlocking a family of items at once,** for a price that adds up to about the same as buying each; single unlocks let the player buy only what they want.
 - **Notoriety favours:** at random, a group adds extra money to a handover to buy a famous pirate's favour.
