@@ -8,7 +8,7 @@ A piracy overhaul for **X4: Foundations**. The goal is a full career from small-
 
 - X4: Foundations 9.x with the **Tides of Avarice** DLC
 - To develop: git, plus either
-  - bash (WSL, Linux or macOS) and `make`; or
+  - bash (WSL or Linux; macOS isn't tested) and `make`; or
   - PowerShell (Windows PowerShell 5.1 or PowerShell 7)
 - For the Lua unit tests: LuaJIT (`sudo apt install luajit`); `make test` skips them without it
 - Optional, for a faster `make test`: GNU parallel and ICU (`sudo apt install parallel libicu78`)
@@ -61,7 +61,7 @@ The log is written to your X4 profile folder, `<Documents>\Egosoft\X4\<Steam acc
 | `content.xml`, `md/` | The mod itself; `deploy.include` lists everything that ships |
 | `deploy.sh`, `deploy.ps1` | Sync the mod into the game |
 | `tools/` | Dev scripts, such as unpacking the game files ([`tools/README.md`](tools/README.md)) |
-| `tests/` | bats and Pester suites; CI runs them on Linux, macOS and Windows. `tests/game/` holds the dev-only extension for in-game tests |
+| `tests/` | bats and Pester suites; CI runs bats on Linux and Pester on Windows. `tests/game/` holds the dev-only extension for in-game tests |
 | `docs/` | Project context, design, plan and specs (below) |
 
 ## Docs

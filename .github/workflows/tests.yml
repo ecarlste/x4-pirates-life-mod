@@ -18,28 +18,13 @@ jobs:
       - run: shellcheck deploy.sh tests/run.sh tests/lua/run.sh tools/post-game-test-report.sh
       - run: shellcheck -s bash tests/*.bash tests/*.bats
 
+  # The bash tooling (deploy.sh, tests/run.sh, the tools) runs in WSL (Ubuntu), so Linux only
   bash:
-    name: bats (${{ matrix.name }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Linux
-            os: ubuntu-latest
-          # Stock macOS bash is 3.2 and rsync may be openrsync; test what developers actually have
-          - name: macOS, bash 3.2
-            os: macos-latest
-            stock_bash: true
-    runs-on: ${{ matrix.os }}
+    name: bats
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Put /bin/bash first on PATH
-        if: matrix.stock_bash
-        run: |
-          mkdir -p "$RUNNER_TEMP/stock-bash"
-          ln -s /bin/bash "$RUNNER_TEMP/stock-bash/bash"
-          echo "$RUNNER_TEMP/stock-bash" >> "$GITHUB_PATH"
-      # bats and Pester are fetched into .tools/ on first run; keep them between runs
+      # bats is fetched into .tools/ on first run; keep it between runs
       - uses: actions/cache@v6
         with:
           path: .tools
@@ -61,17 +46,18 @@ jobs:
       - run: sudo apt-get update -q && sudo apt-get install -y -q luajit
       - run: tests/run.sh --lua-only
 
+  # The PowerShell scripts (deploy.ps1, tools/run-game-tests.ps1, tools/unpack-x4.ps1) run on
+  # Windows: test both PowerShells a Windows user may have. (make test runs Pester under
+  # PowerShell 7 in WSL too, for speed; that path is checked by every local run.)
   pester:
     name: Pester (${{ matrix.name }})
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { name: Windows PowerShell 5.1, os: windows-latest, shell: powershell }
-          - { name: PowerShell 7 on Windows, os: windows-latest, shell: pwsh }
-          - { name: PowerShell 7 on Linux, os: ubuntu-latest, shell: pwsh }
-          - { name: PowerShell 7 on macOS, os: macos-latest, shell: pwsh }
-    runs-on: ${{ matrix.os }}
+          - { name: Windows PowerShell 5.1, shell: powershell }
+          - { name: PowerShell 7, shell: pwsh }
+    runs-on: windows-latest
     defaults:
       run:
         shell: ${{ matrix.shell }}
@@ -86,5 +72,5 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
-          name: pester-results-${{ matrix.os }}-${{ matrix.shell }}
+          name: pester-results-${{ matrix.shell }}
           path: tests/results.xml
