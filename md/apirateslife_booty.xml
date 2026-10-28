@@ -165,6 +165,67 @@
       </actions>
     </library>
 
+    <!-- The lowest level at which Group takes ships of Size (1 S to 4 XL), or null if none does -->
+    <library name="SizeLevel" purpose="run_actions">
+      <params>
+        <param name="Group"/>
+        <param name="Size"/>
+      </params>
+      <actions>
+        <do_for_each name="$Entry" in="$Group.$levels" counter="$i">
+          <do_if value="$Size ge 1 and $Entry.$size ge $Size">
+            <return value="$i - 1"/>
+          </do_if>
+        </do_for_each>
+        <return value="null"/>
+      </actions>
+    </library>
+
+    <!-- The player's standing with Group, for the conversation: [choice text, tooltip], with the
+         level, the booty, the next level's threshold and the fence cut -->
+    <library name="StandingTexts" purpose="run_actions">
+      <params>
+        <param name="Group"/>
+      </params>
+      <actions>
+        <run_actions ref="State" result="$State">
+          <param name="Group" value="$Group"/>
+        </run_actions>
+        <run_actions ref="Level" result="$Level">
+          <param name="Group" value="$Group"/>
+          <param name="Standing" value="$State.$standing"/>
+        </run_actions>
+        <run_actions ref="Cut" result="$Cut">
+          <param name="Group" value="$Group"/>
+          <param name="Level" value="$Level"/>
+        </run_actions>
+        <run_actions ref="Millions" result="$Standing">
+          <param name="Value" value="$State.$standing"/>
+        </run_actions>
+        <do_if value="$Level lt $Group.$levels.count - 1">
+          <run_actions ref="Millions" result="$Next">
+            <param name="Value" value="$Group.$levels.{$Level + 2}.$standing"/>
+          </run_actions>
+          <set_value name="$Tooltip" exact="{1774101, 5}.[$Group.$faction.name, $Level, $Standing, $Level + 1, $Next, $Cut]"/>
+        </do_if>
+        <do_else>
+          <set_value name="$Tooltip" exact="{1774101, 6}.[$Group.$faction.name, $Level, $Standing, $Cut]"/>
+        </do_else>
+        <return value="[{1774101, 4}.[$Level], $Tooltip]"/>
+      </actions>
+    </library>
+
+    <!-- A whole number as millions with one decimal, e.g. 4004911 as '4.0M' -->
+    <library name="Millions" purpose="run_actions">
+      <params>
+        <param name="Value"/>
+      </params>
+      <actions>
+        <set_value name="$Tenths" exact="($Value / 100000)i"/>
+        <return value="'%s.%sM'.[$Tenths / 10, $Tenths % 10]"/>
+      </actions>
+    </library>
+
     <!-- 1 for S, 2 M, 3 L, 4 XL, 0 for anything else -->
     <library name="SizeOf" purpose="run_actions">
       <params>
@@ -255,7 +316,14 @@
           <param name="Ship" value="$Ship"/>
         </run_actions>
         <do_if value="$Size == 0 or $Size gt $Group.$levels.{$Level + 1}.$size">
-          <return value="{1774101, 20}.[$Group.$faction.name]"/>
+          <run_actions ref="SizeLevel" result="$Needed">
+            <param name="Group" value="$Group"/>
+            <param name="Size" value="$Size"/>
+          </run_actions>
+          <do_if value="$Needed == null">
+            <return value="{1774101, 25}"/>
+          </do_if>
+          <return value="{1774101, 20}.[$Group.$faction.name, $Needed, $Level]"/>
         </do_if>
         <return value="''"/>
       </actions>
@@ -642,7 +710,10 @@
           <param name="Station" value="event.object.station"/>
         </run_actions>
         <do_if value="$Group">
-          <add_player_choice_sub text="{1774101, 1}" section="g_apirateslife_booty" choiceparam="[event.object.station, 1]"/>
+          <run_actions ref="StandingTexts" result="$Texts">
+            <param name="Group" value="$Group"/>
+          </run_actions>
+          <add_player_choice_sub text="$Texts.{1}" section="g_apirateslife_booty" choiceparam="[event.object.station, 1]" tooltip="$Texts.{2}"/>
         </do_if>
       </actions>
     </cue>

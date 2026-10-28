@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyListsDockedShips, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, BootyUnlocksCatchUp, BootyOrderHandsOver, BootyOrderRefusesTooBig, BootyPilotMoves, BootyPilotSkipsFull, VariantShips, VariantGear, VariantTurret, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
+        <set_value name="$Tests" exact="[EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail, BootyLevelsAndCut, BootyStandingShown, BootyListsDockedShips, BootyHandoverPays, BootyDonation, BootyTooBig, BootyLevelUp, BootyUnlocksCatchUp, BootyOrderHandsOver, BootyOrderRefusesTooBig, BootyPilotMoves, BootyPilotSkipsFull, VariantShips, VariantGear, VariantTurret, SettingsLuaReportsIn, SettingsPageRegistered, SettingsChoiceSurvivesLoad, SettingsConfigFillsUnchosen, SettingsSeedFromDefaults, SettingsChooseDefault, SettingsIgnoresInvalid, SettingsChangeMarksModified, SettingsUndoClearsModified, SettingsSavedModifiedLoadsAsNone, SettingsChooseProfileClearsChanges, SettingsProfileInvalidValues, SettingsLinkedFollowsProfile, SettingsLinkedProfileGone]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$StartAge" exact="player.age"/>
         <set_value name="$Passed" exact="0"/>
@@ -2173,6 +2173,65 @@
       </actions>
     </cue>
 
+    <!-- The conversation shows the player's level, standing, next threshold and cut, and each size's
+         turn-in level is known for the too-big reason -->
+    <cue name="BootyStandingShown">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="md.APiratesLife_Booty.GroupOf" result="$Group">
+          <param name="Faction" value="faction.loanshark"/>
+        </run_actions>
+        <set_value name="$Problems" exact="''"/>
+        <set_value name="$Shown" exact="''"/>
+        <set_value name="$Saved" exact="@global.$APiratesLife_Groups.{'$vigor'}"/>
+        <run_actions ref="md.APiratesLife_Booty.State">
+          <param name="Group" value="$Group"/>
+        </run_actions>
+        <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="table[$standing = 4004911, $booty = 4004911, $unlocks = []]"/>
+        <run_actions ref="md.APiratesLife_Booty.StandingTexts" result="$Texts">
+          <param name="Group" value="$Group"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Booty.Cut" result="$Cut">
+          <param name="Group" value="$Group"/>
+          <param name="Level" value="3"/>
+        </run_actions>
+        <do_if value="$Texts.{1} != {1774101, 4}.[3] or $Texts.{2} != {1774101, 5}.[faction.loanshark.name, 3, '4.0M', 4, '6.0M', $Cut]">
+          <set_value name="$Problems" exact="$Problems + ' at 4004911: %s / %s;'.[$Texts.{1}, $Texts.{2}]"/>
+        </do_if>
+        <set_value name="$Shown" exact="$Texts.{2}"/>
+        <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="table[$standing = 320000000, $booty = 0, $unlocks = []]"/>
+        <run_actions ref="md.APiratesLife_Booty.StandingTexts" result="$Texts">
+          <param name="Group" value="$Group"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Booty.Cut" result="$Cut">
+          <param name="Group" value="$Group"/>
+          <param name="Level" value="20"/>
+        </run_actions>
+        <do_if value="$Texts.{2} != {1774101, 6}.[faction.loanshark.name, 20, '320.0M', $Cut]">
+          <set_value name="$Problems" exact="$Problems + ' at the top: %s;'.[$Texts.{2}]"/>
+        </do_if>
+        <set_value name="$Sizes" exact="[[1, 0], [2, 4], [3, 8], [4, 15]]"/>
+        <do_for_each name="$Case" in="$Sizes">
+          <run_actions ref="md.APiratesLife_Booty.SizeLevel" result="$Needed">
+            <param name="Group" value="$Group"/>
+            <param name="Size" value="$Case.{1}"/>
+          </run_actions>
+          <do_if value="$Needed != $Case.{2}">
+            <set_value name="$Problems" exact="$Problems + ' size %s opens at level %s, expected %s;'.[$Case.{1}, $Needed, $Case.{2}]"/>
+          </do_if>
+        </do_for_each>
+        <do_if value="$Saved">
+          <set_value name="global.$APiratesLife_Groups.{'$vigor'}" exact="$Saved"/>
+        </do_if>
+        <do_else>
+          <remove_value name="global.$APiratesLife_Groups.{'$vigor'}"/>
+        </do_else>
+        <signal_cue_instantly cue="Report" param="table[$name = 'booty_standing_shown', $ok = ($Problems == ''), $detail = (if $Problems == '' then $Shown else $Problems)]"/>
+      </actions>
+    </cue>
+
     <!-- What's wrong with a handover's result, as a problems string: the ship sold, the player paid
          the price minus the cut, booty with the bonus, standing, and rep with Vigor up -->
     <library name="CheckHandover" purpose="run_actions">
@@ -2421,7 +2480,7 @@
               <do_if value="$Accepted">
                 <set_value name="$Problems" exact="$Problems + ' the M ship was accepted;'"/>
               </do_if>
-              <do_if value="$Why != {1774101, 20}.[faction.loanshark.name]">
+              <do_if value="$Why != {1774101, 20}.[faction.loanshark.name, 4, 0]">
                 <set_value name="$Problems" exact="$Problems + ' reason: %s;'.[$Why]"/>
               </do_if>
             </do_else>
@@ -2631,7 +2690,7 @@
               </conditions>
               <actions>
                 <cancel_cue cue="BootyOrderRefusesTooBig_Timeout"/>
-                <set_value name="$Ok" exact="event.param.$station == null and event.param.$why == {1774101, 20}.[faction.loanshark.name]"/>
+                <set_value name="$Ok" exact="event.param.$station == null and event.param.$why == {1774101, 20}.[faction.loanshark.name, 4, 0]"/>
                 <signal_cue_instantly cue="Report" param="table[$name = 'booty_order_refuses_too_big', $ok = $Ok, $detail = 'station %s, reason: %s'.[@event.param.$station.knownname, event.param.$why]]"/>
                 <destroy_object object="$Ship"/>
               </actions>
