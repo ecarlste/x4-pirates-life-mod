@@ -119,6 +119,8 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 
 **Why:** a low-tier pirate depends on the group's wharf for ships and gear, and that wharf's economy is thin. In Erik's game (2026-10-28), refitting four S ships with the new variant gear left the Vigor wharf waiting 10–15 minutes and counting for about 200 advanced electronics and weapon components. Supply raids let the player fix the shortage the pirate way, by taking the wares from someone else.
 
+Erik then watched the wharf's trade orders for 15 minutes: no stock and no incoming trades appeared for the wares it had none of. So the shortage can last, and a raid would really be needed.
+
 **Shape so far** (Erik's calls, 2026-10-28):
 
 - **A small-crew job.** Sized for one ship, at most an M with four S escorts: S/M freighters, or part of an L freighter's cargo forced out, never an escorted convoy. A big shortage may take several targets or partial deliveries.
