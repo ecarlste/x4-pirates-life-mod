@@ -53,6 +53,8 @@ Standing counts booty after the stolen bonus, the group's taste multiplier and t
 
 ## Unlocks in the build menus
 
+**Superseded 2026-10-28:** reaching a level now unlocks its variants for buying, and booty buys blueprints ([DESIGN.md](../DESIGN.md#booty-and-pirate-standing)). The research mechanism below is unchanged; only who triggers `add_research` changed.
+
 Erik's decision (2026-10-27): no store with its own stock. Booty buys an unlock, one ship or weapon at a time, from the group's representative (like vanilla's faction HQ window for licences and blueprints); standing decides which unlocks are offered. The unlocked ship or item can then be bought with credits in the group's wharf or shipyard's normal menus, at the vanilla base price times a multiplier. Locked ones still show, with the reason. Whether the game allows that per player is the spike in the plan. A faction of our own to sell the variants is the last resort.
 
 ### Spike findings (2026-10-27, game files only)

@@ -4,7 +4,7 @@ Plan item: Phase 2, slice 3, "Booty v1" · Status: Draft
 
 ## Goal
 
-The player hands a prize to the Vigor Syndicate at their wharf or shipyard in Windfall I. They're paid twice: credits, like a sale minus the fence's cut, plus booty, the Vigor currency. Booty also raises their standing with Vigor, through many levels. Levels open bigger turn-ins, a lower cut, and tiers of pirate variants of ships and gear. The player buys a variant's unlock (or its blueprint) with booty in a conversation at a Vigor station, then buys the variant itself with credits in Vigor's normal build menus, or builds it at their own yard from the blueprint.
+The player hands a prize to the Vigor Syndicate at their wharf or shipyard in Windfall I. They're paid twice: credits, like a sale minus the fence's cut, plus booty, the Vigor currency. Booty also raises their standing with Vigor, through many levels. Levels open bigger turn-ins, a lower cut, and tiers of pirate variants of ships and gear. Reaching a level unlocks its variants: the player buys them with credits in Vigor's normal build menus. Booty buys a variant's blueprint, in a conversation at a Vigor station, to build it at their own yard.
 
 ## Context
 
@@ -31,7 +31,7 @@ Built in four PRs, each with its game tests, after the pirated mark:
 - **Levels:** a list of `table[$standing, $size]`, the standing needed for each level and the largest ship size it takes (1 S to 4 XL). 21 levels from the [time targets](../research/booty.md#levels-and-thresholds): M at level 4 (6M standing), L at 8 (20M), XL at 15 (110M), the top at 20 (320M). Each unlock names its own level, so "tiers of unlocks" is unlock data, not level data.
 - **The fence cut** isn't level data: it falls evenly from `BootyCutStart` (40%) at level 0 to `BootyCutFloor` (10%) at the top level, so the two settings tune it.
 - **Stations:** found when needed, not listed: stations whose true owner is in the group's factions, `iswharf` or `isshipyard`, and that can dock the prize's size. Stations can be destroyed or change hands.
-- **State per game:** `global.$APiratesLife_Groups.{'$' + id}` = `table[$standing, $booty, $unlocks]` (MD tables need string keys that start with `$`). Standing only goes up; booty goes up and down; `$unlocks` lists the unlocks bought.
+- **State per game:** `global.$APiratesLife_Groups.{'$' + id}` = `table[$standing, $booty, $blueprints]` (MD tables need string keys that start with `$`). Standing only goes up; booty goes up and down; `$blueprints` lists the blueprints bought.
 
 ### Handing a prize over
 
@@ -71,15 +71,16 @@ Built in four PRs, each with its game tests, after the pirated mark:
 - **Kept in sync:** every generated file carries a stamp, a hash of the list and the generator. `make test` runs `generate_variants.py --check`: with the game files, it regenerates in memory and compares; without them (as in CI), it checks that every expected file is there, none is left over, and all carry the current stamp. Unit tests run the generator on a small made-up install written in the test (`tests/python/test_generate_variants.py`), so no game data is committed. Python unit tests count as test-plan coverage, as the Lua ones do.
 - **The first set:** as [DESIGN.md](../DESIGN.md#booty-and-pirate-standing) lists it (hulls by pirate role, base game and Tides of Avarice only; pirate engines, shields and the Stripper). The rig recipes are still being worked out in [research/pirate-variants.md](../research/pirate-variants.md#pirate-rigs-the-recipes).
 
-### Buying unlocks
+### Unlocks and blueprints
 
-- **In the conversation** with the manager of a group station: the player's booty, standing and level, then the unlocks at or below their level that aren't bought yet, each with its booty cost. Buying one takes the booty and grants the research (`add_research`); a blueprint unlock grants the blueprint too (`add_blueprints`).
-- **Costs:** an unlock costs the variant's vanilla price × the unlock cost multiplier, in booty; a blueprint costs vanilla's blueprint price for it × the blueprint cost multiplier.
+- **Unlocks come with the level** (Erik, 2026-10-28): when standing reaches a variant's level, the player is granted its research (`add_research`), with no booty taken, and told what the level unlocked. On loading a game, every variant at or below the player's level is granted too, so a variant added to the list later, or a save from before, catches up. The generator writes each variant's level where MD can read it.
+- **Blueprints are bought in the conversation** with the manager or ship trader of a group station: the player's booty, standing and level, then the blueprints of unlocked variants not bought yet, each with its booty cost. Buying one takes the booty and grants the blueprint (`add_blueprints`).
+- **Blueprint cost:** vanilla's blueprint price for the variant × `BootyBlueprintCost` (high; the default to set when building it), and at least `BootyBlueprintFloor` (250,000) booty, so cheap items, missiles above all, aren't trivially cheap.
 - **Nothing is taken back:** no `remove_research`, ever. Losing rep with Vigor only stops docking and trading at its stations.
 
 ### Settings
 
-In `md/apirateslife_config.xml`, under Tuning, each added by the PR that first uses it. The first PR adds `BootyCutStart` (40), `BootyCutFloor` (10), `BootyStolenBonus` (1.5), `BootyStandingGain` (1.0) and `BootyRepPerMillion` (0.001); the variants and unlocks PRs add the variant price and the unlock and blueprint cost multipliers. The level thresholds stay in the profile. Which of them go on the settings page is decided by the page's [rule](in-game-settings.md#design).
+In `md/apirateslife_config.xml`, under Tuning, each added by the PR that first uses it. The first PR adds `BootyCutStart` (40), `BootyCutFloor` (10), `BootyStolenBonus` (1.5), `BootyStandingGain` (1.0) and `BootyRepPerMillion` (0.001); the variants and blueprints PRs add the variant price, `BootyBlueprintCost` and `BootyBlueprintFloor`. The level thresholds stay in the profile. Which of them go on the settings page is decided by the page's [rule](in-game-settings.md#design).
 
 ## Tasks
 
@@ -87,11 +88,11 @@ In `md/apirateslife_config.xml`, under Tuning, each added by the PR that first u
 - [x] The handover order, and the pilot's move to a marine slot
 - [x] Variant list, generator with its tests and sync check, the first set of ships
 - [x] The first set's gear: pirate engines, shields, the Stripper, the pirate EMP missile
-- [ ] Unlock conversation and blueprint unlocks
+- [ ] Unlocks granted with the level, and blueprints bought with booty
 
 ## Done when
 
-The scenarios in [`tests/game/features/booty.feature`](../../tests/game/features/booty.feature) pass, and in Erik's game a captured ship handed over at the Vigor wharf pays credits and booty, and an unlocked variant can be bought there and built and delivered.
+The scenarios in [`tests/game/features/booty.feature`](../../tests/game/features/booty.feature) pass, and in Erik's game a captured ship handed over at the Vigor wharf pays credits and booty, and a variant unlocked by reaching its level can be bought there and built and delivered.
 
 ## Open questions
 

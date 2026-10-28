@@ -32,7 +32,7 @@ Every career stage runs the same loop; only the scale changes.
 1. **Find a target** — scan, buy shipping intel, follow rumors; targets are found, not spawned.
 2. **Take it** — threaten, disable or board; a feared pirate gets surrenders without a fight.
 3. **Cash in** — fence cargo, sell or keep ships, hand prizes to pirate groups as [booty](#booty-and-pirate-standing), ransom crews; hot goods sell at a cut.
-4. **Spend it** — ships, marines, crew, bribes, hideout upgrades, and unlocks from pirate groups.
+4. **Spend it** — ships, marines, crew, bribes, hideout upgrades, and blueprints from pirate groups.
 5. **Manage the heat** — notoriety brings patrols and hunters: lay low, bribe, or fight it out.
 
 Then repeat with bigger ships and bigger targets. Heat is what turns raiding into a career: it is the main difficulty lever and the reason the player keeps moving.
@@ -53,7 +53,7 @@ The hands-on capture-every-size playthrough follows these stages: S, M, L, XL, t
 
 ## Booty and pirate standing
 
-Handing prizes to pirate groups is how a pirate earns their trust and unlocks their designs. Tentative design (agreed 2026-10-26, refined 2026-10-27); the numbers are starting defaults to tune in playtests. Research and open ideas: [research/booty.md](research/booty.md).
+Handing prizes to pirate groups is how a pirate earns their trust and unlocks their designs. Tentative design (agreed 2026-10-26, refined 2026-10-27 and 2026-10-28); the numbers are starting defaults to tune in playtests. Research and open ideas: [research/booty.md](research/booty.md).
 
 - **Pirate groups.** The profile groups pirate factions that share a wharf and shipyard into a group: one dealer network with one currency, one standing ladder, one set of tastes and one list of unlocks. In vanilla each pirate faction starts as its own group; a profile like SWI's can put several factions (the Sith and their offshoots) in one.
   - **First version: the Vigor Syndicate only.** Its wharf and shipyard in Windfall I build every size, and everything is managed there. More groups come later.
@@ -66,29 +66,43 @@ Handing prizes to pirate groups is how a pirate earns their trust and unlocks th
 - **Standing is never spent and, for now, never lost.** Ways to lose it come later.
 - **Many standing levels,** several per ship-size tier, so the player keeps feeling progress. Levels open:
   - **bigger turn-ins:** at first a group only takes S ships; M, L and XL each open at a later level. An S-only pirate can still climb every level, just far more slowly;
-  - **tiers of unlocks:** e.g. Mk1, then Mk2, then Mk3 engines and shields, and the pirate-modified weapons and ships within each size;
+  - **tiers of unlocks:** e.g. Mk1, then Mk2, then Mk3 engines and shields, and the pirate-modified weapons and ships within each size, spread across all the levels so each one brings something;
   - **a lower fence cut.**
 - **Time targets for one group, if that's all the player works on:** about 2 h to open M, 8 h to open L, 25 h to open XL, and about 50 h to unlock everything that group offers. Level thresholds start from these targets and are tuned from the capture-metrics logs and playtesting.
 - **Currency per group, one kind only.** Booty is the only way to pay, so doing business with pirates means doing the mod's piracy. A second kind only if a later way of earning has to be kept apart; prices name their currency in the data so that stays a data change.
-- **Unlocks, not a store.** Booty buys the right to buy, one ship or weapon at a time, so the player buys only what they want:
-  - **Buying an unlock:** from the group's representative. Standing levels decide which unlocks are offered; the group's booty pays for them. First in a conversation, which works without any UI mod; later, with kuertee's UI Extensions, a full pirate lord window for unlocks, standing and booty (and a README line teasing the landlubbers who don't install it).
-  - **Buying the ship or item:** at the group's existing wharf or shipyard, in the normal build and equipment menus, bought with credits like any vanilla ship. One place to get ships, not a separate shop.
-  - **Locked ones still show,** with what they need (e.g. "Vigor unlock: standing level 3, buy with booty"), the way vanilla shows ships the player has no licence for.
+- **Standing unlocks buying; booty buys blueprints** (agreed 2026-10-28, in place of unlocks bought with booty):
+  - **Reaching a level unlocks its ships and gear** for buying, at no booty cost: from then on the group's existing wharf or shipyard sells them, in the normal build and equipment menus, for credits like any vanilla ship. One place to get ships, not a separate shop. Standing alone paces what the player can buy, so the grind is tuned through the level thresholds and the standing gain setting; a player who wants it faster turns that setting up.
+  - **Locked ones still show,** with what they need (e.g. "Vigor unlock: standing level 3"), the way vanilla shows ships the player has no licence for.
+  - **What each level unlocks is listed** in a table (see the first set below), so the player can see what's coming.
   - **Credit price:** the vanilla price of the ship or item it's based on, times a configurable multiplier for the variant's stronger stats.
-  - **Blueprints** of unlocked items are separate unlocks, costing more booty (keeping vanilla's price ratio), so the expensive L/XL blueprints are bought only when wanted.
+  - **Blueprints cost booty, and a lot of it:** once a level has unlocked a ship or item, its blueprint can be bought from the group's representative, to build it at the player's own wharfs and shipyards. The cost is vanilla's blueprint price for it times a high multiplier, with a floor per blueprint (250k booty to start) so cheap items, missiles above all (priced per missile, as ammunition), aren't trivially cheap. Bought in a conversation first, which works without any UI mod; later, with kuertee's UI Extensions, a full pirate lord window for blueprints, standing and booty (and a README line teasing the landlubbers who don't install it).
+  - **Booty will buy more later:** goods only pirates sell, such as the equipment mod parts vanilla only drops at random, and pilots and crew far better than a station's. Ideas for now, in the plan's "Ideas and maybe".
   - **The group's stations** must be able to build what it unlocks, and the player must be able to reach them.
-  - **Variants are gated by their unlock, not by licences.** Each unlock is a hidden research item the player is granted, which the vanilla menus already show and enforce per player ([research/booty.md](research/booty.md#unlocks-in-the-build-menus), proven in game); the menu skips the licence check for a ware that needs research. Vanilla's own wares are untouched and keep every licence gate, so the mod doesn't fight the reputation design of vanilla or of other mods: our ships and weapons are added on top and unlocked through our system.
+  - **Variants are gated by their unlock, not by licences.** Each unlock is a hidden research item the player is granted on reaching its level, which the vanilla menus already show and enforce per player ([research/booty.md](research/booty.md#unlocks-in-the-build-menus), proven in game); the menu skips the licence check for a ware that needs research. Vanilla's own wares are untouched and keep every licence gate, so the mod doesn't fight the reputation design of vanilla or of other mods: our ships and weapons are added on top and unlocked through our system.
   - **Rep still decides where the player can buy.** A group that sees the player as an enemy won't let them dock or trade, so its wharf and shipyard sell them nothing. Handovers raise rep with the station's owner where it isn't locked, so piracy is also how the player earns it.
-  - **Unlocks are kept for good.** The research is never taken back, so with an unlock's blueprint the player can build the variant at their own wharf or shipyard even at war with the group, or after destroying it.
+  - **Unlocks are kept for good.** The research is never taken back, so with a blueprint the player can build the variant at their own wharf or shipyard even at war with the group, or after destroying it.
 - **Which ships and gear get variants:** a list in the profile, not everything. Each entry names the vanilla ship or ware to copy, the pirate recipe for its stats, and the standing level that offers it; an entry can be a rule (e.g. every S/M combat weapon) so the list stays short. A generator script reads the list and the unpacked game files and writes the variants' macros, wares and unlock research; a check in the tests fails when the generated files no longer match the list. The first version starts small and grows by adding entries. (Agreed 2026-10-27; data and reasoning in [research/pirate-variants.md](research/pirate-variants.md).)
   - **Hulls are picked by pirate role, not firepower.** A pirate catches, takes, keeps and runs: speed, room for marines and loot, and docks to carry prizes matter more than guns. The roles: raider, swarm skiff, prize runner, boarding transport, flagship or boarding freighter, mothership.
   - **The core set uses base-game and Tides of Avarice hulls only,** as the mod requires no other DLC. Hulls from other DLCs are extras the profile adds when that DLC is installed.
   - **Pirate gear:** pirate combat, all-round and travel engines, built for the burst: each a bit better at catching and fleeing, with a bigger boost that is shorter and slower to come back, and a weak reverse, so a pirate who comes in hot overshoots and one who boosts at the wrong moment is stuck (engines have no hull of their own to make fragile), quick-recharge shields, and the Stripper, a gun made for capturing: a pirate rig of vanilla's ion blaster (which already does about 4× more shield than hull damage), pushed to heavy shield damage and light hull damage, so shields drop fast and prizes stay whole. S and M, Mk1–Mk3 (the Stripper in Mk1 and Mk2, as vanilla's ion blaster comes). And a pirate EMP missile with a fun name: vanilla's EMP shuts down a target's boost and travel drive with no hull damage, and the pirate one keeps it shut down longer, so prey can't run while the shields come down.
-  - **The first set:** the Pirate Kyd swarm skiff at level 1; the Pirate Lux raider, S Strippers, S pirate engines and the pirate EMP missile at levels 2–3; the Pirate Hermes boarding transport at 4, with M turn-ins; the Pirate Gorgon prize runner and M gear at 6; the Pirate Barbarossa flagship at 9; the Pirate Atlas mothership at 16, with XL turn-ins. Mk2 and Mk3 gear follow at higher levels.
+  - **The first set,** by the level that unlocks it. The levels left empty get Mk2 and Mk3 gear and more hulls as the list grows; standing is Vigor's default thresholds:
+
+    | Level | Standing | Unlocks | Turn-ins open |
+    | --- | --- | --- | --- |
+    | 0 | 0 | | S |
+    | 1 | 1M | Pirate Kyd swarm skiff | |
+    | 2 | 2.5M | Pirate Lux raider, S Stripper | |
+    | 3 | 4M | Pirate S combat, all-round and travel engines, pirate S shield, the pirate EMP missile | |
+    | 4 | 6M | Pirate Hermes boarding transport | M |
+    | 6 | 11.5M | Pirate Gorgon prize runner; M gear: Stripper, engines, shield, Stripper turret | |
+    | 8 | 20M | | L |
+    | 9 | 27M | Pirate Barbarossa flagship | |
+    | 15 | 110M | | XL |
+    | 16 | 140M | Pirate Atlas mothership | |
   - **Names:** a pirate version of an existing ship or item takes the standard name with "Pirate" for the maker (Pirate Lux, Pirate travel engine Mk1). Something new and different gets a fun name, a pun the adults catch (the Stripper).
 - **What happens to a handed-over ship:** the same as a ship sold at that station. Only the way in differs.
 - **First version:** the player hands a prize over with an order on the prize ("Hand over as booty") or in a conversation with the station manager, at a Vigor station that can take that size of ship. The prize docks and is handed over like a sale. At handover, the prize's pilot moves to a free marine slot on one of the player's ships (vanilla crew transfer, nearest first), so marines keep gaining experience; with no free slot, the pilot is lost, as in a sale.
-- **Settings,** with their starting defaults: standing gain multiplier (how grindy levels are), fence cut (40% at the start, falling to a 10% floor), stolen bonus (×1.5 on standing and on currency), the variants' credit price (×1.25 the vanilla price), unlock and blueprint cost multipliers, and the level thresholds.
+- **Settings,** with their starting defaults: standing gain multiplier (how grindy levels are), fence cut (40% at the start, falling to a 10% floor), stolen bonus (×1.5 on standing and on currency), the variants' credit price (×1.25 the vanilla price), the blueprint cost multiplier and floor (250k booty), and the level thresholds.
 
 ## Notoriety, heat, and fear vs. honor
 
@@ -175,7 +189,7 @@ Players get presets with sensible defaults, plus sliders they can change mid-gam
 
 | Group | Sliders |
 | --- | --- |
-| Economy | Payout multiplier, fence cut on hot goods and ships, laundering cost, ransom values, starting capital, booty: standing gain, fence cut, stolen bonus, unlock and blueprint costs |
+| Economy | Payout multiplier, fence cut on hot goods and ships, laundering cost, ransom values, starting capital, booty: standing gain, fence cut, stolen bonus, blueprint costs |
 | Heat | Notoriety gain and decay, heat gain and decay, police and bounty hunter response, dock closure speed |
 | Combat and capture | Escort density, boarding resistance per tier, surrender and bail likelihood |
 | Fleet | Delegated raid income cap, crew loyalty, mutiny chance |

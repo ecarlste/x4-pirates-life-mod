@@ -1,7 +1,7 @@
 # Spec: docs/specs/booty.md
 Feature: Booty
   I hand prizes to the Vigor Syndicate for credits and booty. Booty raises my standing with them,
-  which opens bigger turn-ins, a lower fence cut and pirate variants I can unlock with booty.
+  which opens bigger turn-ins, a lower fence cut and pirate variants to buy, and booty buys their blueprints.
 
   @booty_levels_and_cut
   Scenario: Levels and the fence cut follow the profile and the settings
@@ -132,22 +132,34 @@ Feature: Booty
     And its ware costs the vanilla price times the price multiplier, belongs to the group and needs a hidden research
 
   @pending
-  Scenario: Buying an unlock with booty
-    Given enough booty and the standing level an unlock needs
+  Scenario: Reaching a level unlocks its variants for buying
+    Given standing just below the level a variant needs
+    When a handover takes me to that level
+    Then I have the variant's unlock, with no booty taken, and it can be bought at the Vigor wharf
+    And I'm told what the level unlocked
+
+  @pending
+  Scenario: Unlocks are granted to a game already past their level
+    Given a game whose standing is past a variant's level, saved before that variant was in the list
+    When the game loads with the mod
+    Then I have the variant's unlock
+
+  @pending
+  Scenario: Buying a blueprint with booty
+    Given an unlocked variant and enough booty for its blueprint
     When I buy it in the station manager conversation
-    Then the booty is taken and the variant can be bought at the Vigor wharf
+    Then the booty is taken, I have its blueprint and my own wharf can build it
 
   @pending
-  Scenario: Unlocks above my level aren't offered
-    Given standing below an unlock's level
-    When I open the unlock list
-    Then that unlock isn't offered
+  Scenario: Blueprints cost the multiplier, with a floor
+    Given a variant whose vanilla blueprint price times the multiplier is below the floor
+    Then its blueprint costs the floor, and an expensive one costs its price times the multiplier
 
   @pending
-  Scenario: A blueprint unlock lets me build the variant at my own wharf
-    Given an unlocked variant
-    When I buy its blueprint unlock with booty
-    Then I have its blueprint and my own wharf can build it
+  Scenario: Blueprints of variants above my level aren't offered
+    Given standing below a variant's level
+    When I open the blueprint list
+    Then that blueprint isn't offered
 
   @pending
   Scenario: Unlocks are kept at war with Vigor
