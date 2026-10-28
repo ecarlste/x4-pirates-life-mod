@@ -56,12 +56,18 @@ Built in four PRs, each with its game tests, after the pirated mark:
 
 ### Variants
 
-- **The list:** `profiles/vanilla/variants.xml` in the repo (not shipped): the group (its id, the factions that own the variants, its name for texts), the rigs (multipliers on drag, travel acceleration, hull, crew and cargo), and one `<ship>` per variant (an id, the vanilla macro, its rig and the standing level whose unlock offers it). Rules that match many macros at once can come later. Gear entries come with the gear PR.
+- **The list:** `profiles/vanilla/variants.xml` in the repo (not shipped): the group (its id, the factions that own the variants, its name for texts), the rigs (multipliers on drag, travel acceleration, hull, crew and cargo), and one `<ship>` per variant (an id, the vanilla macro, its rig and the standing level whose unlock offers it). Rules that match many macros at once can come later. `<equipment>` entries do the same for an engine, shield generator, weapon or missile, with an optional fun `name`.
 - **The generator:** `tools/generate_variants.py` (`make variants`), reading the list and the unpacked game files (`/mnt/e/x4-dev/reference/x4-9.00/`, or `$X4_REFERENCE`). For each ship it writes:
   - `assets/units/size_*/macros/ship_apl_<id>_macro.xml`: a copy of the vanilla macro on the same model, with the rig applied and our name; and `assets/props/storagemodules/macros/storage_apl_<id>_macro.xml`, a copy of its storage macro, when the rig changes cargo;
   - their entries in `index/macros.xml` (a plain `<index>`, as the DLCs ship it);
   - in `libraries/wares.xml`: the variant's ware `ship_apl_<id>` (a copy of the vanilla ship's, at its price × 1.25, owned by the group's factions, every production method needing the unlock research), and the unlock research `research_apl_<id>` (`tags="hidden research"`). A blueprint unlock needs no research of its own: it grants the variant's blueprint (`add_blueprints`), and the player already has the research;
   - in `t/0001-l044.xml`, page 1774110 between generated markers: "Pirate" and the vanilla name (its base name, without the variation), and the research's name and description, which say what the unlock needs ("Vigor Syndicate unlock: standing level 2, bought with booty").
+- **Gear:** the generator copies an engine, shield generator, weapon or missile macro into its vanilla folder (lowercased) and rigs it:
+  - **engines:** combat, reverse, travel and boost thrust, boost duration, and the boost recharge *rate* (the UI's "Boost Recharge Rate"; below 1 is slower);
+  - **shields:** capacity, recharge rate and delay;
+  - **weapons:** a copy of the weapon's bullet macro (`assets/fx/weaponfx/macros/bullet_apl_<id>_macro.xml`) with hull damage (`value`) and shield damage rigged;
+  - **missiles:** a copy of the missile's effect list (`libraries/influenceconfigurations.xml`, `apl_<id>`, a diff patch) with every duration rigged.
+  Names: the vanilla gear name is "{maker} {size} {base name} {Mk}"; the maker becomes "Pirate" ("Pirate S Combat Engine Mk1"), or, with a fun name, the maker goes and the fun name replaces the base name ("S Stripper Mk1", "Cold Feet Mk1"). Ware IDs follow the macro: `engine_apl_combat_s`, `weapon_apl_stripper_s`, `missile_apl_coldfeet`.
 - **Kept in sync:** every generated file carries a stamp, a hash of the list and the generator. `make test` runs `generate_variants.py --check`: with the game files, it regenerates in memory and compares; without them (as in CI), it checks that every expected file is there, none is left over, and all carry the current stamp. Unit tests run the generator on a small made-up install written in the test (`tests/python/test_generate_variants.py`), so no game data is committed. Python unit tests count as test-plan coverage, as the Lua ones do.
 - **The first set:** as [DESIGN.md](../DESIGN.md#booty-and-pirate-standing) lists it (hulls by pirate role, base game and Tides of Avarice only; pirate engines, shields and the Stripper). The rig recipes are still being worked out in [research/pirate-variants.md](../research/pirate-variants.md#pirate-rigs-the-recipes).
 
@@ -80,7 +86,7 @@ In `md/apirateslife_config.xml`, under Tuning, each added by the PR that first u
 - [x] Profile library, group state, the handover by conversation with the Lua sale, the booty settings
 - [x] The handover order, and the pilot's move to a marine slot
 - [x] Variant list, generator with its tests and sync check, the first set of ships
-- [ ] The first set's gear: pirate engines, shields, the Stripper, the pirate EMP missile
+- [x] The first set's gear: pirate engines, shields, the Stripper, the pirate EMP missile
 - [ ] Unlock conversation and blueprint unlocks
 
 ## Done when

@@ -12,6 +12,13 @@ For each <ship> in the list, from the vanilla files in an unpacked X4 install:
     and the unlock research ware (hidden from the HQ research tree).
   - t/0001-l044.xml: page 1774110 (between generated markers) with the variants' names
     ("Pirate <vanilla name>") and the unlock research's name and description.
+Each <equipment> (an engine, shield generator, weapon or missile) gets the same: a rigged copy of
+its macro under the vanilla macro's folder (lowercased), its ware and unlock research, and its
+name: the vanilla name with "Pirate" for the maker ("Pirate S Combat Engine Mk1"), or, with a fun
+name in the list, the fun name for the base name ("S Stripper Mk1"). A weapon also gets a copy of
+its bullet macro (assets/fx/weaponfx/macros/bullet_apl_<id>_macro.xml) with the damage rigged; a
+missile gets a copy of its effect list (libraries/influenceconfigurations.xml, apl_<id>) with the
+durations rigged.
 See docs/specs/booty.md (Variants) and docs/research/booty.md (Unlocks in the build menus).
 
 Every generated file is stamped with a hash of the list and of this script. `--check` compares
@@ -54,7 +61,8 @@ def header(stamp_value, what):
 
 
 def parse_list(text):
-    """The list as (group, rigs, ships): group a dict, rigs {id: {attr: float}}, ships a list of dicts"""
+    """The list as (group, rigs, items): group a dict, rigs {id: {attr: float}}, items the <ship> and
+    <equipment> entries in list order, as dicts with their kind"""
     root = ET.fromstring(text)
     g = root.find("group")
     if g is None:
@@ -63,18 +71,30 @@ def parse_list(text):
     rigs = {}
     for r in root.findall("rig"):
         rigs[r.get("id")] = {k: float(v) for k, v in r.attrib.items() if k != "id"}
-    ships, seen = [], set()
-    for s in root.findall("ship"):
+    items, seen = [], set()
+    for s in root:
+        if s.tag not in ("ship", "equipment"):
+            continue
         sid = s.get("id")
         if not sid or not re.fullmatch(r"[a-z][a-z0-9_]*", sid):
-            raise ValueError("ship id %r: use lowercase letters, digits and underscores" % sid)
+            raise ValueError("%s id %r: use lowercase letters, digits and underscores" % (s.tag, sid))
         if sid in seen:
-            raise ValueError("ship id %r is listed twice" % sid)
+            raise ValueError("id %r is listed twice" % sid)
         seen.add(sid)
         if s.get("rig") not in rigs:
-            raise ValueError("ship %s: unknown rig %r" % (sid, s.get("rig")))
-        ships.append({"id": sid, "macro": s.get("macro"), "rig": s.get("rig"), "level": int(s.get("level", "0"))})
-    return group, rigs, ships
+            raise ValueError("%s %s: unknown rig %r" % (s.tag, sid, s.get("rig")))
+        items.append({"kind": s.tag, "id": sid, "macro": s.get("macro"), "rig": s.get("rig"),
+                      "level": int(s.get("level", "0")), "name": s.get("name")})
+    return group, rigs, items
+
+
+def macro_name(item):
+    """The variant's macro name: ship_apl_<id>_macro, engine_apl_<id>_macro, weapon_apl_<id>_macro..."""
+    return "%s_apl_%s_macro" % (item["macro"].split("_")[0], item["id"])
+
+
+def ware_id(item):
+    return macro_name(item)[: -len("_macro")]
 
 
 def scaled(value, factor, integer=False):
@@ -146,6 +166,12 @@ class Reference:
                     c = w.find("component")
                     if c is not None and c.get("ref"):
                         self.wares.setdefault(c.get("ref"), w)
+        self.influences = {}
+        for r in self.roots:
+            f = os.path.join(r, "libraries", "influenceconfigurations.xml")
+            if os.path.exists(f):
+                for il in ET.parse(f).getroot().iter("influencelist"):
+                    self.influences.setdefault(il.get("id"), il)
         self.texts = {}
         for r in self.roots:
             f = os.path.join(r, "t", "0001-l044.xml")
@@ -173,13 +199,44 @@ class Reference:
             raise ValueError("no macro %s in the reference files" % name)
         return ET.parse(self.macros[name]).getroot()
 
+    def macro_folder(self, name):
+        """The macro's folder relative to its install folder (base or a DLC), lowercased"""
+        path = self.macros[name]
+        root = next(r for r in self.roots if path.startswith(r + os.sep))
+        return os.path.dirname(os.path.relpath(path, root)).lower()
+
+    def equipment_name(self, ident, fun=None):
+        """A pirate name for equipment from its identification: vanilla names are references like
+        "{maker} {size} {base name} {Mk}". The maker becomes "Pirate"; with a fun name, the maker
+        goes and the fun name replaces the base name."""
+        raw = self.texts.get(tuple(re.findall(r"\d+", ident.get("name"))[:2]), "")
+        raw = re.sub(r"(?<!\\)\([^)]*\)", "", raw)
+        base = ident.get("basename", "").replace(" ", "")
+        parts, has_maker = [], False
+        for token in re.findall(r"\{\d+,\s*\d+\}", raw):
+            page = re.findall(r"\d+", token)[0]
+            if page == "20202":
+                has_maker = True
+                if not fun:
+                    parts.append("Pirate")
+            elif fun and token.replace(" ", "") == base:
+                parts.append(fun)
+            else:
+                parts.append(self.text(token))
+        if not fun and not has_maker:
+            parts.insert(0, "Pirate")
+        return " ".join(p for p in parts if p)
+
 
 def generate(ref, list_text, list_bytes, script_bytes):
     """{repo-relative path: file text} for everything the list makes"""
-    group, rigs, ships = parse_list(list_text)
+    group, rigs, items = parse_list(list_text)
     st = stamp(list_bytes, script_bytes)
-    files, index, wares, texts = {}, [], [], []
-    for n, s in enumerate(ships, 1):
+    files, index, wares, texts, influences = {}, [], [], [], []
+    for n, s in enumerate(items, 1):
+        if s["kind"] == "equipment":
+            generate_equipment(ref, group, s, rigs[s["rig"]], n, st, files, index, wares, texts, influences)
+            continue
         rig = rigs[s["rig"]]
         sid = s["id"]
         root = ref.macro(s["macro"])
@@ -211,34 +268,7 @@ def generate(ref, list_text, list_bytes, script_bytes):
         files[path] = to_text(root, header(st, "the %s variant of %s, rig %s" % (sid, s["macro"], s["rig"])))
         index.append((ship_name, path))
 
-        vware = ref.wares.get(s["macro"])
-        if vware is None:
-            raise ValueError("no ware builds %s" % s["macro"])
-        research_id = "research_apl_%s" % sid
-        w = copy.deepcopy(vware)
-        w.set("id", "ship_apl_%s" % sid)
-        w.set("name", "{%d,%d}" % (TEXT_PAGE, name_id))
-        price = w.find("price")
-        for a in ("min", "average", "max"):
-            price.set(a, scaled(price.get(a), group_price(group), integer=True))
-        for prod in w.findall("production"):
-            for old in prod.findall("research"):
-                prod.remove(old)
-            r = ET.SubElement(prod, "research")
-            ET.SubElement(r, "ware", {"ware": research_id})
-        w.find("component").set("ref", ship_name)
-        for o in w.findall("owner"):
-            w.remove(o)
-        for f in group["factions"]:
-            ET.SubElement(w, "owner", {"faction": f})
-        wares.append(w)
-        rw = ET.Element("ware", {"id": research_id, "name": "{%d,%d}" % (TEXT_PAGE, research_name_id),
-                                 "description": "{%d,%d}" % (TEXT_PAGE, research_desc_id),
-                                 "transport": "research", "volume": "1", "tags": "hidden research"})
-        ET.SubElement(rw, "price", {"min": "1", "average": "1", "max": "1"})
-        prim = ET.SubElement(ET.SubElement(rw, "research", {"time": "1"}), "primary")
-        ET.SubElement(prim, "ware", {"ware": "energycells", "amount": "1"})
-        wares.append(rw)
+        wares += variant_wares(ref, group, s, n)
 
     idx = ET.Element("index")
     for name, path in sorted(index):
@@ -251,11 +281,122 @@ def generate(ref, list_text, list_bytes, script_bytes):
     files[os.path.join("libraries", "wares.xml")] = to_text(diff, header(
         st, "the variant wares, and the hidden research each needs (tags=\"hidden research\" keeps it out of "
         "the HQ research tree, ui/addons/ego_detailmonitor/menu_research.lua)"))
+    if influences:
+        idiff = ET.Element("diff")
+        iadd = ET.SubElement(idiff, "add", {"sel": "/influencelistconfigurations"})
+        for il in influences:
+            iadd.append(il)
+        files[os.path.join("libraries", "influenceconfigurations.xml")] = to_text(idiff, header(
+            st, "the effect lists of the pirate missiles"))
     page = ['  <page id="%d" title="A Pirate\'s Life" descr="Pirate variants (generated)" voice="no">' % TEXT_PAGE]
     page += ['    <t id="%d">%s</t>' % (i, xml_escape(t)) for i, t in texts]
     page.append("  </page>")
     files[TEXT_FILE] = "\n".join(["  " + TEXT_BEGIN, "  " + header(st, "the variant texts")] + page + ["  " + TEXT_END])
     return files
+
+
+def variant_wares(ref, group, item, n):
+    """The variant's ware (a copy of the vanilla one: priced x the group's multiplier, owned by the
+    group's factions, every production method needing the unlock) and its unlock research"""
+    vware = ref.wares.get(item["macro"])
+    if vware is None:
+        raise ValueError("no ware is built from %s" % item["macro"])
+    research_id = "research_apl_%s" % item["id"]
+    w = copy.deepcopy(vware)
+    w.set("id", ware_id(item))
+    w.set("name", "{%d,%d}" % (TEXT_PAGE, 10 * n + 1))
+    price = w.find("price")
+    for a in ("min", "average", "max"):
+        price.set(a, scaled(price.get(a), group_price(group), integer=True))
+    for prod in w.findall("production"):
+        for old in prod.findall("research"):
+            prod.remove(old)
+        r = ET.SubElement(prod, "research")
+        ET.SubElement(r, "ware", {"ware": research_id})
+    w.find("component").set("ref", macro_name(item))
+    for o in w.findall("owner"):
+        w.remove(o)
+    for f in group["factions"]:
+        ET.SubElement(w, "owner", {"faction": f})
+    rw = ET.Element("ware", {"id": research_id, "name": "{%d,%d}" % (TEXT_PAGE, 10 * n + 2),
+                             "description": "{%d,%d}" % (TEXT_PAGE, 10 * n + 3),
+                             "transport": "research", "volume": "1", "tags": "hidden research"})
+    ET.SubElement(rw, "price", {"min": "1", "average": "1", "max": "1"})
+    prim = ET.SubElement(ET.SubElement(rw, "research", {"time": "1"}), "primary")
+    ET.SubElement(prim, "ware", {"ware": "energycells", "amount": "1"})
+    return [w, rw]
+
+
+# Equipment rigs: rig attribute -> (property element, attribute, whole number)
+ENGINE_RIG = {"thrust": ("thrust", "forward", False), "reverse": ("thrust", "reverse", False),
+              "travelthrust": ("travel", "thrust", False), "boostthrust": ("boost", "thrust", False),
+              "boostduration": ("boost", "duration", False), "boostrecharge": ("boost", "recharge", False)}
+SHIELD_RIG = {"capacity": ("recharge", "max", True), "rate": ("recharge", "rate", False),
+              "delay": ("recharge", "delay", False)}
+
+
+def apply_rig(props, rig, table):
+    for key, (element, attr, integer) in table.items():
+        if key in rig:
+            e = props.find(element)
+            if e is None or e.get(attr) is None:
+                raise ValueError("the rig sets %s, but the macro has no %s %s" % (key, element, attr))
+            e.set(attr, scaled(e.get(attr), rig[key], integer))
+
+
+def generate_equipment(ref, group, item, rig, n, st, files, index, wares, texts, influences):
+    root = ref.macro(item["macro"])
+    mac = root.find("macro")
+    cls = mac.get("class")
+    props = mac.find("properties")
+    ident = props.find("identification")
+    name = ref.equipment_name(ident, item["name"])
+    vanilla_name = ref.equipment_name(ident, None).replace("Pirate ", "", 1)
+    texts += [(10 * n + 1, name),
+              (10 * n + 2, "%s unlock: standing level %d, bought with booty" % (group["name"], item["level"])),
+              (10 * n + 3, "The %s's pirate rig of the %s. Reach standing level %d with the %s, then buy the "
+               "unlock with their booty from a station manager or ship trader at one of their wharfs or "
+               "shipyards." % (group["name"], vanilla_name, item["level"], group["name"]))]
+    new_name = macro_name(item)
+    mac.set("name", new_name)
+    ident.set("name", "{%d,%d}" % (TEXT_PAGE, 10 * n + 1))
+    ident.set("shortname", "{%d,%d}" % (TEXT_PAGE, 10 * n + 1))
+    ident.attrib.pop("basename", None)
+    if cls == "engine":
+        apply_rig(props, rig, ENGINE_RIG)
+    elif cls == "shieldgenerator":
+        apply_rig(props, rig, SHIELD_RIG)
+    elif cls == "weapon":
+        bullet = props.find("bullet")
+        bullet_name = "bullet_apl_%s_macro" % item["id"]
+        broot = ref.macro(bullet.get("class"))
+        bmac = broot.find("macro")
+        bmac.set("name", bullet_name)
+        dmg = bmac.find("properties/damage")
+        hull = float(dmg.get("value", 0))
+        shield = float(dmg.get("shield", hull))
+        dmg.set("value", scaled(hull, rig.get("hulldamage", 1.0)))
+        dmg.set("shield", scaled(shield, rig.get("shielddamage", 1.0)))
+        bpath = os.path.join(ref.macro_folder(bullet.get("class")), bullet_name + ".xml")
+        files[bpath] = to_text(broot, header(st, "the bullet of the %s variant (%s)" % (item["id"], bullet.get("class"))))
+        index.append((bullet_name, bpath))
+        bullet.set("class", bullet_name)
+    elif cls == "missile":
+        m = props.find("missile")
+        il = copy.deepcopy(ref.influences[m.get("influencelist")])
+        il.set("id", "apl_%s" % item["id"])
+        for prof in il.iter("profile"):
+            for a in ("duration", "attackduration", "sustainduration", "releaseduration"):
+                if prof.get(a) is not None:
+                    prof.set(a, scaled(prof.get(a), rig.get("disable", 1.0)))
+        influences.append(il)
+        m.set("influencelist", "apl_%s" % item["id"])
+    else:
+        raise ValueError("%s: no rig for equipment of class %s" % (item["macro"], cls))
+    path = os.path.join(ref.macro_folder(item["macro"]), new_name + ".xml")
+    files[path] = to_text(root, header(st, "the %s variant of %s, rig %s" % (item["id"], item["macro"], item["rig"])))
+    index.append((new_name, path))
+    wares += variant_wares(ref, group, item, n)
 
 
 def group_price(group):
@@ -276,12 +417,22 @@ def merge_text_page(current, block):
 
 def expected_paths(list_text):
     """The files the list makes, known without the game files"""
-    group, rigs, ships = parse_list(list_text)
+    group, rigs, items = parse_list(list_text)
     paths = {os.path.join("index", "macros.xml"), os.path.join("libraries", "wares.xml")}
-    for s in ships:
-        if "cargo" in rigs[s["rig"]]:
+    for s in items:
+        if s["kind"] == "ship" and "cargo" in rigs[s["rig"]]:
             paths.add(os.path.join("assets", "props", "storagemodules", "macros", "storage_apl_%s_macro.xml" % s["id"]))
+        if s["macro"].startswith("missile_"):
+            paths.add(os.path.join("libraries", "influenceconfigurations.xml"))
     return paths
+
+
+def expected_macros(list_text):
+    """The file names of the variant macros the list makes (storage macros aside), known without the game files"""
+    _, _, items = parse_list(list_text)
+    names = {macro_name(s) + ".xml" for s in items}
+    names |= {"bullet_apl_%s_macro.xml" % s["id"] for s in items if s["macro"].startswith("weapon_")}
+    return names
 
 
 def generated_on_disk(repo):
@@ -300,16 +451,16 @@ def check_stamps(repo, list_text, current):
     problems = []
     on_disk = generated_on_disk(repo)
     needed = expected_paths(list_text)
-    ship_files = {p for p in on_disk if p.startswith(os.path.join("assets", "units"))}
+    macro_files = {p for p in on_disk if p.startswith("assets" + os.sep) and "_apl_" in os.path.basename(p)
+                   and not os.path.basename(p).startswith("storage_apl_")}
     for p in sorted(needed - on_disk):
         problems.append("missing: %s" % p)
-    _, _, ships = parse_list(list_text)
-    want_ships = {"ship_apl_%s_macro.xml" % s["id"] for s in ships}
-    have_ships = {os.path.basename(p) for p in ship_files}
-    for name in sorted(want_ships - have_ships):
-        problems.append("missing: ship macro %s" % name)
-    for name in sorted(have_ships - want_ships):
-        problems.append("left over: ship macro %s (no longer in the list)" % name)
+    want = expected_macros(list_text)
+    have = {os.path.basename(p) for p in macro_files}
+    for name in sorted(want - have):
+        problems.append("missing: macro %s" % name)
+    for name in sorted(have - want):
+        problems.append("left over: macro %s (no longer in the list)" % name)
     for p in sorted(on_disk):
         with open(os.path.join(repo, p), encoding="utf-8", errors="replace") as fh:
             m = STAMP.search(fh.read(400))

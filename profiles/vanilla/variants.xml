@@ -15,8 +15,18 @@
                  crew         crew capacity (people), rounded, at least the vanilla value + 1
                  cargo        cargo capacity, through a copy of the ship's storage macro
                Still being worked out (docs/research/pirate-variants.md, Pirate rigs).
+               Equipment rigs (agreed 2026-10-27, to tune by feel):
+                 engines      thrust (combat), reverse, travelthrust, boostthrust, boostduration,
+                              boostrecharge (the boost recharge *rate*: below 1 is slower)
+                 shields      capacity, rate, delay (the wait before recharging)
+                 weapons      hulldamage, shielddamage, through a copy of the weapon's bullet macro
+                 missiles     disable: how long the missile's effects (the EMP's boost and travel
+                              shutdown) last
      <ship>    a variant: id (short, unique, used in generated IDs), the vanilla macro, its rig, the
-               standing level whose unlock offers it, and the role (for the reader). -->
+               standing level whose unlock offers it, and the role (for the reader).
+     <equipment> the same for an engine, shield generator, weapon or missile; name gives something
+               new a fun name in place of its base name (docs/DESIGN.md: "Pirate" for a pirate version
+               of existing gear, a fun name for something new). -->
 <variants>
   <group id="vigor" factions="loanshark" name="Vigor Syndicate"/>
 
@@ -27,10 +37,32 @@
   <rig id="flagship" drag="0.85" travelaccel="1.2" hull="0.9" crew="1.25" cargo="1.25"/>
   <rig id="mothership" drag="0.8" travelaccel="1.2" hull="0.9" crew="1.2"/>
 
+  <!-- Pirate engines are built for the burst: a bigger, shorter boost that's slower to come back,
+       and a weak reverse, so a pirate who comes in hot overshoots -->
+  <rig id="engine_combat" thrust="1.1" travelthrust="1.15" boostthrust="1.3" boostduration="0.7" boostrecharge="0.77" reverse="0.7"/>
+  <rig id="engine_allround" thrust="1.05" travelthrust="1.2" boostthrust="1.3" boostduration="0.7" boostrecharge="0.77" reverse="0.7"/>
+  <rig id="engine_travel" thrust="0.9" travelthrust="1.3" boostthrust="1.3" boostduration="0.7" boostrecharge="0.77" reverse="0.7"/>
+  <rig id="shield_quick" capacity="0.85" delay="0.7"/>
+  <rig id="stripper" hulldamage="0.6" shielddamage="1.3"/>
+  <rig id="emp_long" disable="1.5"/>
+
   <ship id="kyd" macro="ship_pir_s_fighter_01_a_macro" rig="swarm" level="1" role="swarm skiff"/>
   <ship id="lux" macro="ship_pir_s_fighter_02_a_macro" rig="raider" level="2" role="raider"/>
   <ship id="hermes" macro="ship_par_m_trans_container_02_a_macro" rig="boarder" level="4" role="boarding transport"/>
   <ship id="gorgon" macro="ship_par_m_frigate_01_a_macro" rig="prizerunner" level="6" role="prize runner"/>
   <ship id="barbarossa" macro="ship_pir_l_scavenger_01_a_macro" rig="flagship" level="9" role="raider flagship"/>
   <ship id="atlas" macro="ship_par_xl_resupplier_02_a_macro" rig="mothership" level="16" role="mothership"/>
+
+  <!-- S gear at levels 2 and 3, M gear with the Gorgon at 6 -->
+  <equipment id="stripper_s" macro="weapon_arg_s_ion_01_mk1_macro" rig="stripper" name="Stripper" level="2"/>
+  <equipment id="combat_s" macro="engine_arg_s_combat_01_mk1_macro" rig="engine_combat" level="3"/>
+  <equipment id="allround_s" macro="engine_arg_s_allround_01_mk1_macro" rig="engine_allround" level="3"/>
+  <equipment id="travel_s" macro="engine_arg_s_travel_01_mk1_macro" rig="engine_travel" level="3"/>
+  <equipment id="quick_s" macro="shield_arg_s_standard_01_mk1_macro" rig="shield_quick" level="3"/>
+  <equipment id="coldfeet" macro="missile_emp_mk1_macro" rig="emp_long" name="Cold Feet" level="3"/>
+  <equipment id="stripper_m" macro="weapon_arg_m_ion_01_mk1_macro" rig="stripper" name="Stripper" level="6"/>
+  <equipment id="combat_m" macro="engine_arg_m_combat_01_mk1_macro" rig="engine_combat" level="6"/>
+  <equipment id="allround_m" macro="engine_arg_m_allround_01_mk1_macro" rig="engine_allround" level="6"/>
+  <equipment id="travel_m" macro="engine_arg_m_travel_01_mk1_macro" rig="engine_travel" level="6"/>
+  <equipment id="quick_m" macro="shield_arg_m_standard_01_mk1_macro" rig="shield_quick" level="6"/>
 </variants>

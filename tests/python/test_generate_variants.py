@@ -70,8 +70,117 @@ TEXTS = """<?xml version="1.0" encoding="utf-8"?>
   </page>
   <page id="20111">
     <t id="1101">Vanguard</t>
+    <t id="5011">S</t>
+    <t id="101">Mk1</t>
   </page>
 </language>
+"""
+ENGINE = """<?xml version="1.0" encoding="utf-8"?>
+<macros>
+  <macro name="engine_tst_s_combat_01_mk1_macro" class="engine">
+    <component ref="engine_tst_s_combat_01_mk1" />
+    <properties>
+      <identification name="{20107,1204}" basename="{20107,1201}" makerrace="argon" mk="1" />
+      <boost duration="10" recharge="80" thrust="8" acceleration="8" />
+      <travel charge="6" thrust="10" attack="40" release="10" />
+      <thrust forward="400" reverse="400" />
+      <hull integrated="1" />
+    </properties>
+  </macro>
+</macros>
+"""
+SHIELD = """<?xml version="1.0" encoding="utf-8"?>
+<macros>
+  <macro name="shield_tst_s_standard_01_mk1_macro" class="shieldgenerator">
+    <component ref="shield_tst_s_standard_01_mk1" />
+    <properties>
+      <identification name="{20106,1004}" basename="{20106,1001}" makerrace="argon" mk="1" />
+      <recharge max="1000" rate="50" delay="10" />
+    </properties>
+  </macro>
+</macros>
+"""
+WEAPON = """<?xml version="1.0" encoding="utf-8"?>
+<macros>
+  <macro name="weapon_tst_s_ion_01_mk1_macro" class="weapon">
+    <component ref="weapon_tst_s_ion_01_mk1" />
+    <properties>
+      <identification name="{20105,1184}" basename="{20105,1181}" makerrace="argon" mk="1" />
+      <bullet class="bullet_tst_s_ion_01_mk1_macro" />
+    </properties>
+  </macro>
+</macros>
+"""
+BULLET = """<?xml version="1.0" encoding="utf-8"?>
+<macros>
+  <macro name="bullet_tst_s_ion_01_mk1_macro" class="bullet">
+    <component ref="bullet_tst_s_ion_01_mk1" />
+    <properties>
+      <damage value="100" shield="400" repair="0" />
+    </properties>
+  </macro>
+</macros>
+"""
+MISSILE = """<?xml version="1.0" encoding="utf-8"?>
+<macros>
+  <macro name="missile_tst_emp_mk1_macro" class="missile">
+    <component ref="missile_tst_emp_mk1" />
+    <properties>
+      <identification name="{20105,6164}" basename="{20105,6161}" />
+      <missile amount="1" influencelist="tst_emp" guided="1" />
+    </properties>
+  </macro>
+</macros>
+"""
+INFLUENCES = """<?xml version="1.0" encoding="utf-8"?>
+<influencelistconfigurations>
+  <influencelist id="tst_emp" name="{20230,2001}">
+    <influences classes="ship_s ship_m">
+      <influence type="disableboost">
+        <profile type="continuous" duration="30" />
+      </influence>
+    </influences>
+  </influencelist>
+</influencelistconfigurations>
+"""
+GEAR_WARES = "".join("""  <ware id="%s" name="{1,1}" transport="equipment" volume="1" tags="equipment">
+    <price min="80" average="100" max="120" />
+    <production time="10" amount="1" method="default">
+      <primary>
+        <ware ware="energycells" amount="10" />
+      </primary>
+    </production>
+    <component ref="%s_macro" />
+    <owner faction="argon" />
+  </ware>
+""" % (w, w) for w in ("engine_tst_s_combat_01_mk1", "shield_tst_s_standard_01_mk1", "weapon_tst_s_ion_01_mk1", "missile_tst_emp_mk1"))
+GEAR_TEXTS = """  <page id="20202">
+    <t id="103">ARG</t>
+  </page>
+  <page id="20107">
+    <t id="1201">Combat Engine</t>
+    <t id="1204">(ARG S Combat Engine Mk1){20202,103} {20111,5011} {20107,1201} {20111,101}</t>
+  </page>
+  <page id="20106">
+    <t id="1001">Shield Generator</t>
+    <t id="1004">(ARG S Shield Generator Mk1){20202,103} {20111,5011} {20106,1001} {20111,101}</t>
+  </page>
+  <page id="20105">
+    <t id="1181">Ion Blaster</t>
+    <t id="1184">(ARG S Ion Blaster Mk1){20202,103} {20111,5011} {20105,1181} {20111,101}</t>
+    <t id="6161">EMP Missile</t>
+    <t id="6164">(EMP Missile Mk1){20105,6161} {20111,101}</t>
+  </page>
+"""
+GEAR_LIST = """  <rig id="combat" thrust="1.1" travelthrust="1.15" boostthrust="1.3" boostduration="0.7" boostrecharge="0.77" reverse="0.7"/>
+  <rig id="quick" capacity="0.85" delay="0.7"/>
+  <rig id="stripper" hulldamage="0.6" shielddamage="1.3"/>
+  <rig id="emp" disable="1.5"/>
+  <equipment id="combat_s" macro="engine_tst_s_combat_01_mk1_macro" rig="combat" level="3"/>
+  <equipment id="quick_s" macro="shield_tst_s_standard_01_mk1_macro" rig="quick" level="3"/>
+  <equipment id="stripper_s" macro="weapon_tst_s_ion_01_mk1_macro" rig="stripper" name="Stripper" level="2"/>
+  <equipment id="coldfeet" macro="missile_tst_emp_mk1_macro" rig="emp" name="Cold Feet" level="3"/>
+</variants>
 """
 OUR_TEXTS = """<?xml version="1.0" encoding="utf-8"?>
 <language id="44">
@@ -97,8 +206,14 @@ class Variants(unittest.TestCase):
         self.ref = os.path.join(self.tmp.name, "ref")
         write(self.ref, "base/assets/units/size_s/macros/ship_tst_s_fighter_01_a_macro.xml", SHIP)
         write(self.ref, "base/assets/props/storagemodules/macros/storage_tst_s_fighter_01_a_macro.xml", STORAGE)
-        write(self.ref, "base/libraries/wares.xml", WARES)
-        write(self.ref, "base/t/0001-l044.xml", TEXTS)
+        write(self.ref, "base/t/0001-l044.xml", TEXTS.replace("</language>", GEAR_TEXTS + "</language>"))
+        write(self.ref, "base/assets/props/Engines/macros/engine_tst_s_combat_01_mk1_macro.xml", ENGINE)
+        write(self.ref, "base/assets/props/SurfaceElements/macros/shield_tst_s_standard_01_mk1_macro.xml", SHIELD)
+        write(self.ref, "base/assets/props/WeaponSystems/energy/macros/weapon_tst_s_ion_01_mk1_macro.xml", WEAPON)
+        write(self.ref, "base/assets/fx/weaponFx/macros/bullet_tst_s_ion_01_mk1_macro.xml", BULLET)
+        write(self.ref, "base/assets/props/WeaponSystems/missile/macros/missile_tst_emp_mk1_macro.xml", MISSILE)
+        write(self.ref, "base/libraries/influenceconfigurations.xml", INFLUENCES)
+        write(self.ref, "base/libraries/wares.xml", WARES.replace("</wares>", GEAR_WARES + "</wares>"))
         self.repo = os.path.join(self.tmp.name, "repo")
         write(self.repo, "t/0001-l044.xml", OUR_TEXTS)
         self.write_list(LIST)
@@ -203,6 +318,58 @@ class Variants(unittest.TestCase):
         self.assertIn("left over", out)
         self.run_tool()
         self.assertFalse(os.path.exists(os.path.join(self.repo, "assets/units/size_s/macros/ship_apl_tester_macro.xml")))
+
+    def with_gear(self):
+        self.write_list(LIST.replace("</variants>\n", GEAR_LIST))
+        self.assertEqual(self.run_tool()[0], 0)
+
+    def test_variants_engine_rig_burst_boost_and_weak_reverse(self):
+        self.with_gear()
+        p = self.macro("assets/props/engines/macros/engine_apl_combat_s_macro.xml").find("properties")
+        self.assertEqual(p.find("thrust").get("forward"), "440")
+        self.assertEqual(p.find("thrust").get("reverse"), "280")
+        self.assertEqual(p.find("travel").get("thrust"), "11.5")
+        boost = p.find("boost")
+        self.assertEqual((boost.get("thrust"), boost.get("duration"), boost.get("recharge")), ("10.4", "7", "61.6"))
+
+    def test_variants_shield_rig_scales_capacity_and_recharge_delay(self):
+        self.with_gear()
+        r = self.macro("assets/props/surfaceelements/macros/shield_apl_quick_s_macro.xml").find("properties/recharge")
+        self.assertEqual((r.get("max"), r.get("delay"), r.get("rate")), ("850", "7", "50"))
+
+    def test_variants_stripper_copies_the_bullet_with_shield_up_and_hull_down(self):
+        self.with_gear()
+        weapon = self.macro("assets/props/weaponsystems/energy/macros/weapon_apl_stripper_s_macro.xml")
+        self.assertEqual(weapon.find("properties/bullet").get("class"), "bullet_apl_stripper_s_macro")
+        dmg = self.macro("assets/fx/weaponfx/macros/bullet_apl_stripper_s_macro.xml").find("properties/damage")
+        self.assertEqual((dmg.get("value"), dmg.get("shield")), ("60", "520"))
+        self.assertIn('name="bullet_apl_stripper_s_macro"', self.read("index/macros.xml"))
+
+    def test_variants_missile_copies_its_effect_list_with_longer_shutdowns(self):
+        self.with_gear()
+        m = self.macro("assets/props/weaponsystems/missile/macros/missile_apl_coldfeet_macro.xml")
+        self.assertEqual(m.find("properties/missile").get("influencelist"), "apl_coldfeet")
+        diff = ET.fromstring(self.read("libraries/influenceconfigurations.xml").split("\n", 2)[2])
+        il = diff.find("add/influencelist")
+        self.assertEqual(il.get("id"), "apl_coldfeet")
+        self.assertEqual(il.find(".//profile").get("duration"), "45")
+
+    def test_variants_gear_is_named_pirate_or_given_its_fun_name(self):
+        self.with_gear()
+        text = self.read("t/0001-l044.xml")
+        for name in ("Pirate S Combat Engine Mk1", "Pirate S Shield Generator Mk1", "S Stripper Mk1", "Cold Feet Mk1"):
+            self.assertIn(">%s</t>" % name, text)
+        diff = ET.fromstring(self.read("libraries/wares.xml").split("\n", 2)[2])
+        ids = {w.get("id") for w in diff.iter("ware") if w.get("id")}
+        self.assertTrue({"engine_apl_combat_s", "research_apl_combat_s", "weapon_apl_stripper_s", "missile_apl_coldfeet"} <= ids)
+
+    def test_variants_stamp_check_knows_the_gear_files_without_game_files(self):
+        self.with_gear()
+        self.assertEqual(self.check_without_game_files()[0], 0)
+        os.remove(os.path.join(self.repo, "assets/fx/weaponfx/macros/bullet_apl_stripper_s_macro.xml"))
+        code, out = self.check_without_game_files()
+        self.assertEqual(code, 1)
+        self.assertIn("bullet_apl_stripper_s_macro", out)
 
     def test_variants_list_refuses_unknown_rigs_and_repeated_ids(self):
         with self.assertRaises(ValueError):

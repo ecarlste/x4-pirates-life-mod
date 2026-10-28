@@ -79,13 +79,36 @@ Feature: Booty
   Scenario: Enough standing raises my level and lowers the cut
     Given standing just below the next level
     When a handover takes it past the threshold
-    Then my level goes up, I'm told so, and the next handover's cut is that level's
+    Then my level goes up (one level or more, as the prize's price varies), I'm told so, and the next handover's cut is that level's
 
   @booty_handover_pays
   Scenario: A handover raises rep with Vigor
     Given a relation with Vigor that isn't locked
     When I hand a prize over
     Then my relation with Vigor goes up
+
+  @variant_gear
+  Scenario: The pirate gear loads and fits
+    Given the pirate gear generated from the list
+    When a Nova is fitted with pirate combat engines, a pirate shield and a Stripper, and another with the vanilla gear they're rigs of
+    Then the pirate Nova is about 10% faster and boosts faster still, and its shield holds 15% less
+    And every gear ware and its unlock research exist, named as generated, and I don't have the research yet
+
+  @test_variants_engine_rig_burst_boost_and_weak_reverse @test_variants_shield_rig_scales_capacity_and_recharge_delay @test_variants_stripper_copies_the_bullet_with_shield_up_and_hull_down @test_variants_missile_copies_its_effect_list_with_longer_shutdowns @test_variants_gear_is_named_pirate_or_given_its_fun_name @test_variants_stamp_check_knows_the_gear_files_without_game_files
+  Scenario: A rig changes a copy of the vanilla gear
+    Given a vanilla engine, shield, weapon or missile and a rig in the list
+    When the generator runs
+    Then pirate engines have the rig's thrust, a bigger, shorter, slower-to-recharge boost and a weak reverse
+    And pirate shields hold less and start recharging sooner
+    And a Stripper fires a copy of its bullet with more shield damage and less hull damage
+    And a pirate missile has a copy of its effect list with the shutdowns lasting longer
+    And each is named "Pirate" for the maker, or by its fun name for its base name ("S Stripper Mk1", "Cold Feet Mk1")
+
+  @manual
+  Scenario: Locked pirate gear shows what it needs
+    Given pirate gear I haven't unlocked
+    When I look at it in the Vigor wharf's equipment or upgrade menu
+    Then it shows in red with the beaker, naming the standing level and that it's bought with booty
 
   @manual
   Scenario: A locked variant shows what it needs
