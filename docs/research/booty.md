@@ -126,6 +126,13 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 - **How the job reaches the player** (Erik, 2026-10-28), one of two ways, not yet picked:
   - **Added for you:** when the chance comes up, the mission is put straight into the player's mission list, as vanilla does with the trip to a faction's HQ after a promotion (`base/md/playerreputation.xml:169`).
   - **Offered at the station** (less intrusive): the mission joins the station's available missions, the way minefield clearing or pirate hunting offers turn up when the player flies past their mission giver. Vanilla's generic missions do this with `create_offer` on the station (`base/md/gm_supplyfactory.xml:326`).
+- **Finding a carrier in real traffic** (Erik, 2026-10-28). A freighter tagged at the start may unload before the player reaches it, so the mission works with live traffic instead. Spawning freighters for the job is allowed, but the aim is to use the universe's own traffic and keep its balance. The steps:
+  1. **Stake out a source:** drop an advanced satellite in range of a nearby station that has a surplus of the ware.
+  2. **Spot a carrier:** when the satellite sees a ship leave that station freshly loaded with the ware, the mission moves on and marks that ship.
+  3. **Take the cargo:** force a drop, capture the ship, or destroy it for its cargo, and deliver the wares to the group's station.
+  4. **If the carrier docks and sells the ware first,** the mission goes back to step 2, watching the station.
+
+  Vanilla pieces that fit: the coverage mission already has the player deploy satellites and reads an advanced satellite's range (`macro.eq_arg_satellite_02_macro.maxradarrange`, `base/md/gm_achievecoverage.xml:785`); the script events include `event_object_undocked_from` and `event_trade_completed` (`base/libraries/md.xsd`), for spotting a loaded ship leaving and a sale. Still to check: whether a trade event names the ware and amount, or the ship's cargo has to be read on undocking.
 - **Rewards are mostly not booty:** materials for crafting better equipment mods, rarer as standing climbs, and pirate paint jobs. Booty is small or none; standing still comes mainly from handing over ships.
 
 **What vanilla gives us:**
@@ -137,7 +144,6 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 
 **Open:**
 
-- How the target is chosen and shown: a named freighter carrying the ware, or any source.
 - Whether only stolen wares count, and how to tell (X4 doesn't record where cargo came from): don't check, count wares unloaded from a pirated ship, or only the named target's cargo.
 - Which mod materials and paints, and how rewards scale with standing.
 
