@@ -13,7 +13,7 @@ help:
 	@echo "  make deploy         - Sync the latest origin/main into the X4 extensions folder"
 	@echo "  make deploy-local   - Sync your working tree instead (uncommitted changes included)"
 	@echo "  make deploy-dry-run - Show what 'make deploy' would change"
-	@echo "  make test           - Run the bats and Pester test suites"
+	@echo "  make test           - Run the test suites your changes need (ALL=1: every suite)"
 	@echo "  make test-plan      - Regenerate the readable test plan in docs/test-plan/ from the feature files"
 	@echo "  make variants       - Regenerate the pirate variants from profiles/vanilla/variants.xml (needs the unpacked game files)"
 	@echo "  make game-test      - Deploy your working tree and run the in-game tests in X4 (Windows)"
@@ -43,7 +43,7 @@ deploy-dry-run:
 	@./deploy.sh --dry-run $(ARGS)
 
 test:
-	@tests/run.sh
+	@tests/run.sh $(if $(ALL),--all)
 
 test-plan:
 	@python3 tools/test_plan_docs.py

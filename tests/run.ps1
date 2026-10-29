@@ -13,8 +13,8 @@
     Fetch Pester if needed, then stop. tests/run.sh does this once before starting its parallel runs.
 
 .PARAMETER Path
-    Run only these test files (default: every tests/*.Tests.ps1). tests/run.sh runs each file in
-    its own process, in parallel.
+    Run only these test files (default: every tests/*.Tests.ps1); commas separate several in one
+    argument. tests/run.sh runs each file in its own process, in parallel.
 
 .EXAMPLE
     .\tests\run.ps1
@@ -60,6 +60,8 @@ if ($SetupOnly) { return }
 Import-Module $manifest -Force
 
 $config = New-PesterConfiguration
+# tests/run.sh and CI pass several files as one comma-separated argument
+$Path = @($Path | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $config.Run.Path = if ($Path) { $Path } else { $PSScriptRoot }
 $config.Output.Verbosity = 'Detailed'
 if ($CI) {

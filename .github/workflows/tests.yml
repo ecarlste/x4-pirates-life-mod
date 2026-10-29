@@ -10,8 +10,36 @@ permissions:
   contents: read
 
 jobs:
+  # Picks the suites a PR needs: dorny/paths-filter matches the changed files against
+  # .github/test-filters.json (make test reads the same file). Pushes to main and manual runs
+  # test everything. A job with nothing to run shows as skipped.
+  changes:
+    name: pick tests
+    runs-on: ubuntu-latest
+    outputs:
+      suites: ${{ steps.pick.outputs.suites }}
+      bash: ${{ steps.pick.outputs.bash }}
+      shellcheck: ${{ steps.pick.outputs.shellcheck }}
+      lua: ${{ steps.pick.outputs.lua }}
+      pester: ${{ steps.pick.outputs.pester }}
+    steps:
+      - uses: actions/checkout@v7
+      # Every file in the repo must match a filter, so a new kind of file can't go untested
+      - run: python3 tools/select_tests.py --check
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: .github/test-filters.json
+      - id: pick
+        env:
+          KEYS: ${{ github.event_name == 'pull_request' && steps.filter.outputs.changes || '["everything"]' }}
+        run: python3 tools/select_tests.py --keys "$KEYS" --github >> "$GITHUB_OUTPUT"
+
   lint:
     name: shellcheck
+    needs: changes
+    if: needs.changes.outputs.shellcheck == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -21,6 +49,8 @@ jobs:
   # The bash tooling (deploy.sh, tests/run.sh, the tools) runs in WSL (Ubuntu), so Linux only
   bash:
     name: bats
+    needs: changes
+    if: needs.changes.outputs.bash == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -30,10 +60,14 @@ jobs:
           path: .tools
           key: tools-${{ runner.os }}-${{ hashFiles('tests/run.sh', 'tests/run.ps1') }}
       - run: bash --version | head -n 1
-      - run: tests/run.sh --bash-only
+      - run: tests/run.sh --suites "$SUITES" --bash-only
+        env:
+          SUITES: ${{ needs.changes.outputs.suites }}
 
   lua:
     name: Lua (luacheck, unit tests)
+    needs: changes
+    if: needs.changes.outputs.lua == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -51,6 +85,8 @@ jobs:
   # PowerShell 7 in WSL too, for speed; that path is checked by every local run.)
   pester:
     name: Pester (${{ matrix.name }})
+    needs: changes
+    if: needs.changes.outputs.pester != ''
     strategy:
       fail-fast: false
       matrix:
@@ -68,7 +104,9 @@ jobs:
         with:
           path: .tools
           key: tools-${{ runner.os }}-${{ hashFiles('tests/run.sh', 'tests/run.ps1') }}
-      - run: ./tests/run.ps1 -CI
+      - run: ./tests/run.ps1 -CI -Path $env:PESTER
+        env:
+          PESTER: ${{ needs.changes.outputs.pester }}
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
