@@ -1,9 +1,11 @@
 """Unit tests for tools/select_tests.py: reading the paths-filter globs and picking suites."""
 import os
 import subprocess
+import tempfile
 import unittest
 
 import select_tests as st
+from helpers import write
 
 FILTERS = st.compile_filters({
     "everything": ["tests/run.sh"],
@@ -66,6 +68,68 @@ class GithubOutputs(unittest.TestCase):
         self.assertIn("bash=true", outputs)
         self.assertIn("lua=true", outputs)
         self.assertIn("pester=tests/Deploy.Tests.ps1", outputs)
+
+
+HARNESS = """<mdscript><cues>
+  <cue name="Run"><actions><set_value name="$Tests" exact="[A, B, C]"/></actions></cue>
+  <cue name="C"><actions><signal_cue_instantly cue="Report" param="table[$name = 'gamma']"/></actions></cue>
+  <cue name="A"><actions><signal_cue_instantly cue="Report" param="table[$name = 'alpha']"/></actions></cue>
+  <library name="L"><actions/></library>
+  <cue name="B"><actions><signal_cue_instantly cue="Report" param="table[$name = 'beta']"/>
+    <cue name="B_Timeout"><actions><signal_cue_instantly cue="Report" param="table[$name = 'beta']"/></actions></cue>
+  </actions></cue>
+</cues></mdscript>
+"""
+
+GAME_FILTERS = st.compile_filters({
+    "game:everything": ["content.xml"],
+    "game:harness": [st.GAME_TESTS],
+    "game:load": ["t/**"],
+    "game:one": ["md/one.xml", "md/both.xml", "tests/game/features/one.feature"],
+    "game:two": ["md/both.xml", "tests/game/features/two.feature"],
+    "tests/mod-xml.bats": ["md/**"],
+})
+
+
+class PickGame(unittest.TestCase):
+    """Game tests A, B, C (reporting alpha, beta, gamma, run in that order); feature one tags
+    gamma and a unit test, feature two tags beta and alpha."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.tmp.name)
+        write(".", st.GAME_TESTS, HARNESS)
+        write(".", "tests/game/features/one.feature", "Feature: one\n  @gamma @test_unit\n  Scenario: x\n  @pending\n  Scenario: y\n")
+        write(".", "tests/game/features/two.feature", "Feature: two\n  @beta\n  Scenario: x\n  @alpha\n  Scenario: y\n")
+
+    def pick(self, *paths):
+        picked, reason, order = st.pick_game(GAME_FILTERS, list(paths))
+        return [t for t in order if t in picked], reason
+
+    def test_select_game_tests_listed_in_run_order_with_their_reported_names(self):
+        self.assertEqual(st.game_tests(), ["alpha", "beta", "gamma"])
+
+    def test_select_game_a_mod_file_picks_its_features_tagged_game_tests(self):
+        self.assertEqual(self.pick("md/one.xml"), (["gamma"], None))
+        self.assertEqual(self.pick("md/both.xml"), (["alpha", "beta", "gamma"], None))
+
+    def test_select_game_other_files_pick_none(self):
+        self.assertEqual(self.pick("docs/a.md", "deploy.ps1"), ([], None))
+
+    def test_select_game_load_picks_the_first_test(self):
+        self.assertEqual(self.pick("t/texts.xml"), (["alpha"], None))
+
+    def test_select_game_everything_picks_every_test(self):
+        self.assertEqual(self.pick("md/one.xml", "content.xml"), ([], "content.xml changed"))
+
+    def test_select_game_the_game_tests_file_runs_the_features_that_changed_with_it(self):
+        self.assertEqual(self.pick(st.GAME_TESTS, "tests/game/features/two.feature"), (["alpha", "beta"], None))
+
+    def test_select_game_the_game_tests_file_alone_runs_every_test(self):
+        self.assertEqual(self.pick(st.GAME_TESTS),
+                         ([], f"{st.GAME_TESTS} changed, but no feature file did"))
 
 
 class RealFilters(unittest.TestCase):

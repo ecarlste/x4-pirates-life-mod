@@ -7,6 +7,8 @@ load helpers
 setup() {
     command -v make >/dev/null || skip "make is not installed"
     setup_sandbox
+    # Stands in for tools/select_tests.py --game, which the sandbox doesn't have
+    export GAME_TEST_PICK="printf 'pilot_bail_intact\nclaim_intact\n'"
 }
 teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 
@@ -74,6 +76,33 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     [ "$status" -eq 0 ]
     assert_file_content "$TARGET/libraries/god.xml" '<diff>local</diff>'
     [[ "$output" == *"game tests ran"* ]]
+}
+
+@test "make game-test runs only the game tests the change needs" {
+    run make -C "$REPO" game-test GAME_TEST_RUNNER='echo runner'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"runner -Commit "*" -Tests pilot_bail_intact,claim_intact"* ]]
+}
+
+@test "make game-test with no game test needed deploys nothing and has the runner report it" {
+    echo '<diff>local</diff>' > "$REPO/libraries/god.xml"
+    run make -C "$REPO" game-test GAME_TEST_PICK=true GAME_TEST_RUNNER='echo runner'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"runner -Commit "*" -NoneNeeded"* ]]
+    [ ! -e "$TARGET" ]
+}
+
+@test "make game-test stops when picking the tests fails" {
+    run make -C "$REPO" game-test GAME_TEST_PICK=false GAME_TEST_RUNNER='echo game tests ran'
+    [ "$status" -ne 0 ]
+    [[ "$output" != *"game tests ran"* ]]
+    [ ! -e "$TARGET" ]
+}
+
+@test "make game-test ALL=1 picks every game test" {
+    unset GAME_TEST_PICK
+    run make -n -C "$REPO" game-test ALL=1
+    [[ "$output" == *"tools/select_tests.py --game --all"* ]]
 }
 
 @test "make game-test stops when the deploy fails" {

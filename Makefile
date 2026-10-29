@@ -2,6 +2,8 @@
 
 # Runs the game test runner on Windows through WSL interop; override to run it another way
 GAME_TEST_RUNNER ?= powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$$(wslpath -w tools/run-game-tests.ps1)"
+# Picks the game tests the change needs, one name per line (none: no game test needed)
+GAME_TEST_PICK ?= tools/select_tests.py --game $(if $(ALL),--all)
 # What the report says was tested: the commit, branch, and whether uncommitted changes were deployed too
 GAME_TEST_GIT = -Commit $$(git rev-parse HEAD) -Branch $$(git rev-parse --abbrev-ref HEAD) $$(test -z "$$(git status --porcelain)" || echo -Dirty)
 
@@ -16,7 +18,7 @@ help:
 	@echo "  make test           - Run the test suites your changes need (ALL=1: every suite)"
 	@echo "  make test-plan      - Regenerate the readable test plan in docs/test-plan/ from the feature files"
 	@echo "  make variants       - Regenerate the pirate variants from profiles/vanilla/variants.xml (needs the unpacked game files)"
-	@echo "  make game-test      - Deploy your working tree and run the in-game tests in X4 (Windows)"
+	@echo "  make game-test      - Deploy your working tree and run the in-game tests it needs in X4 (Windows; ALL=1: every test)"
 	@echo "  make game-test-report - Post the last game-test report to this branch's PR (comment and check)"
 	@echo "  make help           - Show this help message"
 	@echo ""
@@ -51,9 +53,15 @@ test-plan:
 variants:
 	@python3 tools/generate_variants.py $(ARGS)
 
+# With no game test needed, nothing is deployed or started; the runner just writes the report
 game-test:
-	@./deploy.sh --working-tree $(ARGS)
-	@$(GAME_TEST_RUNNER) $(GAME_TEST_GIT)
+	@tests=$$($(GAME_TEST_PICK)) || exit 1; \
+	if [ -z "$$tests" ]; then \
+		$(GAME_TEST_RUNNER) $(GAME_TEST_GIT) -NoneNeeded; \
+	else \
+		./deploy.sh --working-tree $(ARGS) && \
+		$(GAME_TEST_RUNNER) $(GAME_TEST_GIT) -Tests "$$(echo $$tests | tr ' ' ,)"; \
+	fi
 
 game-test-report:
 	@tools/post-game-test-report.sh $(ARGS)
