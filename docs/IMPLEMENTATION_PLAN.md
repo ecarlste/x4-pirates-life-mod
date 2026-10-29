@@ -27,7 +27,7 @@ Everything needed to build, deploy, test and debug the mod comfortably.
 - [ ] Linting and formatting standards for every language we use (bash, PowerShell, Python, Lua, MD/AI script and library XML, Markdown, YAML): pick a linter and a formatter for each, agree the rules, and wire them into the commit hook, `make release` and CI. Its own session; the two items below become part of it
 - [ ] Autoformat scripts on commit: shfmt and PSScriptAnalyzer's formatter, through a pre-commit hook enabled by `make setup`
 - [ ] `make release`: lint (shellcheck, PSScriptAnalyzer default rules, format check), run the tests, build the release zip from a clean `origin/main`, and write the release checklist (`tools/test_plan_docs.py --checklist dist/release-checklist.md`) next to it in `dist/`; drop linting from `make test` and PR CI
-- [ ] Run only the tests a change needs, by path filters (`.github/test-filters.json`, `dorny/paths-filter` in CI): `make test` and CI pick suites; `make game-test` picks game tests, and its PR report says when none were needed
+- [ ] Run only the tests a change needs, by path filters (`.github/test-filters.json`, `dorny/paths-filter` in CI): `make test` and CI pick suites; `make game-test` picks game tests, and its PR report says when none were needed ([PR #82](https://github.com/ecarlste/x4-pirates-life-mod/pull/82))
 - [x] Repo README: what the mod is, prerequisites, setup, deploy, test, coming back after a break ([PR #5](https://github.com/ecarlste/x4-pirates-life-mod/pull/5))
 
 **In-game dev tooling** (from [DESIGN.md, Roadmap](DESIGN.md#roadmap): "Dev tooling, early")
