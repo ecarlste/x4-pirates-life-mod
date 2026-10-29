@@ -37,6 +37,7 @@ dirty=$(field dirty)
 result=$(field result)
 passed=$(field passed)
 total=$(field total)
+of=$(field of)
 
 [ "$dirty" = false ] || die "the run included uncommitted changes. Commit them, push, and run make game-test again"
 head=$(git rev-parse HEAD)
@@ -49,7 +50,14 @@ read -r number pr_head state <<<"$pr"
 [ "$pr_head" = "$commit" ] || die "PR #$number's latest commit is ${pr_head:0:7}, not the tested ${commit:0:7}. Push your branch, or test the PR's commit"
 
 if [ "$result" = pass ]; then status=success; else status=failure; fi
-description="$passed of $total passed (local run)"
+# A run of only the tests the change needs says how many weren't; a run that needed none passes
+if [ "$total" = 0 ] && [ "$result" = pass ]; then
+    description="none needed for this change (local check)"
+elif [ -n "$of" ] && [ "$of" != "$total" ]; then
+    description="$passed of $total passed, $((of - total)) not needed (local run)"
+else
+    description="$passed of $total passed (local run)"
+fi
 
 if [ "$DRY_RUN" = 1 ]; then
     echo "Would comment on PR #$number and set game-tests=$status ($description) on ${commit:0:7}:"

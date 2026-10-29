@@ -154,6 +154,26 @@ Describe 'ConvertTo-JUnitXml' {
     }
 }
 
+Describe 'Get-GameTests' {
+    BeforeAll { $script:Harness = Join-Path $script:RepoRoot 'tests/game/apirateslife_tests/md/apirateslife_tests.xml' }
+
+    It 'lists the run order with the name each test reports' {
+        $tests = @(Get-GameTests $script:Harness)
+        $tests.Count | Should -BeGreaterThan 2
+        $tests[0].Cue | Should -Be 'EjectChanceDoubled'
+        $tests[0].Name | Should -Be 'eject_chance_doubled'
+        $tests.Name | Should -Contain 'pilot_bail_intact'
+        @($tests.Name | Select-Object -Unique).Count | Should -Be $tests.Count
+    }
+
+    It 'points the run at just the given cues' {
+        $copy = Join-Path (New-TestDir) 'tests.xml'
+        Copy-Item $script:Harness $copy
+        Set-GameTestList $copy @('PilotBailIntact', 'ClaimIntact')
+        @(Get-GameTests $copy).Cue | Should -Be @('PilotBailIntact', 'ClaimIntact')
+    }
+}
+
 Describe 'ConvertTo-MarkdownReport' {
     BeforeAll {
         $script:Info = @{ Commit = '0123456789abcdef0123456789abcdef01234567'; Branch = 'feature/x'; Dirty = $false
@@ -195,5 +215,21 @@ Describe 'ConvertTo-MarkdownReport' {
 
         $dropped = Read-GameTestLog ($script:PassingLog + @('[Scripts] 9.00 *** Context:x: [apirateslife-test] SETA was off; switched back on'))
         ConvertTo-MarkdownReport $dropped @() $script:Info | Should -BeLike '*SETA dropped 1 times during the run*'
+    }
+
+    It 'lists the tests a run of only some left out' {
+        $run = Read-GameTestLog $script:PassingLog
+        $info = $script:Info.Clone(); $info.Of = 4; $info.NotNeeded = @('claim_intact', 'settings_reset')
+        $md = ConvertTo-MarkdownReport $run (Get-RunProblems $run 'finished') $info
+        ($md -split "`n")[0] | Should -BeLike '* passed=2 total=2 of=4 -->'
+        $md.Contains('**Not needed for this change** (2 of 4): `claim_intact`, `settings_reset`') | Should -BeTrue
+    }
+
+    It 'says when no test was needed' {
+        $info = $script:Info.Clone(); $info.Of = 4; $info.NoneNeeded = $true
+        $lines = (ConvertTo-MarkdownReport (Read-GameTestLog @()) @() $info) -split "`n"
+        $lines[0] | Should -Be '<!-- apirateslife-game-tests commit=0123456789abcdef0123456789abcdef01234567 dirty=false result=pass passed=0 total=0 of=4 -->'
+        $lines[1] | Should -Be '### Game tests: none needed'
+        $lines[3].StartsWith('Commit `0123456` on `feature/x`, 2026-10-20 15:24: no game test covers what this change touches') | Should -BeTrue
     }
 }

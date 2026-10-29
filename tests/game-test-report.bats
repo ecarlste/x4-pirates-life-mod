@@ -54,6 +54,21 @@ post() { run "$REPO/tools/post-game-test-report.sh" "$@"; }
     grep -q "state=failure -f context=game-tests -f description=4 of 5 passed (local run)" "$GH_LOG"
 }
 
+@test "a run of only the tests the change needs says how many weren't needed" {
+    write_report "$HEAD_SHA" false pass 3 "3 of=18"
+    post
+    [ "$status" -eq 0 ]
+    grep -q "state=success -f context=game-tests -f description=3 of 3 passed, 15 not needed (local run)" "$GH_LOG"
+}
+
+@test "a change that needed no game test posts as passing" {
+    write_report "$HEAD_SHA" false pass 0 "0 of=18"
+    post
+    [ "$status" -eq 0 ]
+    grep -q "^pr comment 7 " "$GH_LOG"
+    grep -q "state=success -f context=game-tests -f description=none needed for this change (local check)" "$GH_LOG"
+}
+
 @test "refuses a run with uncommitted changes" {
     write_report "$HEAD_SHA" true pass 5 5
     post

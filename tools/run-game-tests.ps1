@@ -53,6 +53,14 @@
 .PARAMETER Dirty
     The deployed working tree had uncommitted changes, so the commit doesn't describe what ran.
 
+.PARAMETER Tests
+    Run only these tests, by the names they report (e.g. pilot_bail_intact), in the run's usual
+    order. Commas separate several in one argument. Default: every test. make game-test passes
+    the ones the change needs (tools/select_tests.py --game).
+
+.PARAMETER NoneNeeded
+    The change needs no game test: write a report saying so, without starting the game.
+
 .PARAMETER KeepExtension
     Leave the test extension installed afterwards (X4 then starts the tests on every launch).
 
@@ -73,12 +81,34 @@ param(
     [string] $Commit,
     [string] $Branch,
     [switch] $Dirty,
+    [string[]] $Tests,
+    [switch] $NoneNeeded,
     [switch] $KeepExtension
 )
 
 $ErrorActionPreference = 'Stop'
 
 $TestExtensionId = 'apirateslife_tests'
+$GameTestsFile = 'md/apirateslife_tests.xml'
+
+# The game tests in run order: each cue in Run's $Tests, with the name it reports
+function Get-GameTests([string] $Path) {
+    $doc = New-Object Xml.XmlDocument
+    $doc.Load($Path)
+    $cues = @{}
+    foreach ($node in $doc.mdscript.cues.ChildNodes) {
+        if ($node.NodeType -eq 'Element' -and $node.OuterXml -match "\`$name = '([A-Za-z0-9_]+)'") { $cues[$node.name] = $Matches[1] }
+    }
+    $list = ($doc.SelectSingleNode('//set_value[@name="$Tests"]').exact -replace '[\[\]\s]', '') -split ','
+    @($list | Where-Object { $cues.ContainsKey($_) } | ForEach-Object { [pscustomobject]@{ Cue = $_; Name = $cues[$_] } })
+}
+
+# Points Run's $Tests in the installed copy at just these cues
+function Set-GameTestList([string] $Path, [string[]] $Cues) {
+    $text = [IO.File]::ReadAllText($Path)
+    $text = [regex]::Replace($text, '(name="\$Tests" exact=")\[[^\]]*\]', { param($m) "$($m.Groups[1].Value)[$($Cues -join ', ')]" })
+    [IO.File]::WriteAllText($Path, $text)
+}
 
 # Parses debuglog.txt lines into the run's results. Errors are lines that mention the mod and an
 # error, apart from our own markers and the harmless "unsigned file" warnings every mod gets.
@@ -160,7 +190,9 @@ function ConvertTo-JUnitXml($Run, [string[]] $Problems) {
 # The Markdown report for a PR comment. Its first line is a hidden marker that
 # tools/post-game-test-report.sh reads to check the report matches the PR's commit.
 # $Info: Commit, Branch, Dirty, StartedAt (datetime), DurationSeconds, and optionally Phases
-# (an ordered list of @{ Name; Seconds }, from Get-RunPhases).
+# (an ordered list of @{ Name; Seconds }, from Get-RunPhases); for a run of only some tests also
+# NotNeeded (the names left out) and Of (how many tests there are); NoneNeeded when the change
+# needed no test, so the game wasn't started.
 function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     $passed = @($Run.Results | Where-Object { $_.Passed }).Count
     $total = [Math]::Max($Run.Expected, $Run.Results.Count)
@@ -170,11 +202,24 @@ function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     $dirty = ([bool] $Info.Dirty).ToString().ToLower()
     $minutes = [int] [Math]::Floor($Info.DurationSeconds / 60)
     $seconds = [int] $Info.DurationSeconds % 60
+    $of = if ($null -ne $Info.Of) { " of=$($Info.Of)" } else { '' }
+    $marker = "<!-- apirateslife-game-tests commit=$commit dirty=$dirty result=$(if ($ok) { 'pass' } else { 'fail' }) passed=$passed total=$total$of -->"
+    $onCommit = "Commit ``$short`` on ``$($Info.Branch)``$(if ($Info.Dirty) { ' **plus uncommitted changes**' })"
+    if ($Info.NoneNeeded) {
+        return @(
+            $marker
+            '### Game tests: none needed'
+            ''
+            "$onCommit, $($Info.StartedAt.ToString('yyyy-MM-dd HH:mm')): no game test covers what this change touches, so the game wasn't started."
+            ''
+            '<sub>Local run of <code>make game-test</code> (tests picked by <code>tools/select_tests.py</code>; <code>ALL=1</code> runs them all), posted with <code>make game-test-report</code>.</sub>'
+        ) -join "`n"
+    }
     $lines = @(
-        "<!-- apirateslife-game-tests commit=$commit dirty=$dirty result=$(if ($ok) { 'pass' } else { 'fail' }) passed=$passed total=$total -->"
+        $marker
         "### Game tests: $(if ($ok) { 'passed' } else { 'FAILED' }), $passed of $total"
         ''
-        "Commit ``$short`` on ``$($Info.Branch)``$(if ($Info.Dirty) { ' **plus uncommitted changes**' }), X4 $(if ($Run.GameVersion) { $Run.GameVersion } else { 'version unknown' }), ${minutes} min ${seconds} s, $($Info.StartedAt.ToString('yyyy-MM-dd HH:mm'))"
+        "$onCommit, X4 $(if ($Run.GameVersion) { $Run.GameVersion } else { 'version unknown' }), ${minutes} min ${seconds} s, $($Info.StartedAt.ToString('yyyy-MM-dd HH:mm'))"
         ''
         '| Test | Result | Detail |'
         '| --- | --- | --- |'
@@ -207,6 +252,11 @@ function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
         $lines += '```'
         $lines += $Run.Errors
         $lines += '```'
+    }
+    if ($Info.NotNeeded) {
+        $notNeeded = @($Info.NotNeeded | ForEach-Object { '`' + $_ + '`' }) -join ', '
+        $lines += ''
+        $lines += "**Not needed for this change** ($(@($Info.NotNeeded).Count) of $($Info.Of)): $notNeeded"
     }
     $lines += ''
     $lines += '<sub>Local run of <code>make game-test</code>, posted with <code>make game-test-report</code>.</sub>'
@@ -285,8 +335,6 @@ function Read-SharedFile([string] $Path) {
 if ($MyInvocation.InvocationName -eq '.') { return }
 
 $root = Split-Path $PSScriptRoot -Parent
-if (-not $X4Path) { $X4Path = Resolve-X4Path $root }
-if (-not $LogPath) { $LogPath = Resolve-LogPath }
 if (-not $ReportPath) { $ReportPath = Join-Path $root 'tests/game/results.xml' }
 if (-not $MarkdownPath) { $MarkdownPath = Join-Path $root 'tests/game/report.md' }
 if (-not $Commit) {
@@ -296,6 +344,27 @@ if (-not $Commit) {
     if ($git.Dirty) { $Dirty = [switch] $true }
 }
 
+$allTests = @(Get-GameTests (Join-Path $root "tests/game/$TestExtensionId/$GameTestsFile"))
+$picked = $null
+if ($Tests) {
+    $names = @($Tests | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $unknown = @($names | Where-Object { $allTests.Name -notcontains $_ })
+    if ($unknown.Count) { throw "No game test reports $($unknown -join ', '); the tests are $($allTests.Name -join ', ')" }
+    $picked = @($allTests | Where-Object { $names -contains $_.Name })
+}
+if ($NoneNeeded) {
+    $info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = Get-Date; DurationSeconds = 0; NoneNeeded = $true; Of = $allTests.Count }
+    $run = Read-GameTestLog @()
+    New-Item -ItemType Directory -Force -Path (Split-Path $ReportPath -Parent) | Out-Null
+    [IO.File]::WriteAllText($ReportPath, (ConvertTo-JUnitXml $run @()))
+    New-Item -ItemType Directory -Force -Path (Split-Path $MarkdownPath -Parent) | Out-Null
+    [IO.File]::WriteAllText($MarkdownPath, (ConvertTo-MarkdownReport $run @() $info) + "`n")
+    Write-Host "No game tests needed for this change; the game wasn't started. Report: $MarkdownPath"
+    exit 0
+}
+
+if (-not $X4Path) { $X4Path = Resolve-X4Path $root }
+if (-not $LogPath) { $LogPath = Resolve-LogPath }
 if (-not (Test-Path (Join-Path $X4Path 'extensions/apirateslife/content.xml'))) {
     throw "A Pirate's Life isn't deployed to $X4Path. Run make deploy-local (or .\deploy.ps1 -WorkingTree) first"
 }
@@ -311,6 +380,10 @@ $ending = ''
 try {
     if (Test-Path $extension) { Remove-Item $extension -Recurse -Force }
     Copy-Item (Join-Path $root "tests/game/$TestExtensionId") $extension -Recurse
+    if ($picked) {
+        Set-GameTestList (Join-Path $extension $GameTestsFile) $picked.Cue
+        Write-Host "Running $($picked.Count) of $($allTests.Count) game tests: $($picked.Name -join ', ')"
+    }
     # A stale log would report the previous run; keep it out of the way instead
     if (Test-Path $LogPath) { Move-Item $LogPath (Join-Path (Split-Path $LogPath -Parent) 'debuglog.previous.txt') -Force }
 
@@ -369,6 +442,10 @@ New-Item -ItemType Directory -Force -Path (Split-Path $ReportPath -Parent) | Out
 $total = ((Get-Date) - $startedAt).TotalSeconds
 $phases = if ($seen) { @(Get-RunPhases $seen $total) } else { @() }
 $info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = $total; Phases = $phases }
+if ($picked) {
+    $info.Of = $allTests.Count
+    $info.NotNeeded = @($allTests | Where-Object { $picked.Name -notcontains $_.Name } | ForEach-Object { $_.Name })
+}
 New-Item -ItemType Directory -Force -Path (Split-Path $MarkdownPath -Parent) | Out-Null
 [IO.File]::WriteAllText($MarkdownPath, (ConvertTo-MarkdownReport $run $problems $info) + "`n")
 

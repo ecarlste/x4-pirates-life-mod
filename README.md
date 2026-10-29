@@ -43,7 +43,7 @@ Start X4 and check that **A Pirate's Life** is enabled under Extensions. For now
 | Deploy with a setting changed (deployed copy only) | `make deploy-local ARGS="--set IntactOnEject=0"` | `.\deploy.ps1 -WorkingTree -Set IntactOnEject=0` |
 | Run the tests your changes need (`ALL=1`: every test) | `make test` | `.\tests\run.ps1` |
 | Regenerate the readable test plan (`docs/test-plan/`) | `make test-plan` | `python3 tools/test_plan_docs.py` |
-| Run the in-game tests in X4 (Windows) | `make game-test` | `.\deploy.ps1 -WorkingTree; .\tools\run-game-tests.ps1` |
+| Run the in-game tests your changes need in X4 (Windows; `ALL=1`: every test) | `make game-test` | `.\deploy.ps1 -WorkingTree; .\tools\run-game-tests.ps1` |
 | Post the last game-test report to your PR | `make game-test-report` | (bash only for now) |
 
 Restart X4 after each deploy. For debugging, set X4's launch options (Steam: Properties → General) to

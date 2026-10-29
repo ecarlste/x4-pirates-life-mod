@@ -70,5 +70,48 @@
   "tests/Download.Tests.ps1": ["tests/Download.ps1", "tests/TestHelpers.ps1", "tests/Download.Tests.ps1"],
   "tests/GameTests.Tests.ps1": ["tools/run-game-tests.ps1", "tests/TestHelpers.ps1", "tests/GameTests.Tests.ps1"],
   "tests/RunGameTests.Tests.ps1": ["tools/run-game-tests.ps1", "tests/game/apirateslife_tests/**", "tests/TestHelpers.ps1", "tests/RunGameTests.Tests.ps1"],
-  "tests/Unpack.Tests.ps1": ["tools/unpack-x4.ps1", "tests/TestHelpers.ps1", "tests/Unpack.Tests.ps1"]
+  "tests/Unpack.Tests.ps1": ["tools/unpack-x4.ps1", "tests/TestHelpers.ps1", "tests/Unpack.Tests.ps1"],
+
+  "game:everything": [
+    "content.xml",
+    "md/apirateslife_config.xml",
+    "md/apirateslife_settings.xml",
+    "tests/game/apirateslife_tests/content.xml",
+    "tests/game/apirateslife_tests/ui.xml",
+    "tests/game/apirateslife_tests/libraries/**",
+    "tests/game/apirateslife_tests/ui/**",
+    "tests/game/apirateslife_tests/md/notifications.xml"
+  ],
+  "game:harness": ["tests/game/apirateslife_tests/md/apirateslife_tests.xml"],
+  "game:load": ["md/apirateslife_smoketest.xml", "libraries/icons.xml", "t/**", "maps/**", "tools/run-game-tests.ps1", "deploy.sh", "deploy.include"],
+  "game:bail-hook": ["md/apirateslife_bail.xml", "md/notifications.xml", "tests/game/features/bail-hook.feature"],
+  "game:intact-captures": ["md/apirateslife_bail.xml", "md/notifications.xml", "aiscripts/move.claim.xml", "tests/game/features/intact-captures.feature"],
+  "game:capture-operation": [
+    "md/apirateslife_bail.xml",
+    "md/apirateslife_capture.xml",
+    "md/conversations.xml",
+    "aiscripts/order.apirateslife.capture.xml",
+    "aiscripts/fight.attack.object.fighter.xml",
+    "tests/game/features/capture-operation.feature"
+  ],
+  "game:capture-metrics": ["md/apirateslife_metrics.xml", "md/apirateslife_bail.xml", "md/apirateslife_capture.xml", "tests/game/features/capture-metrics.feature"],
+  "game:pirated-ships": ["md/apirateslife_pirated.xml", "md/apirateslife_bail.xml", "aiscripts/move.claim.xml", "tests/game/features/pirated-ships.feature"],
+  "game:booty": [
+    "md/apirateslife_booty.xml",
+    "md/apirateslife_pirated.xml",
+    "md/apirateslife_profile_vanilla.xml",
+    "md/apirateslife_variants_vanilla.xml",
+    "md/conversations.xml",
+    "aiscripts/order.apirateslife.handover.xml",
+    "aiscripts/orders.base.xml",
+    "ui.xml",
+    "ui/apirateslife_booty.lua",
+    "assets/**",
+    "index/**",
+    "libraries/wares.xml",
+    "libraries/influenceconfigurations.xml",
+    "tests/game/features/booty.feature"
+  ],
+  "game:in-game-settings": ["ui.xml", "ui/apirateslife_options.lua", "tests/game/features/in-game-settings.feature"],
+  "game:settings-profiles": ["ui.xml", "ui/apirateslife_options.lua", "tests/game/features/settings-profiles.feature"]
 }
