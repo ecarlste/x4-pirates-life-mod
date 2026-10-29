@@ -119,6 +119,8 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 
 **Why:** a low-tier pirate depends on the group's wharf for ships and gear, and that wharf's economy is thin. In Erik's game (2026-10-28), refitting four S ships with the new variant gear left the Vigor wharf waiting 10–15 minutes and counting for about 200 advanced electronics and weapon components. Supply raids let the player fix the shortage the pirate way, by taking the wares from someone else.
 
+Erik then watched the wharf's trade orders for 15 minutes: no stock and no incoming trades appeared for the wares it had none of. So the shortage can last, and a raid would really be needed.
+
 **Shape so far** (Erik's calls, 2026-10-28):
 
 - **A small-crew job.** Sized for one ship, at most an M with four S escorts: S/M freighters, or part of an L freighter's cargo forced out, never an escorted convoy. A big shortage may take several targets or partial deliveries.
@@ -141,7 +143,7 @@ Deferred until booty v1 can hand a ship over (agreed 2026-10-26): the checks bel
 - **Shortages:** vanilla's build-storage supply mission reads what a station's build is still missing from `$storage.buildprocessor.neededsequenceresources` (`base/md/rml_supplybuildstorage.xml:61`), and `gm_supplyfactory.xml` reads a factory's `resources`. Whether either covers a wharf's ship and equipment builds, and how to see trade orders already on their way, is unknown.
 - **Item rewards:** generic missions add a non-credit reward through `md.LIB_Reward_Balancing.DetermineAdditionalReward`, weighted between a mod part (`Reward_ModPart`) and a seminar, and give inventory rewards with `add_inventory` (`base/md/gm_ambush.xml:328`, `:876`).
 - **Paint jobs:** the Tides of Avarice starts give the player paint mods 0006, 0048–0050, 0097–0100 and 0126 (`ego_dlc_pirate/libraries/gamestarts.xml:74`), the first candidates for pirate paints; our own paints would need new textures, later.
-- Vanilla also drip-feeds a stalled build storage every 15 minutes so builds finish without the player (`rml_supplybuildstorage.xml:210`); worth knowing whether wharfs get anything like it.
+- No general shortage top-up was found. The build-storage supply library can add 10% of each missing ware every 15 minutes, but only when its caller passes `AssistedSupply` (`rml_supplybuildstorage.xml:205`), and the only caller that does is the Boron story's shipyard mission (`ego_dlc_boron/md/story_boron.xml:4061`). Searched the MD files only, not the engine.
 
 **Open:**
 
