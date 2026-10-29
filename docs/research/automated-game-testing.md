@@ -168,11 +168,46 @@ Not agreed work; kept so these paths aren't forgotten. The current setup (launch
 
 Egosoft offers an official NoSteam build to owners (X4 registered in their forum profile, or a linked Steam account): `X4_nonsteam.exe`, copied into the game folder ([FAQ](https://www.egosoft.com/support/faq/faq_answer_en.php?answer=2413), [downloads](https://www.egosoft.com/download/x4/bonus_en.php), which list a 9.00 package for Windows and Linux). Erik's 7.60 SWI copy already runs it through a desktop shortcut with our arguments.
 
+**PoC done (2026-10-28): it works, and runs the whole suite (48 of 48 passed), but it isn't faster and doesn't allow a second game at once.** Details in [profile folders and parallel runs](#profile-folders-and-parallel-runs).
+
 - **Why:** the runner could pass its own arguments (no Steam launch options to set up, no Steam prompt), and no Steam means no one-session limit and no Workshop sync loading other mods.
-- **Profile folder:** NoSteam uses the root `Documents\Egosoft\X4\`, not the Steam profile. On Erik's machine that's the 7.60 SWI profile, which also explains the `-personalfolderid` fallback noted in [PROJECT.md, Paths](../PROJECT.md#paths-eriks-machine). A test run would share its `config.xml`, `content.xml` (extension on/off) and `debuglog.txt`, so it needs its own folder (what `-personalfolderid` really expects on 9.00) or a backup and restore around the run.
-- **Versions:** patches only come through Steam, so each X4 update needs the matching NoSteam download. The runner should check the executable's version against the game data.
+- **The package** is just the exe (`X4_9.00_nonsteam_Windows.zip`, 18 MB, holding a 55 MB `X4_nonsteam.exe` dated 2026-06-10). It goes into a copy of the 9.00 install, next to `X4.exe`. The log reports code revision 611726, the same as the Steam build.
+- **Profile folder:** without `-personalfolderid`, NoSteam uses the root `Documents\Egosoft\X4\` (on Erik's machine, the 7.60 SWI profile). With `-personalfolderid <number>` it uses `Documents\Egosoft\X4\<number>\`; see below.
+- **Versions:** patches only come through Steam, so each X4 update needs the matching NoSteam download, and the copy needs refreshing from the Steam install. The runner should check the executable's version against the game data (the log's `Entering startmenu in 9.00 (611726)` line).
 - **Licensing:** whether running it on several CI machines at once fits Egosoft's terms.
-- **PoC:** download the 9.00 package, run `X4_nonsteam.exe` with our arguments from the runner (`-GameExe` already starts an executable directly), find a separate profile folder, and compare a run with the Steam launch.
+- **Speed:** no faster than Steam. To the start menu: 39 to 42 s with a new profile, 34 s once its shader cache was built, against 31 to 43 s through Steam. Launch to `DONE`: 2 min 6 s and 2 min 30 s, against about 1 min 45 s for a Steam run the same day. One run each, with focus not controlled, so it's within run-to-run noise.
+
+### Profile folders and parallel runs
+
+Spike 2026-10-28: can each 9.00 install get its own profile folder (`config.xml`, `content.xml`, saves, `debuglog.txt`), so several installs run game tests side by side for parallel Claude sessions? **Separate profiles: yes. Side by side: no, one X4 per Windows login session.**
+
+**Setup.** Two full copies of the Steam install, `E:\SteamLibrary\steamapps\common\X4 Foundations - 9.00-a` and `- 9.00-b` (32 GB each with DLCs, under 2 minutes each with `robocopy /MT:8` on the same drive), each with `X4_nonsteam.exe` in it. The copies leave out the Steam install's `extensions\`: X4 keeps the **DLCs** there (`ego_dlc_*`, 8.6 GB), so those were copied back in, plus kuertee's UI Extensions (a Vortex-managed folder of symlinks, copied as real files). Our mod went in with `X4_PATH=<copy> ./deploy.sh --working-tree` and the test extension by hand. The Workshop mods synced into the Steam install don't load in a copy, which answers [open question 5](#open-questions) for these runs. Launched with `-personalfolderid <id> -skipintro -debug all -logfile debuglog.txt -scriptlogfiles`.
+
+| Try | Result |
+| --- | --- |
+| `-personalfolderid 90000001`, folder created beforehand | Works: everything went into `Egosoft\X4\90000001\` (`debuglog.txt`, `uidata.xml`, `userdata*.xml`, `pipelinecache.bin`); the root and Steam profiles weren't touched. No saves in the load menu, as expected |
+| `-personalfolderid 90000002`, no folder | Works: X4 creates the folder itself |
+| A full test run in copy A on `90000001` | **48 of 48 passed**, autostart and quit as through Steam |
+| Copies A and B at once (`90000001`, `90000002`) | **B refused:** a "Game is already running!" dialog, no log. A ran on and passed 48 of 48 |
+
+- **What `-personalfolderid` expects is a number.** A full path or a plain folder name (tried 2026-10-17/18, and by the 7.60 shortcut) falls back to the root folder; a numeric ID gets `Documents\Egosoft\X4\<id>\`, like the Steam account folder. Not tried with Steam's `X4.exe`, which drops its arguments when started directly anyway ([first runs](#first-runs-in-game)).
+- **The single-instance lock** is a named mutex, `EGOSOFT_X4_INSTANCE` (`CreateMutexW` in `X4_nonsteam.exe`). With no `Global\` prefix it lives in the login session's namespace, so separate installs, profiles or executables don't help. Steam's `X4.exe` has the same message, but the mutex name isn't readable in it (likely packed), so whether a Steam game and a NoSteam game also block each other is untested; most likely yes.
+- **Ways around it, not tried:** Sandboxie-Plus (gives each sandbox its own named objects; an install), closing the mutex in the running game with Sysinternals `handle.exe -c` (brittle), another login session (Windows 10/11 Pro allow one interactive session at a time; `runas` shares the current one), or separate machines/VMs (a VM needs a GPU for X4). Not pursued: game tests are the only thing that needs the game, a shared queue serves every session, and two games at once would compete for the GPU and CPU, which is what already breaks the [timing tests](#first-runs-in-game) when X4 runs slower in the background.
+- **Resources, not measured:** the PC (32 GB RAM, RTX 3060, Ryzen 5 5600X) never ran two games. One game used about 3 GB of RAM while starting the test game.
+- **`-nocputhrottle -nosoundthrottle`** were on for the side-by-side run. B's dialog probably took focus, and A still passed `capture_wing_holds_fire` and `booty_order_hands_over`, the two tests that fail unfocused. Not confirmed (nobody checked which window had focus), but worth trying for the plan item on [unfocused runs](../IMPLEMENTATION_PLAN.md#phase-0-dev-setup-and-tooling).
+- **The runner as it is can't drive a copy:** `-GameExe` starts the exe without arguments, and `Resolve-LogPath` takes the numbered profile folder with the newest `debuglog.txt`, so a test profile like `90000001` could pull a Steam run onto the wrong log. Using a copy needs `-LogPath` passed and the game's arguments added.
+
+Left on Erik's machine after the spike: copies A and B (64 GB on E:), profile folders `90000001` and `90000002` (no saves), the NoSteam exe in `E:\x4-dev\nosteam-9.00\`, and a backup of the root profile's top-level files in `E:\x4-dev\backups\x4-root-profile-2026-10-28\` (not needed: the root profile wasn't written).
+
+### A shared game-test queue
+
+Proposal, not agreed (Erik, 2026-10-28: only `make game-test` needs the game, so sessions can share one queue instead of running games in parallel). How it could work:
+
+- **A machine-wide lock around deploy and run.** `make game-test` deploys into the install and then runs, so both happen inside the lock. The runner opens a lock file exclusively (`FileShare.None`, e.g. `%LOCALAPPDATA%\apirateslife\game-test.lock`) and holds it open for the whole run, so a crashed or killed runner frees it by itself. It writes who holds it (branch, commit, start time, PID) for waiting sessions to print.
+- **Waiting:** a session that can't get the lock prints the holder and retries every few seconds, up to a timeout (a whole run is about 2 minutes, so tens of minutes covers a queue of several). First come, first served is enough at our size; a ticket file could make it strict.
+- **Erik's own game counts too:** if any X4 process is running (playing, or a test run started by hand), the runner waits like for the lock, rather than deploying into a running game or hitting "Game is already running!".
+- **Optional, with the NoSteam item:** run the queue against a test-only NoSteam copy with its own profile folder, so test runs never touch Erik's Steam install, profile or Workshop mods. The lock is still needed (one game per session).
+- **More throughput later** means more machines (or GPU VMs) with one queue each, as in [CI/CD](#cicd).
 
 ### Comparing a PR's run with `main`
 

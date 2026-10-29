@@ -33,8 +33,9 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 | X4 9.00 profile (saves, config, `debuglog.txt`) | Steam profile: `C:\Users\ecarl\OneDrive\Documents\Egosoft\X4\28456535\` (folder named after the Steam account ID). The in-game menu shows save slots 1–10 |
 | X4 7.60 copy for SWI | Profile is the root folder `…\Egosoft\X4\`. Its desktop shortcut's `-personalfolderid` falls back there, which is where its saves have always been |
 | X4 9.00 launch options (Steam) | `-skipintro -debug all -logfile debuglog.txt -scriptlogfiles` |
+| X4 9.00 NoSteam test copies (spike, not used by the tooling yet) | `E:\SteamLibrary\steamapps\common\X4 Foundations - 9.00-a` and `- 9.00-b`: full copies with `X4_nonsteam.exe` (kept in `E:\x4-dev\nosteam-9.00\`), DLCs and UI Extensions; profiles `…\Egosoft\X4\90000001\` and `90000002\` through `-personalfolderid` |
 
-Don't use `-personalfolderid` for separate profiles: with a full path or a plain folder name (tested 2026-10-17/18), X4 falls back to the root folder, which is the 7.60 profile.
+`-personalfolderid` takes a **number**: `-personalfolderid 90000001` uses `…\Egosoft\X4\90000001\`, creating it if needed (NoSteam, tested 2026-10-28). A full path or a plain folder name falls back to the root folder, which is the 7.60 profile. Only one X4 can run at a time per Windows session, whatever the install or profile ([notes](research/automated-game-testing.md#profile-folders-and-parallel-runs)).
 
 When X4 updates to a new version: re-unpack the game files into a new `x4-<version>` folder and update this table.
 
