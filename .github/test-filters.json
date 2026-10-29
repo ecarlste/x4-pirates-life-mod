@@ -1,0 +1,74 @@
+{
+  "everything": [
+    "tests/run.sh",
+    "tests/run.ps1",
+    ".github/workflows/tests.yml",
+    ".github/test-filters.json",
+    "tools/select_tests.py",
+    ".gitattributes"
+  ],
+  "none": [
+    "docs/**",
+    "README.md",
+    "CLAUDE.md",
+    "tools/README.md",
+    ".kiro/**",
+    ".gitignore",
+    ".github/workflows/pr-title.yml",
+    ".github/workflows/test-plan.yml"
+  ],
+
+  "shellcheck": ["**/*.sh", "**/*.bash", "**/*.bats"],
+  "lua": ["ui/**/*.lua", "tests/game/apirateslife_tests/ui/**/*.lua", "tests/lua/**", ".luacheckrc"],
+  "variants": [
+    "tools/generate_variants.py",
+    "profiles/**",
+    "assets/**",
+    "index/**",
+    "libraries/wares.xml",
+    "libraries/influenceconfigurations.xml",
+    "md/apirateslife_variants_vanilla.xml"
+  ],
+
+  "tests/deploy.bats": ["deploy.sh", "deploy.include", "deploy.config.example", "tests/helpers.bash", "tests/deploy.bats"],
+  "tests/makefile.bats": ["Makefile", "deploy.sh", "deploy.include", "deploy.config.example", "tests/helpers.bash", "tests/makefile.bats"],
+  "tests/game-test-report.bats": ["tools/post-game-test-report.sh", "tests/helpers.bash", "tests/game-test-report.bats"],
+  "tests/lua-checks.bats": ["tests/lua/run.sh", "tests/lua-checks.bats"],
+  "tests/mod-xml.bats": ["content.xml", "ui.xml", "md/**/*.xml", "aiscripts/**/*.xml", "libraries/**/*.xml", "t/**/*.xml", "ui/**/*.xml", "tests/game/**/*.xml", "tests/mod-xml.bats"],
+  "tests/test-plan.bats": [
+    "tools/check_test_plan.py",
+    "tests/game/features/**",
+    "tests/game/apirateslife_tests/md/apirateslife_tests.xml",
+    "docs/specs/**",
+    "tests/lua/test_*.lua",
+    "tests/python/test_*.py",
+    "tests/test-plan.bats"
+  ],
+  "tests/test-plan-docs.bats": [
+    "tools/test_plan_docs.py",
+    "tools/check_test_plan.py",
+    "tests/game/features/**",
+    "tests/game/apirateslife_tests/md/apirateslife_tests.xml",
+    "docs/test-plan/**",
+    "tests/lua/test_*.lua",
+    "tests/python/test_*.py",
+    "tests/test-plan-docs.bats"
+  ],
+  "tests/test-plan-changes.bats": ["tools/check_test_plan_changes.py", "tests/test-plan-changes.bats"],
+
+  "tests/python/test_capture_metrics.py": ["tools/capture_metrics.py", "tests/python/helpers.py", "tests/python/test_capture_metrics.py"],
+  "tests/python/test_check_test_plan.py": ["tools/check_test_plan.py", "tests/python/helpers.py", "tests/python/test_check_test_plan.py"],
+  "tests/python/test_check_test_plan_changes.py": ["tools/check_test_plan_changes.py", "tests/python/helpers.py", "tests/python/test_check_test_plan_changes.py"],
+  "tests/python/test_generate_variants.py": ["tools/generate_variants.py", "tests/python/helpers.py", "tests/python/test_generate_variants.py"],
+  "tests/python/test_select_tests.py": ["tests/python/helpers.py", "tests/python/test_select_tests.py"],
+  "tests/python/test_test_plan_docs.py": ["tools/test_plan_docs.py", "tools/check_test_plan.py", "tests/python/helpers.py", "tests/python/test_test_plan_docs.py"],
+  "tests/python/test_texts.py": ["t/**", "tests/python/test_texts.py"],
+
+  "tests/Deploy.Tests.ps1": ["deploy.ps1", "deploy.include", "deploy.config.example", "tests/TestHelpers.ps1", "tests/Deploy.Tests.ps1"],
+  "tests/DeploySettings.Tests.ps1": ["deploy.ps1", "deploy.include", "deploy.config.example", "tests/TestHelpers.ps1", "tests/DeploySettings.Tests.ps1"],
+  "tests/DeploySources.Tests.ps1": ["deploy.ps1", "deploy.include", "deploy.config.example", "tests/TestHelpers.ps1", "tests/DeploySources.Tests.ps1"],
+  "tests/Download.Tests.ps1": ["tests/Download.ps1", "tests/TestHelpers.ps1", "tests/Download.Tests.ps1"],
+  "tests/GameTests.Tests.ps1": ["tools/run-game-tests.ps1", "tests/TestHelpers.ps1", "tests/GameTests.Tests.ps1"],
+  "tests/RunGameTests.Tests.ps1": ["tools/run-game-tests.ps1", "tests/game/apirateslife_tests/**", "tests/TestHelpers.ps1", "tests/RunGameTests.Tests.ps1"],
+  "tests/Unpack.Tests.ps1": ["tools/unpack-x4.ps1", "tests/TestHelpers.ps1", "tests/Unpack.Tests.ps1"]
+}
