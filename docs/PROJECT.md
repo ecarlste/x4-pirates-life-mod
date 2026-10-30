@@ -32,7 +32,7 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 | Steam Workshop mods | X4 installs them into the game's `extensions\` folder itself (not Steam's workshop folder), syncing when the game starts |
 | X4 9.00 profile (saves, config, `debuglog.txt`) | Steam profile: `C:\Users\ecarl\OneDrive\Documents\Egosoft\X4\28456535\` (folder named after the Steam account ID). The in-game menu shows save slots 1–10 |
 | X4 9.00 launch options (Steam) | `-skipintro -debug all -logfile debuglog.txt -scriptlogfiles` |
-| X4 8.00 HF4 copy for SWI (NoSteam) | `E:\SteamLibrary\steamapps\common\X4 Foundations - 8.00`, started by the `X4_8.00` desktop shortcut (`X4_nonsteam.exe` with the launch options above). Only the DLCs in `extensions\`; mods get installed by hand. The NoSteam download is kept in `E:\x4-dev\nosteam-8.00\` (9.00's in `nosteam-9.00\`) |
+| X4 8.00 HF4 copy for SWI (NoSteam) | `E:\SteamLibrary\steamapps\common\X4 Foundations - 8.00`, started by the `X4_8.00` desktop shortcut (`X4_nonsteam.exe` with the launch options above). `extensions\` has only the DLCs and SWI 0.90 (`starwarsmod_m1`); other mods get installed by hand. The NoSteam download is kept in `E:\x4-dev\nosteam-8.00\` (9.00's in `nosteam-9.00\`) |
 | X4 8.00 profile | The root folder `…\Egosoft\X4\`, which NoSteam uses by default. The old 7.60 profile and saves (they don't load in 8.00) are backed up in `E:\x4-dev\backups\x4-root-profile-7.60-2026-10-30\` |
 
 `-personalfolderid` gives a separate profile only with a numeric ID (the 2026-10-28 NoSteam spike made `…\Egosoft\X4\90000001\`); with a full path or a plain folder name (tested 2026-10-17/18), X4 falls back to the root folder.
