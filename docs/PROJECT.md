@@ -84,6 +84,7 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
 - [`specs/`](specs/): one short spec per agreed feature.
 - [`research/`](research/README.md): what we've learned about vanilla X4 (call flows, hooks, tuning), and design ideas still being worked on. Check its index before digging through game files.
 - [`rejected/`](rejected/README.md): design ideas Erik rejected, and why. Check it before proposing an idea.
+- [`playthroughs/`](playthroughs/): YouTube playthrough plans, each with its mod list and versions (e.g. [SWI bounty hunter](playthroughs/swi-bounty-hunter/concept.md)).
 - When one doc refers to another, link the exact section (`DESIGN.md#roadmap`), not just the file.
 
 ## Keeping docs in sync
