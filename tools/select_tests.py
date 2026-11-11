@@ -3,7 +3,8 @@
 
 The filters file is dorny/paths-filter's format, which CI reads with that action: each key names
 a suite (a test file, or "shellcheck", "lua", "typescript", "doc-paths") and lists the path globs it depends on;
-"everything" lists files that need every suite, "none" files that need no test. This script reads
+"everything" lists files that need every suite, "none" files that need no test. A suite whose
+filter is "**" runs on every change ("doc-paths": any file leaving can break a doc). This script reads
 the same file for make test, so CI and local runs pick alike.
 
 The change is everything since the branch left the base ref (git diff BASE...HEAD), plus
@@ -23,8 +24,8 @@ import sys
 FILTERS = ".github/test-filters.json"
 EVERYTHING, NONE = "everything", "none"
 PSEUDO_SUITES = ("shellcheck", "lua", "typescript", "doc-paths")
-# Suites with a CI job of their own, with Node, so not in the bats job's run.sh
-OWN_NODE_JOB = ("typescript", "doc-paths")
+# Suites that need Node 22.18 or later, set up in their own CI jobs: not the bats job's run.sh
+NODE_SUITES = ("typescript", "doc-paths")
 # Test files that must each have a filter, so they run at all
 SUITE_FILES = re.compile(r"^tests/([^/]+\.bats|[^/]+\.Tests\.ps1|python/test_[^/]+\.py)$")
 
@@ -87,9 +88,17 @@ def pick(filters, paths):
     return picked, None
 
 
+def uncovered(filters, paths):
+    """Paths no filter covers. A suite run on every change ("**") covers nothing, so a new kind of
+    file still needs a filter that says which suites test it."""
+    every_change = glob_regex("**").pattern
+    covering = {key: patterns for key, patterns in filters.items()
+                if [p.pattern for p in patterns] != [every_change]}
+    return [path for path in paths if path and not matching_keys(covering, path)]
+
+
 def check(filters):
-    problems = [f"{path} matches no filter in {FILTERS}" for path in git("ls-files")
-                if path and not matching_keys(filters, path)]
+    problems = [f"{path} matches no filter in {FILTERS}" for path in uncovered(filters, git("ls-files"))]
     problems += [f"{path} has no filter of its own in {FILTERS}" for path in git("ls-files")
                  if SUITE_FILES.match(path) and path not in filters]
     problems += [f"{key} names a test file that doesn't exist" for key in suites(filters)
@@ -102,10 +111,10 @@ def github_outputs(keys, filters):
     """Step outputs for the CI jobs: which jobs run, and the Pester files to give run.ps1."""
     picked = suites(filters) if EVERYTHING in keys else [k for k in suites(filters) if k in keys]
     pester = [k for k in picked if k.endswith(".Tests.ps1")]
-    bash = [k for k in picked if not k.endswith(".Tests.ps1") and k not in ("lua", *OWN_NODE_JOB)]
-    # suites is for the bats job's run.sh
+    bash = [k for k in picked if not k.endswith(".Tests.ps1") and k != "lua" and k not in NODE_SUITES]
+    # suites is for the bats job's run.sh, which has no Node: the Node suites run in their own jobs
     return [
-        f"suites={' '.join(k for k in picked if k not in OWN_NODE_JOB)}",
+        f"suites={' '.join(k for k in picked if k not in NODE_SUITES)}",
         f"bash={'true' if bash else 'false'}",
         f"shellcheck={'true' if 'shellcheck' in picked else 'false'}",
         f"lua={'true' if 'lua' in picked else 'false'}",

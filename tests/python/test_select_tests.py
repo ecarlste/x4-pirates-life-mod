@@ -88,6 +88,17 @@ class GithubOutputs(unittest.TestCase):
         self.assertIn("pester=tests/Deploy.Tests.ps1", outputs)
 
 
+class Check(unittest.TestCase):
+    def test_select_a_suite_run_on_every_change_does_not_cover_files(self):
+        filters = dict(FILTERS, **st.compile_filters({"doc-paths": ["**"]}))
+        self.assertEqual(st.uncovered(filters, ["deploy.sh", "README.md", "new/tool.rb"]), ["new/tool.rb"])
+
+    def test_select_a_suite_run_on_every_change_is_picked_by_any_file(self):
+        filters = dict(FILTERS, **st.compile_filters({"doc-paths": ["**"]}))
+        picked, _ = st.pick(filters, ["README.md"])
+        self.assertEqual(set(picked), {"none", "doc-paths"})
+
+
 class RealFilters(unittest.TestCase):
     def test_select_every_tracked_file_and_suite_has_a_filter(self):
         repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

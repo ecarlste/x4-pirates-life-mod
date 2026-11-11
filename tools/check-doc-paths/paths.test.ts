@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { missingPaths } from "./paths.ts";
+import { isCheckedDoc, missingPaths } from "./paths.ts";
 
 // A repo with these files and folders; nothing is gitignored unless a test says so
 const repo = (...paths: string[]) => ({
@@ -98,20 +98,43 @@ test("slashed names without an extension outside the repo's folders are refs, no
   assert.deepEqual(missingPaths("tools/README.md", text, repo("tests")), [{ line: 1, path: "tests/lua/gone" }]);
 });
 
+test("a folder path, ending in a slash, is checked even when its top folder is gone", () => {
+  const text = "Profiles live in `profiles/vanilla/`.\n";
+
+  assert.deepEqual(missingPaths("docs/PROJECT.md", text, repo()), [{ line: 1, path: "profiles/vanilla/" }]);
+});
+
 test("fenced code blocks are skipped", () => {
   const text = "```bash\nnode `tools/gone.ts`\n```\n`tools/also-gone.ts`\n";
 
   assert.deepEqual(missingPaths("README.md", text, repo()), [{ line: 4, path: "tools/also-gone.ts" }]);
 });
 
-test("ticked checklist items record past work, so the files they name may be gone", () => {
-  const text = "- [x] `tools/manual-checklist.py`, replaced\n- [ ] `tools/next-tool.ts`\n";
+test("ticked checklist items record past work, so the files they name may be gone, but their links must work", () => {
+  const text = "- [x] `tools/manual-checklist.py`, replaced ([spec](specs/gone.md))\n- [ ] `tools/next-tool.ts`\n";
 
-  assert.deepEqual(missingPaths("docs/IMPLEMENTATION_PLAN.md", text, repo()), [{ line: 2, path: "tools/next-tool.ts" }]);
+  assert.deepEqual(missingPaths("docs/IMPLEMENTATION_PLAN.md", text, repo()), [
+    { line: 1, path: "docs/specs/gone.md" },
+    { line: 2, path: "tools/next-tool.ts" },
+  ]);
 });
 
-test("planned docs not written yet are skipped", () => {
-  const text = "Hooks are documented in `INTEGRATION.md`.\n";
+test("planned paths not made yet are skipped", () => {
+  const text = "Hooks are documented in `INTEGRATION.md`; releases go in `dist/`.\n";
 
   assert.deepEqual(missingPaths("docs/DESIGN.md", text, repo()), []);
+});
+
+test("the checked docs are docs/**/*.md but the generated test plan, and the top-level docs", () => {
+  const docs = ["docs/PROJECT.md", "docs/specs/a.md", "docs/test-plan/README.md", "docs/notes.txt", "README.md",
+    "tools/README.md", "GLOSSARY.md", "CLAUDE.md", "tests/README.md", "md/README.md"];
+
+  assert.deepEqual(docs.filter(isCheckedDoc), ["docs/PROJECT.md", "docs/specs/a.md", "README.md", "tools/README.md",
+    "GLOSSARY.md", "CLAUDE.md"]);
+});
+
+test("a link from a top-level doc to another top-level file is checked from the repo root", () => {
+  const text = "[guide](CONTRIBUTING.md) [readme](README.md)\n";
+
+  assert.deepEqual(missingPaths("README.md", text, repo("README.md")), [{ line: 1, path: "CONTRIBUTING.md" }]);
 });

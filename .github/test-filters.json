@@ -21,15 +21,7 @@
 
   "shellcheck": ["**/*.sh", "**/*.bash", "**/*.bats", ".githooks/**"],
   "lua": ["tests/game/apirateslife_tests/ui/**/*.lua", "tests/lua/**", ".luacheckrc"],
-  "doc-paths": [
-    "docs/**/*.md",
-    "README.md",
-    "tools/README.md",
-    "GLOSSARY.md",
-    "CLAUDE.md",
-    "tools/check-doc-paths.ts",
-    "tools/doc-paths/**"
-  ],
+  "doc-paths": ["**"],
   "typescript": [
     "tools/**/*.ts",
     "tools/diff-patches/fixtures/**",

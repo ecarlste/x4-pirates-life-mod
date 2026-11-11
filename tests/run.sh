@@ -188,7 +188,7 @@ if wanted typescript; then run_typescript || FAILED=1; else echo "== TypeScript"
 
 echo "== Doc paths"
 if ! wanted doc-paths; then
-    echo "No docs changed"
+    echo "Nothing changed"
 elif command -v node >/dev/null; then
     node tools/check-doc-paths.ts || FAILED=1
 else
