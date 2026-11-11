@@ -88,12 +88,11 @@ export const checkDiffPatches = (mod: string, unpacked: string, swi: string): Re
   const withSwi = isDir(swi);
   if (!withSwi) notes.push("8.00 + SWI not checked: SWI_UNPACKED not found");
 
-  const diffs = PATCHED_FOLDERS.flatMap((folder) => xmlFiles(join(mod, folder))).filter(
-    (f) => parseXml(readFileSync(f, "utf8")).documentElement!.tagName === "diff",
-  );
-  for (const file of diffs) {
-    const rel = relative(mod, file);
+  const files = PATCHED_FOLDERS.flatMap((folder) => xmlFiles(join(mod, folder)));
+  for (const file of files) {
     const diff = parseXml(readFileSync(file, "utf8")).documentElement!;
+    if (diff.tagName !== "diff") continue;
+    const rel = relative(mod, file);
     const vanilla = build(rel, vanillaLayers(unpacked), null, notes);
     const bases: [string, string | null][] = [["vanilla 8.00", vanilla]];
     if (withSwi) bases.push(["8.00 + SWI", build(rel, swiLayer(rel, swi), vanilla, notes)]);

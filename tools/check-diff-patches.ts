@@ -11,7 +11,7 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { configValue } from "./deploy-config.ts";
+import { configValue } from "./diff-patches/config.ts";
 import { checkDiffPatches, report, withKnown, type Known } from "./diff-patches/check.ts";
 
 // Ops that don't match on 8.00 yet, each with the issue that fixes it. Reported as KNOWN, not

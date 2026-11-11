@@ -13,4 +13,6 @@
   <replace sel="//x[@v='a']/@v">b</replace>
   <!-- Only on SWI -->
   <add sel="//cue[@name='SwiCue']" type="@instantiate">true</add>
+  <!-- Two matches on both bases -->
+  <remove sel="//cue[@name='Start' or @name='Second']"/>
 </diff>

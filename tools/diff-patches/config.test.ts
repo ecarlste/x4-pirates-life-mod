@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { configValue, fromWindows } from "./deploy-config.ts";
+import { configValue, fromWindows } from "./config.ts";
 
 const repo = (config?: string) => {
-  const root = mkdtempSync(join(tmpdir(), "deploy-config-"));
+  const root = mkdtempSync(join(tmpdir(), "diff-patches-config-"));
   if (config !== undefined) writeFileSync(join(root, "deploy.config"), config);
   return root;
 };

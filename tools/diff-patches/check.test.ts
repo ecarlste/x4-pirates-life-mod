@@ -43,6 +43,9 @@ test("each op must match exactly once on vanilla 8.00 (with the DLCs' diffs) and
     `libraries/nothing.xml on ${VANILLA}: no libraries/nothing.xml to patch`,
     `libraries/nothing.xml on ${SWI}: no libraries/nothing.xml to patch`,
     `md/script.xml on ${VANILLA}: <add sel="//cue[@name='SwiCue']"> matches 0 nodes`,
+    // More than one match fails too
+    `md/script.xml on ${VANILLA}: <remove sel="//cue[@name='Start' or @name='Second']"> matches 2 nodes`,
+    `md/script.xml on ${SWI}: <remove sel="//cue[@name='Start' or @name='Second']"> matches 2 nodes`,
   ]);
 });
 
@@ -57,7 +60,7 @@ test("without SWI_UNPACKED, only vanilla 8.00 is checked, with a note", () => {
   const { notes, bad } = checkDiffPatches(mod, unpacked, "");
   assert.equal(notes[0], `${SWI} not checked: SWI_UNPACKED not found`);
   assert.ok(notes.every((line) => !line.includes(SWI) || line === notes[0]));
-  assert.equal(bad.length, 2);
+  assert.equal(bad.length, 3);
 });
 
 test("without X4_UNPACKED, nothing is checked, with a note", () => {
@@ -80,13 +83,15 @@ test("a known mismatch is reported as known, not failed, and a known entry that 
     `libraries/nothing.xml on ${VANILLA}: no libraries/nothing.xml to patch`,
     `libraries/nothing.xml on ${SWI}: no libraries/nothing.xml to patch`,
     `md/script.xml on ${VANILLA}: <add sel="//cue[@name='SwiCue']"> matches 0 nodes`,
+    `md/script.xml on ${VANILLA}: <remove sel="//cue[@name='Start' or @name='Second']"> matches 2 nodes`,
+    `md/script.xml on ${SWI}: <remove sel="//cue[@name='Start' or @name='Second']"> matches 2 nodes`,
     `md/script.xml: sel="//cue[@name='Start']/actions" is listed as a known mismatch (#2) but matches on every base now: take it off the list`,
   ]);
 });
 
 test("known entries are only judged stale when both bases were checked", () => {
   const known = [{ file: "aiscripts/ai.xml", sel: "//do_if[@value='old']/@value", issue: "#1" }];
-  assert.deepEqual(withKnown(checkDiffPatches(mod, unpacked, ""), known, false).bad.length, 2);
+  assert.deepEqual(withKnown(checkDiffPatches(mod, unpacked, ""), known, false).bad.length, 3);
   assert.deepEqual(withKnown(checkDiffPatches(mod, "", ""), known, false), {
     notes: ["not checked: X4_UNPACKED not found"],
     known: [],
@@ -106,6 +111,8 @@ test("the report counts the ops that match, lists everything else, and says whet
     `  FAIL libraries/nothing.xml on ${VANILLA}: no libraries/nothing.xml to patch`,
     `  FAIL libraries/nothing.xml on ${SWI}: no libraries/nothing.xml to patch`,
     `  FAIL md/script.xml on ${VANILLA}: <add sel="//cue[@name='SwiCue']"> matches 0 nodes`,
+    `  FAIL md/script.xml on ${VANILLA}: <remove sel="//cue[@name='Start' or @name='Second']"> matches 2 nodes`,
+    `  FAIL md/script.xml on ${SWI}: <remove sel="//cue[@name='Start' or @name='Second']"> matches 2 nodes`,
   ]);
   assert.equal(report(result, true).length, report(result).length + 18);
   assert.deepEqual(report({ notes: ["not checked: X4_UNPACKED not found"], known: [], bad: [] }), [
