@@ -101,8 +101,9 @@ def github_outputs(keys, filters):
     picked = suites(filters) if EVERYTHING in keys else [k for k in suites(filters) if k in keys]
     pester = [k for k in picked if k.endswith(".Tests.ps1")]
     bash = [k for k in picked if not k.endswith(".Tests.ps1") and k not in ("lua", "typescript")]
+    # suites is for the bats job's run.sh; typescript runs in its own job, with node_modules
     return [
-        f"suites={' '.join(picked)}",
+        f"suites={' '.join(k for k in picked if k != 'typescript')}",
         f"bash={'true' if bash else 'false'}",
         f"shellcheck={'true' if 'shellcheck' in picked else 'false'}",
         f"lua={'true' if 'lua' in picked else 'false'}",

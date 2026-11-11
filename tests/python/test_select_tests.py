@@ -59,8 +59,11 @@ class GithubOutputs(unittest.TestCase):
             "typescript=false", "pester=tests/Deploy.Tests.ps1"])
 
     def test_select_typescript_runs_its_own_job_not_bats(self):
+        # The bats job's run.sh has no node_modules, so typescript stays out of its suites
+        self.assertEqual(st.github_outputs(["typescript", "tests/deploy.bats"], FILTERS), [
+            "suites=tests/deploy.bats", "bash=true", "shellcheck=false", "lua=false", "typescript=true", "pester="])
         self.assertEqual(st.github_outputs(["typescript"], FILTERS), [
-            "suites=typescript", "bash=false", "shellcheck=false", "lua=false", "typescript=true", "pester="])
+            "suites=", "bash=false", "shellcheck=false", "lua=false", "typescript=true", "pester="])
 
     def test_select_nothing_matched_runs_no_job(self):
         self.assertEqual(st.github_outputs(["none"], FILTERS),
@@ -71,6 +74,7 @@ class GithubOutputs(unittest.TestCase):
         self.assertIn("bash=true", outputs)
         self.assertIn("lua=true", outputs)
         self.assertIn("typescript=true", outputs)
+        self.assertNotIn("typescript", outputs[0])
         self.assertIn("pester=tests/Deploy.Tests.ps1", outputs)
 
 
