@@ -197,3 +197,93 @@ Describe 'ConvertTo-MarkdownReport' {
         ConvertTo-MarkdownReport $dropped @() $script:Info | Should -BeLike '*SETA dropped 1 times during the run*'
     }
 }
+
+Describe 'Get-GameProcessNames' {
+    It 'covers both X4 executables, so neither copy of the game can be running' {
+        Get-GameProcessNames 'E:\X4 Foundations - 8.00\X4_nonsteam.exe' | Should -Be @('X4', 'X4_nonsteam')
+    }
+
+    It 'adds another executable''s name' {
+        Get-GameProcessNames 'C:\bin\fakegame.cmd' | Should -Be @('X4', 'X4_nonsteam', 'fakegame')
+    }
+}
+
+Describe 'Get-ProfileProblems' {
+    BeforeEach {
+        $dir = New-TestDir
+        $xml = Join-Path $dir 'content.xml'
+    }
+    AfterEach { Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'finds none when SWI is on and our extensions are on or not listed' {
+        Write-LfFile $xml '<content><extension id="SW Interworlds" enabled="1"/><extension id="apirateslife" enabled="true"/></content>'
+        Get-ProfileProblems $xml | Should -BeNullOrEmpty
+    }
+
+    It 'needs SWI listed as on, since its own content.xml starts it off' {
+        Write-LfFile $xml '<content><extension id="apirateslife" enabled="true"/></content>'
+        Get-ProfileProblems $xml | Should -Be @("'SW Interworlds' isn't switched on")
+    }
+
+    It 'names each of ours that is switched off' {
+        Write-LfFile $xml '<content><extension id="SW Interworlds" enabled="true"/><extension id="apirateslife" enabled="0"/><extension id="apirateslife_tests" enabled="false"/></content>'
+        Get-ProfileProblems $xml | Should -Be @("'apirateslife' isn't switched on", "'apirateslife_tests' isn't switched on")
+    }
+
+    It 'treats a missing content.xml as a new profile, with SWI off' {
+        Get-ProfileProblems $xml | Should -Be @("'SW Interworlds' isn't switched on")
+    }
+}
+
+Describe 'Enable-Extensions' {
+    BeforeEach {
+        $dir = New-TestDir
+        $xml = Join-Path $dir 'content.xml'
+    }
+    AfterEach { Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'switches listed extensions on, adds missing ones, and keeps the rest' {
+        Write-LfFile $xml '<content><extension id="SW Interworlds" enabled="false"/><extension id="other" enabled="false"/></content>'
+        Enable-Extensions $xml @('SW Interworlds', 'apirateslife')
+        $doc = [xml] (Get-Content $xml -Raw)
+        @($doc.content.extension | ForEach-Object { "$($_.id)=$($_.enabled)" }) | Should -Be @('SW Interworlds=true', 'other=false', 'apirateslife=true')
+    }
+
+    It 'makes the file when the profile has none' {
+        Enable-Extensions $xml @('apirateslife')
+        Get-EnabledExtensions $xml | Should -Be @('apirateslife')
+    }
+}
+
+Describe 'Resolve-Setting' {
+    BeforeEach {
+        $dir = New-TestDir
+        Write-LfFile (Join-Path $dir 'deploy.config') "X4_PATH=`"E:\X4`"`n# X4_PROFILE_ROOT=`"C:\nope`"`nX4_PROFILE_ID='90000301'`n"
+    }
+    AfterEach {
+        Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item env:X4_PROFILE_ID -ErrorAction SilentlyContinue
+    }
+
+    It 'reads deploy.config, without quotes, skipping commented-out settings' {
+        Resolve-Setting $dir 'X4_PATH' '' | Should -Be 'E:\X4'
+        Resolve-Setting $dir 'X4_PROFILE_ROOT' 'default' | Should -Be 'default'
+    }
+
+    It 'lets the environment override deploy.config' {
+        $env:X4_PROFILE_ID = '123'
+        Resolve-Setting $dir 'X4_PROFILE_ID' '90000301' | Should -Be '123'
+    }
+
+    It 'falls back to the default without a deploy.config' {
+        Remove-Item (Join-Path $dir 'deploy.config')
+        Resolve-Setting $dir 'X4_EXE' 'X4_nonsteam.exe' | Should -Be 'X4_nonsteam.exe'
+    }
+}
+
+Describe 'ConvertFrom-WslPath' {
+    It 'turns a WSL /mnt path into a Windows one, and leaves Windows paths alone' {
+        ConvertFrom-WslPath '/mnt/e/SteamLibrary/X4 Foundations - 8.00' | Should -Be 'E:\SteamLibrary\X4 Foundations - 8.00'
+        ConvertFrom-WslPath 'E:\X4' | Should -Be 'E:\X4'
+    }
+}

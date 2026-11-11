@@ -16,13 +16,14 @@ help:
 	@echo "  make test           - Run the test suites your changes need (ALL=1: every suite)"
 	@echo "  make test-plan      - Regenerate the readable test plan in docs/test-plan/ from the feature files"
 	@echo "  make variants       - Regenerate the pirate variants from profiles/vanilla/variants.xml (needs the unpacked game files)"
-	@echo "  make game-test      - Deploy your working tree and run the in-game tests in X4 (Windows)"
+	@echo "  make game-test      - Deploy your working tree and run the in-game tests in the X4 8.00 copy (Windows)"
 	@echo "  make game-test-report - Post the last game-test report to this branch's PR (comment and check)"
 	@echo "  make worktrees      - List worktrees; flag uncommitted or unpushed work not yet on main"
 	@echo "  make help           - Show this help message"
 	@echo ""
 	@echo "Other refs: ./deploy.sh --ref <branch>  (PowerShell: .\\deploy.ps1 -Ref <branch>)"
 	@echo "Extra options: make deploy-local ARGS=\"--set IntactOnEject=0\"  (also deploy, deploy-dry-run, game-test)"
+	@echo "               make game-test RUNNER_ARGS=-PrepareProfile  (options for tools/run-game-tests.ps1)"
 
 setup:
 	@if [ -f deploy.config ]; then \
@@ -54,7 +55,7 @@ variants:
 
 game-test:
 	@./deploy.sh --working-tree $(ARGS)
-	@$(GAME_TEST_RUNNER) $(GAME_TEST_GIT)
+	@$(GAME_TEST_RUNNER) $(GAME_TEST_GIT) $(RUNNER_ARGS)
 
 game-test-report:
 	@tools/post-game-test-report.sh $(ARGS)

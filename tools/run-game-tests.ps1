@@ -1,47 +1,53 @@
 <#
 .SYNOPSIS
-    Runs the in-game tests: plays scripted scenarios in the real game and reports PASS/FAIL.
+    Runs the in-game tests: plays scripted scenarios in the real game (X4 8.00 + SWI, started
+    through NoSteam) and reports PASS/FAIL.
 
 .DESCRIPTION
-    1. Installs the dev-only test extension (tests/game/apirateslife_tests) next to the deployed mod.
-    2. Starts X4 through Steam, so with your Steam launch options: they must write the log
-       (-logfile debuglog.txt; -debug all -scriptlogfiles recommended). Started directly, X4.exe
-       hands over to Steam and drops its arguments. The test extension starts its own gamestart from the main menu, runs every
-       test, logs "[apirateslife-test] ..." lines to debuglog.txt and quits the game.
-    3. Watches debuglog.txt until the run finishes, the game exits, or the timeout passes (the
-       game is then closed).
-    4. Removes the test extension, prints a summary and writes a JUnit report plus a Markdown
+    1. Checks the test profile (<X4_PROFILE_ROOT>\<X4_PROFILE_ID>\) has SWI, A Pirate's Life and
+       the test extension switched on in its content.xml (SWI's own content.xml says enabled="0",
+       so a new profile starts with it off). -PrepareProfile makes the profile from the root
+       profile's content.xml and config.xml and switches all three on.
+    2. Installs the dev-only test extension (tests/game/apirateslife_tests) next to the deployed mod.
+    3. Starts <X4_PATH>\<X4_EXE> directly (X4_nonsteam.exe, no Steam involved) with
+       -skipintro -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid <id>.
+       The test extension starts its own gamestart from the main menu, runs every test, logs
+       "[apirateslife-test] ..." lines to debuglog.txt and quits the game.
+    4. Watches the profile's debuglog.txt until the run finishes, the game exits, no log appears
+       within -LaunchTimeoutSeconds, or the timeout passes (the game is then closed).
+    5. Removes the test extension, prints a summary and writes a JUnit report plus a Markdown
        report (tests/game/report.md) that make game-test-report can post to the PR.
 
-    The previous debuglog.txt is kept as debuglog.previous.txt. Deploy the mod first (make deploy-local). Exits 1 if any test failed, the run didn't finish,
-    or the log has errors from the mod.
+    The previous debuglog.txt is kept as debuglog.previous.txt. Deploy the mod first (make
+    deploy-local). Refuses to start while X4 or X4_nonsteam is running. Exits 1 if any test
+    failed, the run didn't finish, or the log has errors from the mod.
 
-    X4_PATH comes from -X4Path, the X4_PATH environment variable, or deploy.config.
+    Settings come from the parameters, else environment variables of the same name, else
+    deploy.config (see deploy.config.example): X4_PATH, X4_EXE, X4_PROFILE_ID, X4_PROFILE_ROOT.
 
 .PARAMETER X4Path
-    The X4 install folder.
+    The X4 8.00 install folder (X4_PATH), with SWI in extensions\starwarsmod_m1.
 
-.PARAMETER LogPath
-    The debuglog.txt the game writes (launch option -logfile). Defaults to the one in the only
-    numbered profile folder under Documents\Egosoft\X4, or the most recently written one.
+.PARAMETER ProfileId
+    The numeric -personalfolderid of the test profile (X4_PROFILE_ID, default 90000301). Only a
+    numeric ID gives a separate profile; anything else falls back to the root profile, the
+    series playthrough's.
 
 .PARAMETER TimeoutSeconds
-    How long a whole run may take, including the game loading. Default 900.
+    How long a whole run may take, including the game loading SWI. Default 1200.
+
+.PARAMETER LaunchTimeoutSeconds
+    How long to wait for the profile's debuglog.txt to appear after starting the game. Default 60.
 
 .PARAMETER ReportPath
     Where to write the JUnit report. Default tests/game/results.xml.
 
-.PARAMETER GameExe
-    Start this executable directly instead of starting X4 through Steam; the tests use a fake game.
-
-.PARAMETER SteamAppId
-    X4's Steam app ID. Default 392160.
-
-.PARAMETER LaunchTimeoutSeconds
-    How long to wait for the X4 process to appear after asking Steam to start it. Default 120.
-
 .PARAMETER MarkdownPath
     Where to write the Markdown report. Default tests/game/report.md.
+
+.PARAMETER GameExe
+    Start this executable instead of <X4Path>\<X4_EXE>; the tests use a fake game. The preflight
+    then only checks this executable isn't running, not X4 and X4_nonsteam.
 
 .PARAMETER Commit
     The commit being tested, for the report. make game-test passes it (with -Branch and -Dirty)
@@ -53,32 +59,41 @@
 .PARAMETER Dirty
     The deployed working tree had uncommitted changes, so the commit doesn't describe what ran.
 
+.PARAMETER PrepareProfile
+    Make the test profile if needed, copy the root profile's content.xml (extension on/off) and
+    config.xml (graphics) into it if it has none, then switch SWI, A Pirate's Life and the test
+    extension on in its content.xml. Only reads the root profile, never changes it.
+
 .PARAMETER KeepExtension
-    Leave the test extension installed afterwards (X4 then starts the tests on every launch).
+    Leave the test extension installed afterwards (X4 then starts the tests on every launch, in
+    every profile where it's on).
 
 .EXAMPLE
-    .\tools\run-game-tests.ps1
+    .\tools\run-game-tests.ps1 -PrepareProfile
 #>
 [CmdletBinding()]
 param(
     [string] $X4Path,
-    [string] $LogPath,
-    [int] $TimeoutSeconds = 900,
+    [string] $ProfileId,
+    [int] $TimeoutSeconds = 1200,
+    [int] $LaunchTimeoutSeconds = 60,
     [string] $ReportPath,
     [string] $GameExe,
-    [string] $SteamAppId = '392160',
-    [int] $LaunchTimeoutSeconds = 120,
     [double] $PollSeconds = 2,
     [string] $MarkdownPath,
     [string] $Commit,
     [string] $Branch,
     [switch] $Dirty,
+    [switch] $PrepareProfile,
     [switch] $KeepExtension
 )
 
 $ErrorActionPreference = 'Stop'
 
 $TestExtensionId = 'apirateslife_tests'
+$ModId = 'apirateslife'
+$SwiId = 'SW Interworlds'
+$SwiFolder = 'starwarsmod_m1'
 
 # Parses debuglog.txt lines into the run's results. Errors are lines that mention the mod and an
 # error, apart from our own markers and the harmless "unsigned file" warnings every mod gets.
@@ -252,25 +267,85 @@ function Get-GitState([string] $Root) {
     $state
 }
 
-function Resolve-X4Path([string] $Root) {
-    if ($env:X4_PATH) { return $env:X4_PATH }
+# A KEY="value" line from deploy.config ('' if the file or key is missing)
+function Get-ConfigValue([string] $Root, [string] $Key) {
     $config = Join-Path $Root 'deploy.config'
-    if (-not (Test-Path $config)) {
-        throw "deploy.config not found. Pass -X4Path, set X4_PATH, or run make setup"
-    }
-    $line = Get-Content $config | Where-Object { $_ -match '^\s*X4_PATH\s*=' } | Select-Object -Last 1
-    if (-not $line) { throw "X4_PATH not set in deploy.config" }
-    ($line -replace '^\s*X4_PATH\s*=', '').Trim().Trim('"').Trim("'")
+    if (-not (Test-Path $config)) { return '' }
+    $line = Get-Content $config | Where-Object { $_ -match "^\s*$Key\s*=" } | Select-Object -Last 1
+    if (-not $line) { return '' }
+    ($line -replace "^\s*$Key\s*=", '').Trim().Trim('"').Trim("'")
 }
 
-# Steam profiles are folders named after the account ID under Documents\Egosoft\X4
-function Resolve-LogPath {
-    $egosoft = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Egosoft\X4'
-    $profiles = @(Get-ChildItem $egosoft -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^\d+$' })
-    if (-not $profiles.Count) { throw "No X4 profile folder found under $egosoft; pass -LogPath" }
-    $newest = $profiles | Sort-Object { $log = Join-Path $_.FullName 'debuglog.txt'; if (Test-Path $log) { (Get-Item $log).LastWriteTime } else { [datetime]::MinValue } } |
-              Select-Object -Last 1
-    Join-Path $newest.FullName 'debuglog.txt'
+# A setting from the environment, else deploy.config, else the default
+function Resolve-Setting([string] $Root, [string] $Key, [string] $Default) {
+    $value = [Environment]::GetEnvironmentVariable($Key)
+    if (-not $value) { $value = Get-ConfigValue $Root $Key }
+    if (-not $value) { $value = $Default }
+    $value
+}
+
+# /mnt/e/x -> E:\x, so deploy.config can hold either form
+function ConvertFrom-WslPath([string] $Path) {
+    if ($Path -match '^/mnt/([a-zA-Z])(/.*)?$') {
+        return "$($Matches[1].ToUpper()):$(([string] $Matches[2]) -replace '/', '\')"
+    }
+    $Path
+}
+
+# The processes that mean a game is already running: either X4 executable (Steam's or NoSteam's,
+# which may share the profile folders), and the one this run starts
+function Get-GameProcessNames([string] $GameExe) {
+    @(@('X4', 'X4_nonsteam', (Get-ProcessName $GameExe)) | Select-Object -Unique)
+}
+
+# An executable's process name. Splits on both separators: the tests also run on Linux, where a
+# Windows path has no '/'
+function Get-ProcessName([string] $Exe) {
+    (($Exe -split '[\\/]')[-1]) -replace '\.[^.]*$', ''
+}
+
+function Get-LaunchArguments([string] $ProfileId) {
+    "-skipintro -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid $ProfileId"
+}
+
+# The extension ids switched on in a profile's content.xml
+function Get-EnabledExtensions([string] $ContentXml) {
+    if (-not (Test-Path $ContentXml)) { return @() }
+    [xml] $doc = Get-Content $ContentXml -Raw
+    @($doc.content.extension | Where-Object { $_.enabled -eq 'true' -or $_.enabled -eq '1' } | ForEach-Object { $_.id })
+}
+
+# Why a test profile can't run the tests, as messages; empty means it can. SWI must be listed as
+# on (its own content.xml starts it off); ours start on, so they only fail when listed as off
+function Get-ProfileProblems([string] $ContentXml) {
+    $problems = @()
+    if (@(Get-EnabledExtensions $ContentXml) -notcontains $SwiId) { $problems += "'$SwiId' isn't switched on" }
+    if (Test-Path $ContentXml) {
+        [xml] $doc = Get-Content $ContentXml -Raw
+        foreach ($id in $ModId, $TestExtensionId) {
+            if (@($doc.content.extension | Where-Object { $_.id -eq $id -and ($_.enabled -eq 'false' -or $_.enabled -eq '0') }).Count) {
+                $problems += "'$id' isn't switched on"
+            }
+        }
+    }
+    $problems
+}
+
+# Switches these extensions on in a profile's content.xml (made if missing), keeping other entries
+function Enable-Extensions([string] $ContentXml, [string[]] $Ids) {
+    $doc = New-Object System.Xml.XmlDocument
+    if (Test-Path $ContentXml) { $doc.Load($ContentXml) }
+    else { $doc.LoadXml("<?xml version=`"1.0`" encoding=`"utf-8`"?>`n<content>`n</content>") }
+    foreach ($id in $Ids) {
+        $entry = @($doc.DocumentElement.ChildNodes | Where-Object { $_.Name -eq 'extension' -and $_.id -eq $id }) | Select-Object -First 1
+        if (-not $entry) {
+            $entry = $doc.CreateElement('extension')
+            $entry.SetAttribute('id', $id)
+            [void] $doc.DocumentElement.AppendChild($entry)
+        }
+        $entry.SetAttribute('enabled', 'true')
+    }
+    $doc.Save($ContentXml)
 }
 
 # Reads the log while the game still has it open for writing
@@ -285,10 +360,23 @@ function Read-SharedFile([string] $Path) {
 if ($MyInvocation.InvocationName -eq '.') { return }
 
 $root = Split-Path $PSScriptRoot -Parent
-if (-not $X4Path) { $X4Path = Resolve-X4Path $root }
-if (-not $LogPath) { $LogPath = Resolve-LogPath }
+if (-not $X4Path) { $X4Path = Resolve-Setting $root 'X4_PATH' '' }
+if (-not $X4Path) { throw "X4_PATH not set: pass -X4Path, set X4_PATH, or run make setup and edit deploy.config" }
+$X4Path = ConvertFrom-WslPath $X4Path
+$exeName = Resolve-Setting $root 'X4_EXE' 'X4_nonsteam.exe'
+if (-not $ProfileId) { $ProfileId = Resolve-Setting $root 'X4_PROFILE_ID' '90000301' }
+if ($ProfileId -notmatch '^\d+$') { throw "X4_PROFILE_ID must be numeric (got '$ProfileId'): X4 falls back to the root profile, the series playthrough's, for anything else" }
+$profileRoot = Resolve-Setting $root 'X4_PROFILE_ROOT' ''
+if (-not $profileRoot) { $profileRoot = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Egosoft\X4' }
+$profileRoot = ConvertFrom-WslPath $profileRoot
+$profileDir = Join-Path $profileRoot $ProfileId
+$LogPath = Join-Path $profileDir 'debuglog.txt'
 if (-not $ReportPath) { $ReportPath = Join-Path $root 'tests/game/results.xml' }
 if (-not $MarkdownPath) { $MarkdownPath = Join-Path $root 'tests/game/report.md' }
+# A -GameExe is a fake game (the tests): only its own process counts, so a real X4 left open on the
+# machine doesn't stop the tests
+$fakeGame = [bool] $GameExe
+if (-not $GameExe) { $GameExe = Join-Path $X4Path $exeName }
 if (-not $Commit) {
     $git = Get-GitState $root
     $Commit = $git.Commit
@@ -296,40 +384,51 @@ if (-not $Commit) {
     if ($git.Dirty) { $Dirty = [switch] $true }
 }
 
-if (-not (Test-Path (Join-Path $X4Path 'extensions/apirateslife/content.xml'))) {
+if (-not (Test-Path $GameExe)) { throw "$GameExe not found; check X4_PATH and X4_EXE in deploy.config" }
+if (-not (Test-Path (Join-Path $X4Path "extensions/$ModId/content.xml"))) {
     throw "A Pirate's Life isn't deployed to $X4Path. Run make deploy-local (or .\deploy.ps1 -WorkingTree) first"
 }
-$gameName = if ($GameExe) { [IO.Path]::GetFileNameWithoutExtension($GameExe) } else { 'X4' }
-if (Get-Process -Name $gameName -ErrorAction SilentlyContinue) {
-    throw "$gameName is already running; close it first"
+if (-not (Test-Path (Join-Path $X4Path "extensions/$SwiFolder/content.xml"))) {
+    throw "SWI isn't installed in $X4Path (no extensions\$SwiFolder)"
+}
+$processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
+foreach ($name in $processNames) {
+    if (Get-Process -Name $name -ErrorAction SilentlyContinue) { throw "$name is already running; close it first" }
+}
+
+$contentXml = Join-Path $profileDir 'content.xml'
+if ($PrepareProfile) {
+    New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+    # Start from the root profile's extension and graphics settings, read only
+    foreach ($file in 'content.xml', 'config.xml') {
+        $source = Join-Path $profileRoot $file
+        if (-not (Test-Path (Join-Path $profileDir $file)) -and (Test-Path $source)) { Copy-Item $source $profileDir }
+    }
+    Enable-Extensions $contentXml @($SwiId, $ModId, $TestExtensionId)
+    Write-Host "Test profile $profileDir ready: $((Get-EnabledExtensions $contentXml) -join ', ') on"
+}
+$profileProblems = @(Get-ProfileProblems $contentXml)
+if ($profileProblems.Count) {
+    throw "Test profile $profileDir isn't ready: $($profileProblems -join '; '). Run with -PrepareProfile (make game-test RUNNER_ARGS=-PrepareProfile), or start X4 in that profile and switch them on in Extensions"
 }
 
 $extension = Join-Path $X4Path "extensions/$TestExtensionId"
+$arguments = Get-LaunchArguments $ProfileId
 $startedAt = Get-Date
 $game = $null
 $ending = ''
+$seen = @{}
 try {
     if (Test-Path $extension) { Remove-Item $extension -Recurse -Force }
     Copy-Item (Join-Path $root "tests/game/$TestExtensionId") $extension -Recurse
     # A stale log would report the previous run; keep it out of the way instead
-    if (Test-Path $LogPath) { Move-Item $LogPath (Join-Path (Split-Path $LogPath -Parent) 'debuglog.previous.txt') -Force }
+    if (Test-Path $LogPath) { Move-Item $LogPath (Join-Path $profileDir 'debuglog.previous.txt') -Force }
 
-    if ($GameExe) {
-        Write-Host "Starting $GameExe; results go to $LogPath"
-        $game = Start-Process -FilePath $GameExe -WorkingDirectory $X4Path -PassThru
-    }
-    else {
-        Write-Host "Starting X4 through Steam; results go to $LogPath"
-        Start-Process "steam://rungameid/$SteamAppId"
-        $launchDeadline = (Get-Date).AddSeconds($LaunchTimeoutSeconds)
-        while (-not ($game = Get-Process -Name X4 -ErrorAction SilentlyContinue | Select-Object -First 1)) {
-            if ((Get-Date) -gt $launchDeadline) { throw "X4 didn't start within $LaunchTimeoutSeconds s. Check Steam is running and isn't waiting on a prompt to allow the launch (accept it and run again)" }
-            Start-Sleep -Seconds 1
-        }
-    }
+    Write-Host "Starting $GameExe $arguments; results go to $LogPath"
+    $game = Start-Process -FilePath $GameExe -ArgumentList $arguments -WorkingDirectory $X4Path -PassThru
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $launchDeadline = (Get-Date).AddSeconds($LaunchTimeoutSeconds)
     $reported = 0
-    $seen = @{}
     while ($true) {
         Start-Sleep -Milliseconds ([int] ($PollSeconds * 1000))
         $run = Read-GameTestLog (Read-SharedFile $LogPath)
@@ -344,10 +443,14 @@ try {
         if ($run.Done -and -not $seen.ContainsKey('done')) { $seen.done = $now }
         if ($run.Done) { $ending = 'finished'; break }
         if ($game.HasExited) { $ending = 'the game exited early'; break }
+        if (-not (Test-Path $LogPath) -and (Get-Date) -gt $launchDeadline) {
+            $ending = "no $LogPath within $LaunchTimeoutSeconds s (did -personalfolderid $ProfileId take?)"
+            break
+        }
         if ((Get-Date) -gt $deadline) { $ending = "timed out after $TimeoutSeconds s"; break }
     }
     # The tests quit the game themselves; give it a moment, then close it
-    if ($ending -like 'timed out*' -or -not $game.WaitForExit(30000)) {
+    if (-not $game.HasExited -and ($ending -ne 'finished' -or -not $game.WaitForExit(30000))) {
         Write-Host "Closing the game"
         Stop-Process -Id $game.Id -Force -ErrorAction SilentlyContinue
     }
@@ -367,7 +470,7 @@ $problems = @(Get-RunProblems $run $ending)
 New-Item -ItemType Directory -Force -Path (Split-Path $ReportPath -Parent) | Out-Null
 [IO.File]::WriteAllText($ReportPath, (ConvertTo-JUnitXml $run $problems))
 $total = ((Get-Date) - $startedAt).TotalSeconds
-$phases = if ($seen) { @(Get-RunPhases $seen $total) } else { @() }
+$phases = if ($seen.Count) { @(Get-RunPhases $seen $total) } else { @() }
 $info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = $total; Phases = $phases }
 New-Item -ItemType Directory -Force -Path (Split-Path $MarkdownPath -Parent) | Out-Null
 [IO.File]::WriteAllText($MarkdownPath, (ConvertTo-MarkdownReport $run $problems $info) + "`n")

@@ -105,6 +105,12 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     [[ "$output" != *"-Dirty"* ]]
 }
 
+@test "make game-test passes RUNNER_ARGS to the runner only" {
+    run make -C "$REPO" game-test RUNNER_ARGS=-PrepareProfile GAME_TEST_RUNNER='echo runner'
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"-Branch main -PrepareProfile"* ]]
+}
+
 @test "make game-test flags uncommitted changes" {
     echo '<diff>local</diff>' > "$REPO/libraries/god.xml"
     run make -C "$REPO" game-test GAME_TEST_RUNNER='echo runner'

@@ -1,74 +1,16 @@
-# Tests for tools/run-game-tests.ps1 as a whole: runs against a fake game that writes a prepared
-# debuglog.txt instead of playing the tests. The runner's functions are tested in
-# GameTests.Tests.ps1; the two files run in parallel under tests/run.sh.
+# Tests for tools/run-game-tests.ps1 as a whole: how a run against a fake game ends and what it
+# reports. The checks before the game starts are in RunGameTestsProfile.Tests.ps1, the runner's
+# functions in GameTests.Tests.ps1; the files run in parallel under tests/run.sh.
 
 BeforeAll {
     . (Join-Path $PSScriptRoot 'TestHelpers.ps1')
+    . (Join-Path $PSScriptRoot 'RunGameTestsSandbox.ps1')
     $script:Runner = Join-Path $script:RepoRoot 'tools/run-game-tests.ps1'
-    . $script:Runner
-
-    # Lines as X4 writes them: MD debug_text under [Scripts], Lua DebugError under [=ERROR=]
-    $script:PassingLog = @(
-        '[General] 0.00 ======================================'
-        '[=ERROR=] 2.50 [apirateslife-test] autostart: starting gamestart apirateslife_test'
-        "[Init   ] 0.00 Starting new game using gamestart 'apirateslife_test' in 9.00 (611726)"
-        '[General] 3.10 Could not find signature file extensions\apirateslife\md\apirateslife_bail.xml.sig'
-        '[General] 3.11 Failed to verify the file signature for file extensions\apirateslife\md\apirateslife_bail.xml (error: 14)'
-        '[Scripts] 40.01 *** Context:md.APiratesLife_Tests.Run<inst:2a1b>: [apirateslife-test] RUN START 2 tests'
-        '[Scripts] 40.02 *** Context:md.APiratesLife_Bail.AdjustEjectChance: [apirateslife] bail check: null attacking null: chance 30 -> 60'
-        '[Scripts] 40.03 *** Context:md.APiratesLife_Tests.Report<inst:2a1c>: [apirateslife-test] PASS eject_chance_doubled: 5 cases'
-        '[Scripts] 44.00 *** Context:md.APiratesLife_Tests.Report<inst:2a1d>: [apirateslife-test] PASS pilot_bail_intact: hull 100%, 4 equipment kept, pilot skill 38'
-        '[Scripts] 44.01 *** Context:md.APiratesLife_Tests.NextTest<inst:2a1e>: [apirateslife-test] DONE passed=2 failed=0'
-    )
-
-    function New-FakeGame([string] $Dir) {
-        New-Item -ItemType Directory -Force -Path $Dir | Out-Null
-        if ($script:OnWindows) {
-            $game = Join-Path $Dir 'fakegame.cmd'
-            $body = @'
-@echo off
-if exist "%FAKE_X4%\extensions\apirateslife_tests\content.xml" echo installed>"%FAKE_MARK%"
-if defined FAKE_HANG ping -n 20 127.0.0.1 >nul
-copy /y "%FAKE_SOURCE_LOG%" "%FAKE_LOGPATH%" >nul
-'@
-            Set-Content $game ($body -replace "`r?`n", "`r`n") -Encoding Ascii
-        }
-        else {
-            $game = Join-Path $Dir 'fakegame'
-            Write-LfFile $game @'
-#!/bin/sh
-[ -f "$FAKE_X4/extensions/apirateslife_tests/content.xml" ] && echo installed > "$FAKE_MARK"
-# exec, so closing the game kills the sleep too and nothing keeps the output open
-[ -n "$FAKE_HANG" ] && exec sleep 20
-cp "$FAKE_SOURCE_LOG" "$FAKE_LOGPATH"
-'@
-            & chmod +x $game
-        }
-        $game
-    }
 }
 
 Describe 'run-game-tests.ps1' {
-    BeforeEach {
-        $root = New-TestDir
-        $x4 = Join-Path $root 'x4'
-        Write-LfFile "$x4/extensions/apirateslife/content.xml" '<content id="apirateslife"/>'
-        $env:FAKE_X4 = $x4
-        $env:FAKE_MARK = Join-Path $root 'installed.txt'
-        $env:FAKE_SOURCE_LOG = Join-Path $root 'source.log'
-        $env:FAKE_LOGPATH = Join-Path $root 'debuglog.txt'
-        $env:FAKE_HANG = $null
-        $report = Join-Path $root 'results.xml'
-        $game = New-FakeGame (Join-Path $root 'bin')
-        $markdown = Join-Path $root 'report.md'
-        $runArgs = @('-X4Path', $x4, '-GameExe', $game, '-LogPath', $env:FAKE_LOGPATH, '-ReportPath', $report, '-MarkdownPath', $markdown,
-                     '-PollSeconds', '0.2', '-Commit', '0123456789abcdef0123456789abcdef01234567', '-Branch', 'feature/x')
-    }
-
-    AfterEach {
-        Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
-        foreach ($v in 'FAKE_X4', 'FAKE_MARK', 'FAKE_SOURCE_LOG', 'FAKE_LOGPATH', 'FAKE_HANG') { Remove-Item "env:$v" -ErrorAction SilentlyContinue }
-    }
+    BeforeEach { New-RunSandbox }
+    AfterEach { Remove-RunSandbox }
 
     It 'passes a passing run, with the test extension installed only while the game runs' {
         Set-Content $env:FAKE_SOURCE_LOG $script:PassingLog
@@ -118,14 +60,21 @@ Describe 'run-game-tests.ps1' {
         $r = Invoke-Script $script:Runner $runArgs
         $r.Output | Should -BeLike '*never started*'
         $r.ExitCode | Should -Be 1
-        Get-Content (Join-Path $root 'debuglog.previous.txt') | Should -Be $script:PassingLog
+        Get-Content (Join-Path $profileDir 'debuglog.previous.txt') | Should -Be $script:PassingLog
     }
 
-    It 'refuses to run when the mod is not deployed' {
-        Remove-Item "$x4/extensions/apirateslife" -Recurse
+    It 'starts the game directly with the debug options and its own profile, and reads that profile''s log' {
+        Set-Content $env:FAKE_SOURCE_LOG $script:PassingLog
         $r = Invoke-Script $script:Runner $runArgs
-        $r.Output | Should -BeLike "*isn't deployed*"
-        $r.ExitCode | Should -Not -Be 0
-        Test-Path $env:FAKE_MARK | Should -BeFalse
+        $r.ExitCode | Should -Be 0
+        Get-TestFile $env:FAKE_ARGS | Should -Be '-skipintro -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid 90000301'
+        $r.Output | Should -BeLike "*results go to $env:FAKE_LOGPATH*"
+    }
+
+    It 'fails when no log appears within the launch timeout' {
+        $env:FAKE_HANG = '1'
+        $r = Invoke-Script $script:Runner ($runArgs + @('-LaunchTimeoutSeconds', '1', '-TimeoutSeconds', '15'))
+        $r.Output | Should -BeLike "*no $env:FAKE_LOGPATH within 1 s*"
+        $r.ExitCode | Should -Be 1
     }
 }
