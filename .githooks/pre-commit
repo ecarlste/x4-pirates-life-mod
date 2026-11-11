@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Keeps commits off main: every change goes through a feature branch and a PR (docs/PROJECT.md,
+# Workflow). Parallel sessions can switch a shared checkout's branch under you, so this checks the
+# branch at the moment of the commit. Turned on by make setup (git config core.hooksPath .githooks).
+
+branch=$(git symbolic-ref --short -q HEAD) || exit 0  # detached HEAD, as in a rebase
+
+if [ "$branch" = main ]; then
+    echo "pre-commit: this checkout is on main. Commit on a feature branch:" >&2
+    echo "  git switch -c feature/<name>   (your staged changes come with you)" >&2
+    exit 1
+fi

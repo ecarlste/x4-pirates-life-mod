@@ -51,7 +51,7 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
 
 ## Workflow
 
-- `make setup` once (creates `deploy.config` with the X4 install path), then deploy:
+- `make setup` once (creates `deploy.config` with the X4 install path, and turns on the git hooks in `.githooks/`: the pre-commit hook refuses commits on `main`), then deploy:
   - **"Deploy" means `make deploy`:** fetch and sync the latest `origin/main` into `extensions/apirateslife`, deleting files that left the mod. It deploys `main` no matter which branch is checked out.
   - `make deploy-local` syncs the working tree (uncommitted changes included) for in-game testing before a PR; `./deploy.sh --ref <branch>` deploys a pushed branch; `make deploy-dry-run` previews.
   - PowerShell equivalent: `.\deploy.ps1` (`-WorkingTree`, `-Ref <branch>`, `-DryRun`).

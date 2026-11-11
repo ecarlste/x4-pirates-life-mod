@@ -32,6 +32,16 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     assert_file_content "$REPO/deploy.config" 'X4_PATH=/mine'
 }
 
+@test "make setup turns on the repo's git hooks, also when deploy.config exists" {
+    run make -C "$REPO" setup
+    [ "$status" -eq 0 ]
+    [ "$(git -C "$REPO" config core.hooksPath)" = .githooks ]
+    git -C "$REPO" config --unset core.hooksPath
+    run make -C "$REPO" setup
+    [ "$status" -eq 0 ]
+    [ "$(git -C "$REPO" config core.hooksPath)" = .githooks ]
+}
+
 @test "make deploy ships origin/main" {
     push_from_other_clone libraries/god.xml '<diff>remote</diff>'
     run make -C "$REPO" deploy

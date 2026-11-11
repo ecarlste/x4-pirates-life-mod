@@ -19,11 +19,12 @@
     ".github/workflows/test-plan.yml"
   ],
 
-  "shellcheck": ["**/*.sh", "**/*.bash", "**/*.bats"],
+  "shellcheck": ["**/*.sh", "**/*.bash", "**/*.bats", ".githooks/**"],
   "lua": ["tests/game/apirateslife_tests/ui/**/*.lua", "tests/lua/**", ".luacheckrc"],
 
   "tests/deploy.bats": ["deploy.sh", "deploy.include", "deploy.config.example", "tests/helpers.bash", "tests/deploy.bats"],
   "tests/makefile.bats": ["Makefile", "deploy.sh", "deploy.include", "deploy.config.example", "tests/helpers.bash", "tests/makefile.bats"],
+  "tests/githooks.bats": [".githooks/**", "tests/helpers.bash", "tests/githooks.bats"],
   "tests/game-test-report.bats": ["tools/post-game-test-report.sh", "tests/helpers.bash", "tests/game-test-report.bats"],
   "tests/lua-checks.bats": ["tests/lua/run.sh", "tests/lua-checks.bats"],
   "tests/mod-xml.bats": ["content.xml", "md/**/*.xml", "aiscripts/**/*.xml", "libraries/**/*.xml", "t/**/*.xml", "tests/game/**/*.xml", "tests/mod-xml.bats"],
