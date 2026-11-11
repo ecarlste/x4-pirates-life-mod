@@ -14,12 +14,19 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
 
 Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
+## Starting a ticket
+
+Before any other work on the ticket:
+
+1. **Claim it**: `gh issue edit <n> --add-assignee @me`, the session's first write. The frontier query skips assigned tickets, so a parallel session won't pick it up too.
+2. **Read its comments, its blockers and the PRs that closed them**, before trusting the body (see **Blockers** for why). List the blockers with `gh api repos/<owner>/<repo>/issues/<n>/dependencies/blocked_by --jq '.[] | "#\(.number) [\(.state)]"'`. For each closed one, find the PR that closed it with `gh api graphql -f query='{repository(owner:"<owner>",name:"<repo>"){issue(number:<blocker>){closedByPullRequestsReferences(first:5,includeClosedPrs:true){nodes{number url merged}}}}}' --jq '.data.repository.issue.closedByPullRequestsReferences.nodes[] | select(.merged)'`, then read it with `gh pr view <pr>` and `gh pr diff <pr>`. That query only finds PRs that closed the blocker with a keyword (`Closes #<blocker>`). If it returns nothing (the blocker was closed by hand), fall back to `gh pr list --search "<blocker>" --state merged` and skim the results. It's a text search, so it also returns PRs that only mention the blocker.
+
 ## Blockers
 
 A ticket's body is written before its blockers land, so it can describe code that a blocker's PR has since changed or partly built. Blocking edges are GitHub's native issue dependencies (see **Blocking** under **Wayfinding operations**).
 
 - **When your PR closes a ticket that blocks others**: after the merge, list the tickets it blocks with `gh api repos/<owner>/<repo>/issues/<n>/dependencies/blocking --jq '.[] | "#\(.number) \(.title) [\(.state)]"'`. On each open one, comment one or two lines on what landed that its body doesn't know about, with a link to the PR. If the body is now wrong, edit it (`gh issue edit <n> --body-file ...`) and say so in the comment.
-- **When starting a ticket**: read its comments, then the PRs that closed its blockers, before trusting the body. List the blockers with `gh api repos/<owner>/<repo>/issues/<n>/dependencies/blocked_by --jq '.[] | "#\(.number) [\(.state)]"'`. For each closed one, find the PR that closed it with `gh api graphql -f query='{repository(owner:"<owner>",name:"<repo>"){issue(number:<blocker>){closedByPullRequestsReferences(first:5,includeClosedPrs:true){nodes{number url merged}}}}}' --jq '.data.repository.issue.closedByPullRequestsReferences.nodes[] | select(.merged)'`, then read it with `gh pr view <pr>` and `gh pr diff <pr>`. That query only finds PRs that closed the blocker with a keyword (`Closes #<blocker>`). If it returns nothing (the blocker was closed by hand), fall back to `gh pr list --search "<blocker>" --state merged` and skim the results. It's a text search, so it also returns PRs that only mention the blocker.
+- **When starting a ticket**: see **Starting a ticket** above.
 
 ## Pull requests as a triage surface
 
@@ -47,7 +54,7 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
 
 - **Map**: a single issue labelled `wayfinder:map`, holding the Notes / Decisions-so-far / Fog body. `gh issue create --label wayfinder:map`.
 - **Child ticket**: an issue linked to the map as a GitHub sub-issue (see **Make an issue a sub-issue of a parent**). Where sub-issues aren't enabled, add the child to a task list in the map body and put `Part of #<map>` at the top of the child body. Labels: `wayfinder:<type>` (`research`/`prototype`/`grilling`/`task`). Once claimed, the ticket is assigned to the driving dev.
-- **Blocking**: GitHub's **native issue dependencies**, the canonical, UI-visible representation. Add an edge with `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`, where `<blocker-db-id>` is the blocker's numeric **database id** (`gh api repos/<owner>/<repo>/issues/<n> --jq .id`, _not_ the `#number` or `node_id`). GitHub reports `issue_dependencies_summary.blocked_by` (open blockers only, the live gate). Where dependencies aren't available, fall back to a `Blocked by: #<n>, #<n>` line at the top of the child body. A ticket is unblocked when every blocker is closed. Before you trust an unblocked ticket's body, follow **Blockers** above.
+- **Blocking**: GitHub's **native issue dependencies**, the canonical, UI-visible representation. Add an edge with `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`, where `<blocker-db-id>` is the blocker's numeric **database id** (`gh api repos/<owner>/<repo>/issues/<n> --jq .id`, _not_ the `#number` or `node_id`). GitHub reports `issue_dependencies_summary.blocked_by` (open blockers only, the live gate). Where dependencies aren't available, fall back to a `Blocked by: #<n>, #<n>` line at the top of the child body. A ticket is unblocked when every blocker is closed. Before you trust an unblocked ticket's body, follow **Starting a ticket** above.
 - **Frontier query**: list the map's open children (`gh issue list --state open`, scoped to the map's sub-issues / task list), drop any with an open blocker (`issue_dependencies_summary.blocked_by > 0`, or an open issue in the `Blocked by` line) or an assignee; first in map order wins.
-- **Claim**: `gh issue edit <n> --add-assignee @me`, the session's first write.
+- **Claim**: step 1 of **Starting a ticket** above.
 - **Resolve**: `gh issue comment <n> --body "<answer>"`, then `gh issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far.
