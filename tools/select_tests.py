@@ -2,7 +2,7 @@
 """Picks the test suites a change needs, from .github/test-filters.json.
 
 The filters file is dorny/paths-filter's format, which CI reads with that action: each key names
-a suite (a test file, or "shellcheck", "lua") and lists the path globs it depends on;
+a suite (a test file, or "shellcheck", "lua", "typescript") and lists the path globs it depends on;
 "everything" lists files that need every suite, "none" files that need no test. This script reads
 the same file for make test, so CI and local runs pick alike.
 
@@ -22,7 +22,7 @@ import sys
 
 FILTERS = ".github/test-filters.json"
 EVERYTHING, NONE = "everything", "none"
-PSEUDO_SUITES = ("shellcheck", "lua")
+PSEUDO_SUITES = ("shellcheck", "lua", "typescript")
 # Test files that must each have a filter, so they run at all
 SUITE_FILES = re.compile(r"^tests/([^/]+\.bats|[^/]+\.Tests\.ps1|python/test_[^/]+\.py)$")
 
@@ -100,12 +100,14 @@ def github_outputs(keys, filters):
     """Step outputs for the CI jobs: which jobs run, and the Pester files to give run.ps1."""
     picked = suites(filters) if EVERYTHING in keys else [k for k in suites(filters) if k in keys]
     pester = [k for k in picked if k.endswith(".Tests.ps1")]
-    bash = [k for k in picked if not k.endswith(".Tests.ps1") and k != "lua"]
+    bash = [k for k in picked if not k.endswith(".Tests.ps1") and k not in ("lua", "typescript")]
+    # suites is for the bats job's run.sh; typescript runs in its own job, with node_modules
     return [
-        f"suites={' '.join(picked)}",
+        f"suites={' '.join(k for k in picked if k != 'typescript')}",
         f"bash={'true' if bash else 'false'}",
         f"shellcheck={'true' if 'shellcheck' in picked else 'false'}",
         f"lua={'true' if 'lua' in picked else 'false'}",
+        f"typescript={'true' if 'typescript' in picked else 'false'}",
         f"pester={','.join(pester)}",
     ]
 

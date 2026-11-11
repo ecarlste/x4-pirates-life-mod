@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<aiscript name="ai">
+  <attention min="unknown">
+    <actions>
+      <do_if value="old"/>
+    </actions>
+  </attention>
+</aiscript>

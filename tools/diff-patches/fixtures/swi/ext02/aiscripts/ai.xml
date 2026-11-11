@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SWI replaces the block our patch selects -->
+<diff>
+  <replace sel="//do_if[@value='old']/@value">swi</replace>
+</diff>

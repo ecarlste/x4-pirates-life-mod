@@ -7,6 +7,10 @@ load helpers
 setup() {
     command -v make >/dev/null || skip "make is not installed"
     setup_sandbox
+    # make setup's npm install goes to a stub that logs its arguments
+    export NPM="$SANDBOX/npm"
+    printf '#!/bin/sh\necho "$@" >> "%s/npm.log"\n' "$SANDBOX" > "$NPM"
+    chmod +x "$NPM"
 }
 teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 
@@ -40,6 +44,19 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     run make -C "$REPO" setup
     [ "$status" -eq 0 ]
     [ "$(git -C "$REPO" config core.hooksPath)" = .githooks ]
+}
+
+@test "make setup installs the TypeScript tools' packages with npm" {
+    run make -C "$REPO" setup
+    [ "$status" -eq 0 ]
+    assert_file_content "$SANDBOX/npm.log" 'install --no-fund --no-audit'
+}
+
+@test "make setup still sets up the rest, with a note, when npm isn't installed" {
+    run make -C "$REPO" setup NPM="$SANDBOX/no-such-npm"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"npm not found: install Node.js"* ]]
+    [ -f "$REPO/deploy.config" ]
 }
 
 @test "make deploy ships origin/main" {

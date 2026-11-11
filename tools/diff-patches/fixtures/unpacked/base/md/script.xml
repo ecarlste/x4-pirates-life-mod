@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mdscript name="Script">
+  <cues>
+    <cue name="Start">
+      <actions>
+        <set_value name="$a" exact="1"/>
+      </actions>
+    </cue>
+    <cue name="Second">
+      <actions>
+        <x v="a"/>
+        <x v="a"/>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

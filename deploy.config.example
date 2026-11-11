@@ -17,3 +17,9 @@ X4_EXE="X4_nonsteam.exe"
 X4_PROFILE_ID="90000301"
 # Optional: where the profile folders are (default <Documents>\Egosoft\X4, from Windows)
 # X4_PROFILE_ROOT="C:\Users\you\OneDrive\Documents\Egosoft\X4"
+
+# The diff-patch check only (make test, tools/check-diff-patches.ts): unpacked X4 8.00's base folder
+# (made by tools/unpack-x4.ps1; the DLC folders sit next to it), and SWI's unpacked catalogs (the
+# folder with ext02\ and ext\). Without them the check skips with a note, as in CI.
+X4_UNPACKED="E:\x4-dev\reference\x4-8.00\base"
+SWI_UNPACKED="E:\x4-dev\reference\mods\swi-0.91hf1"

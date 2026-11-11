@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A DLC's diff of the game's script: applied before SWI's and ours -->
+<diff>
+  <add sel="/mdscript/cues">
+    <cue name="DlcCue"/>
+  </add>
+  <!-- Matches nothing: skipped, as X4 skips it -->
+  <remove sel="//cue[@name='NoSuchCue']"/>
+</diff>

@@ -21,6 +21,16 @@
 
   "shellcheck": ["**/*.sh", "**/*.bash", "**/*.bats", ".githooks/**"],
   "lua": ["tests/game/apirateslife_tests/ui/**/*.lua", "tests/lua/**", ".luacheckrc"],
+  "typescript": [
+    "tools/**/*.ts",
+    "tools/diff-patches/fixtures/**",
+    "package.json",
+    "package-lock.json",
+    "tsconfig.json",
+    "md/**/*.xml",
+    "aiscripts/**/*.xml",
+    "libraries/**/*.xml"
+  ],
 
   "tests/deploy.bats": ["deploy.sh", "deploy.include", "deploy.config.example", "tests/helpers.bash", "tests/deploy.bats"],
   "tests/makefile.bats": ["Makefile", "deploy.sh", "deploy.include", "deploy.config.example", "tests/helpers.bash", "tests/makefile.bats"],

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<diff>
+  <add sel="//cue[@name='Start']/actions">
+    <cue name="Ours"/>
+  </add>
+  <!-- Sees the cue the op above added -->
+  <add sel="//cue[@name='Ours']" type="@checkinterval">1s</add>
+  <!-- The DLC's cue, on both bases -->
+  <add sel="//cue[@name='DlcCue']" type="@instantiate">true</add>
+  <!-- XPath positions: the 2nd x in its parent -->
+  <remove sel="//cue[@name='Second']/actions/x[@v='a'][2]"/>
+  <!-- Two matches before the op above ran, one after -->
+  <replace sel="//x[@v='a']/@v">b</replace>
+  <!-- Only on SWI -->
+  <add sel="//cue[@name='SwiCue']" type="@instantiate">true</add>
+  <!-- Two matches on both bases -->
+  <remove sel="//cue[@name='Start' or @name='Second']"/>
+</diff>

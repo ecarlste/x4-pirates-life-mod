@@ -1,0 +1,12 @@
+{
+  "name": "apirateslife-tools",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@xmldom/xmldom": "^0.9.12",
+    "saxes": "^6.0.0",
+    "typescript": "^5.9.3",
+    "xpath": "^0.0.36"
+  }
+}

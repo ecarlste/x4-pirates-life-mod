@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<diff>
+  <add sel="//do_if[@value='old']" pos="after">
+    <do_if value="dlc"/>
+  </add>
+</diff>

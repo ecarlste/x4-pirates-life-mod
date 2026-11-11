@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A DLC's own entries in a full file at the game's path, as the DLCs ship icons.xml: X4 merges
+     it with the game's, which the check doesn't model, so it's left out -->
+<lib>
+  <entry name="dlc"/>
+</lib>
