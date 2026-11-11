@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Lua checks for the mod's UI Lua and the test extension's Lua:
+# Lua checks for the mod's UI Lua (none in the SWI build) and the test extension's Lua:
 #   - luacheck (lint and syntax), with .luacheckrc; the standalone Linux build is fetched into .tools/
 #   - the unit tests (tests/lua/test_*.lua) with LuaUnit, under LuaJIT, the runtime X4 uses
 # Tools are pinned and checked against their SHA-256. Each check skips with a note when it can't run
@@ -18,7 +18,7 @@ LUAUNIT_SHA256=150ed14606ea66c6a02b3142dde02bdf6d48764fcd2af6bf85bfecd7d98a7d0b
 
 cd "$(dirname "$0")/../.."
 
-LINT_PATHS=${LUA_LINT_PATHS:-ui tests/game/apirateslife_tests/ui tests/lua}
+LINT_PATHS=${LUA_LINT_PATHS:-tests/game/apirateslife_tests/ui tests/lua}
 TESTS_DIR=${LUA_TESTS_DIR:-tests/lua}
 
 sha256() {
@@ -63,8 +63,8 @@ if command -v luajit >/dev/null; then
     shopt -s nullglob
     tests=("$TESTS_DIR"/test_*.lua)
     if [ ${#tests[@]} -eq 0 ]; then
-        echo "No unit tests in $TESTS_DIR" >&2
-        FAILED=1
+        # The SWI build has no UI Lua to unit test; the 9.x line's tests come back with its Lua
+        echo "No unit tests in $TESTS_DIR; skipping"
     fi
     for test in "${tests[@]}"; do
         echo "-- $test"

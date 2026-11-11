@@ -14,9 +14,8 @@ setup() {
 needs_luacheck() { [ "$(uname -s)-$(uname -m)" = Linux-x86_64 ] || skip "luacheck has no build here"; }
 needs_luajit() { command -v luajit >/dev/null || skip "LuaJIT is not installed"; }
 
-@test "the real Lua passes lint and its unit tests" {
+@test "the real Lua passes lint" {
     needs_luacheck
-    needs_luajit
     run "$RUN"
     echo "$output"
     [ "$status" -eq 0 ]
@@ -39,11 +38,11 @@ needs_luajit() { command -v luajit >/dev/null || skip "LuaJIT is not installed";
     [[ "$output" == *"TestBad.test_fails ... FAIL"* ]]
 }
 
-@test "fails when there are no unit tests to run" {
+@test "passes with a note when there are no unit tests to run" {
     needs_luajit
     rm "$FIXTURES/test_ok.lua"
     printf 'local ok = true\nreturn ok\n' > "$FIXTURES/lib.lua"
     LUA_LINT_PATHS="$FIXTURES/lib.lua" LUA_TESTS_DIR="$FIXTURES" run "$RUN"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"No unit tests in"* ]]
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"No unit tests in $FIXTURES; skipping"* ]]
 }

@@ -4,15 +4,13 @@ Once we agree on a feature's design, it gets a spec here, copied from [`_templat
 
 If the build changes the plan, update the spec in the same PR.
 
+The specs of the features the SWI build drops (booty, in-game settings, settings profiles) are on the [`9.x`](https://github.com/ecarlste/x4-pirates-life-mod/tree/9.x/docs/specs) branch.
+
 | Spec | Status |
 | --- | --- |
 | [bail-hook.md](bail-hook.md) | Done |
 | [claim-no-damage.md](claim-no-damage.md) | Done |
 | [capture-settings.md](capture-settings.md) | Done |
 | [capture-operation.md](capture-operation.md) | Done |
-| [in-game-settings.md](in-game-settings.md) | Done |
-| [settings-profiles.md](settings-profiles.md) | Done |
-| [settings-profiles-flows.md](settings-profiles-flows.md) | Done (the flows for settings-profiles.md) |
 | [capture-metrics.md](capture-metrics.md) | Done |
 | [pirated-ships.md](pirated-ships.md) | Done |
-| [booty.md](booty.md) | Draft |

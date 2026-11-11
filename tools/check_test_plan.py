@@ -16,7 +16,7 @@ This script fails when:
 Game test names are the $name values the tests report in the harness
 (tests/game/apirateslife_tests/md/apirateslife_tests.xml); unit tests are the test_* methods of
 the Test* classes in tests/lua/test_*.lua and the test_* methods in tests/python/test_*.py (the Python
-tools' tests, such as the variant generator's, which build part of the mod).
+tools' tests).
 
 Usage: tools/check_test_plan.py [features dir] [harness file] [specs dir] [unit tests dir]
 """
