@@ -61,10 +61,11 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     mkdir -p "$REPO/tests"
     printf '#!/bin/sh\necho "run.sh args: [$*]"\n' > "$REPO/tests/run.sh"
     chmod +x "$REPO/tests/run.sh"
-    run make -C "$REPO" test
+    # An outer `make test ALL=1` would pass ALL down; start clean.
+    run env -u ALL -u MAKEFLAGS -u MAKELEVEL make -C "$REPO" test
     [ "$status" -eq 0 ]
     [[ "$output" == *"run.sh args: []"* ]]
-    run make -C "$REPO" test ALL=1
+    run env -u ALL -u MAKEFLAGS -u MAKELEVEL make -C "$REPO" test ALL=1
     [[ "$output" == *"run.sh args: [--all]"* ]]
 }
 

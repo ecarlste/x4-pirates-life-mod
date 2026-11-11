@@ -11,6 +11,7 @@
     "docs/**",
     "README.md",
     "CLAUDE.md",
+    "GLOSSARY.md",
     "tools/README.md",
     ".kiro/**",
     ".gitignore",
@@ -54,6 +55,7 @@
     "tests/python/test_*.py",
     "tests/test-plan-docs.bats"
   ],
+  "tests/worktree-status.bats": ["tools/worktree-status.sh", ".claude/settings.json", "tests/worktree-status.bats"],
   "tests/test-plan-changes.bats": ["tools/check_test_plan_changes.py", "tests/test-plan-changes.bats"],
 
   "tests/python/test_capture_metrics.py": ["tools/capture_metrics.py", "tests/python/helpers.py", "tests/python/test_capture_metrics.py"],
