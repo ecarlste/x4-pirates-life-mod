@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Smoke test: proves the extension loads and can see the events our piracy features build on.
-     Every line it logs to debuglog.txt starts with "[apirateslife]". -->
+<!-- Smoke test: proves the game loads the extensions and can see the events our piracy features
+     build on. Part of the dev-only test extension, not the mod, so deploy.include stays the only
+     list of what ships. Every line it logs to debuglog.txt starts with "[apirateslife]". -->
 <mdscript name="APiratesLife_SmokeTest" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
     <!-- On every new game and every load: a log line plus an on-screen notification -->

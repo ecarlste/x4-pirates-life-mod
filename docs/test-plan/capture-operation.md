@@ -17,7 +17,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 **Automated:** in game `capture_start_and_destroyed`
 
 ```gherkin
-  Given a capturable Argon fighter with a pilot
+  Given a capturable Imperial fighter with a pilot
   When I start a capture operation on it
   Then the operation starts
 ```
@@ -80,7 +80,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 ```gherkin
   Given a capture operation on a capturable fighter with 80% hull and its shields kept down until the hull is below 75%
-  And my wingman flies a Nova with two pulse lasers and no missiles
+  And my wingman flies an X-wing with four lasers and no missiles
   When the wingman breaks the fighter's hull below 75%
   Then the wingman stops firing
   And for 30 seconds the hull stays below 75% and above 55%

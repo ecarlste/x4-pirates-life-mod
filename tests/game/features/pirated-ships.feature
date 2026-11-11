@@ -5,15 +5,15 @@ Feature: Pirated ships
 
   @pirated_bail_then_claim
   Scenario: A ship that bailed to me and that I claim is pirated
-    Given a capturable Argon fighter whose pilot bails while one of my ships attacks it
+    Given a capturable Imperial fighter whose pilot bails while one of my ships attacks it
     When I claim the abandoned fighter
-    Then it's marked pirated, by bail, from the Argon
+    Then it's marked pirated, by bail, from the Empire
 
   @pirated_boarding
   Scenario: A ship I board is pirated
-    Given my boarding operation on an Argon frigate
-    When the frigate becomes mine
-    Then it's marked pirated, by boarding, from the Argon
+    Given my boarding operation on an Imperial M ship
+    When the ship becomes mine
+    Then it's marked pirated, by boarding, from the Empire
 
   @manual
   Scenario: A ship docked at a ship I board is pirated

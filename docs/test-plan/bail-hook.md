@@ -34,7 +34,7 @@ Source: [`tests/game/features/bail-hook.feature`](../../tests/game/features/bail
 **Automated:** in game `pilot_bail_intact`
 
 ```gherkin
-  Given a crewless Argon fighter attacked by one of my ships
+  Given a crewless Imperial fighter attacked by one of my ships
   When the pilot bails
   Then our Bailed signal fires with the pilot marked as bailed
   And the fighter is ownerless
