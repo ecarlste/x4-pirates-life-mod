@@ -7,6 +7,9 @@
   time you start or load a game. Note: updating the mod replaces this file, so edits are lost on
   update.
 
+  Developers: md/apirateslife_settings.xml (its OnLoad cue) applies this file on every start and
+  load, and is its only caller; the config_applied_on_start game test covers it. Keep that script.
+
   Developers: deploy.sh and deploy.ps1 can override these values in the deployed copy without
   editing this file; see "Everyday commands" in the README. (No double hyphens in this comment:
   XML forbids them, and X4 would then skip this whole file.)
