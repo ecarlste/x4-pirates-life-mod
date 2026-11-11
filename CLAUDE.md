@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-GitHub Issues on ecarlste/x4-pirates-life-mod via `gh`; see `docs/agents/issue-tracker.md`. **Starting a ticket:** claim it, then read its blockers ([steps](docs/agents/issue-tracker.md#starting-a-ticket)). **After a PR merges:** tell the tickets it blocks what landed ([steps](docs/agents/issue-tracker.md#blockers)).
+GitHub Issues on ecarlste/x4-pirates-life-mod via `gh` ([`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md)). **Starting a ticket:** claim it, then read its blockers ([steps](docs/agents/issue-tracker.md#starting-a-ticket)). **After a PR merges:** tell the tickets it blocks what landed ([steps](docs/agents/issue-tracker.md#blockers)).
 
 ### Triage labels
 

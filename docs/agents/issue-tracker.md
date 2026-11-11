@@ -16,7 +16,7 @@ Infer the repo from `git remote -v`; `gh` does this automatically when run insid
 
 ## Starting a ticket
 
-In order, before any other work on the ticket:
+Before any other work on the ticket:
 
 1. **Claim it**: `gh issue edit <n> --add-assignee @me`, the session's first write. The frontier query skips assigned tickets, so a parallel session won't pick it up too.
 2. **Read its comments, its blockers and the PRs that closed them**, before trusting the body (see **Blockers** for why). List the blockers with `gh api repos/<owner>/<repo>/issues/<n>/dependencies/blocked_by --jq '.[] | "#\(.number) [\(.state)]"'`. For each closed one, find the PR that closed it with `gh api graphql -f query='{repository(owner:"<owner>",name:"<repo>"){issue(number:<blocker>){closedByPullRequestsReferences(first:5,includeClosedPrs:true){nodes{number url merged}}}}}' --jq '.data.repository.issue.closedByPullRequestsReferences.nodes[] | select(.merged)'`, then read it with `gh pr view <pr>` and `gh pr diff <pr>`. That query only finds PRs that closed the blocker with a keyword (`Closes #<blocker>`). If it returns nothing (the blocker was closed by hand), fall back to `gh pr list --search "<blocker>" --state merged` and skim the results. It's a text search, so it also returns PRs that only mention the blocker.
