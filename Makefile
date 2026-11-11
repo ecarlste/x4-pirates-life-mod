@@ -9,7 +9,7 @@ help:
 	@echo "X4 Foundations - A Pirate's Life Mod"
 	@echo ""
 	@echo "Available commands:"
-	@echo "  make setup          - Create deploy.config from example"
+	@echo "  make setup          - Create deploy.config from example and turn on the git hooks"
 	@echo "  make deploy         - Sync the latest origin/main into the X4 extensions folder"
 	@echo "  make deploy-local   - Sync your working tree instead (uncommitted changes included)"
 	@echo "  make deploy-dry-run - Show what 'make deploy' would change"
@@ -25,6 +25,7 @@ help:
 	@echo "               make game-test RUNNER_ARGS=-PrepareProfile  (options for tools/run-game-tests.ps1)"
 
 setup:
+	@git config core.hooksPath .githooks && echo "Git hooks on (.githooks: no commits on main)"
 	@if [ -f deploy.config ]; then \
 		echo "deploy.config already exists"; \
 		echo "Edit it to update your X4 installation path"; \

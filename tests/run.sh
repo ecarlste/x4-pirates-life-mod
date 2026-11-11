@@ -158,7 +158,7 @@ echo "== shellcheck"
 if ! wanted shellcheck; then
     echo "No shell scripts changed"
 elif command -v shellcheck >/dev/null; then
-    shellcheck deploy.sh tests/run.sh tests/lua/run.sh tools/post-game-test-report.sh && shellcheck -s bash tests/*.bash tests/*.bats || FAILED=1
+    shellcheck deploy.sh tests/run.sh tests/lua/run.sh tools/post-game-test-report.sh .githooks/pre-commit && shellcheck -s bash tests/*.bash tests/*.bats || FAILED=1
 else
     echo "shellcheck not installed; skipping (CI runs it)"
 fi

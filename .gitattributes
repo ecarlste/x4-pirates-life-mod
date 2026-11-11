@@ -5,3 +5,4 @@
 *.bash  text eol=lf
 *.bats  text eol=lf
 Makefile text eol=lf
+.githooks/* text eol=lf
