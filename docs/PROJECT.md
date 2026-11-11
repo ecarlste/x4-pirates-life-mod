@@ -104,9 +104,9 @@ When one of these happens, update the matching docs in the same PR.
 
 | When | Update |
 | --- | --- |
-| We agree to new work, however small or far off | Add it to `IMPLEMENTATION_PLAN.md` |
+| We agree to new work, however small or far off | Add it to `IMPLEMENTATION_PLAN.md`, linking the PR that adds it; if it carries its design, start it with **Not built:** |
 | A PR is opened for a plan item | Link the PR from the item |
-| A PR finishes a plan item | Tick it off; if it has a spec, mark the spec Done in the spec and in `specs/README.md` |
+| A PR finishes a plan item | Tick it off and drop any **Not built:** label; if it has a spec, mark the spec Done in the spec and in `specs/README.md` |
 | A feature's design is agreed | Write a spec from `specs/_template.md`, add it to `specs/README.md`, link it from the plan item; write its scenarios in `tests/game/features/` (tagged `@pending`) |
 | A game test or unit test is added, renamed or changes what it checks | Its scenarios in `tests/game/features/`: tag them with the test's name; then `make test-plan` |
 | A test now covers a `@pending` or `@manual` scenario | Swap the tag for the test's name; then `make test-plan` |
