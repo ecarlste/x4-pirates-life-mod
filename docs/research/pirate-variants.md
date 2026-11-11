@@ -1,6 +1,6 @@
 # Pirate variants: which ships and gear, and how they're rigged
 
-**Status: partly agreed (Erik, 2026-10-27).** The booty v1 design says the first variants start small, and that their recipes go to Erik as a design proposal ([DESIGN.md, Booty and pirate standing](../DESIGN.md#booty-and-pirate-standing); [spec](../specs/booty.md#variants)). This note is that proposal: how a pirate operates, which vanilla hulls suit it best at each size, what a "pirate rig" changes, and a first set.
+**Status: partly agreed (Erik, 2026-10-27).** The booty v1 design says the first variants start small, and that their recipes go to Erik as a design proposal ([DESIGN.md, Booty and pirate standing](../DESIGN.md#booty-and-pirate-standing); [spec](https://github.com/ecarlste/x4-pirates-life-mod/blob/9.x/docs/specs/booty.md#variants)). This note is that proposal: how a pirate operates, which vanilla hulls suit it best at each size, what a "pirate rig" changes, and a first set.
 
 - **Agreed, now in DESIGN.md:** hulls by pirate role; the core set from base and Tides of Avarice only, other DLCs as extras; pirate gear (combat, all-round and travel engines, quick-recharge shields, the Stripper built on vanilla's ion blaster, a pirate EMP missile at about level 3); the first set; names ("Pirate" for pirate versions of existing tech, fun names for new things).
 - **Still iterating:** the rig recipes. Cargo should stay valuable on some builds: booty for cargo turn-ins is coming later (see Ideas).

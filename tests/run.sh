@@ -176,17 +176,6 @@ else
     echo "python3 not installed; skipping (CI runs them)"
 fi
 
-echo "== Pirate variants"
-# The generated variants must match profiles/vanilla/variants.xml: in full with the unpacked game
-# files, by profiles/vanilla/variants.manifest without them (as in CI)
-if ! wanted variants; then
-    echo "No variant changes"
-elif command -v python3 >/dev/null; then
-    python3 tools/generate_variants.py --check || FAILED=1
-else
-    echo "python3 not installed; skipping (CI runs it)"
-fi
-
 if [ "$BASH_ONLY" = 0 ]; then
     # Started at the top, in the background; its output comes last
     echo "== Pester"

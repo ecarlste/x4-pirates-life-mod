@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The test gamestart: the same quiet start every run. The player sits in a scout in the docking
      tutorial's one-sector galaxy, next to its Argon wharf (no god, so no other stations; no jobs, so
-     no traffic), and each test spawns what it needs. The wharf is there because stations spawned
-     at runtime (create_station) only let their own faction dock, while map-placed ones let the
-     player's ships dock too: the booty tests give it to Vigor (docs/specs/booty.md). Also
-     selectable by hand from the "New game" menu for debugging a test. -->
+     no traffic), and each test spawns what it needs. Also selectable by hand from the "New game"
+     menu for debugging a test. -->
 <diff>
   <add sel="/gamestarts">
     <gamestart id="apirateslife_test" name="A Pirate's Life: game tests" description="Automated test scenarios for A Pirate's Life. Dev only." image="gamestart_2" group="100" tags="nosave">
