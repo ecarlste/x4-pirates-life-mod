@@ -4,6 +4,12 @@ Feature: Captured ships arrive intact
   sabotage equipment, and the claiming marine doesn't damage the ship. Each part can be switched
   back to vanilla in the config file.
 
+  @config_applied_on_start
+  Scenario: The config file's values apply when a game starts
+    Given the config file, with any values set at deploy time
+    When a game starts
+    Then every setting has the value the config file gives it
+
   @pilot_bail_intact
   Scenario: The bailing pilot leaves the ship intact
     Given "intact when the pilot ejects" is on

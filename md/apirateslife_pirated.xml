@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Pirated ships: marks every ship that becomes the player's as pirated (taken in combat with the
-     player's ships, by boarding or by its crew bailing) or a donation, for booty's stolen bonus.
+     player's ships, by boarding or by its crew bailing) or a donation, for booty's stolen bonus
+     (booty is on the 9.x line, not in the SWI build).
      Only marks; it changes nothing in the game. See docs/specs/pirated-ships.md.
 
      X4 can't hold variables on a ship (only on NPCs), so the marks are global tables keyed by ship,

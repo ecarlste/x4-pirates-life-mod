@@ -2,7 +2,7 @@
 """Picks the test suites a change needs, from .github/test-filters.json.
 
 The filters file is dorny/paths-filter's format, which CI reads with that action: each key names
-a suite (a test file, or "shellcheck", "lua", "variants") and lists the path globs it depends on;
+a suite (a test file, or "shellcheck", "lua") and lists the path globs it depends on;
 "everything" lists files that need every suite, "none" files that need no test. This script reads
 the same file for make test, so CI and local runs pick alike.
 
@@ -22,7 +22,7 @@ import sys
 
 FILTERS = ".github/test-filters.json"
 EVERYTHING, NONE = "everything", "none"
-PSEUDO_SUITES = ("shellcheck", "lua", "variants")
+PSEUDO_SUITES = ("shellcheck", "lua")
 # Test files that must each have a filter, so they run at all
 SUITE_FILES = re.compile(r"^tests/([^/]+\.bats|[^/]+\.Tests\.ps1|python/test_[^/]+\.py)$")
 

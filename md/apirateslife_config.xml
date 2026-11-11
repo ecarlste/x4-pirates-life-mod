@@ -7,12 +7,6 @@
   time you start or load a game. Note: updating the mod replaces this file, so edits are lost on
   update.
 
-  In-game settings: with kuertee's UI Extensions installed, the settings marked "On the settings
-  page" can also be changed in game (Settings, then A Pirate's Life). There a game is on a
-  profile: "Default" is this file, or one you saved, shared by every save. A game on Default
-  follows this file; changing a setting in game makes that game use its own values instead.
-  Settings under "Tuning" are only set here.
-
   Developers: deploy.sh and deploy.ps1 can override these values in the deployed copy without
   editing this file; see "Everyday commands" in the README. (No double hyphens in this comment:
   XML forbids them, and X4 would then skip this whole file.)
@@ -21,7 +15,7 @@
   <cues>
     <library name="Defaults" purpose="run_actions">
       <actions>
-        <!-- ===== On the settings page ===== -->
+        <!-- ===== Captures ===== -->
 
         <!-- Intact when the pilot ejects: the bailing pilot doesn't lower the hull or sabotage
              weapons, turrets and shields. 0 = vanilla behavior. -->
@@ -35,7 +29,7 @@
              operation in the same sector. 0 = vanilla, where a wingman's chance is a quarter of yours. -->
         <set_value name="global.$APiratesLife_CaptureWingFullChance" exact="1"/>
 
-        <!-- ===== Tuning (only set here) ===== -->
+        <!-- ===== Tuning ===== -->
 
         <!-- Capture operations: wingmen attack the target at full strength until its hull is below
              this percentage, then only knock its shields down and stop once they're gone. 75 is
@@ -45,24 +39,6 @@
         <!-- Capture operations: nobody in the operation fires once the target's hull is at or below
              this percentage. -->
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
-
-        <!-- Booty: the fence's cut on a handover's credits, in percent of what a sale there would
-             pay. It falls evenly from the start, at standing level 0, to the floor at the top
-             level; it never reaches zero, so a pirate never earns what a legit seller does. -->
-        <set_value name="global.$APiratesLife_BootyCutStart" exact="40"/>
-        <set_value name="global.$APiratesLife_BootyCutFloor" exact="10"/>
-
-        <!-- Booty: how much more booty a pirated ship earns than a donated one (taken by boarding
-             or bailing in combat with your ships, rather than bought or built). -->
-        <set_value name="global.$APiratesLife_BootyStolenBonus" exact="1.5"/>
-
-        <!-- Booty: standing earned per booty. Higher makes standing levels come faster. -->
-        <set_value name="global.$APiratesLife_BootyStandingGain" exact="1.0"/>
-
-        <!-- Booty: reputation with the station's owner per million booty, in the game's internal
-             relation units (0.01 is the +10 reputation of a military licence). Not given when the
-             owner's relations are locked. -->
-        <set_value name="global.$APiratesLife_BootyRepPerMillion" exact="0.001"/>
       </actions>
     </library>
   </cues>
