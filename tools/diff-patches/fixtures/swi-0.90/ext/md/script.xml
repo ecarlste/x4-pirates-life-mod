@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SWI 0.90 has only ext/ -->
+<diff>
+  <add sel="/mdscript/cues">
+    <cue name="ExtOnly"/>
+  </add>
+</diff>

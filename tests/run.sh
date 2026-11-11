@@ -7,13 +7,16 @@
 #   - shellcheck, when installed
 #   - the Lua checks (tests/lua/run.sh: luacheck and the LuaUnit tests, under LuaJIT)
 #   - the Python unit tests for tools/ (tests/python/, with the standard library's unittest)
+#   - the TypeScript tools (tools/*.ts, under Node): node_modules matches the lock (make setup
+#     installs it), the types check, their unit tests pass, and the diff-patch check (it skips
+#     with a note without the unpacked game files, as in CI)
 #   - the Pester suites under PowerShell 7: pwsh if installed, else Microsoft's Linux build
 #     fetched into .tools/ (pinned by SHA-256), one process per test file, in parallel. CI also
 #     runs them under Windows PowerShell 5.1; --windows-powershell does that here (under WSL).
 #
-# Usage: tests/run.sh [--all | --suites "<suite>..."] [--bash-only | --lua-only | --windows-powershell] [bats args...]
+# Usage: tests/run.sh [--all | --suites "<suite>..."] [--bash-only | --lua-only | --typescript-only | --windows-powershell] [bats args...]
 #   --all        every suite, whatever changed; --suites  just these (the filter names, as CI passes)
-#   --bash-only  skip PowerShell; --lua-only  only the Lua checks
+#   --bash-only  skip PowerShell; --lua-only  only the Lua checks; --typescript-only  only the TypeScript tools
 #   --windows-powershell  run the Pester suites in Windows PowerShell 5.1 (WSL; slower, serial)
 #   .bats files  run just those bats files (and the other suites as picked)
 # bats runs its test files in parallel when GNU parallel is installed (sudo apt install parallel).
@@ -26,6 +29,20 @@ PWSH_SHA256=1da6d6d6035d651f20e70ddee7c4c15ac6ab8b9fb40ee92240d91263f28a884b
 
 cd "$(dirname "$0")/.."
 
+# The TypeScript tools: node_modules matches package-lock.json (first, so a missing package is named),
+# the types check, the unit tests pass, then the diff-patch check on the unpacked 8.00 and SWI files
+run_typescript() {
+    echo "== TypeScript"
+    if ! command -v node >/dev/null; then
+        echo "node not installed; skipping (CI runs them)"
+        return 0
+    fi
+    node tools/check-deps.ts || return 1
+    { npx --no-install tsc && echo "Types: ok"; } || return 1
+    node --test --test-reporter=dot 'tools/**/*.test.ts' || return 1
+    node tools/check-diff-patches.ts
+}
+
 BASH_ONLY=0
 WINDOWS_POWERSHELL=0
 PICKED=
@@ -37,6 +54,7 @@ while [ $# -gt 0 ]; do
         --bash-only) BASH_ONLY=1 ;;
         --windows-powershell) WINDOWS_POWERSHELL=1 ;;
         --lua-only) exec tests/lua/run.sh ;;
+        --typescript-only) run_typescript; exit ;;
         *) break ;;
     esac
     shift
@@ -164,6 +182,8 @@ else
 fi
 
 if wanted lua; then tests/lua/run.sh || FAILED=1; else echo "== Lua"; echo "No Lua checks needed"; fi
+
+if wanted typescript; then run_typescript || FAILED=1; else echo "== TypeScript"; echo "No TypeScript checks needed"; fi
 
 echo "== Python unit tests"
 if [ ${#PYTHON_TESTS[@]} = 0 ]; then

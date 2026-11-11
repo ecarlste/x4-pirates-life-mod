@@ -1,5 +1,7 @@
 .PHONY: setup deploy deploy-local deploy-dry-run test test-plan game-test game-test-report worktrees help
 
+# npm for make setup's install of the TypeScript tools' packages; override to use another
+NPM ?= npm
 # Runs the game test runner on Windows through WSL interop; override to run it another way
 GAME_TEST_RUNNER ?= powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$$(wslpath -w tools/run-game-tests.ps1)"
 # What the report says was tested: the commit, branch, and whether uncommitted changes were deployed too
@@ -9,7 +11,7 @@ help:
 	@echo "X4 Foundations - A Pirate's Life Mod"
 	@echo ""
 	@echo "Available commands:"
-	@echo "  make setup          - Create deploy.config from example and turn on the git hooks"
+	@echo "  make setup          - Create deploy.config from example, turn on the git hooks, npm install the TypeScript tools"
 	@echo "  make deploy         - Sync the latest origin/main into the X4 extensions folder"
 	@echo "  make deploy-local   - Sync your working tree instead (uncommitted changes included)"
 	@echo "  make deploy-dry-run - Show what 'make deploy' would change"
@@ -26,6 +28,11 @@ help:
 
 setup:
 	@git config core.hooksPath .githooks && echo "Git hooks on (.githooks: no commits on main)"
+	@if command -v $(NPM) >/dev/null; then \
+		$(NPM) install --no-fund --no-audit; \
+	else \
+		echo "npm not found: install Node.js 22.18 or later for the TypeScript tools (make test runs them)"; \
+	fi
 	@if [ -f deploy.config ]; then \
 		echo "deploy.config already exists"; \
 		echo "Edit it to update your X4 installation path"; \

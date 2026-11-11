@@ -10,6 +10,7 @@ FILTERS = st.compile_filters({
     "none": ["docs/**", "README.md"],
     "shellcheck": ["**/*.sh", "**/*.bats"],
     "lua": ["ui/**/*.lua"],
+    "typescript": ["tools/**/*.ts"],
     "tests/deploy.bats": ["deploy.sh", "tests/deploy.bats"],
     "tests/python/test_texts.py": ["t/**"],
     "tests/Deploy.Tests.ps1": ["deploy.ps1", "deploy.sh"],
@@ -48,23 +49,28 @@ class Pick(unittest.TestCase):
 
     def test_select_suites_skip_everything_none_and_game_keys(self):
         filters = dict(FILTERS, **{"game:booty": []})
-        self.assertEqual(st.suites(filters), ["shellcheck", "lua", "tests/deploy.bats", "tests/python/test_texts.py", "tests/Deploy.Tests.ps1"])
+        self.assertEqual(st.suites(filters), ["shellcheck", "lua", "typescript", "tests/deploy.bats", "tests/python/test_texts.py", "tests/Deploy.Tests.ps1"])
 
 
 class GithubOutputs(unittest.TestCase):
     def test_select_outputs_say_which_jobs_run(self):
         self.assertEqual(st.github_outputs(["tests/Deploy.Tests.ps1", "lua", "none"], FILTERS), [
             "suites=lua tests/Deploy.Tests.ps1", "bash=false", "shellcheck=false", "lua=true",
-            "pester=tests/Deploy.Tests.ps1"])
+            "typescript=false", "pester=tests/Deploy.Tests.ps1"])
+
+    def test_select_typescript_runs_its_own_job_not_bats(self):
+        self.assertEqual(st.github_outputs(["typescript"], FILTERS), [
+            "suites=typescript", "bash=false", "shellcheck=false", "lua=false", "typescript=true", "pester="])
 
     def test_select_nothing_matched_runs_no_job(self):
         self.assertEqual(st.github_outputs(["none"], FILTERS),
-                         ["suites=", "bash=false", "shellcheck=false", "lua=false", "pester="])
+                         ["suites=", "bash=false", "shellcheck=false", "lua=false", "typescript=false", "pester="])
 
     def test_select_everything_runs_every_job(self):
         outputs = st.github_outputs(["everything"], FILTERS)
         self.assertIn("bash=true", outputs)
         self.assertIn("lua=true", outputs)
+        self.assertIn("typescript=true", outputs)
         self.assertIn("pester=tests/Deploy.Tests.ps1", outputs)
 
 

@@ -21,6 +21,7 @@ jobs:
       bash: ${{ steps.pick.outputs.bash }}
       shellcheck: ${{ steps.pick.outputs.shellcheck }}
       lua: ${{ steps.pick.outputs.lua }}
+      typescript: ${{ steps.pick.outputs.typescript }}
       pester: ${{ steps.pick.outputs.pester }}
     steps:
       - uses: actions/checkout@v7
@@ -79,6 +80,22 @@ jobs:
       # LuaJIT, the Lua that X4 runs
       - run: sudo apt-get update -q && sudo apt-get install -y -q luajit
       - run: tests/run.sh --lua-only
+
+  # The TypeScript tools: the diff-patch check skips here (no unpacked game files), its unit tests run
+  typescript:
+    name: TypeScript (tsc, unit tests)
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The tools run .ts directly, which needs Node's type stripping
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+          cache: npm
+      - run: npm ci --no-fund --no-audit
+      - run: tests/run.sh --typescript-only
 
   # The PowerShell scripts (deploy.ps1, tools/run-game-tests.ps1, tools/unpack-x4.ps1) run on
   # Windows: test both PowerShells a Windows user may have. (make test runs Pester under

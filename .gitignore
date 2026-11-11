@@ -12,3 +12,6 @@ tests/game/report.md
 
 # Python bytecode from the unit tests
 __pycache__/
+
+# The TypeScript tools' packages (make setup runs npm install)
+node_modules/

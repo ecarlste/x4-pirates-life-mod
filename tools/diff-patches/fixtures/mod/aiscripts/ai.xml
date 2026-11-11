@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<diff>
+  <add sel="//do_if[@value='dlc']" pos="before">
+    <set_value name="$ours" exact="1"/>
+  </add>
+  <!-- SWI rewrote this value: matches on vanilla only -->
+  <replace sel="//do_if[@value='old']/@value">ours</replace>
+</diff>

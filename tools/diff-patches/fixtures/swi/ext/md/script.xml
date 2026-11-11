@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- ext02 has this file too, and replaces it: this diff isn't applied -->
+<diff>
+  <add sel="/mdscript/cues">
+    <cue name="ExtOnly"/>
+  </add>
+</diff>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Patches a script only the DLC has -->
+<diff>
+  <add sel="//cue[@name='DlcOwnCue']" type="@instantiate">true</add>
+</diff>
