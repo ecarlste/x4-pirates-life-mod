@@ -1,4 +1,4 @@
-.PHONY: setup deploy deploy-local deploy-dry-run test test-plan variants game-test game-test-report help
+.PHONY: setup deploy deploy-local deploy-dry-run test test-plan variants game-test game-test-report worktrees help
 
 # Runs the game test runner on Windows through WSL interop; override to run it another way
 GAME_TEST_RUNNER ?= powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$$(wslpath -w tools/run-game-tests.ps1)"
@@ -18,6 +18,7 @@ help:
 	@echo "  make variants       - Regenerate the pirate variants from profiles/vanilla/variants.xml (needs the unpacked game files)"
 	@echo "  make game-test      - Deploy your working tree and run the in-game tests in X4 (Windows)"
 	@echo "  make game-test-report - Post the last game-test report to this branch's PR (comment and check)"
+	@echo "  make worktrees      - List worktrees; flag uncommitted or unpushed work not yet on main"
 	@echo "  make help           - Show this help message"
 	@echo ""
 	@echo "Other refs: ./deploy.sh --ref <branch>  (PowerShell: .\\deploy.ps1 -Ref <branch>)"
@@ -57,3 +58,6 @@ game-test:
 
 game-test-report:
 	@tools/post-game-test-report.sh $(ARGS)
+
+worktrees:
+	@tools/worktree-status.sh
