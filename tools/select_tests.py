@@ -24,8 +24,9 @@ FILTERS = ".github/test-filters.json"
 EVERYTHING, NONE = "everything", "none"
 PSEUDO_SUITES = ("shellcheck", "lua", "typescript")
 # Suites with a CI job of their own: each gets a <name>=true/false output and stays out of suites=,
-# the bats job's list, whose run.sh lacks what they need (LuaJIT, node_modules). Adding a suite here
-# is all it takes to move it out of the bats job; its job in .github/workflows/tests.yml reads the output.
+# the bats job's list, whose run.sh lacks what they need (LuaJIT, node_modules). To give a suite its
+# own job: add it here, add its output to the changes job in .github/workflows/tests.yml, and add a
+# job that runs when that output is true (else it is out of suites= and nothing runs it).
 OWN_JOB_SUITES = ("lua", "typescript")
 # Test files that must each have a filter, so they run at all
 SUITE_FILES = re.compile(r"^tests/([^/]+\.bats|[^/]+\.Tests\.ps1|python/test_[^/]+\.py)$")
