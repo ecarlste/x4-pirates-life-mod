@@ -57,6 +57,18 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     [ "$status" -ne 0 ]
 }
 
+@test "make test runs the suites the changes need, or every suite with ALL=1" {
+    mkdir -p "$REPO/tests"
+    printf '#!/bin/sh\necho "run.sh args: [$*]"\n' > "$REPO/tests/run.sh"
+    chmod +x "$REPO/tests/run.sh"
+    # An outer `make test ALL=1` would pass ALL down; start clean.
+    run env -u ALL -u MAKEFLAGS -u MAKELEVEL make -C "$REPO" test
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"run.sh args: []"* ]]
+    run env -u ALL -u MAKEFLAGS -u MAKELEVEL make -C "$REPO" test ALL=1
+    [[ "$output" == *"run.sh args: [--all]"* ]]
+}
+
 @test "make game-test deploys the working tree, then runs the game tests" {
     echo '<diff>local</diff>' > "$REPO/libraries/god.xml"
     run make -C "$REPO" game-test GAME_TEST_RUNNER='echo game tests ran'
