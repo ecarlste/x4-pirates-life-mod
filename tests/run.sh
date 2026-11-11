@@ -10,6 +10,7 @@
 #   - the TypeScript tools (tools/*.ts, under Node): node_modules matches the lock (make setup
 #     installs it), the types check, their unit tests pass, and the diff-patch check (it skips
 #     with a note without the unpacked game files, as in CI)
+#   - the doc-paths check (tools/check-doc-paths.ts): the docs name only repo paths that exist
 #   - the Pester suites under PowerShell 7: pwsh if installed, else Microsoft's Linux build
 #     fetched into .tools/ (pinned by SHA-256), one process per test file, in parallel. CI also
 #     runs them under Windows PowerShell 5.1; --windows-powershell does that here (under WSL).
@@ -184,6 +185,15 @@ fi
 if wanted lua; then tests/lua/run.sh || FAILED=1; else echo "== Lua"; echo "No Lua checks needed"; fi
 
 if wanted typescript; then run_typescript || FAILED=1; else echo "== TypeScript"; echo "No TypeScript checks needed"; fi
+
+echo "== Doc paths"
+if ! wanted doc-paths; then
+    echo "No docs changed"
+elif command -v node >/dev/null; then
+    node tools/check-doc-paths.ts || FAILED=1
+else
+    echo "node not installed; skipping (CI runs it)"
+fi
 
 echo "== Python unit tests"
 if [ ${#PYTHON_TESTS[@]} = 0 ]; then

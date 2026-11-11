@@ -28,7 +28,7 @@
 
 ## How SWI builds its UI
 
-Studied SWI 0.86 (X4 7.60, from the local 7.60 install) and 0.90 (X4 8.00, 2025-12-06). Snapshots in `E:\x4-dev\reference\mods\swi-0.86\` and `…\swi-0.90\`: the loose UI, plus MD scripts, AI scripts, libraries and text pulled from the catalogs with XRCatTool `-include`, and SWI's replacement menus (`subst02\`). The 18 GB asset data was deleted after extraction. Reference only, per the SWI etiquette in [DESIGN.md](DESIGN.md#design-pillars-and-compatibility-architecture).
+Studied SWI 0.86 (X4 7.60, from the local 7.60 install) and 0.90 (X4 8.00, 2025-12-06). Snapshots in `E:\x4-dev\reference\mods\swi-0.86\` and `…\swi-0.90\`: the loose UI, plus MD scripts, AI scripts, libraries and text pulled from the catalogs with XRCatTool `-include`, and SWI's replacement menus (`subst02\`). The 18 GB asset data was deleted after extraction. Reference only, per the SWI etiquette in [DESIGN.md](../DESIGN.md#design-pillars-and-compatibility-architecture).
 
 - **Loading:** a `ui.xml` add-on (identical in both versions) lists loose Lua files under `ui/` and the vanilla menus they extend (`ego_gameoptions`, `ego_detailmonitor`, `ego_interactmenu`, `ego_detailmonitorhelper`).
 - **Hooks:** UI Extensions' `registerCallback` everywhere: 28 uses across 9 of 10 files in 0.86, 40 in 0.90 (new ones include `createPlayerInfo_on_start`, `createInfoFrame_on_info_frame_mode`, `createFactionDetailsContext_on_before_detailtable`, `onRowChanged`, `onClearUIData`). `sw_gameoptions.lua` uses `displayOptions_modifyOptions` to change the options list.
