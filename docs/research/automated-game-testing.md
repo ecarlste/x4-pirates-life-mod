@@ -2,6 +2,8 @@
 
 **Status: WIP, working (2026-10-20).** `make game-test` runs in the real game: all 5 tests pass in about 2½ minutes from command to report, with no clicks once Steam's one-time launch prompt has been accepted (see [first runs](#first-runs-in-game)). Still open: the questions at the end.
 
+**Update (2026-11-11):** for the SWI build, the runner no longer goes through Steam. It starts the X4 8.00 copy's `X4_nonsteam.exe` directly, in its own numeric test profile (see [A run](#a-run)). The Steam launch below stays on the `9.x` branch with the 9.x line.
+
 Goal: Cypress/Playwright-style regression tests that play a short, controlled scenario in the real game and report PASS/FAIL, run locally on Erik's Windows machine with one command.
 
 ## Summary
@@ -98,10 +100,11 @@ So 6x is the most MD can speed things up. Tests should avoid waiting for travel 
 make game-test        # or: .\deploy.ps1 -WorkingTree; .\tools\run-game-tests.ps1
 ```
 
-1. The runner checks the mod is deployed and X4 isn't running, copies the test extension into `extensions\apirateslife_tests`, and moves the old `debuglog.txt` to `debuglog.previous.txt`.
-2. It asks Steam to start X4 (`steam://rungameid/392160`), so the game gets the Steam launch options, which must include `-logfile debuglog.txt` (see [PROJECT.md, Paths](../PROJECT.md#paths-eriks-machine)), and waits up to 120 s for the `X4` process.
-3. The Lua autostart starts the test gamestart; MD runs the tests and quits the game.
-4. The runner prints each result as it arrives, closes the game if it's still running after `DONE` (30 s grace) or at the timeout (900 s), removes the test extension, writes `tests/game/results.xml` (JUnit) and `tests/game/report.md`, and exits 0 or 1.
+1. The runner reads `X4_PATH`, `X4_EXE`, `X4_PROFILE_ID` (default `90000301`) and `X4_PROFILE_ROOT` from the environment or `deploy.config`, the same names and rules as the bounty hunter's `test.config`. The profile ID must be numeric: anything else makes X4 fall back to the root profile, the series playthrough's.
+2. It checks the mod is deployed, SWI is installed, and neither `X4` nor `X4_nonsteam` is running. Then it checks the test profile's `content.xml`: SWI (`SW Interworlds`, whose own `content.xml` starts it off) must be listed as on, and `apirateslife` and `apirateslife_tests` must not be listed as off. `-PrepareProfile` (`make game-test RUNNER_ARGS=-PrepareProfile`) makes the profile folder, copies the root profile's `content.xml` and `config.xml` into it if it has none (reading the root profile only), and switches all three on.
+3. It copies the test extension into `extensions\apirateslife_tests`, moves the profile's old `debuglog.txt` to `debuglog.previous.txt`, and starts `<X4_PATH>\<X4_EXE>` with `-skipintro -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid <id>`. NoSteam passes the arguments through, unlike `X4.exe`, which hands over to Steam.
+4. The Lua autostart starts the test gamestart; MD runs the tests and quits the game.
+5. The runner reads `<X4_PROFILE_ROOT>\<id>\debuglog.txt` (no guessing at the newest log) and prints each result as it arrives. It ends the run when no log appears within 60 s (`-LaunchTimeoutSeconds`: `-personalfolderid` didn't take), and closes the game if it's still running after `DONE` (30 s grace) or at the timeout (1200 s, since SWI loads slowly). Then it removes the test extension, writes `tests/game/results.xml` (JUnit) and `tests/game/report.md`, and exits 0 or 1.
 
 ### Posting a run to the PR
 
@@ -162,9 +165,11 @@ Four runs on 2026-10-20, X4 9.00, with only A Pirate's Life enabled in the profi
 
 ## Ideas to research later
 
-Not agreed work; kept so these paths aren't forgotten. The current setup (launch through Steam, local runs) stays for now.
+Not agreed work; kept so these paths aren't forgotten. The current setup is local runs.
 
 ### Egosoft's NoSteam executable
+
+**Done for the SWI build (2026-11-11):** the runner starts the 8.00 copy's `X4_nonsteam.exe` in its own profile (see [A run](#a-run)). The notes below are from before.
 
 Egosoft offers an official NoSteam build to owners (X4 registered in their forum profile, or a linked Steam account): `X4_nonsteam.exe`, copied into the game folder ([FAQ](https://www.egosoft.com/support/faq/faq_answer_en.php?answer=2413), [downloads](https://www.egosoft.com/download/x4/bonus_en.php), which list a 9.00 package for Windows and Linux). Erik's 8.00 SWI copy runs it through a desktop shortcut with our arguments.
 

@@ -1,14 +1,19 @@
-# X4 Foundations deploy configuration
-# Copy this file to deploy.config (or run `make setup`) and set your X4 install folder.
+# X4 Foundations deploy and game test configuration (make deploy, make game-test)
+# Copy this file to deploy.config (or run `make setup`) and set your paths.
 # The mod is synced into <X4_PATH>/extensions/<id from content.xml>.
 #
-# The same file works from WSL and PowerShell: a Windows path (E:\...) is converted
-# automatically under WSL. Quotes are optional. The X4_PATH environment variable
-# overrides this file.
-#
-# Examples:
-#   Windows / WSL: E:\SteamLibrary\steamapps\common\X4 Foundations
-#   Linux:         /home/username/.steam/steam/steamapps/common/X4 Foundations
-#   macOS:         /Users/username/Library/Application Support/Steam/steamapps/common/X4 Foundations
+# The same file works from WSL and PowerShell: use Windows paths (E:\...), which are converted
+# automatically under WSL. Quotes are optional. Environment variables of the same names override
+# this file.
 
-X4_PATH="E:\SteamLibrary\steamapps\common\X4 Foundations"
+# The X4 8.00 install that has SWI in extensions\starwarsmod_m1 (the deploy only needs this one)
+X4_PATH="E:\SteamLibrary\steamapps\common\X4 Foundations - 8.00"
+# Game tests only: started directly with
+# -skipintro -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid <X4_PROFILE_ID>
+X4_EXE="X4_nonsteam.exe"
+# The test profile: <X4_PROFILE_ROOT>\<id>\. Must be numeric, or X4 falls back to the root profile
+# (the series playthrough's). The bounty hunter's test profile is 90000201; 90000001 and 90000002
+# were used by an earlier spike.
+X4_PROFILE_ID="90000301"
+# Optional: where the profile folders are (default <Documents>\Egosoft\X4, from Windows)
+# X4_PROFILE_ROOT="C:\Users\you\OneDrive\Documents\Egosoft\X4"
