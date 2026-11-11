@@ -1,12 +1,14 @@
 # X4 Piracy Overhaul — Design Doc
 
+> **This describes the 9.x line,** to be parked on the `9.x` branch. The **SWI build** (X4 8.00 + SWI 0.91 HF1, S/M capture) is the main focus and is tracked on the map [SWI build with S/M capture](https://github.com/ecarlste/x4-pirates-life-mod/issues/89); see [PROJECT.md, Key decisions](PROJECT.md#key-decisions). The pillars and key decisions still apply to it.
+
 > The agreed design, and its source of truth. Changes need Erik's sign-off and go through PRs; ideas still being explored live in [`research/`](research/README.md) and under "Ideas and maybe" in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md#ideas-and-maybe).
 
 ## Vision and goals
 
 The goal is the one and only pirate mod a player needs in X4: a full career from nobody to pirate lord, playable as piracy alone, neither too easy nor too grindy.
 
-- **Base game first.** Built and tuned on the latest X4 (9.x) for vanilla.
+- **Base game first.** Built and tuned on the latest X4 (9.x) for vanilla. (The SWI build for X4 8.00 comes before it; when SWI moves to 9.x, SWI support joins this line as a profile or shim on vanilla 9.x.)
 - **Plug-in ready for total conversions.** A documented integration contract lets mods like Star Wars Interworlds (SWI) supply their own factions, ships and tiers without touching our code. Vanilla support is the first profile, built through that same contract.
 - **Sensible defaults, player-tunable.** Difficulty and economy are adjustable mid-game.
 - **Showcased on YouTube.** One video per major feature, then a full pirate playthrough capturing every ship size, ending with SWI's XXL ships.
