@@ -12,7 +12,7 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 ## Key decisions
 
 - **SWI build first, 9.x line on hold.** Two lines of the mod (terms in [`GLOSSARY.md`](../GLOSSARY.md)):
-  - The **SWI build** is the main focus: A Pirate's Life for X4 8.00 + SWI 0.91 HF1, S/M capture only (no booty, pirate variants or settings page), published on Nexus before the [SWI bounty hunter](https://github.com/ecarlste/x4-swi-bounty-hunter) series' episode 1. It's charted on the wayfinder map [SWI build with S/M capture](https://github.com/ecarlste/x4-pirates-life-mod/issues/89).
+  - The **SWI build** is the main focus: A Pirate's Life for X4 8.00 (made for and tested on SWI 0.91 HF1, meant to work on any 8.00 setup), S/M capture only (no booty, pirate variants or settings page), published on Nexus before the [SWI bounty hunter](https://github.com/ecarlste/x4-swi-bounty-hunter) series' episode 1. It's charted on the wayfinder map [SWI build with S/M capture](https://github.com/ecarlste/x4-pirates-life-mod/issues/89).
   - The **9.x line** (latest X4 9.x, vanilla first) waits until the SWI build ships.
   - When SWI moves to 9.x, the work moves back to the 9.x line, with SWI support as a profile or shim on vanilla 9.x. The published 8.00 build stays up unchanged, with no more fixes.
 - **Required DLC:** Tides of Avarice (`ego_dlc_pirate`).
