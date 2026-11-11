@@ -149,6 +149,7 @@ Not yet agreed. Promote an item into a phase once we decide to do it.
 - [ ] Settings profiles: mark profiles made during manual (UAT) testing so the game-test cleanup removes them. Options: a deploy-time switch (`--set MarkAsTest=1`, everything created while deployed gets the `test` mark), a "mark as test" row in the dev menu, or a UAT game start in the test extension (needs a switch so it doesn't start the automated tests)
 - [ ] Capture operations: wingmen prefer shield-heavy weapons (ion), from a profile list, since scripts can't read a weapon's damage type
 - [ ] Recognisable pirate: a unique ship or paint job lets pilots know a notorious player without a hail, so they bail more readily outside capture operations
+- [ ] Captures feel the same whatever bail mod is installed (Erik, 2026-11-11): inside capture operations, the pressure tick and pressure already set the pace whatever the base chance; how far to take it outside operations is open ([Release criteria for the SWI build](https://github.com/ecarlste/x4-pirates-life-mod/issues/98))
 - [ ] Capture operations: drop the wing ×4 bail chance once the pressure tick lands, since the tick carries the pressure (simpler, closer to vanilla)
 - [ ] Capture operations: scale the wingmen's stop margin with distance to the target (more shots in flight from farther away), if play shows it matters; scripts can't read projectile speed
 - [ ] PSScriptAnalyzer and shellcheck in PR CI as well as at release
