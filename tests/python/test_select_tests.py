@@ -55,7 +55,7 @@ class Pick(unittest.TestCase):
 class GithubOutputs(unittest.TestCase):
     def test_select_outputs_say_which_jobs_run(self):
         self.assertEqual(st.github_outputs(["tests/Deploy.Tests.ps1", "lua", "none"], FILTERS), [
-            "suites=lua tests/Deploy.Tests.ps1", "bash=false", "shellcheck=false", "lua=true",
+            "suites=tests/Deploy.Tests.ps1", "bash=false", "shellcheck=false", "lua=true",
             "typescript=false", "pester=tests/Deploy.Tests.ps1"])
 
     def test_select_typescript_runs_its_own_job_not_bats(self):
@@ -64,6 +64,20 @@ class GithubOutputs(unittest.TestCase):
             "suites=tests/deploy.bats", "bash=true", "shellcheck=false", "lua=false", "typescript=true", "pester="])
         self.assertEqual(st.github_outputs(["typescript"], FILTERS), [
             "suites=", "bash=false", "shellcheck=false", "lua=false", "typescript=true", "pester="])
+
+    def test_select_suites_with_their_own_job_stay_out_of_bats(self):
+        # The bats job's run.sh lacks what those jobs set up (node_modules, LuaJIT); each job runs its own
+        self.assertTrue({"lua", "typescript"} <= set(st.OWN_JOB_SUITES))
+        outputs = st.github_outputs(["everything"], FILTERS)
+        bats_suites = outputs[0].removeprefix("suites=").split()
+        self.assertIn("tests/deploy.bats", bats_suites)
+        for suite in st.OWN_JOB_SUITES:
+            self.assertNotIn(suite, bats_suites)
+            self.assertIn(f"{suite}=true", outputs)
+
+    def test_select_own_job_suite_alone_runs_no_bats_job(self):
+        self.assertEqual(st.github_outputs(["lua"], FILTERS), [
+            "suites=", "bash=false", "shellcheck=false", "lua=true", "typescript=false", "pester="])
 
     def test_select_nothing_matched_runs_no_job(self):
         self.assertEqual(st.github_outputs(["none"], FILTERS),
