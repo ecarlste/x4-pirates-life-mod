@@ -2,10 +2,10 @@
 """Picks the test suites a change needs, from .github/test-filters.json.
 
 The filters file is dorny/paths-filter's format, which CI reads with that action: each key names
-a suite (a test file, or "shellcheck", "lua", "typescript", "doc-paths") and lists the path globs it depends on;
-"everything" lists files that need every suite, "none" files that need no test. A suite whose
-filter is "**" runs on every change ("doc-paths": any file leaving can break a doc). This script reads
-the same file for make test, so CI and local runs pick alike.
+a suite (a test file, or "shellcheck", "lua", "typescript", "doc-paths") and lists the path globs
+it depends on; "everything" lists files that need every suite, "none" files that need no test. A
+suite whose filter is "**" runs on every change ("doc-paths": any file leaving can break a doc).
+This script reads the same file for make test, so CI and local runs pick alike.
 
 The change is everything since the branch left the base ref (git diff BASE...HEAD), plus
 uncommitted and untracked files. Prints the picked suites, one per line, and on stderr why.
@@ -24,8 +24,12 @@ import sys
 FILTERS = ".github/test-filters.json"
 EVERYTHING, NONE = "everything", "none"
 PSEUDO_SUITES = ("shellcheck", "lua", "typescript", "doc-paths")
-# Suites that need Node 22.18 or later, set up in their own CI jobs: not the bats job's run.sh
-NODE_SUITES = ("typescript", "doc-paths")
+# Suites with a CI job of their own: each gets a <name>=true/false output and stays out of suites=,
+# the bats job's list, whose run.sh lacks what they need (LuaJIT, Node 22.18 or later, node_modules).
+# To give a suite its own job: add it here, add its output to the changes job in
+# .github/workflows/tests.yml, and add a job that runs when that output is true (else it is out of
+# suites= and nothing runs it).
+OWN_JOB_SUITES = ("lua", "typescript", "doc-paths")
 # Test files that must each have a filter, so they run at all
 SUITE_FILES = re.compile(r"^tests/([^/]+\.bats|[^/]+\.Tests\.ps1|python/test_[^/]+\.py)$")
 
@@ -111,15 +115,14 @@ def github_outputs(keys, filters):
     """Step outputs for the CI jobs: which jobs run, and the Pester files to give run.ps1."""
     picked = suites(filters) if EVERYTHING in keys else [k for k in suites(filters) if k in keys]
     pester = [k for k in picked if k.endswith(".Tests.ps1")]
-    bash = [k for k in picked if not k.endswith(".Tests.ps1") and k != "lua" and k not in NODE_SUITES]
-    # suites is for the bats job's run.sh, which has no Node: the Node suites run in their own jobs
+    # suites is for the bats job's run.sh (--bash-only, so the Pester files in it are skipped)
+    bats = [k for k in picked if k not in OWN_JOB_SUITES]
+    bash = [k for k in bats if not k.endswith(".Tests.ps1")]
     return [
-        f"suites={' '.join(k for k in picked if k not in NODE_SUITES)}",
+        f"suites={' '.join(bats)}",
         f"bash={'true' if bash else 'false'}",
         f"shellcheck={'true' if 'shellcheck' in picked else 'false'}",
-        f"lua={'true' if 'lua' in picked else 'false'}",
-        f"typescript={'true' if 'typescript' in picked else 'false'}",
-        f"doc-paths={'true' if 'doc-paths' in picked else 'false'}",
+        *(f"{k}={'true' if k in picked else 'false'}" for k in OWN_JOB_SUITES),
         f"pester={','.join(pester)}",
     ]
 

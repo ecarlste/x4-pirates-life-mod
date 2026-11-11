@@ -36,6 +36,7 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 | What | Path |
 | --- | --- |
 | Repo (WSL, Ubuntu 26.04) | `~/workspace/x4-pirates-life-mod` |
+| Bounty hunter repo, the model for the TypeScript tooling (WSL) | `~/workspace/x4-swi-bounty-hunter` |
 | X4 install | `E:\SteamLibrary\steamapps\common\X4 Foundations` → `/mnt/e/SteamLibrary/steamapps/common/X4 Foundations` |
 | Deployed mod | `.../X4 Foundations/extensions/apirateslife` |
 | Unpacked reference data (not in git) | `E:\x4-dev\reference\x4-9.xx\` → `/mnt/e/x4-dev/reference/x4-9.xx/`; other mods for study in `E:\x4-dev\reference\mods\` |
