@@ -11,7 +11,10 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 
 ## Key decisions
 
-- **Target version:** latest X4 (9.x), vanilla first. SWI support comes later through a profile, once SWI ports to 9.x.
+- **SWI build first, 9.x line on hold.** Two lines of the mod (terms in [`GLOSSARY.md`](../GLOSSARY.md)):
+  - The **SWI build** is the main focus: A Pirate's Life for X4 8.00 + SWI 0.91 HF1, S/M capture only (no booty, pirate variants or settings page), published on Nexus before the [SWI bounty hunter](https://github.com/ecarlste/x4-swi-bounty-hunter) series' episode 1. It's charted on the wayfinder map [SWI build with S/M capture](https://github.com/ecarlste/x4-pirates-life-mod/issues/89).
+  - The **9.x line** (latest X4 9.x, vanilla first) waits until the SWI build ships.
+  - When SWI moves to 9.x, the work moves back to the 9.x line, with SWI support as a profile or shim on vanilla 9.x. The published 8.00 build stays up unchanged, with no more fixes.
 - **Required DLC:** Tides of Avarice (`ego_dlc_pirate`).
 - **Profile-driven core:** no hardcoded vanilla faction/ship/ware/sector IDs in scripts. Universe-specific data lives in profiles; vanilla is the first profile.
 - **Use X4's own systems, always:** do things with existing assets, traffic, stations and economy, and rely on the game's natural systems. Magic (spawning ships, wares or stations, adding credits or cargo, effects with no cause in the universe) only when there's no organic way and fun needs it. See [DESIGN.md, Design pillars](DESIGN.md#design-pillars-and-compatibility-architecture).
@@ -20,6 +23,13 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 - **UI** builds on kuertee's UI Extensions (actively maintained, and what SWI uses), declared as an optional dependency with the mod working without it. SirNukes' Mod Support APIs only where there's no alternative (not updated since Dec 2025; unreliable on 9.0). See [research/third-party-ui-apis.md](research/third-party-ui-apis.md).
 - **Filenames lowercase** (X4 3.0+ convention; matters for loose, uncatalogued files).
 - **Build order:** core loop via standard vanilla starts first; custom starts and redemption later.
+
+## The two lines in git
+
+- **`main` is the SWI build.** The 9.x line is parked on a `9.x` branch with a `9.x-parked` tag, both cut from `main` once the open PRs both lines need have merged (test-suite selection, the 8.00 NoSteam copy) and before the first SWI change lands. Until then, `main` still holds the 9.x line. Branch protection locks `9.x` (no merges) until the SWI build is done; the 9.x line is unpublished, so it needs no hotfix path.
+- **The way back:** when SWI moves to 9.x and the SWI build is done, `main` is tagged `swi-8.00-final`, matching the last Nexus upload, and nothing ships to the 8.00 build after that. One PR from `9.x` brings the 9.x mod back onto `main`, with SWI support as a profile or shim on top.
+- **SWI build docs:** its spec is an issue (from `/to-spec`), not a `docs/specs/` file. Its decisions live in the resolutions of the [map](https://github.com/ecarlste/x4-pirates-life-mod/issues/89)'s tickets, its research on `research/<name>` branches, and its vocabulary in [`GLOSSARY.md`](../GLOSSARY.md), shared by both lines. `DESIGN.md` and `IMPLEMENTATION_PLAN.md` describe the 9.x line; their pillars and the key decisions above still apply to the SWI build. Specs and feature files of the features the SWI build drops (booty, pirate variants, settings page, settings profiles) leave `main` with their code and stay on `9.x`.
+- **Checks on `main`** keep running and test the SWI build: `make test`, the test-plan check and the PR-title check stay. The variants manifest check and the dropped features' tests go with their code.
 
 ## Paths (Erik's machine)
 
@@ -79,8 +89,10 @@ When X4 updates to a new version: re-unpack the game files into a new `x4-<versi
 
 ## Planning docs
 
-- [`DESIGN.md`](DESIGN.md): the agreed high-level design, edited here through PRs like everything else. Only decided design goes in; ideas still being explored stay in research notes and the plan's "Ideas and maybe".
-- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md): the tracker for all agreed work.
+- [`GLOSSARY.md`](../GLOSSARY.md): the project's vocabulary, for both lines. It defines words only, never decisions.
+- The SWI build's [wayfinder map](https://github.com/ecarlste/x4-pirates-life-mod/issues/89): its decisions and open questions (see [The two lines in git](#the-two-lines-in-git)).
+- [`DESIGN.md`](DESIGN.md): the agreed high-level design of the 9.x line, edited here through PRs like everything else. Only decided design goes in; ideas still being explored stay in research notes and the plan's "Ideas and maybe".
+- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md): the tracker for all agreed work on the 9.x line.
 - [`specs/`](specs/): one short spec per agreed feature.
 - [`research/`](research/README.md): what we've learned about vanilla X4 (call flows, hooks, tuning), and design ideas still being worked on. Check its index before digging through game files.
 - [`rejected/`](rejected/README.md): design ideas Erik rejected, and why. Check it before proposing an idea.
@@ -114,5 +126,6 @@ When one of these happens, update the matching docs in the same PR.
 
 ## Current status
 
+- **Focus:** the SWI build, on its [map](https://github.com/ecarlste/x4-pirates-life-mod/issues/89). The rest of this section is the 9.x line, as on `main` until it's parked.
 - Existing: the deploy and test tooling, an in-game smoke test script, and the bail hook (`md/`): every bail check runs through our code (currently 2x chance) and every bail raises our `Bailed` signal; captured ships arrive intact (no pilot-bail hull drop or sabotage, no marine-claim damage), each switchable to vanilla in the config file (`md/apirateslife_config.xml`), tested in game. Capture operations started from a comm choice: wingmen break a target to a hold line and then only keep its shields down, with a mission readout ([spec](specs/capture-operation.md)). In-game settings ([spec](specs/in-game-settings.md)): with kuertee's UI Extensions, Settings → A Pirate's Life switches the three player-facing settings; a game is on a profile (Default, the config file, or one saved in the X4 profile and shared by every save) and follows it until a setting is changed ([spec](specs/settings-profiles.md)). Capture metrics: one summary line per capture attempt in `debuglog.txt`, and `tools/capture_metrics.py` to turn logs into a CSV ([spec](specs/capture-metrics.md)). Pirated ships: every ship that becomes the player's is marked pirated (taken by boarding or bailing in combat with the player's ships) or a donation, for booty ([spec](specs/pirated-ships.md)). Booty, first part ([spec](specs/booty.md)): talk to the manager or ship trader of a Vigor wharf or shipyard to hand docked ships over for credits (a sale minus the fence's cut) and booty, which raises standing with Vigor through 21 levels; the sale is done by our Lua the way vanilla's map sells ships. A "Hand over as booty" order flies a ship to the nearest Vigor station that takes it and hands it over, and a handover moves the prize's pilot to a marine slot on the nearest ship with room. Automated in-game tests (`make game-test`) covering the bail hook, intact captures, capture operations, capture metrics, pirated ships, booty and the settings bridge.
-- Next: see the first unticked items in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) (Phase 0 setup, then spike 1).
+- Next: the SWI build's map. The 9.x line resumes from the first unticked items in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) once SWI moves to 9.x.

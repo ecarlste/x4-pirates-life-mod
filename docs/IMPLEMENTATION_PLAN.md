@@ -1,5 +1,7 @@
 # Implementation Plan
 
+> **This describes the 9.x line,** to be parked on the `9.x` branch. The **SWI build** (X4 8.00 + SWI 0.91 HF1, S/M capture) is the main focus and is tracked on the map [SWI build with S/M capture](https://github.com/ecarlste/x4-pirates-life-mod/issues/89); see [PROJECT.md, Key decisions](PROJECT.md#key-decisions). The pillars and key decisions still apply to it.
+
 Everything we've agreed to do, by phase. Tick items off in the PR that finishes them, and link the PR. Feature items link their spec in [`specs/`](specs/) once one exists. Later phases are guesses: reorder them freely.
 
 ## Phase 0: Dev setup and tooling
