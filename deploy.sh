@@ -26,7 +26,7 @@ Usage: ./deploy.sh [options]
   --ref <ref>      Deploy this git ref (default: origin/main, fetched first)
   --working-tree   Deploy the files on disk instead, including uncommitted changes
   --set NAME=VALUE Override a setting from md/apirateslife_config.xml in the deployed
-                   copy only; repeat it or use commas, e.g. --set IntactOnEject=0,IntactOnClaim=0
+                   copy only; repeat it or use commas, e.g. --set CaptureFloorHull=20,IntactOnClaim=0
   --dry-run        Show what would change without touching the game folder
   -h, --help       Show this help
 EOF

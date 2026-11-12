@@ -112,9 +112,9 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 
 @test "make passes ARGS through to deploy.sh" {
     write_config
-    run make -C "$REPO" deploy-local ARGS="--set IntactOnEject=0"
+    run make -C "$REPO" deploy-local ARGS="--set CaptureFloorHull=20"
     [ "$status" -eq 0 ]
-    [ "$(deployed_setting IntactOnEject)" = 0 ]
+    [ "$(deployed_setting CaptureFloorHull)" = 20 ]
 }
 
 @test "make game-test passes ARGS through to the deploy" {

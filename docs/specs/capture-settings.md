@@ -4,7 +4,7 @@ Plan item: Phase 1, "Player settings for intact captures" · Status: Done
 
 ## Goal
 
-Players choose whether captured ships arrive intact, with two on/off settings: **intact when the pilot ejects** (no hull drop or sabotage) and **intact when marines claim** (no claim damage). On means our behavior; off means vanilla. Both default to on. This PR sets them from a config file; an in-game settings page through kuertee's UI Extensions followed as its own plan item, on the 9.x line (the SWI build has none).
+Players choose whether captured ships arrive intact, with two on/off settings: **intact when the pilot ejects** (no hull drop or sabotage) and **intact when marines claim** (no claim damage). On means our behavior; off means vanilla. Both default to on. The SWI build keeps only **intact when marines claim**: SWI's bail does no hull drop or sabotage, so `IntactOnEject` went with the pilot-bail patch ([#117](https://github.com/ecarlste/x4-pirates-life-mod/issues/117)). This PR sets them from a config file; an in-game settings page through kuertee's UI Extensions followed as its own plan item, on the 9.x line (the SWI build has none).
 
 ## Context
 
@@ -14,7 +14,7 @@ Players choose whether captured ships arrive intact, with two on/off settings: *
 
 ## Design
 
-- **Config file `md/apirateslife_config.xml`:** a commented library that sets the defaults in global variables (`global.$APiratesLife_IntactOnEject`, `global.$APiratesLife_IntactOnClaim`). It's re-applied on every game start and load, so edits apply after a restart. Its header explains the values, says in-game settings are planned, and warns that mod updates overwrite edits. Globals, because AI scripts can read them but can't call MD libraries.
+- **Config file `md/apirateslife_config.xml`:** a commented library that sets the defaults in global variables (`global.$APiratesLife_IntactOnClaim`; on the 9.x line also `global.$APiratesLife_IntactOnEject`). It's re-applied on every game start and load, so edits apply after a restart. Its header explains the values, says in-game settings are planned, and warns that mod updates overwrite edits. Globals, because AI scripts can read them but can't call MD libraries.
 - **Settings logic `md/apirateslife_settings.xml`:** applies the config on every start and load (proved by the `config_applied_on_start` game test). On the 9.x line, the in-game settings page writes the same globals.
 - **Patches read the flags** and treat a missing value as on: `not (global.$X? and global.$X == 0)`. A missing setting never silently means vanilla, unlike Better Piracy's null config (bug 14 in the [prior-art note](../research/prior-art-better-piracy.md)).
 - **Log** the applied values on each start and load.
@@ -44,7 +44,7 @@ Scenarios: [`tests/game/features/intact-captures.feature`](../../tests/game/feat
 
 Every load logged `settings: config applied` with the deployed values, and our scripts logged no errors.
 
-The game tests (`make game-test`) now cover all four cases automatically: `pilot_bail_intact`, `pilot_bail_vanilla_when_off`, `claim_intact` and `claim_vanilla_when_off` ([research note](../research/automated-game-testing.md#the-proof-of-concept)).
+The game tests (`make game-test`) covered all four cases automatically: `pilot_bail_intact`, `pilot_bail_vanilla_when_off`, `claim_intact` and `claim_vanilla_when_off` (the two pilot-bail tests left with [#117](https://github.com/ecarlste/x4-pirates-life-mod/issues/117); [research note](../research/automated-game-testing.md#the-proof-of-concept)).
 
 When checking for missing equipment, count a ship's slots by connection in its macro, not by tags: a missile launcher slot is also tagged `weapon`, so counting tags makes a scout look like it lost a gun.
 

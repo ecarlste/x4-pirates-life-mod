@@ -56,7 +56,7 @@ MD and AI scripts only run inside X4, so what they do can't be tested below game
 
 `tests/game/features/*.feature` says in Gherkin (Given/When/Then) what each feature should do, one file per feature. Write a feature's scenarios with its spec, before the tests. Nothing executes the feature files; the steps live in the tests. Each scenario's tags say how it's verified:
 
-- **The tests that cover it:** game tests by the name they report (e.g. `@pilot_bail_intact`), and unit tests by their test function's name (e.g. `@test_refuses_default_in_any_case`). Several tests can share a scenario.
+- **The tests that cover it:** game tests by the name they report (e.g. `@bail_raises_bailed`), and unit tests by their test function's name (e.g. `@test_refuses_default_in_any_case`). Several tests can share a scenario.
 - **`@pending`:** no test yet, but one is planned. Checked by hand until then.
 - **`@manual`:** checked by hand for now, because automating it is hard (e.g. something surviving an X4 restart). Automation is still wanted.
 

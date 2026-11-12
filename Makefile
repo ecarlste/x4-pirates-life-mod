@@ -25,7 +25,7 @@ help:
 	@echo "  make help           - Show this help message"
 	@echo ""
 	@echo "Other refs: ./deploy.sh --ref <branch>  (PowerShell: .\\deploy.ps1 -Ref <branch>)"
-	@echo "Extra options: make deploy-local ARGS=\"--set IntactOnEject=0\"  (also deploy, deploy-dry-run, game-test)"
+	@echo "Extra options: make deploy-local ARGS=\"--set CaptureFloorHull=20\"  (also deploy, deploy-dry-run, game-test)"
 	@echo "               make game-test RUNNER_ARGS=-PrepareProfile  (options for tools/run-game-tests.ps1)"
 
 setup:

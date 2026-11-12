@@ -21,7 +21,7 @@
 
 .PARAMETER Set
     Override settings from md/apirateslife_config.xml in the deployed copy only, as NAME=VALUE
-    (e.g. -Set IntactOnEject=0, or -Set IntactOnEject=0,IntactOnClaim=0). The repo copy is untouched.
+    (e.g. -Set CaptureFloorHull=20, or -Set CaptureFloorHull=20,IntactOnClaim=0). The repo copy is untouched.
 
 .PARAMETER DryRun
     Show what would change without touching the game folder.
@@ -33,7 +33,7 @@
     .\deploy.ps1 -Ref feature/my-branch -DryRun
 
 .EXAMPLE
-    .\deploy.ps1 -WorkingTree -Set IntactOnEject=0
+    .\deploy.ps1 -WorkingTree -Set CaptureFloorHull=20
 #>
 [CmdletBinding()]
 param(

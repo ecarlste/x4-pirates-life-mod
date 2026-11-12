@@ -16,11 +16,7 @@ import { checkDiffPatches, report, withKnown, type Known } from "./diff-patches/
 
 // Ops that don't match on 8.00 yet, each with the issue that fixes it. Reported as KNOWN, not
 // failed; an entry fails the check once its op matches on both bases, so take it off then.
-const KNOWN: Known[] = [
-  // The intact-on-eject ops: SWI's Enhanced Bailing has no hull drop or sabotage to switch off
-  { file: "md/notifications.xml", sel: "//cue[@name='PlayerOwnedShipAttacks']//set_value[@name='$damageminpercent']", issue: "#117" },
-  { file: "md/notifications.xml", sel: "//cue[@name='PlayerOwnedShipAttacks']//set_value[@name='$scuttle']", issue: "#117" },
-];
+const KNOWN: Known[] = [];
 
 let values;
 try {
