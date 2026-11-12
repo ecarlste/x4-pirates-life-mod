@@ -63,7 +63,7 @@ Describe 'run-game-tests.ps1' {
             '[Scripts] 5.00 *** Context:x: [apirateslife-test] DONE passed=2 failed=1'
         )
         $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire', '-Repeat', '3', '-KeepExtension'))
-        $r.Output | Should -BeLike '*Running 3 selected tests: CaptureWingHoldsFire x3*'
+        $r.Output | Should -BeLike '*Running 3 selected tests: CaptureWingHoldsFire, 3 times*'
         $r.Output | Should -BeLike '*Repeated: capture_wing_holds_fire: 1 of 3 runs failed*'
         $r.Output | Should -BeLike '*failed: capture_wing_holds_fire, load_order_after_swi*'
         $r.ExitCode | Should -Be 1

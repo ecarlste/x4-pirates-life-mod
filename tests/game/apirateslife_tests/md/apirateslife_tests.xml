@@ -161,7 +161,8 @@
 
     <!-- The config file's values are in place when the game starts (md/apirateslife_settings.xml
          applies it on every start and load). Runs first, before any test sets a setting: the
-         values found must be the ones the config gives. -->
+         values found must be the ones the config gives. The runner's -Test and -Repeat run it
+         once, first ($FirstOnlyTests in tools/run-game-tests.ps1). -->
     <cue name="ConfigAppliedOnStart">
       <conditions>
         <event_cue_signalled/>

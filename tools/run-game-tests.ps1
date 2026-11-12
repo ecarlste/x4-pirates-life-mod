@@ -181,10 +181,14 @@ function Get-GameTestNames([string] $HarnessText) {
     @($Matches[2] -split '[,\s]+' | Where-Object { $_ })
 }
 
+# Tests that check the game as it starts, so they only pass before any other test has run: a
+# selection runs them once, first
+$FirstOnlyTests = @('ConfigAppliedOnStart')
+
 # The cue names to run for -Test and -Repeat: each named test, by cue name or the name it reports
 # (capture_wing_holds_fire is CaptureWingHoldsFire), or every test without -Test; in rounds of the
-# selection, $Repeat times. -Test can arrive as one comma-separated string (powershell -File passes
-# "a,b" as is), so names are split on commas too.
+# selection, in the order given, $Repeat times ($FirstOnlyTests once, first). -Test can arrive as
+# one comma-separated string (powershell -File passes "a,b" as is), so names are split on commas too.
 function Resolve-GameTestSelection([string[]] $Available, [string[]] $Test, [int] $Repeat) {
     if ($Repeat -lt 1) { throw "-Repeat must be 1 or more (got $Repeat)" }
     $key = { param($n) ($n -replace '_', '').ToLowerInvariant() }
@@ -199,7 +203,9 @@ function Resolve-GameTestSelection([string[]] $Available, [string[]] $Test, [int
         }
         if ($unknown.Count) { throw "No game test named $($unknown -join ', '). The tests: $($Available -join ', ')" }
     }
-    @(for ($i = 0; $i -lt $Repeat; $i++) { $selected })
+    $first = @($selected | Where-Object { $FirstOnlyTests -contains $_ } | Select-Object -Unique)
+    $rest = @($selected | Where-Object { $FirstOnlyTests -notcontains $_ })
+    @($first) + @(for ($i = 0; $i -lt $Repeat; $i++) { $rest })
 }
 
 # The harness text with its $Tests list replaced by these cue names, one per line
@@ -262,7 +268,7 @@ function Get-RunProblems($Run, [string] $Ending) {
     $failed = @($Run.Results | Where-Object { -not $_.Passed })
     if ($failed.Count) {
         # A repeated test is named once, with how often it failed
-        $names = Get-TestTally $failed | ForEach-Object { if ($_.Runs -gt 1) { "$($_.Name) x$($_.Runs)" } else { $_.Name } }
+        $names = Get-TestTally $failed | ForEach-Object { if ($_.Runs -gt 1) { "$($_.Name) ($($_.Runs) times)" } else { $_.Name } }
         $problems += "$($failed.Count) failed: $($names -join ', ')"
     }
     $problems
@@ -550,10 +556,10 @@ if (-not (Test-Path (Join-Path $X4Path "extensions/$SwiFolder/content.xml"))) {
 }
 $contentXml = Join-Path $profileDir 'content.xml'
 # -Test and -Repeat: checked here, so an unknown name stops make game-test before its deploy
-$harness = "md/$TestExtensionId.xml"
+$harnessPath = "md/$TestExtensionId.xml"
 $selection = $null
 if ($Test -or $Repeat -ne 1) {
-    $available = Get-GameTestNames (Get-Content (Join-Path $root "tests/game/$TestExtensionId/$harness") -Raw)
+    $available = Get-GameTestNames (Get-Content (Join-Path $root "tests/game/$TestExtensionId/$harnessPath") -Raw)
     $selection = @(Resolve-GameTestSelection $available $Test $Repeat)
 }
 $processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
@@ -603,9 +609,9 @@ try {
     $installed = $true
     Copy-Item (Join-Path $root "tests/game/$TestExtensionId") $extension -Recurse
     if ($selection) {
-        $installedHarness = Join-Path $extension $harness
+        $installedHarness = Join-Path $extension $harnessPath
         [IO.File]::WriteAllText($installedHarness, (Set-GameTestList (Get-Content $installedHarness -Raw) $selection))
-        Write-Host "Running $($selection.Count) selected tests: $((Get-TestTally ($selection | ForEach-Object { @{ Name = $_; Passed = $true } }) | ForEach-Object { "$($_.Name) x$($_.Runs)" }) -join ', ')"
+        Write-Host "Running $($selection.Count) selected tests: $(($selection | Select-Object -Unique) -join ', '), $Repeat times"
     }
     # A stale log would report the previous run; keep it out of the way instead
     if (Test-Path $LogPath) { Move-Item $LogPath (Join-Path $profileDir 'debuglog.previous.txt') -Force }

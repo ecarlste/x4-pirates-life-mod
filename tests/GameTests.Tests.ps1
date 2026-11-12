@@ -200,7 +200,7 @@ Describe 'Get-RunProblems with repeated tests' {
             '[Scripts] 3.00 *** Context:x: [apirateslife-test] FAIL fixture_test_a: hull 52%'
             '[Scripts] 4.00 *** Context:x: [apirateslife-test] FAIL fixture_test_b: no'
         )
-        Get-RunProblems $run 'finished' | Should -Contain '3 failed: fixture_test_a x2, fixture_test_b'
+        Get-RunProblems $run 'finished' | Should -Contain '3 failed: fixture_test_a (2 times), fixture_test_b'
     }
 }
 
@@ -241,6 +241,11 @@ Describe 'Game test selection (-Test, -Repeat)' {
 
     It 'repeats every test without -Test' {
         Resolve-GameTestSelection @('A', 'B') @() 2 | Should -Be @('A', 'B', 'A', 'B')
+    }
+
+    It 'runs a test of the game as it starts once, first' {
+        Resolve-GameTestSelection @('ConfigAppliedOnStart', 'A', 'B') @() 2 | Should -Be @('ConfigAppliedOnStart', 'A', 'B', 'A', 'B')
+        Resolve-GameTestSelection @('ConfigAppliedOnStart', 'A', 'B') @('B,config_applied_on_start') 2 | Should -Be @('ConfigAppliedOnStart', 'B', 'B')
     }
 
     It 'refuses an unknown test, naming the ones there are, and a -Repeat under 1' {
