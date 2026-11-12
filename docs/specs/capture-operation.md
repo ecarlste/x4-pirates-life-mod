@@ -64,7 +64,7 @@ The player picks a capturable ship (not a capital ship) and starts a **capture o
 **Operation readout** ([#120](https://github.com/ecarlste/x4-pirates-life-mod/issues/120)): a player mission "Capture: <ship>", type fight, abortable. Its one live objective changes with the state:
 
 1. **The bail gates:** "Knock shields below 20%", then "Damage hull below 75%", each with a progress bar.
-2. **"Pilot's nerve":** inside the gates (docked counts as outside, as for pressure), a bar of `CapturePressureCap` that empties as bail pressure builds toward the cap. After the first check it reads "Pilot's nerve: last check N%".
+2. **"Pilot's nerve":** inside the gates (docked counts as outside, as for pressure), a bar of `CapturePressureCap` that empties as bail pressure builds toward the cap. Fear from an earlier operation counts too, so a shaken pilot starts with less nerve. After the first check it reads "Pilot's nerve: last check N%".
 3. **"Crew aboard n/max":** once crew start to leave, the crew still aboard out of those aboard at the start, as a bar, with the last check's chance. Only ships with crew besides the pilot get this step, in the briefing too. Erik chose "after the first crew bail" in the #120 session, since the mission shows one bar at a time.
 
 Nothing in it assumes a cooldown length, so it reads the same with SWI's 5 s and vanilla's 30 s. The readout updates every second, only on change.
