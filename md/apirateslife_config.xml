@@ -34,6 +34,21 @@
         <!-- Capture operations: nobody in the operation fires once the target's hull is at or below
              this percentage. -->
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+
+        <!-- Bail pressure in capture operations: points added to the game's bail chance for every
+             10 seconds the target spends inside the bail gates (shields under 20% or none, hull
+             under 75%). Time counts, not checks: 8 means +4 between two checks 5 seconds apart.
+             0 = the game's own chance. -->
+        <set_value name="global.$APiratesLife_CapturePressureStep" exact="8"/>
+
+        <!-- Bail pressure never lifts the chance above this percentage (a higher game chance is
+             left as it is). -->
+        <set_value name="global.$APiratesLife_CapturePressureCap" exact="80"/>
+
+        <!-- Seconds between the bail checks a capture operation asks for while the player leads it
+             within about 10 km and the target is inside the bail gates, so checks don't wait for
+             hits. -->
+        <set_value name="global.$APiratesLife_CapturePressureInterval" exact="5"/>
       </actions>
     </library>
   </cues>

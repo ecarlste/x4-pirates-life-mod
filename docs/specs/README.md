@@ -14,3 +14,4 @@ The specs of the features the SWI build drops (booty, in-game settings, settings
 | [capture-operation.md](capture-operation.md) | Done |
 | [capture-metrics.md](capture-metrics.md) | Done |
 | [pirated-ships.md](pirated-ships.md) | Done |
+| [bail-pressure.md](bail-pressure.md) | Done |
