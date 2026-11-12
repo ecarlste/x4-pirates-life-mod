@@ -1,10 +1,12 @@
 # Spec: Bail hook
 
-Plan item: Phase 1, "Bring back the mod's 2x bail rate as an MD diff patch" · Status: Done
+Plan item: Phase 1, "Bring back the mod's 2x bail rate as an MD diff patch" (the SWI build drops the 2x) · Status: Done
 
 ## Goal
 
-Every bail check in the game passes through our code, which can change the chance, and every bail raises our own signal. For now the hook doubles the chance, bringing back the mod's original "2x bail rate". Later, notoriety, fear vs. honor and difficulty sliders plug into the same hook.
+Every bail check in the game passes through our code, which can change the chance, and every bail raises our own signal. For now the hook returns the game's own chance unchanged; bail pressure in capture operations, and later notoriety, fear vs. honor and difficulty sliders, plug into the same hook.
+
+**SWI build** ([#117](https://github.com/ecarlste/x4-pirates-life-mod/issues/117)): the mod loads after SWI, so both insertions land in SWI's Enhanced Bailing block, which replaces vanilla's `do_if $target.iscapturable` in `PlayerOwnedShipAttacks`. The flat x2 and the integer cast are gone: SWI's chances are fractional, often 0.5–2%, and the cast turned them into 0. The hook still signals every check to the capture metrics, which keep the decimals.
 
 ## Context
 
@@ -20,7 +22,7 @@ Every bail check in the game passes through our code, which can change the chanc
 - **Hook after vanilla's modifiers.** Our library receives the final vanilla chance plus attacker and target, and returns the new chance. All our modifiers then compose on top of vanilla's.
 - **Logic lives in our script.** `md/apirateslife_bail.xml` holds the library (`AdjustEjectChance`) and the bail listener. The patch stays two small insertions; behavior changes happen in our own file.
 - **One bail signal.** The second insertion, before `$numcrewbailing` is removed, calls our `Bailed` cue with `table[$attacker, $target, $crew, $pilot]`. That covers crew-only and pilot bails from any attacker. It becomes part of the future integration contract.
-- **Doubling for now:** `[chance × 2, 100].min`, as an integer to match vanilla's chance.
+- **The game's chance, unchanged, for now.** Doubling it (`[chance × 2, 100].min`, as an integer) was the 9.x line's first version; the SWI build dropped it.
 - **Selectors use exact attribute values**, each resolving to exactly one element in 9.00, checked against the unpacked game files.
 
 ## Tasks
@@ -34,11 +36,10 @@ Every bail check in the game passes through our code, which can change the chanc
 
 Scenarios: [`tests/game/features/bail-hook.feature`](../../tests/game/features/bail-hook.feature).
 
-- `debuglog.txt` shows `[apirateslife] bail check: … chance N -> 2N` for bail checks, and `[apirateslife] bailed: …` when crew or a pilot bail.
+- `debuglog.txt` shows `[apirateslife] bail check: … chance N -> N` for bail checks, and `[apirateslife] bailed: …` when crew or a pilot bail.
 - No diff-patch errors for `md/notifications.xml` in the log.
 - In game: harassing a target past the gates (hull < 75%, shields < 20%) produces bails, and the smoke test's "target bailed" notification (in the test extension, `tests/game/apirateslife_tests/md/apirateslife_smoketest.xml`) still fires on a pilot bail.
 
 ## Open questions
 
-- Whether to keep the 2x multiplier once notoriety exists, or make it the "Swashbuckler" preset's default.
 - Order relative to Better Piracy's replace if both are installed (likely moot if we declare it incompatible).

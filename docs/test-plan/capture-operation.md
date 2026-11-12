@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 14 | 1 | 2 | **3** |
+| 0 | 13 | 1 | 2 | **3** |
 
 ## Scenarios
 
@@ -53,25 +53,6 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   Then the operation ends as "abandoned"
   And the fighter is no longer part of an operation
   And no new operation can start on the now ownerless fighter
-```
-
-### My wingmen's hits get my bail chance during an operation
-
-**Automated:** in game `capture_wing_full_chance`
-
-```gherkin
-  Given a capture operation on a fighter, led by the ship I'm flying, in my sector
-  And the attacker is <attacker>
-  And "wing full chance" is <setting>
-  When the attacker's hit gets a bail check at vanilla's <vanilla>%
-  Then the pilot rolls at <final>%
-  And the mission readout shows <final>% as the last check
-  Examples:
-    | attacker                   | setting | vanilla | final |
-    | one of its wingmen         | on      | 5       | 40    |
-    | one of its wingmen         | on      | 20      | 100   |
-    | one of its wingmen         | off     | 5       | 10    |
-    | a ship outside the wing    | on      | 5       | 10    |
 ```
 
 ### A wingman stops firing once the target is inside the bail gate

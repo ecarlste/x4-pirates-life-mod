@@ -3,7 +3,7 @@
 
 The feature files describe, in Gherkin (Given/When/Then), what the mod should do. Every scenario
 carries tags saying how it's verified (docs/testing.md, "Test plan"):
-  - the tests that cover it: game tests by the name they report (e.g. @pilot_bail_intact), unit
+  - the tests that cover it: game tests by the name they report (e.g. @bail_raises_bailed), unit
     tests by their test function's name (e.g. @test_refuses_default_in_any_case); or
   - @pending: no test yet, one is planned; checked by hand until then; or
   - @manual: checked by hand for now, as automating it is hard; automation is still wanted.

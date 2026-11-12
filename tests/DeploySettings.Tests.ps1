@@ -14,17 +14,17 @@ Describe 'deploy.ps1' {
         BeforeEach { Write-TestConfig $s }
 
         It 'overrides a setting in the deployed copy only' {
-            $r = Invoke-Deploy $s @('-WorkingTree', '-Set', 'IntactOnEject=0')
+            $r = Invoke-Deploy $s @('-WorkingTree', '-Set', 'CaptureFloorHull=20')
             $r.ExitCode | Should -Be 0 -Because $r.Output
-            $r.Output | Should -Match 'with settings: IntactOnEject=0'
-            Get-DeployedSetting $s 'IntactOnEject' | Should -Be '0'
+            $r.Output | Should -Match 'with settings: CaptureFloorHull=20'
+            Get-DeployedSetting $s 'CaptureFloorHull' | Should -Be '20'
             Get-DeployedSetting $s 'IntactOnClaim' | Should -Be '1'
-            [IO.File]::ReadAllText("$($s.Repo)/md/apirateslife_config.xml") | Should -Match 'APiratesLife_IntactOnEject" exact="1"'
+            [IO.File]::ReadAllText("$($s.Repo)/md/apirateslife_config.xml") | Should -Match 'APiratesLife_CaptureFloorHull" exact="35"'
         }
 
         It 'accepts comma lists' {
-            (Invoke-Deploy $s @('-WorkingTree', '-Set', 'IntactOnEject=0,IntactOnClaim=0')).ExitCode | Should -Be 0
-            Get-DeployedSetting $s 'IntactOnEject' | Should -Be '0'
+            (Invoke-Deploy $s @('-WorkingTree', '-Set', 'CaptureFloorHull=20,IntactOnClaim=0')).ExitCode | Should -Be 0
+            Get-DeployedSetting $s 'CaptureFloorHull' | Should -Be '20'
             Get-DeployedSetting $s 'IntactOnClaim' | Should -Be '0'
         }
 
@@ -35,40 +35,40 @@ Describe 'deploy.ps1' {
         }
 
         It 'restores the committed values on a later deploy without -Set' {
-            Invoke-Deploy $s @('-WorkingTree', '-Set', 'IntactOnEject=0') | Out-Null
+            Invoke-Deploy $s @('-WorkingTree', '-Set', 'CaptureFloorHull=20') | Out-Null
             (Invoke-Deploy $s @('-WorkingTree')).ExitCode | Should -Be 0
-            Get-DeployedSetting $s 'IntactOnEject' | Should -Be '1'
+            Get-DeployedSetting $s 'CaptureFloorHull' | Should -Be '35'
         }
 
         It 'rejects unknown settings before deploying anything' {
             $r = Invoke-Deploy $s @('-WorkingTree', '-Set', 'Bogus=0')
             $r.ExitCode | Should -Not -Be 0
-            $r.Output | Should -Match "unknown setting 'Bogus' \(valid: IntactOnEject IntactOnClaim\)"
+            $r.Output | Should -Match "unknown setting 'Bogus' \(valid: CaptureFloorHull IntactOnClaim\)"
             $s.Target | Should -Not -Exist
         }
 
         It 'rejects values that could break the XML' {
-            $r = Invoke-Deploy $s @('-WorkingTree', '-Set', 'IntactOnEject=1/><x')
+            $r = Invoke-Deploy $s @('-WorkingTree', '-Set', 'CaptureFloorHull=35/><x')
             $r.ExitCode | Should -Not -Be 0
-            $r.Output | Should -Match 'invalid value for IntactOnEject'
+            $r.Output | Should -Match 'invalid value for CaptureFloorHull'
             $s.Target | Should -Not -Exist
         }
 
         It 'needs NAME=VALUE and a config file' {
-            $r = Invoke-Deploy $s @('-WorkingTree', '-Set', 'IntactOnEject')
+            $r = Invoke-Deploy $s @('-WorkingTree', '-Set', 'CaptureFloorHull')
             $r.ExitCode | Should -Not -Be 0
             $r.Output | Should -Match 'needs NAME=VALUE'
 
             Remove-Item "$($s.Repo)/md/apirateslife_config.xml"
-            $r = Invoke-Deploy $s @('-WorkingTree', '-Set', 'IntactOnEject=0')
+            $r = Invoke-Deploy $s @('-WorkingTree', '-Set', 'CaptureFloorHull=20')
             $r.ExitCode | Should -Not -Be 0
             $r.Output | Should -Match 'needs md/apirateslife_config.xml'
         }
 
         It 'reports the override on a dry run and writes nothing' {
-            $r = Invoke-Deploy $s @('-WorkingTree', '-DryRun', '-Set', 'IntactOnEject=0')
+            $r = Invoke-Deploy $s @('-WorkingTree', '-DryRun', '-Set', 'CaptureFloorHull=20')
             $r.ExitCode | Should -Be 0
-            $r.Output | Should -Match 'with settings: IntactOnEject=0'
+            $r.Output | Should -Match 'with settings: CaptureFloorHull=20'
             $s.Target | Should -Not -Exist
         }
     }

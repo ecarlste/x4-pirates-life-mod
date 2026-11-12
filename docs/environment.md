@@ -18,7 +18,7 @@ Run `make setup` once. It does three things:
   - `./deploy.sh --ref <branch>` deploys a pushed branch.
   - `make deploy-dry-run` previews a deploy.
   - In PowerShell: `.\deploy.ps1` (`-WorkingTree`, `-Ref <branch>`, `-DryRun`).
-- **Settings for a test deploy:** `--set NAME=VALUE` (PowerShell `-Set`) overrides a value from `md/apirateslife_config.xml` in the deployed copy only. For example: `make deploy-local ARGS="--set IntactOnEject=0"`. Repeat it or use commas; unknown names fail. The next deploy without it restores the committed values.
+- **Settings for a test deploy:** `--set NAME=VALUE` (PowerShell `-Set`) overrides a value from `md/apirateslife_config.xml` in the deployed copy only. For example: `make deploy-local ARGS="--set CaptureFloorHull=20"`. Repeat it or use commas; unknown names fail. The next deploy without it restores the committed values.
 - **The game lock:** a deploy waits while another deploy or game run holds `<X4_PATH>\game.lock`, whether it comes from this repo or the bounty hunter's ([how it works](../tools/README.md#the-game-lock)). `X4_GAME_LOCK_WAIT=0` refuses at once instead of waiting. A crashed run's lock gets taken over after 60 s.
 - **What ships:** only the paths in `deploy.include`, so add a new top-level mod folder there. Restart X4 after deploying.
 

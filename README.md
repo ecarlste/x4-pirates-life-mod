@@ -40,7 +40,7 @@ Start X4 and check that **A Pirate's Life** is enabled under Extensions. For now
 | Deploy the latest `main` | `make deploy` | `.\deploy.ps1` |
 | Deploy your working copy, uncommitted changes included | `make deploy-local` | `.\deploy.ps1 -WorkingTree` |
 | Deploy a pushed branch | `./deploy.sh --ref <branch>` | `.\deploy.ps1 -Ref <branch>` |
-| Deploy with a setting changed (deployed copy only) | `make deploy-local ARGS="--set IntactOnEject=0"` | `.\deploy.ps1 -WorkingTree -Set IntactOnEject=0` |
+| Deploy with a setting changed (deployed copy only) | `make deploy-local ARGS="--set CaptureFloorHull=20"` | `.\deploy.ps1 -WorkingTree -Set CaptureFloorHull=20` |
 | Run the tests your changes need (`ALL=1`: every test) | `make test` | `.\tests\run.ps1` |
 | Regenerate the readable test plan (`docs/test-plan/`) | `make test-plan` | `python3 tools/test_plan_docs.py` |
 | Run the in-game tests in the X4 8.00 copy (Windows; first run: `RUNNER_ARGS=-PrepareProfile`) | `make game-test` | `.\deploy.ps1 -WorkingTree; .\tools\run-game-tests.ps1` |

@@ -310,24 +310,24 @@ STUB
 
 @test "--set overrides a setting in the deployed copy only" {
     write_config
-    deploy --working-tree --set IntactOnEject=0
+    deploy --working-tree --set CaptureFloorHull=20
     [ "$status" -eq 0 ]
-    [[ "$output" == *"with settings: IntactOnEject=0"* ]]
-    [ "$(deployed_setting IntactOnEject)" = 0 ]
+    [[ "$output" == *"with settings: CaptureFloorHull=20"* ]]
+    [ "$(deployed_setting CaptureFloorHull)" = 20 ]
     [ "$(deployed_setting IntactOnClaim)" = 1 ]
-    grep -q 'APiratesLife_IntactOnEject" exact="1"' "$REPO/md/apirateslife_config.xml"
+    grep -q 'APiratesLife_CaptureFloorHull" exact="35"' "$REPO/md/apirateslife_config.xml"
 }
 
 @test "--set accepts repeats and comma lists" {
     write_config
-    deploy --working-tree --set IntactOnEject=0 --set IntactOnClaim=0
+    deploy --working-tree --set CaptureFloorHull=20 --set IntactOnClaim=0
     [ "$status" -eq 0 ]
-    [ "$(deployed_setting IntactOnEject)" = 0 ]
+    [ "$(deployed_setting CaptureFloorHull)" = 20 ]
     [ "$(deployed_setting IntactOnClaim)" = 0 ]
 
-    deploy --working-tree --set IntactOnEject=1,IntactOnClaim=0
+    deploy --working-tree --set CaptureFloorHull=35,IntactOnClaim=0
     [ "$status" -eq 0 ]
-    [ "$(deployed_setting IntactOnEject)" = 1 ]
+    [ "$(deployed_setting CaptureFloorHull)" = 35 ]
     [ "$(deployed_setting IntactOnClaim)" = 0 ]
 }
 
@@ -341,31 +341,31 @@ STUB
 
 @test "a later deploy without --set restores the committed values" {
     write_config
-    deploy --working-tree --set IntactOnEject=0
+    deploy --working-tree --set CaptureFloorHull=20
     deploy --working-tree
     [ "$status" -eq 0 ]
-    [ "$(deployed_setting IntactOnEject)" = 1 ]
+    [ "$(deployed_setting CaptureFloorHull)" = 35 ]
 }
 
 @test "--set rejects unknown settings before deploying anything" {
     write_config
     deploy --working-tree --set Bogus=0
     [ "$status" -eq 1 ]
-    [[ "$output" == *"unknown setting 'Bogus' (valid: IntactOnEject IntactOnClaim)"* ]]
+    [[ "$output" == *"unknown setting 'Bogus' (valid: CaptureFloorHull IntactOnClaim)"* ]]
     [ ! -e "$TARGET" ]
 }
 
 @test "--set rejects values that could break the XML" {
     write_config
-    deploy --working-tree --set 'IntactOnEject=1"/><x'
+    deploy --working-tree --set 'CaptureFloorHull=35"/><x'
     [ "$status" -eq 1 ]
-    [[ "$output" == *"invalid value for IntactOnEject"* ]]
+    [[ "$output" == *"invalid value for CaptureFloorHull"* ]]
     [ ! -e "$TARGET" ]
 }
 
 @test "--set needs NAME=VALUE and a config file" {
     write_config
-    deploy --working-tree --set IntactOnEject
+    deploy --working-tree --set CaptureFloorHull
     [ "$status" -eq 1 ]
     [[ "$output" == *"--set needs NAME=VALUE"* ]]
 
@@ -374,16 +374,16 @@ STUB
     [[ "$output" == *"--set needs NAME=VALUE"* ]]
 
     rm "$REPO/md/apirateslife_config.xml"
-    deploy --working-tree --set IntactOnEject=0
+    deploy --working-tree --set CaptureFloorHull=20
     [ "$status" -eq 1 ]
     [[ "$output" == *"needs md/apirateslife_config.xml"* ]]
 }
 
 @test "--set with --dry-run reports the override and writes nothing" {
     write_config
-    deploy --working-tree --dry-run --set IntactOnEject=0
+    deploy --working-tree --dry-run --set CaptureFloorHull=20
     [ "$status" -eq 0 ]
-    [[ "$output" == *"with settings: IntactOnEject=0"* ]]
+    [[ "$output" == *"with settings: CaptureFloorHull=20"* ]]
     [ ! -e "$TARGET" ]
 }
 

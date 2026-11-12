@@ -109,7 +109,7 @@ function Write-TestConfig($s) {
   <cues>
     <library name="Defaults" purpose="run_actions">
       <actions>
-        <set_value name="global.$APiratesLife_IntactOnEject" exact="1"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
         <set_value name="global.$APiratesLife_IntactOnClaim" exact="1"/>
       </actions>
     </library>

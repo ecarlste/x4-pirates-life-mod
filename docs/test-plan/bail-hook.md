@@ -2,42 +2,55 @@
 
 # Bail hook
 
-Every bail check in the game runs through our code, which can change the chance, and every bail raises our own signal. For now the hook doubles vanilla's chance.
+Every bail check in the game runs through our code, which can change the chance, and every bail raises our own signal. Under SWI the hook sits in SWI's Enhanced Bailing block, and outside capture operations it leaves the game's chance alone.
 
 Source: [`tests/game/features/bail-hook.feature`](../../tests/game/features/bail-hook.feature) · Spec: [`docs/specs/bail-hook.md`](../specs/bail-hook.md)
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 2 | 0 | 1 | **1** |
+| 0 | 3 | 0 | 1 | **1** |
 
 ## Scenarios
 
-### The hook doubles vanilla's final eject chance, capped at 100
+### The hook runs inside SWI's Enhanced Bailing block
 
-**Automated:** in game `eject_chance_doubled`
+**Automated:** in game `bail_hook_in_swi_block`
 
 ```gherkin
-  Given vanilla has worked out an eject chance of <vanilla>%
-  When the bail hook adjusts it
-  Then the pilot rolls at <final>%
-  Examples:
-    | vanilla | final |
-    | 0       | 0     |
-    | 10      | 20    |
-    | 30      | 60    |
-    | 50      | 100   |
-    | 70      | 100   |
+  Given SWI is loaded
+  And a crewless Imperial fighter attacked by one of my ships, with no capture operation
+  When the fighter gets a bail check
+  Then the bail hook adjusts the chance SWI's Enhanced Bailing worked out
+  And the pilot rolls at the chance the hook returned, which is SWI's own
 ```
 
-### A pilot bail raises our Bailed signal
+### An SWI bail raises our Bailed signal
 
-**Automated:** in game `pilot_bail_intact`
+**Automated:** in game `bail_raises_bailed`
 
 ```gherkin
   Given a crewless Imperial fighter attacked by one of my ships
   When the pilot bails
   Then our Bailed signal fires with the pilot marked as bailed
   And the fighter is ownerless
+```
+
+### Outside a capture operation the chance is the game's own
+
+**Automated:** in game `bail_chance_game_own`
+
+```gherkin
+  Given no capture operation on the target
+  And the game has worked out an eject chance of <chance>%
+  When the bail hook adjusts it
+  Then the pilot rolls at <chance>%, fractions included
+  Examples:
+    | chance |
+    | 0      |
+    | 0.5    |
+    | 1.75   |
+    | 30     |
+    | 100    |
 ```
 
 ### Bail checks between NPC ships run through the hook
