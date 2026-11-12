@@ -26,7 +26,8 @@ function Get-MainCheckout([string] $Root) {
     $common = $gitDir
     $commondirFile = Join-Path $gitDir 'commondir'
     if (Test-Path $commondirFile -PathType Leaf) {
-        $common = Join-Path $gitDir ((Get-Content $commondirFile | Select-Object -First 1).Trim())
+        $common = (Get-Content $commondirFile | Select-Object -First 1).Trim()
+        if (-not [IO.Path]::IsPathRooted($common)) { $common = Join-Path $gitDir $common }
     }
     if (-not (Test-Path $common -PathType Container)) { return '' }
     $common = [IO.Path]::GetFullPath($common).TrimEnd('\', '/')

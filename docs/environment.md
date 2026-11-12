@@ -18,7 +18,7 @@ The deploy, the game tests and the diff-patch check read their settings (`X4_PAT
 2. **The checkout's own `deploy.config`.**
 3. **The main checkout's `deploy.config`**, for a worktree. It's the one source for every checkout: since `main` is the SWI build, it points at the 8.00 copy. A worktree needs no `deploy.config` of its own; add one only to override a setting there, e.g. `X4_PATH` for 9.00 on the 9.x line.
 
-`tools/deploy-config.sh`, `tools/deploy-config.ps1` and `tools/diff-patches/config.ts` implement this order, one per language.
+In each file the last line naming a setting wins, and an empty value (`X4_PROFILE_ROOT=`) counts as not set, so it falls through to the next source rather than blanking one. `tools/deploy-config.sh`, `tools/deploy-config.ps1` and `tools/diff-patches/config.ts` implement this order, one per language.
 
 ## Deploying
 

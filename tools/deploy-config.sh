@@ -17,7 +17,10 @@ deploy_config_main() {
     [ -n "$gitdir" ] || return 0
     [[ "$gitdir" = /* ]] || gitdir="$root/$gitdir"
     common=$gitdir
-    [ -f "$gitdir/commondir" ] && common="$gitdir/$(head -n 1 "$gitdir/commondir" | tr -d '\r')"
+    if [ -f "$gitdir/commondir" ]; then
+        common=$(head -n 1 "$gitdir/commondir" | tr -d '\r')
+        [[ "$common" = /* ]] || common="$gitdir/$common"
+    fi
     common=$(cd "$common" 2>/dev/null && pwd) || return 0
     [ "$(basename "$common")" = .git ] && dirname "$common"
     return 0

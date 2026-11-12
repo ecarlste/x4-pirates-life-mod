@@ -105,6 +105,16 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     [[ "$output" == *"run.sh args: [--all]"* ]]
 }
 
+@test "make game-test in a worktree without deploy.config uses the main checkout's" {
+    unset X4_PATH
+    echo "X4_PATH=\"$SANDBOX/x4\"" > "$REPO/deploy.config"
+    git -C "$REPO" worktree add -q --detach "$REPO/.claude/worktrees/wt"
+    run make -C "$REPO/.claude/worktrees/wt" game-test GAME_TEST_RUNNER='echo game tests ran'
+    [ "$status" -eq 0 ]
+    [ -f "$TARGET/content.xml" ]
+    [[ "$output" == *"game tests ran"* ]]
+}
+
 @test "make game-test deploys the working tree, then runs the game tests" {
     echo '<diff>local</diff>' > "$REPO/libraries/god.xml"
     run make -C "$REPO" game-test GAME_TEST_RUNNER='echo game tests ran'
