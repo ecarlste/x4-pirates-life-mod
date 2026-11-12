@@ -1,17 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Diff patch for vanilla aiscripts/fight.attack.object.fighter.xml (S/M ships fighting a target):
-     no missiles while the pilot carries $APiratesLife_NoMissiles, which our capture order
+<!-- Diff patch for X4 8.00's aiscripts/fight.attack.object.fighter.xml (S/M ships fighting a
+     target): no missiles while the pilot carries $APiratesLife_NoMissiles, which our capture order
      (aiscripts/order.apirateslife.capture.xml) sets while it runs. A missile or torpedo already in
      flight kills a fighter held at the bail gate, as the game tests showed. Without the flag,
      vanilla behaves exactly as before. See docs/specs/capture-operation.md. -->
 <diff>
   <!-- In the player's sight: never choose a missile pass, so the lasers keep firing -->
-  <replace sel="//do_if[@value='not $target.isclass.ship_xs and ((not this.ship.dps.lasers.all and this.ship.dps.missiles.all) or (not $firestorpedo? and this.ship.dps.missiles.all gt 0 and player.age gt $delaymissiles))']/@value">not $target.isclass.ship_xs and ((not this.ship.dps.lasers.all and this.ship.dps.missiles.all) or (not $firestorpedo? and this.ship.dps.missiles.all gt 0 and player.age gt $delaymissiles)) and not @this.$APiratesLife_NoMissiles</replace>
+  <replace sel="//do_if[@value='not $target.isclass.ship_xs and ((not this.ship.dps.lasers.all and this.ship.dps.missiles.all) or (this.ship.dps.missiles.all gt 0 and player.age gt $delaymissiles))']/@value">not $target.isclass.ship_xs and ((not this.ship.dps.lasers.all and this.ship.dps.missiles.all) or (this.ship.dps.missiles.all gt 0 and player.age gt $delaymissiles)) and not @this.$APiratesLife_NoMissiles</replace>
 
-  <!-- Out of sight (simulated combat): don't count missile damage -->
-  <add sel="//do_if[@value='not $firestorpedo? or not this.assignedcontrolled.dps.lasers.all']" pos="after">
+  <!-- Out of sight (simulated combat), 8.00 has no missile gate: get_attackstrength picks the
+       missiles, then the script spends them and applies their damage. Empty what it picked, for
+       this ship and for each formation follower that joins the attack, so no missile spends ammo,
+       deals damage or draws a countermeasure. -->
+  <add sel="//get_attackstrength[@object='this.assignedcontrolled' and missileresult]" pos="after">
     <do_if value="@this.$APiratesLife_NoMissiles">
-      <remove_value name="$firemissiles"/>
+      <set_value name="$spentammotable" exact="table[]"/>
+      <set_value name="$impactingammotable" exact="table[]"/>
+      <set_value name="$result_missilehullshield" exact="0"/>
+      <set_value name="$result_missilehullonly" exact="0"/>
+      <set_value name="$result_missileshieldonly" exact="0"/>
+      <set_value name="$result_missilehullnoshield" exact="0"/>
+    </do_if>
+  </add>
+  <add sel="//get_attackstrength[@object='$locship' and missileresult]" pos="after">
+    <do_if value="@this.$APiratesLife_NoMissiles">
+      <set_value name="$locresult_spentammotable" exact="table[]"/>
+      <set_value name="$locresult_impactingammotable" exact="table[]"/>
+      <set_value name="$locresult_missilehullshield" exact="0"/>
+      <set_value name="$locresult_missilehullonly" exact="0"/>
+      <set_value name="$locresult_missileshieldonly" exact="0"/>
+      <set_value name="$locresult_missilehullnoshield" exact="0"/>
     </do_if>
   </add>
 </diff>

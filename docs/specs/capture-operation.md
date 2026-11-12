@@ -34,7 +34,9 @@ The player picks a capturable ship (not a capital ship) and starts a **capture o
 **Wingman order** (`aiscripts/order.apirateslife.capture.xml`, id `APiratesLife_Capture`, category `internal` so it isn't in the player's order menus):
 
 - **Fights with vanilla's attack script** (`run_script order.fight.attack.object`), and aborts it to hold fire. Vanilla's dogfighting, both in and out of the player's sight.
-- **No missiles:** a two-line diff on `fight.attack.object.fighter.xml` skips missile passes (in sight) and missile damage (out of sight) while the pilot carries `$APiratesLife_NoMissiles`. The order sets the flag and clears it when it ends or is cancelled. Without the flag, vanilla is unchanged. In the game tests, torpedoes already in flight one-shot the target from the hold line.
+- **No missiles:** a diff on `fight.attack.object.fighter.xml` stops missiles and torpedoes while the pilot carries `$APiratesLife_NoMissiles`. The order sets the flag and clears it when it ends or is cancelled. Without the flag, vanilla is unchanged. In the game tests, torpedoes already in flight one-shot the target from the hold line.
+  - *In sight:* the missile-pass condition gets `and not @this.$APiratesLife_NoMissiles`, so no missile pass is chosen.
+  - *Out of sight:* 8.00 has no missile gate. `get_attackstrength` picks the missiles, and the script then spends them and applies their damage. Right after each of its two calls (the attacker's own, and each formation follower's that joins in), the patch empties the spent and impacting ammo and zeroes the missile results, so no missile spends ammo, deals damage or draws a countermeasure.
 - **Break:** while the target's hull is at or above the hold line (default 75%, vanilla's bail gate), fire at it.
 - **Suppress:** below the hold line, fire only at shields. Stop while the target's shields still hold the wingman's **burst**, about 1.5 s of its laser damage (`dps.lasers.all × 1.5`, in hitpoints), so shots still in flight land on shields, not hull. Fire again once shields are 10% (of max) above that.
   - This works for any weapon with no weapon IDs: heavy, slow guns get a bigger margin, pulse lasers a small one.
@@ -110,6 +112,7 @@ Scenarios: [`tests/game/features/capture-operation.feature`](../../tests/game/fe
   - `capture_escaped`: a target warped 25 km away from an engaged operation ends it as escaped after 30 s.
   - `capture_escape_waits_for_engagement`: an operation started 20 km away is still running 40 s later.
   - `capture_wing_holds_fire`: a real wingman (a fixed pulse-laser loadout from the test extension) breaks a capturable fighter (80% hull, shields held down until then) to under 75% and keeps it there for 30 s, with the hull never more than 20 points under the gate (nor below the floor), and the wingman never still (under 10 m/s) for 5 s in a row. The target is made uncapturable after the start, so no bail ends the fight.
+  - `no_missiles_in_sight` and `no_missiles_out_of_sight`: a flagged torpedo X-wing and an unflagged one each attack a TIE Advanced held at 50% hull, 1-6 km from the player and 150 km away. Within 60 s the unflagged wingman fires a missile, as vanilla does, and the flagged one fires none.
 - **In game:**
   - With 3 S ships, a comm choice on a neutral or SCA fighter starts the op.
   - The wing doesn't kill it, the HUD walks through shields, hull, then bail checks, and the pilot bails.

@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[ConfigAppliedOnStart, EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail]"/>
+        <set_value name="$Tests" exact="[ConfigAppliedOnStart, EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, NoMissilesInSight, NoMissilesOutOfSight, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$Passed" exact="0"/>
         <set_value name="$Failed" exact="0"/>
@@ -994,6 +994,203 @@
               </actions>
             </cue>
           </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- ===== No missiles (docs/specs/capture-operation.md, the no-missiles patch on
+         aiscripts/fight.attack.object.fighter.xml) ===== -->
+
+    <!-- A player-owned X-wing with two proton torpedo launchers and 12 torpedoes, attacking a TIE
+         Advanced 2 km away with vanilla's Attack order. With Flag, its pilot carries
+         $APiratesLife_NoMissiles, as our capture order sets it. A top pilot (skill 15), so vanilla's
+         first missile pass comes 10-20 s into the fight. The target can't go below 50% hull, so the
+         fight lasts. Returns table[$wingman, $target, $ammo],
+         $ammo being the missiles it starts with. -->
+    <library name="SpawnMissilePair" purpose="run_actions">
+      <params>
+        <param name="Offset"/>
+        <param name="Flag"/>
+      </params>
+      <actions>
+        <create_ship name="$Wingman" macro="t65b_xwing_macro" sector="player.sector">
+          <owner exact="faction.player" overridenpc="true"/>
+          <loadout ref="apirateslife_test_xwing_torpedoes"/>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+            <skills>
+              <skill type="piloting" exact="15"/>
+            </skills>
+          </pilot>
+          <safepos object="player.occupiedship" x="$Offset" allowyaxis="true"/>
+        </create_ship>
+        <create_ship name="$Target" macro="tie_advanced_macro" sector="player.sector">
+          <owner exact="faction.galempire" overridenpc="true"/>
+          <loadout>
+            <level exact="1.0"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="$Wingman" z="2km" allowyaxis="true"/>
+        </create_ship>
+        <create_order id="'Wait'" object="$Target" default="true">
+          <param name="noattackresponse" value="true"/>
+        </create_order>
+        <!-- The wingman's lasers kill a TIE Advanced within seconds, before its first missile pass -->
+        <set_object_min_hull object="$Target" exact="50"/>
+        <!-- Hostile to the player, as an operation makes its target (md/apirateslife_capture.xml) -->
+        <set_relation_boost object="$Target" faction="faction.player" value="-1" decay="1" delay="600s"/>
+        <do_if value="$Flag">
+          <set_value name="$Wingman.pilot.$APiratesLife_NoMissiles" exact="true"/>
+        </do_if>
+        <create_order id="'Attack'" object="$Wingman" immediate="true">
+          <param name="primarytarget" value="$Target"/>
+        </create_order>
+        <return value="table[$wingman = $Wingman, $target = $Target, $ammo = $Wingman.ammostorage.missile.count]"/>
+      </actions>
+    </library>
+
+    <!-- One check of a flagged and an unflagged SpawnMissilePair, run every second. Done
+         once the unflagged wingman has fired a missile and both have fought for 60 s, or at the
+         first problem. The unflagged wingman has to fire, so a fight that never gave the flagged
+         one a missile chance can't pass. Returns table[$done, $problems, $detail]. -->
+    <library name="CheckMissilePairs" purpose="run_actions">
+      <params>
+        <param name="Flagged"/>
+        <param name="Vanilla"/>
+        <param name="InSight"/>
+        <param name="Since"/>
+      </params>
+      <actions>
+        <set_value name="$Problems" exact="''"/>
+        <set_value name="$FlaggedSpent" exact="$Flagged.$ammo - @$Flagged.$wingman.ammostorage.missile.count"/>
+        <set_value name="$VanillaSpent" exact="$Vanilla.$ammo - @$Vanilla.$wingman.ammostorage.missile.count"/>
+        <do_if value="$FlaggedSpent gt 0">
+          <set_value name="$Problems" exact="' the flagged wingman fired %s missile(s);'.[$FlaggedSpent]"/>
+        </do_if>
+        <do_if value="not @$Flagged.$target.isoperational">
+          <set_value name="$Problems" exact="$Problems + ' the target of the flagged wingman was destroyed;'"/>
+        </do_if>
+        <do_for_each name="$Pair" in="[$Flagged, $Vanilla]">
+          <do_if value="not @$Pair.$wingman.isoperational">
+            <set_value name="$Problems" exact="$Problems + ' a wingman was destroyed;'"/>
+          </do_if>
+          <do_elseif value="($Pair.$wingman.attention ge attention.visible) != $InSight">
+            <set_value name="$Problems" exact="$Problems + ' a wingman %s km from the player was at attention %s;'.[($Pair.$wingman.distanceto.{player.occupiedship} / 1000)i, $Pair.$wingman.attention]"/>
+          </do_elseif>
+        </do_for_each>
+        <return value="table[$done = ($Problems != '' or ($VanillaSpent gt 0 and player.age - $Since ge 60s)), $problems = $Problems, $detail = 'unflagged wingman fired %s missile(s), flagged none, in %s s'.[$VanillaSpent, (player.age - $Since)i]]"/>
+      </actions>
+    </library>
+
+    <!-- In the player's sight, vanilla's missile pass ("visible" attention): a flagged pair 1 km
+         from the player and an unflagged one 6 km away, side by side -->
+    <cue name="NoMissilesInSight">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnMissilePair" result="$Flagged">
+          <param name="Offset" value="-1km"/>
+          <param name="Flag" value="true"/>
+        </run_actions>
+        <run_actions ref="SpawnMissilePair" result="$Vanilla">
+          <param name="Offset" value="6km"/>
+          <param name="Flag" value="false"/>
+        </run_actions>
+        <set_value name="$Since" exact="player.age"/>
+      </actions>
+      <cues>
+        <cue name="NoMissilesInSight_Watch" checkinterval="1s" instantiate="true">
+          <actions>
+            <run_actions ref="CheckMissilePairs" result="$Check">
+              <param name="Flagged" value="$Flagged"/>
+              <param name="Vanilla" value="$Vanilla"/>
+              <param name="InSight" value="true"/>
+              <param name="Since" value="$Since"/>
+            </run_actions>
+            <do_if value="$Check.$done">
+              <cancel_cue cue="NoMissilesInSight_Timeout"/>
+              <signal_cue_instantly cue="NoMissilesInSight_Done" param="$Check"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="NoMissilesInSight_Timeout">
+          <delay exact="180s"/>
+          <actions>
+            <signal_cue_instantly cue="NoMissilesInSight_Done" param="table[$problems = ' the unflagged wingman fired no missile in 180 s, so the fight proves nothing;']"/>
+          </actions>
+        </cue>
+        <cue name="NoMissilesInSight_Done">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="NoMissilesInSight_Watch"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'no_missiles_in_sight', $ok = (event.param.$problems == ''), $detail = (if event.param.$problems == '' then event.param.$detail else event.param.$problems)]"/>
+            <do_for_each name="$Ship" in="[$Flagged.$wingman, $Flagged.$target, $Vanilla.$wingman, $Vanilla.$target]">
+              <do_if value="$Ship.exists">
+                <destroy_object object="$Ship"/>
+              </do_if>
+            </do_for_each>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Out of the player's sight, vanilla's simulated fight (attention below "visible"), where
+         missiles spend ammo and deal damage without being launched: the pairs 150 km either side of
+         the player -->
+    <cue name="NoMissilesOutOfSight">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnMissilePair" result="$Flagged">
+          <param name="Offset" value="-150km"/>
+          <param name="Flag" value="true"/>
+        </run_actions>
+        <run_actions ref="SpawnMissilePair" result="$Vanilla">
+          <param name="Offset" value="150km"/>
+          <param name="Flag" value="false"/>
+        </run_actions>
+        <set_value name="$Since" exact="player.age"/>
+      </actions>
+      <cues>
+        <cue name="NoMissilesOutOfSight_Watch" checkinterval="1s" instantiate="true">
+          <actions>
+            <run_actions ref="CheckMissilePairs" result="$Check">
+              <param name="Flagged" value="$Flagged"/>
+              <param name="Vanilla" value="$Vanilla"/>
+              <param name="InSight" value="false"/>
+              <param name="Since" value="$Since"/>
+            </run_actions>
+            <do_if value="$Check.$done">
+              <cancel_cue cue="NoMissilesOutOfSight_Timeout"/>
+              <signal_cue_instantly cue="NoMissilesOutOfSight_Done" param="$Check"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="NoMissilesOutOfSight_Timeout">
+          <delay exact="180s"/>
+          <actions>
+            <signal_cue_instantly cue="NoMissilesOutOfSight_Done" param="table[$problems = ' the unflagged wingman fired no missile in 180 s, so the fight proves nothing;']"/>
+          </actions>
+        </cue>
+        <cue name="NoMissilesOutOfSight_Done">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="NoMissilesOutOfSight_Watch"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'no_missiles_out_of_sight', $ok = (event.param.$problems == ''), $detail = (if event.param.$problems == '' then event.param.$detail else event.param.$problems)]"/>
+            <do_for_each name="$Ship" in="[$Flagged.$wingman, $Flagged.$target, $Vanilla.$wingman, $Vanilla.$target]">
+              <do_if value="$Ship.exists">
+                <destroy_object object="$Ship"/>
+              </do_if>
+            </do_for_each>
+          </actions>
         </cue>
       </cues>
     </cue>

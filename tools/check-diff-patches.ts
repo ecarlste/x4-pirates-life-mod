@@ -17,16 +17,6 @@ import { checkDiffPatches, report, withKnown, type Known } from "./diff-patches/
 // Ops that don't match on 8.00 yet, each with the issue that fixes it. Reported as KNOWN, not
 // failed; an entry fails the check once its op matches on both bases, so take it off then.
 const KNOWN: Known[] = [
-  {
-    file: "aiscripts/fight.attack.object.fighter.xml",
-    sel: "//do_if[@value='not $target.isclass.ship_xs and ((not this.ship.dps.lasers.all and this.ship.dps.missiles.all) or (not $firestorpedo? and this.ship.dps.missiles.all gt 0 and player.age gt $delaymissiles))']/@value",
-    issue: "#121",
-  },
-  {
-    file: "aiscripts/fight.attack.object.fighter.xml",
-    sel: "//do_if[@value='not $firestorpedo? or not this.assignedcontrolled.dps.lasers.all']",
-    issue: "#121",
-  },
   // The intact-on-eject ops: SWI's Enhanced Bailing has no hull drop or sabotage to switch off
   { file: "md/notifications.xml", sel: "//cue[@name='PlayerOwnedShipAttacks']//set_value[@name='$damageminpercent']", issue: "#117" },
   { file: "md/notifications.xml", sel: "//cue[@name='PlayerOwnedShipAttacks']//set_value[@name='$scuttle']", issue: "#117" },
