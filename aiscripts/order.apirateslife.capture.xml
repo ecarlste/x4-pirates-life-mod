@@ -77,7 +77,7 @@
            player-owned ships won't attack a ship they aren't hostile to (see
            md/apirateslife_capture.xml, Operation) -->
       <do_if value="not this.assignedcontrolled.mayattack.{$target}">
-        <set_relation_boost object="$target" faction="faction.player" value="-1" decay="1" delay="600s"/>
+        <set_relation_boost object="$target" faction="faction.player" value="-1" decay="1" delay="600s" reason="relationchangereason.markedashostile"/>
       </do_if>
 
       <label name="decide"/>

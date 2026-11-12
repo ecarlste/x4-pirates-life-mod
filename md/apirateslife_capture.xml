@@ -89,13 +89,15 @@
              it would after the player's first shot. Without it, player-owned ships may not fire on
              a ship they aren't hostile to (vanilla's Attack order stands down on a "friendly
              target" too). The same boost as vanilla's "Mark as hostile" interaction
-             (ui/addons/ego_detailmonitor/menu_userquestion.lua: -1, decay 1, 600 s); faction
+             (ui/addons/ego_detailmonitor/menu_userquestion.lua: -1, decay 1, 600 s), with its
+             reason, so it reads the same. 8.00's common.xsd doesn't list markedashostile among the
+             reasons, but the game knows it (game test capture_marked_as_hostile). Faction
              reputation is left to vanilla's cost for the damage done.
              With wingmen, each capture order applies it once it runs: applied here, the wingmen's
              escort behavior would see a new enemy first and queue vanilla's Attack (missiles and
              all) ahead of ours, as the game tests showed. -->
         <do_if value="not $Members.count">
-          <set_relation_boost object="$Target" faction="faction.player" value="-1" decay="1" delay="600s"/>
+          <set_relation_boost object="$Target" faction="faction.player" value="-1" decay="1" delay="600s" reason="relationchangereason.markedashostile"/>
         </do_if>
 
         <create_mission cue="this" name="{1774100, 10}.[$Name]" description="{1774100, 11}" faction="faction.player" type="missiontype.fight" abortable="true">

@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 8 | 0 | 3 | **3** |
+| 0 | 11 | 0 | 1 | **1** |
 
 ## Scenarios
 
@@ -101,7 +101,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 ### The comm choice starts an operation
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+**Automated:** in game `capture_comm_choice`
 
 ```gherkin
   Given I'm flying a ship and hail the pilot of a capturable fighter
@@ -111,13 +111,23 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 ### Aborting the mission calls the wing off
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+**Automated:** in game `capture_abort_calls_wing_off`
 
 ```gherkin
   Given a capture operation with my wingman attacking
   When I abort the capture mission
   Then the operation ends as "called off"
   And the wingman stops attacking and returns to formation
+```
+
+### The target turns hostile as with vanilla's "Mark as hostile"
+
+**Automated:** in game `capture_marked_as_hostile`
+
+```gherkin
+  Given a capturable fighter
+  When I start a capture operation on it, alone or with my wing
+  Then it turns hostile to me with the same reason as vanilla's "Mark as hostile"
 ```
 
 ### The target escapes

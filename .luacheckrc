@@ -6,9 +6,15 @@ max_line_length = false
 -- X4's UI functions and tables our files use. Add one here when a file starts using it.
 read_globals = {
 	"AddUITriggeredEvent",
+	"ConvertStringTo64Bit",
 	"DebugError",
+	"GetDialogOption",
+	"GetMissionDetails",
+	"GetNumMissions",
 	"NewGame",
+	"ReadText",
 	"RegisterEvent",
+	"SelectDialogOption",
 	"SetScript",
 	"getElapsedTime",
 }

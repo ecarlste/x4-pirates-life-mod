@@ -24,7 +24,7 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[ConfigAppliedOnStart, EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail]"/>
+        <set_value name="$Tests" exact="[ConfigAppliedOnStart, EjectChanceDoubled, PilotBailIntact, PilotBailVanillaWhenOff, ClaimIntact, ClaimVanillaWhenOff, CaptureWingFullChance, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, CaptureMarkedAsHostile, CaptureCommChoice, CaptureAbortCallsWingOff, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$Passed" exact="0"/>
         <set_value name="$Failed" exact="0"/>
@@ -992,6 +992,244 @@
                   <destroy_object object="$Target"/>
                 </do_if>
               </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- The relation boost an operation puts on its target carries the same reason as vanilla's
+         "Mark as hostile". The reference is vanilla's own: this extension's Lua makes the call
+         vanilla's menus make on another ship. Checked for both places that apply the boost: the
+         operation itself (no wingmen) and the wingman's capture order. -->
+    <cue name="CaptureMarkedAsHostile">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Reference" exact="$Pair.$target"/>
+        <destroy_object object="$Pair.$attacker"/>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Solo" exact="$Pair.$target"/>
+        <destroy_object object="$Pair.$attacker"/>
+        <!-- Reasons seen, by ship -->
+        <set_value name="$Reasons" exact="table[]"/>
+        <raise_lua_event name="'apirateslife_tests.markHostile'" param="$Reference"/>
+      </actions>
+      <cues>
+        <cue name="CaptureMarkedAsHostile_Changed" instantiate="true">
+          <conditions>
+            <event_player_relation_changed/>
+            <check_value value="event.object != null"/>
+          </conditions>
+          <actions>
+            <do_for_each name="$Ship" in="[$Reference, $Solo, @$Wing]">
+              <do_if value="$Ship and (event.object == $Ship or event.object == @$Ship.pilot)">
+                <debug_text text="'[apirateslife-test] trace: relation boost on %s (%s): reason %s'.[$Ship.knownname, $Ship.idcode, event.param3]"/>
+                <set_value name="$Reasons.{$Ship}" exact="event.param3"/>
+              </do_if>
+            </do_for_each>
+          </actions>
+        </cue>
+        <cue name="CaptureMarkedAsHostile_Solo">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$SoloStarted">
+              <param name="Target" value="$Solo"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <!-- Then an operation with a wingman, once the first has ended (a wingman would join it) -->
+            <cue name="CaptureMarkedAsHostile_Wing">
+              <delay exact="2s"/>
+              <actions>
+                <destroy_object object="$Solo"/>
+                <run_actions ref="SpawnBailPair" result="$Pair"/>
+                <set_value name="$Wing" exact="$Pair.$target"/>
+                <set_value name="$Wingman" exact="$Pair.$attacker"/>
+                <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
+              </actions>
+              <cues>
+                <cue name="CaptureMarkedAsHostile_WingStart">
+                  <delay exact="2s"/>
+                  <actions>
+                    <run_actions ref="md.APiratesLife_Capture.Start" result="$WingStarted">
+                      <param name="Target" value="$Wing"/>
+                    </run_actions>
+                  </actions>
+                  <cues>
+                    <cue name="CaptureMarkedAsHostile_Check">
+                      <delay exact="10s"/>
+                      <actions>
+                        <cancel_cue cue="CaptureMarkedAsHostile_Changed"/>
+                        <set_value name="$Expected" exact="@$Reasons.{$Reference}"/>
+                        <set_value name="$Problems" exact="''"/>
+                        <do_if value="not $Expected">
+                          <set_value name="$Problems" exact="' vanilla Mark as hostile gave no relation event with a reason;'"/>
+                        </do_if>
+                        <do_if value="not $SoloStarted or not $WingStarted">
+                          <set_value name="$Problems" exact="$Problems + ' operation did not start (solo %s, wing %s);'.[$SoloStarted, $WingStarted]"/>
+                        </do_if>
+                        <do_if value="@$Reasons.{$Solo} != $Expected">
+                          <set_value name="$Problems" exact="$Problems + ' operation without wingmen: reason %s, expected %s;'.[@$Reasons.{$Solo}, $Expected]"/>
+                        </do_if>
+                        <do_if value="@$Reasons.{$Wing} != $Expected">
+                          <set_value name="$Problems" exact="$Problems + ' operation with a wingman: reason %s, expected %s;'.[@$Reasons.{$Wing}, $Expected]"/>
+                        </do_if>
+                        <signal_cue_instantly cue="Report" param="table[$name = 'capture_marked_as_hostile', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'both boosts carry %s'.[$Expected] else $Problems)]"/>
+                        <destroy_object object="$Reference"/>
+                        <destroy_object object="$Wing"/>
+                        <destroy_object object="$Wingman"/>
+                      </actions>
+                    </cue>
+                  </cues>
+                </cue>
+              </cues>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Hailing a capturable fighter and choosing "Heave to. We're taking your ship." starts an
+         operation on it. The conversation is vanilla's default comm, as a hail opens it; the
+         choice is picked through the dialog menu's own functions (this extension's Lua). -->
+    <cue name="CaptureCommChoice">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Target" exact="$Pair.$target"/>
+        <destroy_object object="$Pair.$attacker"/>
+        <set_value name="$Choice" exact="'no answer from the Lua'"/>
+      </actions>
+      <cues>
+        <cue name="CaptureCommChoice_Hail">
+          <delay exact="2s"/>
+          <actions>
+            <start_conversation actor="$Target.pilot" conversation="default"/>
+          </actions>
+          <cues>
+            <cue name="CaptureCommChoice_Choose">
+              <delay exact="2s"/>
+              <actions>
+                <raise_lua_event name="'apirateslife_tests.chooseComm'"/>
+              </actions>
+            </cue>
+            <cue name="CaptureCommChoice_Answer">
+              <conditions>
+                <event_ui_triggered screen="'apirateslife_tests'" control="'chooseComm'"/>
+              </conditions>
+              <actions>
+                <set_value name="$Choice" exact="event.param3"/>
+              </actions>
+            </cue>
+            <cue name="CaptureCommChoice_Started">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Capture.Started"/>
+                <check_value value="event.param.$target == $Target"/>
+              </conditions>
+              <delay exact="1s"/>
+              <actions>
+                <cancel_cue cue="CaptureCommChoice_Timeout"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_comm_choice', $ok = true, $detail = 'the comm choice started an operation (%s)'.[$Choice]]"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+            <cue name="CaptureCommChoice_Timeout">
+              <delay exact="15s"/>
+              <actions>
+                <cancel_cue cue="CaptureCommChoice_Started"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_comm_choice', $ok = false, $detail = 'no operation within 15s of the hail (comm choice: %s)'.[$Choice]]"/>
+                <destroy_object object="$Target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Aborting the operation's mission, as the mission menus do, ends it as "called off", and
+         the wingman drops its capture order for its default behavior -->
+    <cue name="CaptureAbortCallsWingOff">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <set_value name="$Target" exact="$Pair.$target"/>
+        <set_value name="$Wingman" exact="$Pair.$attacker"/>
+        <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
+        <set_value name="$Abort" exact="'no answer from the Lua'"/>
+      </actions>
+      <cues>
+        <cue name="CaptureAbortCallsWingOff_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="CaptureAbortCallsWingOff_Abort">
+              <delay exact="3s"/>
+              <actions>
+                <set_value name="$OrderBefore" exact="@$Wingman.order.id"/>
+                <raise_lua_event name="'apirateslife_tests.abortMission'" param="{1774100, 10}.[$Target.knownname]"/>
+              </actions>
+              <cues>
+                <cue name="CaptureAbortCallsWingOff_Answer">
+                  <conditions>
+                    <event_ui_triggered screen="'apirateslife_tests'" control="'abortMission'"/>
+                  </conditions>
+                  <actions>
+                    <set_value name="$Abort" exact="event.param3"/>
+                  </actions>
+                </cue>
+                <cue name="CaptureAbortCallsWingOff_Ended">
+                  <conditions>
+                    <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+                    <check_value value="event.param.$target == $Target"/>
+                  </conditions>
+                  <actions>
+                    <cancel_cue cue="CaptureAbortCallsWingOff_Timeout"/>
+                    <set_value name="$Outcome" exact="event.param.$outcome"/>
+                  </actions>
+                  <cues>
+                    <!-- Give the wingman's order a moment to finish -->
+                    <cue name="CaptureAbortCallsWingOff_Check">
+                      <delay exact="3s"/>
+                      <actions>
+                        <set_value name="$Order" exact="@$Wingman.order.id"/>
+                        <set_value name="$Problems" exact="''"/>
+                        <do_if value="not $Started or $OrderBefore != 'APiratesLife_Capture'">
+                          <set_value name="$Problems" exact="' the wingman was not in the operation (started %s, order %s);'.[$Started, $OrderBefore]"/>
+                        </do_if>
+                        <do_if value="$Outcome != 'calledoff'">
+                          <set_value name="$Problems" exact="$Problems + ' ended as %s, expected calledoff;'.[$Outcome]"/>
+                        </do_if>
+                        <do_if value="$Order == 'APiratesLife_Capture' or $Order == 'Attack'">
+                          <set_value name="$Problems" exact="$Problems + ' the wingman still has order %s;'.[$Order]"/>
+                        </do_if>
+                        <signal_cue_instantly cue="Report" param="table[$name = 'capture_abort_calls_wing_off', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'called off; the wingman is back on %s (%s)'.[$Order, $Abort] else $Problems + ' (abort: %s)'.[$Abort])]"/>
+                        <destroy_object object="$Wingman"/>
+                        <destroy_object object="$Target"/>
+                      </actions>
+                    </cue>
+                  </cues>
+                </cue>
+                <cue name="CaptureAbortCallsWingOff_Timeout">
+                  <delay exact="15s"/>
+                  <actions>
+                    <cancel_cue cue="CaptureAbortCallsWingOff_Ended"/>
+                    <signal_cue_instantly cue="Report" param="table[$name = 'capture_abort_calls_wing_off', $ok = false, $detail = 'the operation did not end within 15s of the abort (abort: %s)'.[$Abort]]"/>
+                    <destroy_object object="$Wingman"/>
+                    <destroy_object object="$Target"/>
+                  </actions>
+                </cue>
+              </cues>
             </cue>
           </cues>
         </cue>
