@@ -66,8 +66,10 @@ doc-paths:
 game-test:
 	@tools/game-lock.sh --what game-test -- $(MAKE) --no-print-directory game-test-locked
 
-# make game-test's steps, run while it holds the game lock
+# make game-test's steps, run while it holds the game lock: the runner's setup checks first, so a
+# bad setup stops before the deploy changes the game folder
 game-test-locked:
+	@$(GAME_TEST_RUNNER) -PreflightOnly $(RUNNER_ARGS)
 	@./deploy.sh --working-tree $(ARGS)
 	@$(GAME_TEST_RUNNER) $(GAME_TEST_GIT) $(RUNNER_ARGS)
 
