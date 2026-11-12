@@ -49,6 +49,16 @@
              within about 10 km and the target is inside the bail gates, so checks don't wait for
              hits. -->
         <set_value name="global.$APiratesLife_CapturePressureInterval" exact="5"/>
+
+        <!-- Fear: when a capture operation is called off or its target escapes, the pilot keeps the
+             bail pressure left, and a new operation on that pilot starts from it. It is multiplied
+             by this factor for every CaptureFearDecayInterval seconds that pass (0.5 = halves).
+             1 = never fades; 0 = no fear. -->
+        <set_value name="global.$APiratesLife_CaptureFearDecayFactor" exact="0.5"/>
+
+        <!-- Fear: seconds over which it is multiplied by CaptureFearDecayFactor once (300 = 5
+             minutes). It fades smoothly, not in steps. -->
+        <set_value name="global.$APiratesLife_CaptureFearDecayInterval" exact="300"/>
       </actions>
     </library>
   </cues>

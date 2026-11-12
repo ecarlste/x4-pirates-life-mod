@@ -8,7 +8,8 @@
          Returns the chance the game should roll with: the game's own, unless the target is in a
          capture operation. Then its bail pressure is added, never above CapturePressureCap and
          never below the game's chance: max(chance, min(chance + pressure, cap)). A fresh
-         operation has no pressure yet, so its first check rolls at the game's chance. -->
+         operation has no pressure yet, unless its pilot has fear from an earlier one, so its
+         first check rolls at the game's chance. -->
     <library name="AdjustEjectChance" purpose="run_actions">
       <params>
         <param name="EjectChance"/>

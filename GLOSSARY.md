@@ -26,6 +26,10 @@ _Avoid_: Bail roll, capture chance
 Points a capture operation adds to its target's bail chance for the time the target has spent inside the bail gates, up to a cap.
 _Avoid_: Bail bonus, fear (the pressure left on a pilot after the operation ends)
 
+**Fear**:
+The bail pressure a pilot keeps when a capture operation on their ship is called off or they escape. It fades with time, and a new operation on that pilot starts from what's left; a capture or the ship's destruction ends it.
+_Avoid_: Fear as the player's reputation (the 9.x line's "fear vs. honor"), morale (SWI's pilot morale, part of the game's own chance)
+
 **Claim**:
 Taking an ownerless ship, by spacesuit or with marines.
 _Avoid_: Capture (the whole act, of which a claim is the last step)

@@ -3,7 +3,8 @@ Feature: Bail pressure
   In a capture operation, the target's pilot gets likelier to bail the longer it is held inside
   the bail gates (shields under 20% or none, hull under 75%), so a capture comes within about
   30-50 s. A pressure tick asks for bail checks, so a wing that only keeps the shields down gets
-  them as fast as a player who keeps firing.
+  them as fast as a player who keeps firing. A pilot who gets away keeps what's left as fear,
+  which decays over time, and a new operation on that pilot starts from it.
 
   @bail_pressure_first_check_plain
   Scenario: The first check of a fresh operation rolls at the game's chance
@@ -62,6 +63,44 @@ Feature: Bail pressure
     When some of its crew bail but the pilot stays
     Then the operation goes on
     And 10 s later the pressure is 8 points higher
+
+  @fear_carries_over
+  Scenario: A pilot who got away stays shaken
+    Given a capture operation on a target that has built up bail pressure
+    When I call the operation off, or the target escapes
+    Then the pressure left stays on its pilot as fear
+    When I start a new operation on it
+    Then its pressure starts from that fear
+
+  @fear_decays
+  Scenario Outline: Fear decays when it's read
+    Given a pilot left with 40 points of fear <age> ago
+    And fear decays by x<factor> per <interval> s
+    When the fear is read
+    Then <left> points are left
+
+    Examples:
+      | age   | factor | interval | left  |
+      | 0 s   | 0.5    | 300      | 40    |
+      | 150 s | 0.5    | 300      | 28.28 |
+      | 300 s | 0.5    | 300      | 20    |
+      | 600 s | 0.5    | 300      | 10    |
+      | 100 s | 0.25   | 100      | 10    |
+      | 50 s  | 0.25   | 100      | 20    |
+      | 600 s | 1      | 300      | 40    |
+      | 300 s | 0      | 300      | 0     |
+
+  @fear_decays
+  Scenario: A new operation starts from the fear left
+    Given a pilot left with 40 points of fear 300 s ago
+    When I start a capture operation on its ship
+    Then its pressure starts at 20
+
+  @fear_cleared
+  Scenario: Capture or destruction clears fear
+    Given three pilots with fear, each in a capture operation that started from it
+    When one ship becomes mine, one's pilot bails, and one is destroyed
+    Then none of the three pilots keeps any fear
 
   @pending
   Scenario: The pressure tick waits while the player is away

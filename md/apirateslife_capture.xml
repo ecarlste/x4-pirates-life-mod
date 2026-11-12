@@ -7,12 +7,18 @@
 
      While an operation runs, it is listed by target in
        global.$APiratesLife_CaptureOps.{$target}
-         = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince]
+         = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince, $fear]
      which the wingman order and the bail hook (md/apirateslife_bail.xml) read. $gatestime is the
      time the target has spent inside the bail gates so far, not counting the stretch since
-     $gatessince (null while it is outside them); Pressure turns them into bail pressure. A global table,
-     because X4 can't store script variables on a ship (only on NPCs), and AI scripts can read
-     globals. -->
+     $gatessince (null while it is outside them); $fear is the pilot's fear when the operation
+     started. Pressure turns them into bail pressure. A global table, because X4 can't store
+     script variables on a ship (only on NPCs), and AI scripts can read globals.
+
+     Fear, the pressure an operation leaves when it ends without a capture (called off or
+     escaped), is kept on the target's pilot, an NPC, as
+       $pilot.$APiratesLife_Fear = table[$points, $time]
+     the points left and when. Fear reads it decayed; the next operation on that pilot starts from
+     it and takes it off the pilot, so a capture or the ship's destruction leaves none. -->
 <mdscript name="APiratesLife_Capture" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
     <!-- Whether an operation can start on this ship: a piloted, capturable, non-capital ship that
@@ -43,8 +49,9 @@
       </actions>
     </library>
 
-    <!-- Bail pressure on Target, uncapped: CapturePressureStep points for every 10 s its operation
-         has had it inside the bail gates. 0 when it has no operation. -->
+    <!-- Bail pressure on Target, uncapped: the fear its pilot started the operation with, plus
+         CapturePressureStep points for every 10 s its operation has had it inside the bail gates.
+         0 when it has no operation. -->
     <library name="Pressure" purpose="run_actions">
       <params>
         <param name="Target"/>
@@ -59,7 +66,30 @@
           <set_value name="$Time" exact="$Time + (player.age - $Op.$gatessince)"/>
         </do_if>
         <set_value name="$PressureStep" exact="if global.$APiratesLife_CapturePressureStep? then global.$APiratesLife_CapturePressureStep else 8"/>
-        <return value="$Time / 10s * $PressureStep"/>
+        <set_value name="$Fear" exact="if $Op.$fear? then $Op.$fear else 0"/>
+        <return value="$Fear + ($Time)f / 10 * $PressureStep"/>
+      </actions>
+    </library>
+
+    <!-- The fear an earlier operation left on Pilot, decayed to now: the points it was left with,
+         x CaptureFearDecayFactor for every CaptureFearDecayInterval seconds since, applied
+         smoothly. 0 when it has none. -->
+    <library name="Fear" purpose="run_actions">
+      <params>
+        <param name="Pilot"/>
+      </params>
+      <actions>
+        <set_value name="$Fear" exact="@$Pilot.$APiratesLife_Fear"/>
+        <do_if value="not $Fear">
+          <return value="0"/>
+        </do_if>
+        <set_value name="$Factor" exact="if global.$APiratesLife_CaptureFearDecayFactor? then global.$APiratesLife_CaptureFearDecayFactor else 0.5"/>
+        <set_value name="$Interval" exact="if global.$APiratesLife_CaptureFearDecayInterval? then global.$APiratesLife_CaptureFearDecayInterval else 300"/>
+        <do_if value="$Factor le 0 or $Interval le 0">
+          <return value="0"/>
+        </do_if>
+        <set_value name="$Intervals" exact="[(player.age - $Fear.$time)f, 0].max / $Interval"/>
+        <return value="$Fear.$points * ([$Factor, 1].min ^ $Intervals)"/>
       </actions>
     </library>
 
@@ -119,7 +149,13 @@
         <run_actions ref="InGates" result="$InGates">
           <param name="Target" value="$Target"/>
         </run_actions>
-        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null, $gatestime = 0s, $gatessince = (if $InGates then player.age else null)]"/>
+        <!-- The operation starts from the pilot's fear, and takes it off the pilot: End puts back
+             what's left if this one ends without a capture -->
+        <run_actions ref="Fear" result="$Fear">
+          <param name="Pilot" value="$Target.pilot"/>
+        </run_actions>
+        <remove_value name="$Target.pilot.$APiratesLife_Fear"/>
+        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null, $gatestime = 0s, $gatessince = (if $InGates then player.age else null), $fear = $Fear]"/>
         <set_value name="global.$APiratesLife_CaptureOps.{$Target}" exact="$Op"/>
 
         <!-- Starting a capture is the act of piracy: this one ship turns hostile to the player, as
@@ -147,7 +183,7 @@
         <set_value name="$Objective" exact="''"/>
         <set_value name="$Started" exact="player.age"/>
         <show_notification text="{1774100, 30}.[$Name]"/>
-        <debug_text text="'[apirateslife] capture: started on %s (%s), led by %s (%s) with %s wingmen (hold %s%%, floor %s%%)'.[$Name, $Target.idcode, $Leader.knownname, $Leader.idcode, $Members.count, $Hold, $Floor]"/>
+        <debug_text text="'[apirateslife] capture: started on %s (%s), led by %s (%s) with %s wingmen (hold %s%%, floor %s%%, fear %s)'.[$Name, $Target.idcode, $Leader.knownname, $Leader.idcode, $Members.count, $Hold, $Floor, $Fear]"/>
         <signal_cue_instantly cue="md.APiratesLife_Capture.Started" param="table[$target = $Target, $leader = $Leader, $members = $Members]"/>
       </actions>
       <cues>
@@ -283,6 +319,17 @@
           </conditions>
           <actions>
             <set_value name="$Outcome" exact="event.param"/>
+            <!-- Called off or escaped: the pilot keeps the pressure left as fear, for a later
+                 operation. Read before the operation's state goes. -->
+            <set_value name="$FearLeft" exact="0"/>
+            <do_if value="($Outcome == 'calledoff' or $Outcome == 'escaped') and @$Target.pilot.exists">
+              <run_actions ref="Pressure" result="$FearLeft">
+                <param name="Target" value="$Target"/>
+              </run_actions>
+              <do_if value="$FearLeft gt 0">
+                <set_value name="$Target.pilot.$APiratesLife_Fear" exact="table[$points = $FearLeft, $time = player.age]"/>
+              </do_if>
+            </do_if>
             <!-- Wingmen's orders end once the operation is no longer listed; the signal stops one
                  that is in the middle of an attack at once -->
             <remove_value name="global.$APiratesLife_CaptureOps.{$Target}"/>
@@ -316,7 +363,7 @@
               <remove_mission cue="Operation" type="aborted"/>
               <show_notification text="{1774100, 35}.[$Name]"/>
             </do_else>
-            <debug_text text="'[apirateslife] capture: ended on %s (%s): %s'.[$Name, @$Target.idcode, $Outcome]"/>
+            <debug_text text="'[apirateslife] capture: ended on %s (%s): %s (fear left %s)'.[$Name, @$Target.idcode, $Outcome, $FearLeft]"/>
             <signal_cue_instantly cue="md.APiratesLife_Capture.Ended" param="table[$target = $Target, $outcome = $Outcome]"/>
             <cancel_cue cue="Operation"/>
           </actions>
