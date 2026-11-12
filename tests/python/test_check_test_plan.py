@@ -80,6 +80,14 @@ class TestNames(unittest.TestCase):
             harness = write(folder, "tests.xml", "table[$name = 'alpha_works', $ok = true] table[$name = 'beta_works']")
             self.assertEqual(plan.game_test_names(harness), {"alpha_works", "beta_works"})
 
+    def test_game_test_names_include_the_runners_log_checks(self):
+        with tempfile.TemporaryDirectory() as folder:
+            harness = write(folder, "tests.xml", "table[$name = 'alpha_works']")
+            runner = write(folder, "run-game-tests.ps1", "function New-LogCheck([string] $Name) { }\n"
+                                                         "New-LogCheck 'load_order_after_swi' $true 'ok'\n"
+                                                         "    New-LogCheck 'clean_log' $false \"$n errors\"\n")
+            self.assertEqual(plan.game_test_names(harness, runner), {"alpha_works", "load_order_after_swi", "clean_log"})
+
     def test_unit_test_names_are_the_test_methods_of_test_classes(self):
         with tempfile.TemporaryDirectory() as folder:
             write(folder, "test_a.lua", "TestA = {}\nfunction TestA:test_one()\nend\nfunction TestA.test_two()\nend\n"

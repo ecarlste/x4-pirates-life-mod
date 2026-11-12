@@ -14,11 +14,12 @@ This script fails when:
   - two unit tests share a name
   - a spec (docs/specs/*.md) doesn't link a feature file that exists
 Game test names are the $name values the tests report in the harness
-(tests/game/apirateslife_tests/md/apirateslife_tests.xml); unit tests are the test_* methods of
+(tests/game/apirateslife_tests/md/apirateslife_tests.xml), plus the checks the runner makes on the
+log (New-LogCheck in tools/run-game-tests.ps1); unit tests are the test_* methods of
 the Test* classes in tests/lua/test_*.lua and the test_* methods in tests/python/test_*.py (the Python
 tools' tests).
 
-Usage: tools/check_test_plan.py [features dir] [harness file] [specs dir] [unit tests dir]
+Usage: tools/check_test_plan.py [features dir] [harness file] [specs dir] [unit tests dir] [runner file]
 """
 import glob
 import os
@@ -102,9 +103,16 @@ def check_specs(specs_dir, features_dir):
     return problems
 
 
-def game_test_names(harness):
-    with open(harness, encoding="utf-8") as f:
-        return set(re.findall(r"\$name = '([a-z0-9_]+)'", f.read()))
+GAME_TEST_NAME = re.compile(r"\$name = '([a-z0-9_]+)'|New-LogCheck '([a-z0-9_]+)'")
+
+
+def game_test_names(*paths):
+    """The names the harness reports ($name = '...') and the runner's log checks (New-LogCheck '...')."""
+    names = set()
+    for path in paths:
+        with open(path, encoding="utf-8") as f:
+            names.update(harness or runner for harness, runner in GAME_TEST_NAME.findall(f.read()))
+    return names
 
 
 UNIT_TEST = re.compile(r"^function\s+Test\w*[:.](test_\w+)\s*\(", re.MULTILINE)
@@ -173,9 +181,10 @@ def main():
         root, "tests", "game", "apirateslife_tests", "md", "apirateslife_tests.xml")
     specs_dir = sys.argv[3] if len(sys.argv) > 3 else os.path.join(root, "docs", "specs")
     unit_dir = sys.argv[4] if len(sys.argv) > 4 else os.path.join(root, "tests", "lua")
+    runner = sys.argv[5] if len(sys.argv) > 5 else os.path.join(root, "tools", "run-game-tests.ps1")
 
     scenarios, problems = read_features(features_dir)
-    tests = game_test_names(harness)
+    tests = game_test_names(harness, runner)
     units, unit_problems = unit_test_names(unit_dir)
     tag_problems, counts = check_tags(scenarios, tests, units)
     problems += unit_problems + tag_problems

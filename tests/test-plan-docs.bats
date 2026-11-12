@@ -8,6 +8,7 @@ setup() {
     GEN="$REPO_ROOT/tools/test_plan_docs.py"
     T="$BATS_TEST_TMPDIR"
     mkdir -p "$T/features" "$T/lua" "$T/out"
+    echo '# no log checks' > "$T/run-game-tests.ps1"
     cat > "$T/tests.xml" <<'XML'
 <mdscript><cues>
   <signal_cue_instantly cue="Report" param="table[$name = 'alpha_works', $ok = true, $detail = '']"/>
@@ -44,7 +45,7 @@ Feature: Things
 GHERKIN
 }
 
-gen() { run python3 "$GEN" --features "$T/features" --harness "$T/tests.xml" --units "$T/lua" --out "$T/out" "$@"; }
+gen() { run python3 "$GEN" --features "$T/features" --harness "$T/tests.xml" --units "$T/lua" --runner "$T/run-game-tests.ps1" --out "$T/out" "$@"; }
 
 @test "writes a page per feature, with counts, labels and steps" {
     gen

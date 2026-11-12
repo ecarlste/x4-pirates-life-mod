@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="apirateslife" name="A Pirate's Life" description="A piracy overhaul for X4: Foundations. Early development." author="X4 Modder" version="100" date="2025-10-31" save="false" enabled="true">
-  <text language="44" name="A Pirate's Life" description="A piracy overhaul for X4: Foundations. Early development." author="X4 Modder"/>
+<content id="apirateslife" name="A Pirate's Life" description="Take ships instead of destroying them: your wing presses small and medium ships until their crews bail, and the prizes arrive intact. The SWI build, made for Star Wars Interworlds 0.91 on X4 8.00." author="Erik S. Carlsten" version="100" date="2025-10-31" save="false" enabled="true">
+  <text language="44" name="A Pirate's Life" description="Take ships instead of destroying them: your wing presses small and medium ships until their crews bail, and the prizes arrive intact. The SWI build, made for Star Wars Interworlds 0.91 on X4 8.00." author="Erik S. Carlsten"/>
   <!-- Required DLC (docs/PROJECT.md, Key decisions); also makes our libraries/ patches load after its wares -->
   <dependency id="ego_dlc_pirate" name="Tides of Avarice"/>
+  <!-- Only for load order: X4 applies SWI's files before ours, so our patches land on SWI's versions
+       (its Enhanced Bailing replaces the block our bail hook patches). Optional, so the mod still
+       loads without SWI. -->
+  <dependency id="SW Interworlds" optional="true"/>
 </content>
