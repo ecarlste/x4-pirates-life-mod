@@ -4,7 +4,7 @@ Plan item: Phase 1, "Bring back the mod's 2x bail rate as an MD diff patch" (the
 
 ## Goal
 
-Every bail check in the game passes through our code, which can change the chance, and every bail raises our own signal. For now the hook returns the game's own chance unchanged; bail pressure in capture operations, and later notoriety, fear vs. honor and difficulty sliders, plug into the same hook.
+Every bail check in the game passes through our code, which can change the chance, and every bail raises our own signal. Outside capture operations the hook returns the game's own chance unchanged; inside them it adds [bail pressure](bail-pressure.md). Later notoriety, fear vs. honor and difficulty sliders plug into the same hook.
 
 **SWI build** ([#117](https://github.com/ecarlste/x4-pirates-life-mod/issues/117)): the mod loads after SWI, so both insertions land in SWI's Enhanced Bailing block, which replaces vanilla's `do_if $target.iscapturable` in `PlayerOwnedShipAttacks`. The flat x2 and the integer cast are gone: SWI's chances are fractional, often 0.5–2%, and the cast turned them into 0. The hook still signals every check to the capture metrics, which keep the decimals.
 

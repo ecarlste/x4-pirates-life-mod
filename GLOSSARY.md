@@ -19,8 +19,12 @@ Crew, the pilot among them, leaving a ship under attack. When the pilot bails, t
 _Avoid_: Eject (vanilla's action name), surrender
 
 **Bail check**:
-One roll of a ship's chance to bail, which X4 makes at most once every 30 s per pilot, and only past the bail gates (shields under 20%, hull under 75%).
+One roll of a ship's chance to bail, made only past the bail gates (shields under 20% or none, hull under 75%), and at most once per pilot every 30 s on vanilla or every 5 s under SWI.
 _Avoid_: Bail roll, capture chance
+
+**Bail pressure**:
+Points a capture operation adds to its target's bail chance for the time the target has spent inside the bail gates, up to a cap.
+_Avoid_: Bail bonus, fear (the pressure left on a pilot after the operation ends)
 
 **Claim**:
 Taking an ownerless ship, by spacesuit or with marines.

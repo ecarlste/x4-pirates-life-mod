@@ -30,6 +30,12 @@
           BailChanceGameOwn,
           BailHookInSwiBlock,
           BailRaisesBailed,
+          BailPressureFirstCheckPlain,
+          BailPressureBuildsWithTime,
+          BailPressureCapped,
+          BailPressureTick,
+          BailPressureTickKeepsCooldown,
+          BailPressureThroughPartialBail,
           ClaimIntact,
           ClaimVanillaWhenOff,
           CaptureStartAndDestroyed,
@@ -152,10 +158,10 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <set_value name="$Found" exact="[@global.$APiratesLife_IntactOnClaim, @global.$APiratesLife_CaptureHoldHull, @global.$APiratesLife_CaptureFloorHull]"/>
+        <set_value name="$Found" exact="[@global.$APiratesLife_IntactOnClaim, @global.$APiratesLife_CaptureHoldHull, @global.$APiratesLife_CaptureFloorHull, @global.$APiratesLife_CapturePressureStep, @global.$APiratesLife_CapturePressureCap, @global.$APiratesLife_CapturePressureInterval]"/>
         <run_actions ref="md.APiratesLife_Config.Defaults"/>
-        <set_value name="$Config" exact="[global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull]"/>
-        <set_value name="$Names" exact="['IntactOnClaim', 'CaptureHoldHull', 'CaptureFloorHull']"/>
+        <set_value name="$Config" exact="[global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull, global.$APiratesLife_CapturePressureStep, global.$APiratesLife_CapturePressureCap, global.$APiratesLife_CapturePressureInterval]"/>
+        <set_value name="$Names" exact="['IntactOnClaim', 'CaptureHoldHull', 'CaptureFloorHull', 'CapturePressureStep', 'CapturePressureCap', 'CapturePressureInterval']"/>
         <set_value name="$Problems" exact="''"/>
         <do_all exact="$Names.count" counter="$i">
           <do_if value="$Found.{$i} == null or $Found.{$i} != $Config.{$i}">
@@ -296,6 +302,104 @@
         <remove_value name="global.$APiratesLifeTest_Roll"/>
         <set_value name="global.$APiratesLifeTest_ForceBail" exact="true"/>
         <signal_objects object="player.galaxy" param="$Attacker" param2="$Target" param3="'shouldwebail'"/>
+      </actions>
+    </library>
+
+    <!-- An Imperial ship of Macro inside the bail gates (hull 50%, shields kept at 0 by
+         KeepShieldsDown), Distance from the player, waiting and not fighting back. Crew is its
+         crew fill percentage. Remove it from global.$APiratesLifeTest_ShieldsDown when done. -->
+    <library name="SpawnGatedTarget" purpose="run_actions">
+      <params>
+        <param name="Macro"/>
+        <param name="Distance"/>
+        <param name="Crew"/>
+      </params>
+      <actions>
+        <create_ship name="$Target" macro="$Macro" sector="player.sector" capturable="true">
+          <owner exact="faction.galempire" overridenpc="true"/>
+          <loadout>
+            <level exact="0.0"/>
+          </loadout>
+          <people>
+            <fillpercent exact="$Crew"/>
+            <person role="service" weight="100">
+              <select faction="faction.galempire" tags="tag.service"/>
+            </person>
+          </people>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" z="$Distance" allowyaxis="true"/>
+        </create_ship>
+        <create_order id="'Wait'" object="$Target" default="true">
+          <param name="noattackresponse" value="true"/>
+        </create_order>
+        <set_object_hull object="$Target" exact="50"/>
+        <set_object_shield object="$Target" exact="0"/>
+        <do_if value="not global.$APiratesLifeTest_ShieldsDown?">
+          <set_value name="global.$APiratesLifeTest_ShieldsDown" exact="[]"/>
+        </do_if>
+        <append_to_list name="global.$APiratesLifeTest_ShieldsDown" exact="$Target"/>
+        <return value="$Target"/>
+      </actions>
+    </library>
+
+    <!-- Keeps the shields of the ships in global.$APiratesLifeTest_ShieldsDown at 0, so they stay
+         inside the bail gates while a test runs -->
+    <cue name="KeepShieldsDown" instantiate="true" checkinterval="1s">
+      <conditions>
+        <check_value value="@global.$APiratesLifeTest_ShieldsDown.count"/>
+      </conditions>
+      <actions>
+        <do_for_each name="$Ship" in="global.$APiratesLifeTest_ShieldsDown">
+          <do_if value="$Ship.exists">
+            <set_object_shield object="$Ship" exact="0"/>
+          </do_if>
+        </do_for_each>
+      </actions>
+    </cue>
+
+    <!-- Bail pressure's settings at their config defaults, so deploy-time overrides can't change
+         a test's outcome -->
+    <library name="PressureDefaults" purpose="run_actions">
+      <actions>
+        <set_value name="global.$APiratesLife_CapturePressureStep" exact="8"/>
+        <set_value name="global.$APiratesLife_CapturePressureCap" exact="80"/>
+        <set_value name="global.$APiratesLife_CapturePressureInterval" exact="5"/>
+      </actions>
+    </library>
+
+    <!-- The chance the bail hook gives Target for a game chance of 0: its bail pressure (up to the
+         cap) -->
+    <library name="PressureOn" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+      </params>
+      <actions>
+        <run_actions ref="md.APiratesLife_Bail.AdjustEjectChance" result="$Got">
+          <param name="EjectChance" value="0"/>
+          <param name="Attacker" value="null"/>
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <return value="$Got"/>
+      </actions>
+    </library>
+
+    <!-- Ends a bail-pressure test: destroys its target (which ends the operation) -->
+    <library name="EndPressureTest" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+      </params>
+      <actions>
+        <remove_value name="global.$APiratesLifeTest_BailCrew"/>
+        <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+        <do_if value="global.$APiratesLifeTest_ShieldsDown?">
+          <remove_from_list name="global.$APiratesLifeTest_ShieldsDown" exact="$Target"/>
+        </do_if>
+        <run_actions ref="PressureDefaults"/>
+        <do_if value="$Target.exists">
+          <destroy_object object="$Target"/>
+        </do_if>
       </actions>
     </library>
 
@@ -442,6 +546,421 @@
                 <signal_cue_instantly cue="Report" param="table[$name = 'bail_raises_bailed', $ok = false, $detail = 'no Bailed signal within 30s']"/>
                 <destroy_object object="$Pair.$attacker"/>
                 <destroy_object object="$Pair.$target"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- ===== Bail pressure =====
+         The targets sit 12 km away, beyond the pressure tick's 10 km, unless a test needs the tick:
+         no shots and no ticks means no bail checks the test didn't make itself. -->
+
+    <!-- The first check of a fresh operation rolls at the game's plain chance, though the target is
+         already inside the bail gates -->
+    <cue name="BailPressureFirstCheckPlain">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <run_actions ref="SpawnGatedTarget" result="$Target">
+          <param name="Macro" value="macro.tie_fighter_macro"/>
+          <param name="Distance" value="12km"/>
+          <param name="Crew" value="0"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <set_value name="$Problems" exact="if $Started then '' else ' operation did not start;'"/>
+        <do_for_each name="$Chance" in="[0.5, 30]">
+          <run_actions ref="md.APiratesLife_Bail.AdjustEjectChance" result="$Got">
+            <param name="EjectChance" value="$Chance"/>
+            <param name="Attacker" value="player.occupiedship"/>
+            <param name="Target" value="$Target"/>
+          </run_actions>
+          <do_if value="$Got != $Chance">
+            <set_value name="$Problems" exact="$Problems + ' %s gave %s;'.[$Chance, $Got]"/>
+          </do_if>
+        </do_for_each>
+        <signal_cue_instantly cue="Report" param="table[$name = 'bail_pressure_first_check_plain', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'first check at the game chance (0.5, 30)' else $Problems)]"/>
+        <run_actions ref="EndPressureTest">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+      </actions>
+    </cue>
+
+    <!-- Pressure grows by time inside the gates, not by checks: 8 points per 10 s; two checks at
+         once give the same chance; 10 s outside the gates (hull back to full) add nothing -->
+    <cue name="BailPressureBuildsWithTime">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <run_actions ref="SpawnGatedTarget" result="$Target">
+          <param name="Macro" value="macro.tie_fighter_macro"/>
+          <param name="Distance" value="12km"/>
+          <param name="Crew" value="0"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <set_value name="$Problems" exact="if $Started then '' else ' operation did not start;'"/>
+      </actions>
+      <cues>
+        <cue name="BailPressureBuildsWithTime_In">
+          <delay exact="10s"/>
+          <actions>
+            <run_actions ref="PressureOn" result="$P1">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <run_actions ref="PressureOn" result="$P1b">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <do_if value="$P1 lt 7 or $P1 gt 8.5">
+              <set_value name="$Problems" exact="$Problems + ' %s after 10 s in the gates, expected about 8;'.[$P1]"/>
+            </do_if>
+            <do_if value="$P1b != $P1">
+              <set_value name="$Problems" exact="$Problems + ' a second check at once gave %s, the first %s;'.[$P1b, $P1]"/>
+            </do_if>
+            <set_object_hull object="$Target" exact="100"/>
+            <signal_cue cue="BailPressureBuildsWithTime_Out"/>
+          </actions>
+          <cues>
+            <!-- Each phase is signalled by the one before: a sub-cue's delay would otherwise run
+                 from when its parent's conditions were met, not from its parent's actions -->
+            <cue name="BailPressureBuildsWithTime_Out">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <delay exact="10s"/>
+              <actions>
+                <run_actions ref="PressureOn" result="$P2">
+                  <param name="Target" value="$Target"/>
+                </run_actions>
+                <do_if value="$P2 - $P1 lt 0 or $P2 - $P1 gt 1">
+                  <set_value name="$Problems" exact="$Problems + ' 10 s outside the gates went from %s to %s;'.[$P1, $P2]"/>
+                </do_if>
+                <set_object_hull object="$Target" exact="50"/>
+                <signal_cue cue="BailPressureBuildsWithTime_Back"/>
+              </actions>
+              <cues>
+                <cue name="BailPressureBuildsWithTime_Back">
+                  <conditions>
+                    <event_cue_signalled/>
+                  </conditions>
+                  <delay exact="10s"/>
+                  <actions>
+                    <run_actions ref="PressureOn" result="$P3">
+                      <param name="Target" value="$Target"/>
+                    </run_actions>
+                    <do_if value="$P3 - $P2 lt 6.5 or $P3 - $P2 gt 8.5">
+                      <set_value name="$Problems" exact="$Problems + ' 10 s back in the gates went from %s to %s;'.[$P2, $P3]"/>
+                    </do_if>
+                    <signal_cue_instantly cue="Report" param="table[$name = 'bail_pressure_builds_with_time', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'pressure %s, then %s outside the gates, then %s'.[$P1, $P2, $P3] else $Problems)]"/>
+                    <run_actions ref="EndPressureTest">
+                      <param name="Target" value="$Target"/>
+                    </run_actions>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- The adjusted chance stays between the game's chance and the cap: with a step big enough to
+         pass the cap in 2 s, low chances rise to 80, and chances above 80 stay as they are -->
+    <cue name="BailPressureCapped">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="global.$APiratesLife_CapturePressureStep" exact="1000"/>
+        <run_actions ref="SpawnGatedTarget" result="$Target">
+          <param name="Macro" value="macro.tie_fighter_macro"/>
+          <param name="Distance" value="12km"/>
+          <param name="Crew" value="0"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <set_value name="$Problems" exact="if $Started then '' else ' operation did not start;'"/>
+      </actions>
+      <cues>
+        <cue name="BailPressureCapped_Check">
+          <delay exact="2s"/>
+          <actions>
+            <set_value name="$Cases" exact="[[0, 80], [0.5, 80], [30, 80], [79.5, 80], [80, 80], [90, 90], [100, 100]]"/>
+            <do_for_each name="$Case" in="$Cases">
+              <run_actions ref="md.APiratesLife_Bail.AdjustEjectChance" result="$Got">
+                <param name="EjectChance" value="$Case.{1}"/>
+                <param name="Attacker" value="player.occupiedship"/>
+                <param name="Target" value="$Target"/>
+              </run_actions>
+              <do_if value="$Got != $Case.{2}">
+                <set_value name="$Problems" exact="$Problems + ' %s gave %s, expected %s;'.[$Case.{1}, $Got, $Case.{2}]"/>
+              </do_if>
+            </do_for_each>
+            <signal_cue_instantly cue="Report" param="table[$name = 'bail_pressure_capped', $ok = ($Problems == ''), $detail = (if $Problems == '' then '%s chances held between the game chance and 80'.[$Cases.count] else $Problems)]"/>
+            <run_actions ref="EndPressureTest">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- With nobody firing, the pressure tick gets the target bail checks every 5 s, with the
+         player's ship as the attacker, through the game's own bail path. Passes on two checks, or
+         on one check that made the pilot bail. -->
+    <cue name="BailPressureTick">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="$Checks" exact="[]"/>
+        <set_value name="$PilotBailed" exact="false"/>
+        <set_value name="$Problems" exact="''"/>
+        <run_actions ref="SpawnGatedTarget" result="$Target">
+          <param name="Macro" value="macro.tie_fighter_macro"/>
+          <param name="Distance" value="3km"/>
+          <param name="Crew" value="0"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <do_if value="not $Started">
+          <set_value name="$Problems" exact="' operation did not start;'"/>
+        </do_if>
+      </actions>
+      <cues>
+        <cue name="BailPressureTick_Checked" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Metrics.BailChecked"/>
+            <check_value value="event.param.$target == $Target"/>
+          </conditions>
+          <actions>
+            <do_if value="event.param.$attacker != player.occupiedship">
+              <set_value name="$Problems" exact="$Problems + ' a check came from %s, not the player ship;'.[@event.param.$attacker.knownname]"/>
+            </do_if>
+            <append_to_list name="$Checks" exact="player.age"/>
+            <do_if value="$Checks.count ge 2">
+              <signal_cue cue="BailPressureTick_Done"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="BailPressureTick_Bailed">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+            <check_value value="event.param.$target == $Target and event.param.$pilot"/>
+          </conditions>
+          <actions>
+            <set_value name="$PilotBailed" exact="true"/>
+            <signal_cue cue="BailPressureTick_Done"/>
+          </actions>
+        </cue>
+        <cue name="BailPressureTick_Timeout">
+          <delay exact="20s"/>
+          <actions>
+            <signal_cue cue="BailPressureTick_Done"/>
+          </actions>
+        </cue>
+        <cue name="BailPressureTick_Done">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="BailPressureTick_Checked"/>
+            <cancel_cue cue="BailPressureTick_Bailed"/>
+            <cancel_cue cue="BailPressureTick_Timeout"/>
+            <do_if value="not $Checks.count">
+              <set_value name="$Problems" exact="$Problems + ' no bail check within 20 s;'"/>
+            </do_if>
+            <do_elseif value="$Checks.count == 1 and not $PilotBailed">
+              <set_value name="$Problems" exact="$Problems + ' only one bail check within 20 s, and no bail;'"/>
+            </do_elseif>
+            <do_elseif value="$Checks.count ge 2 and ($Checks.{2} - $Checks.{1} lt 4s or $Checks.{2} - $Checks.{1} gt 7s)">
+              <set_value name="$Problems" exact="$Problems + ' checks %s s apart, expected 5;'.[$Checks.{2} - $Checks.{1}]"/>
+            </do_elseif>
+            <signal_cue_instantly cue="Report" param="table[$name = 'bail_pressure_tick', $ok = ($Problems == ''), $detail = (if $Problems == '' then '%s checks with no shots fired (pilot bailed: %s)'.[$Checks.count, $PilotBailed] else $Problems)]"/>
+            <run_actions ref="EndPressureTest">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- The pressure tick leaves a short cooldown alone: hits ask for a check every second, and the
+         operation starts 2.5 s after the first one, inside SWI's 5 s cooldown. The target's checks
+         stay about 5 s apart, as the cooldown sets them, instead of the tick adding a roll in
+         between. Nobody bails: no pressure, and each bail takes no crew from a crewed ship. -->
+    <cue name="BailPressureTickKeepsCooldown">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="global.$APiratesLife_CapturePressureStep" exact="0"/>
+        <set_value name="global.$APiratesLifeTest_BailCrew" exact="0"/>
+        <set_value name="$Checks" exact="[]"/>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <destroy_object object="$Pair.$target"/>
+        <run_actions ref="SpawnGatedTarget" result="$Target">
+          <param name="Macro" value="macro.gauntlet_macro"/>
+          <param name="Distance" value="3km"/>
+          <param name="Crew" value="100"/>
+        </run_actions>
+        <set_value name="$Problems" exact="''"/>
+      </actions>
+      <cues>
+        <cue name="BailPressureTickKeepsCooldown_Start">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <delay exact="2.5s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <do_if value="not $Started">
+              <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
+            </do_if>
+          </actions>
+        </cue>
+        <!-- A hit every second: how an attacked ship's AI asks for a check -->
+        <cue name="BailPressureTickKeepsCooldown_Hit" instantiate="true" checkinterval="1s">
+          <actions>
+            <signal_objects object="player.galaxy" param="$Pair.$attacker" param2="$Target" param3="'shouldwebail'"/>
+          </actions>
+        </cue>
+        <cue name="BailPressureTickKeepsCooldown_Checked" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Metrics.BailChecked"/>
+            <check_value value="event.param.$target == $Target"/>
+          </conditions>
+          <actions>
+            <append_to_list name="$Checks" exact="player.age"/>
+            <do_if value="$Checks.count == 1">
+              <signal_cue cue="BailPressureTickKeepsCooldown_Start"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="BailPressureTickKeepsCooldown_Done">
+          <delay exact="21s"/>
+          <actions>
+            <cancel_cue cue="BailPressureTickKeepsCooldown_Hit"/>
+            <cancel_cue cue="BailPressureTickKeepsCooldown_Checked"/>
+            <set_value name="$Gaps" exact="[]"/>
+            <do_all exact="$Checks.count - 1" counter="$i">
+              <append_to_list name="$Gaps" exact="$Checks.{$i + 1} - $Checks.{$i}"/>
+            </do_all>
+            <do_if value="$Checks.count lt 3">
+              <set_value name="$Problems" exact="$Problems + ' only %s checks in 21 s;'.[$Checks.count]"/>
+            </do_if>
+            <do_for_each name="$Gap" in="$Gaps">
+              <do_if value="$Gap lt 4.5s">
+                <set_value name="$Problems" exact="$Problems + ' two checks %s apart;'.[$Gap]"/>
+              </do_if>
+            </do_for_each>
+            <do_if value="not @global.$APiratesLife_CaptureOps.{$Target}">
+              <set_value name="$Problems" exact="$Problems + ' the operation ended;'"/>
+            </do_if>
+            <signal_cue_instantly cue="Report" param="table[$name = 'bail_pressure_tick_keeps_cooldown', $ok = ($Problems == ''), $detail = (if $Problems == '' then '%s checks in 21 s, gaps %s'.[$Checks.count, $Gaps] else $Problems)]"/>
+            <destroy_object object="$Pair.$attacker"/>
+            <run_actions ref="EndPressureTest">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Pressure keeps building through a partial crew bail: a crewed ship loses one crew member,
+         its pilot stays, the operation goes on, and 10 s later the pressure is 8 points higher -->
+    <cue name="BailPressureThroughPartialBail">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <destroy_object object="$Pair.$target"/>
+        <run_actions ref="SpawnGatedTarget" result="$Target">
+          <param name="Macro" value="macro.gauntlet_macro"/>
+          <param name="Distance" value="12km"/>
+          <param name="Crew" value="100"/>
+        </run_actions>
+        <set_value name="$CrewBefore" exact="$Target.people.count"/>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <set_value name="$Problems" exact="if $Started then '' else ' operation did not start;'"/>
+      </actions>
+      <cues>
+        <cue name="BailPressureThroughPartialBail_Act">
+          <delay exact="10s"/>
+          <actions>
+            <run_actions ref="PressureOn" result="$P1">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <set_value name="global.$APiratesLifeTest_BailCrew" exact="1"/>
+            <run_actions ref="ForceBail">
+              <param name="Attacker" value="$Pair.$attacker"/>
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="BailPressureThroughPartialBail_Bailed">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+                <check_value value="event.param.$target == $Target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="BailPressureThroughPartialBail_Timeout"/>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <remove_value name="global.$APiratesLifeTest_BailCrew"/>
+                <do_if value="event.param.$pilot">
+                  <set_value name="$Problems" exact="$Problems + ' the pilot bailed (crew %s of %s), not part of the crew;'.[event.param.$crew, $CrewBefore]"/>
+                </do_if>
+              </actions>
+              <cues>
+                <cue name="BailPressureThroughPartialBail_Check">
+                  <delay exact="10s"/>
+                  <actions>
+                    <run_actions ref="PressureOn" result="$P2">
+                      <param name="Target" value="$Target"/>
+                    </run_actions>
+                    <do_if value="not @global.$APiratesLife_CaptureOps.{$Target}">
+                      <set_value name="$Problems" exact="$Problems + ' the operation ended;'"/>
+                    </do_if>
+                    <do_if value="$P2 - $P1 lt 7 or $P2 - $P1 gt 8.5">
+                      <set_value name="$Problems" exact="$Problems + ' pressure went from %s to %s over the 10 s after the bail;'.[$P1, $P2]"/>
+                    </do_if>
+                    <signal_cue_instantly cue="Report" param="table[$name = 'bail_pressure_through_partial_bail', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'pressure %s, then %s after %s crew of %s bailed'.[$P1, $P2, $CrewBefore - $Target.people.count, $CrewBefore] else $Problems)]"/>
+                    <destroy_object object="$Pair.$attacker"/>
+                    <run_actions ref="EndPressureTest">
+                      <param name="Target" value="$Target"/>
+                    </run_actions>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+            <cue name="BailPressureThroughPartialBail_Timeout">
+              <delay exact="30s"/>
+              <actions>
+                <cancel_cue cue="BailPressureThroughPartialBail_Bailed"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'bail_pressure_through_partial_bail', $ok = false, $detail = 'no Bailed signal within 30s (crew %s)'.[$CrewBefore]]"/>
+                <destroy_object object="$Pair.$attacker"/>
+                <run_actions ref="EndPressureTest">
+                  <param name="Target" value="$Target"/>
+                </run_actions>
               </actions>
             </cue>
           </cues>

@@ -6,8 +6,11 @@
      See docs/specs/capture-operation.md.
 
      While an operation runs, it is listed by target in
-       global.$APiratesLife_CaptureOps.{$target} = table[$leader, $members, $op, $lastchance]
-     which the wingman order and the bail hook (md/apirateslife_bail.xml) read. A global table,
+       global.$APiratesLife_CaptureOps.{$target}
+         = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince]
+     which the wingman order and the bail hook (md/apirateslife_bail.xml) read. $gatestime is the
+     time the target has spent inside the bail gates so far, not counting the stretch since
+     $gatessince (null while it is outside them); Pressure turns them into bail pressure. A global table,
      because X4 can't store script variables on a ship (only on NPCs), and AI scripts can read
      globals. -->
 <mdscript name="APiratesLife_Capture" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
@@ -26,6 +29,37 @@
           <return value="false"/>
         </do_if>
         <return value="$Target.pilot.exists and $Target.iscapturable and not $Target.iscapitalship and not $Target.isplayerowned and $Target.trueowner != faction.ownerless and @player.occupiedship.isoperational and not player.occupiedship.isclass.spacesuit"/>
+      </actions>
+    </library>
+
+    <!-- Whether Target is inside the bail gates: shields under 20% (or none), hull under 75% and
+         not docked, the game's own conditions for a bail check of a non-capital ship -->
+    <library name="InGates" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+      </params>
+      <actions>
+        <return value="(not $Target.maxshield or $Target.shieldpercentage lt 20) and $Target.hullpercentage lt 75 and not $Target.assigneddock"/>
+      </actions>
+    </library>
+
+    <!-- Bail pressure on Target, uncapped: CapturePressureStep points for every 10 s its operation
+         has had it inside the bail gates. 0 when it has no operation. -->
+    <library name="Pressure" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+      </params>
+      <actions>
+        <set_value name="$Op" exact="@global.$APiratesLife_CaptureOps.{$Target}"/>
+        <do_if value="not $Op">
+          <return value="0"/>
+        </do_if>
+        <set_value name="$Time" exact="$Op.$gatestime"/>
+        <do_if value="$Op.$gatessince != null">
+          <set_value name="$Time" exact="$Time + (player.age - $Op.$gatessince)"/>
+        </do_if>
+        <set_value name="$PressureStep" exact="if global.$APiratesLife_CapturePressureStep? then global.$APiratesLife_CapturePressureStep else 8"/>
+        <return value="$Time / 10s * $PressureStep"/>
       </actions>
     </library>
 
@@ -82,7 +116,10 @@
           <set_value name="global.$APiratesLife_CaptureOps" exact="table[]"/>
         </do_if>
         <!-- Tables are shared by reference, so the bail hook can record $lastchance in it -->
-        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null]"/>
+        <run_actions ref="InGates" result="$InGates">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null, $gatestime = 0s, $gatessince = (if $InGates then player.age else null)]"/>
         <set_value name="global.$APiratesLife_CaptureOps.{$Target}" exact="$Op"/>
 
         <!-- Starting a capture is the act of piracy: this one ship turns hostile to the player, as
@@ -162,6 +199,39 @@
               <signal_cue_instantly cue="End" param="$Outcome"/>
             </do_if>
             <do_else>
+              <!-- Bail pressure: count the time inside the bail gates -->
+              <run_actions ref="InGates" result="$InGates">
+                <param name="Target" value="$Target"/>
+              </run_actions>
+              <do_if value="$InGates and $Op.$gatessince == null">
+                <set_value name="$Op.$gatessince" exact="player.age"/>
+              </do_if>
+              <do_elseif value="not $InGates and $Op.$gatessince != null">
+                <set_value name="$Op.$gatestime" exact="$Op.$gatestime + (player.age - $Op.$gatessince)"/>
+                <set_value name="$Op.$gatessince" exact="null"/>
+              </do_elseif>
+
+              <!-- The pressure tick: while the player leads the operation within about 10 km and
+                   the target is inside the gates, ask for a bail check every
+                   CapturePressureInterval, so checks don't wait for hits (a wing holding the
+                   shields down barely hits). It goes through the game's own bail path, as an
+                   attacked ship's AI asks for one (aiscripts/interrupt.attacked.xml).
+                   The pilot's cooldown ($nextcapturechance): a cooldown longer than the interval
+                   (vanilla's 30 s) is cut short, so the game evaluates the check; a shorter one
+                   (SWI's 5 s after a recent check) is left alone, and the tick waits for it, so
+                   hits and ticks together never roll more often than once per interval. -->
+              <do_if value="$InGates and @$Target.pilot.exists and player.occupiedship == $Leader and $Leader.sector == $Target.sector and $Leader.distanceto.{$Target} lt 10km and (not $NextPressureTick? or player.age ge $NextPressureTick)">
+                <set_value name="$Interval" exact="(if global.$APiratesLife_CapturePressureInterval? then global.$APiratesLife_CapturePressureInterval else 5) * 1s"/>
+                <set_value name="$Cooldown" exact="if $Target.pilot.$nextcapturechance? then $Target.pilot.$nextcapturechance - player.age else 0s"/>
+                <do_if value="$Cooldown le 0s or $Cooldown gt $Interval">
+                  <set_value name="$NextPressureTick" exact="player.age + $Interval"/>
+                  <do_if value="$Cooldown gt 0s">
+                    <set_value name="$Target.pilot.$nextcapturechance" exact="player.age - 1s"/>
+                  </do_if>
+                  <signal_objects object="player.galaxy" param="$Leader" param2="$Target" param3="'shouldwebail'"/>
+                </do_if>
+              </do_if>
+
               <!-- The readout: what the next bail check still needs. Only updated on change. -->
               <do_if value="$Target.maxshield and $Target.shieldpercentage ge 20">
                 <set_value name="$Step" exact="1"/>

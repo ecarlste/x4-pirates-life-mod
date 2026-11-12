@@ -2,6 +2,7 @@
 Feature: Capture operations
   I start a capture operation on a capturable ship, alone or with my wing. My wingmen break its
   hull below the bail gate, then only keep its shields down, so the pilot bails instead of dying.
+  Bail pressure and the checks the operation asks for are in bail-pressure.feature.
 
   @capture_start_and_destroyed
   Scenario: An operation starts on a capturable fighter

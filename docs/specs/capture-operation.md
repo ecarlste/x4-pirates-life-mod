@@ -29,7 +29,7 @@ The player picks a capturable ship (not a capital ship) and starts a **capture o
 - **The target turns hostile to the player,** like vanilla's "Mark as hostile" (-1 boost, decay 1, 600 s, reason `relationchangereason.markedashostile`), so it reads the same in logs and to anything that reads boost reasons. 8.00's `common.xsd` doesn't list that reason, but the game accepts it. Vanilla's police and relation chain then applies unchanged. Starting a capture is the act of piracy, and player-owned ships won't fire on a ship they aren't hostile to: vanilla's own Attack order stands down on a "friendly target". Faction reputation is left to vanilla's cost for the damage done.
   - **Ordering matters:** with wingmen, each capture order applies the boost once it runs. Applied first, the wingmen's escort behavior saw a new enemy and queued vanilla's Attack (missiles and all) ahead of ours.
   - If the op is called off or the target escapes, the boost is reset so the player's escorts don't hunt it down.
-- **Operation state:** `global.$APiratesLife_CaptureOps.{$Target} = table[$leader, $members, $op, $lastchance]`, which the bail hook and the order read. A global table, because X4 can't store script variables on a ship (only on NPCs; found by the first game-test run), and AI scripts can read globals.
+- **Operation state:** `global.$APiratesLife_CaptureOps.{$Target} = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince]` (the last two for [bail pressure](bail-pressure.md)), which the bail hook and the order read. A global table, because X4 can't store script variables on a ship (only on NPCs; found by the first game-test run), and AI scripts can read globals.
 
 **Wingman order** (`aiscripts/order.apirateslife.capture.xml`, id `APiratesLife_Capture`, category `internal` so it isn't in the player's order menus):
 
@@ -58,6 +58,7 @@ The player picks a capturable ship (not a capital ship) and starts a **capture o
 **Bail checks in an operation** (in `AdjustEjectChance`):
 
 - **SWI build:** no wing bonus ([#117](https://github.com/ecarlste/x4-pirates-life-mod/issues/117)). SWI's Enhanced Bailing has no ÷4 for wingmen, so the ×4 (and its `CaptureWingFullChance` setting) went, with the hook's ×2. On the 9.x line, a member's check got ×4 before our ×2 while the player flew the leader in the target's sector.
+- **Bail pressure** raises the chance the longer the target is held inside the gates, and a pressure tick asks for checks every 5 s: see [bail-pressure.md](bail-pressure.md).
 - The hook saves each check's final chance in the operation's state (`$lastchance`), and the mission readout shows it: "Keep the pressure on: last check N%".
 
 **Operation readout:** a player mission "Capture: <ship>", type fight, abortable. Its one live objective changes with the state:

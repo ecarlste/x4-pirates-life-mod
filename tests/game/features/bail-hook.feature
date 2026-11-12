@@ -2,7 +2,8 @@
 Feature: Bail hook
   Every bail check in the game runs through our code, which can change the chance, and every
   bail raises our own signal. Under SWI the hook sits in SWI's Enhanced Bailing block, and outside
-  capture operations it leaves the game's chance alone.
+  capture operations it leaves the game's chance alone. Inside them it adds bail pressure
+  (bail-pressure.feature).
 
   @bail_hook_in_swi_block
   Scenario: The hook runs inside SWI's Enhanced Bailing block
