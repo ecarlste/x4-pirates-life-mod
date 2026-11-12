@@ -10,8 +10,9 @@
 
      Adding a test: a root cue named after it that fires on event_cue_signalled, sets things up,
      and signals Report exactly once (from a result cue or a timeout cue) with
-     table[$name, $ok, $detail]. Then add it to $Tests in Run. Set any mod setting the test relies
-     on, so settings overridden at deploy time can't change its outcome. -->
+     table[$name, $ok, $detail]. Then add it to $Tests in Run, on a line of its own
+     (tests/python/test_game_tests_list.py checks the list against the test cues). Set any mod
+     setting the test relies on, so settings overridden at deploy time can't change its outcome. -->
 <mdscript name="APiratesLife_Tests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
     <cue name="Run">
@@ -24,7 +25,32 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
-        <set_value name="$Tests" exact="[ConfigAppliedOnStart, BailChanceGameOwn, BailHookInSwiBlock, BailRaisesBailed, ClaimIntact, ClaimVanillaWhenOff, CaptureStartAndDestroyed, CaptureAbandoned, CaptureEscapeWaitsForEngagement, CaptureEscaped, CaptureWingHoldsFire, NoMissilesInSight, NoMissilesOutOfSight, CaptureMarkedAsHostile, CaptureCommChoice, CaptureAbortCallsWingOff, CaptureMetricsOperation, CaptureMetricsPlainAttack, CaptureMetricsDropped, CaptureMetricsFleetIgnored, CaptureMetricsAttackBecomesOperation, PiratedBailThenClaim, PiratedBoarding, PiratedClaimWithoutBail]"/>
+        <set_value name="$Tests" exact="[
+          ConfigAppliedOnStart,
+          BailChanceGameOwn,
+          BailHookInSwiBlock,
+          BailRaisesBailed,
+          ClaimIntact,
+          ClaimVanillaWhenOff,
+          CaptureStartAndDestroyed,
+          CaptureAbandoned,
+          CaptureEscapeWaitsForEngagement,
+          CaptureEscaped,
+          CaptureWingHoldsFire,
+          NoMissilesInSight,
+          NoMissilesOutOfSight,
+          CaptureMarkedAsHostile,
+          CaptureCommChoice,
+          CaptureAbortCallsWingOff,
+          CaptureMetricsOperation,
+          CaptureMetricsPlainAttack,
+          CaptureMetricsDropped,
+          CaptureMetricsFleetIgnored,
+          CaptureMetricsAttackBecomesOperation,
+          PiratedBailThenClaim,
+          PiratedBoarding,
+          PiratedClaimWithoutBail
+        ]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$Passed" exact="0"/>
         <set_value name="$Failed" exact="0"/>
