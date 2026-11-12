@@ -1,30 +1,14 @@
 # Specs: docs/specs/claim-no-damage.md, docs/specs/capture-settings.md
 Feature: Captured ships arrive intact
-  Captured ships arrive as the player left them: the bailing pilot doesn't drop the hull or
-  sabotage equipment, and the claiming marine doesn't damage the ship. Each part can be switched
-  back to vanilla in the config file.
+  Captured ships arrive as the player left them: the claiming marine doesn't damage the ship, which
+  can be switched back to vanilla in the config file. SWI's bailing pilot already leaves the hull
+  and equipment alone.
 
   @config_applied_on_start
   Scenario: The config file's values apply when a game starts
     Given the config file, with any values set at deploy time
     When a game starts
     Then every setting has the value the config file gives it
-
-  @pilot_bail_intact
-  Scenario: The bailing pilot leaves the ship intact
-    Given "intact when the pilot ejects" is on
-    And a crewless Imperial fighter at full hull, with a pilot skilled enough to sabotage it
-    When the pilot bails
-    Then the fighter keeps its full hull
-    And it keeps all its weapons, turrets and shields
-
-  @pilot_bail_vanilla_when_off
-  Scenario: With the setting off, the bailing pilot damages the ship as in vanilla
-    Given "intact when the pilot ejects" is off
-    And a crewless Imperial fighter at full hull
-    When the pilot bails
-    Then the hull drops to about (100 - pilot skill)%
-    And the pilot destroys as many parts as vanilla's sabotage rule allows
 
   @claim_intact
   Scenario: The claiming marine leaves the ship intact

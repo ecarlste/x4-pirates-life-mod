@@ -55,8 +55,7 @@ The player picks a capturable ship (not a capital ship) and starts a **capture o
 
 **Bail checks in an operation** (in `AdjustEjectChance`):
 
-- When the attacker is a member of the target's operation, the player is flying the leader, and the player is in the target's sector, undo vanilla's ÷4 (×4) before our ×2. The wing then presses as hard as the player. Setting `CaptureWingFullChance` (1 = on).
-- Integer rounding from vanilla's ÷4 stays (9 ÷ 4 = 2, ×4 = 8); not worth patching vanilla for.
+- **SWI build:** no wing bonus ([#117](https://github.com/ecarlste/x4-pirates-life-mod/issues/117)). SWI's Enhanced Bailing has no ÷4 for wingmen, so the ×4 (and its `CaptureWingFullChance` setting) went, with the hook's ×2. On the 9.x line, a member's check got ×4 before our ×2 while the player flew the leader in the target's sector.
 - The hook saves each check's final chance in the operation's state (`$lastchance`), and the mission readout shows it: "Keep the pressure on: last check N%".
 
 **Operation readout:** a player mission "Capture: <ship>", type fight, abortable. Its one live objective changes with the state:
@@ -86,13 +85,13 @@ On ending, the target's state is removed and wingmen's orders finish by themselv
 - **Hostile ships:** vanilla ends the conversation when the ship's faction is hostile to the player, unless surrender is already possible. One patch lets the conversation open when our choice applies, so pirates can work hostile targets such as the Scale Plate Pact. The other options then shown are vanilla's own.
 - **Text** lives in our `t/0001-l044.xml`, page 1774100.
 
-**Settings** (`md/apirateslife_config.xml`): `CaptureHoldHull` (75), `CaptureFloorHull` (35), `CaptureWingFullChance` (1).
+**Settings** (`md/apirateslife_config.xml`): `CaptureHoldHull` (75), `CaptureFloorHull` (35).
 
 ## Tasks
 
 - [x] `aiscripts/order.apirateslife.capture.xml`: break/suppress/floor with the damage handler; no-missiles patch on `fight.attack.object.fighter.xml`; order icon (`libraries/icons.xml`)
 - [x] `md/apirateslife_capture.xml`: `Start`, operation, readout, outcomes, comm handler
-- [x] `AdjustEjectChance`: ×4 for operation members; record last chance
+- [x] `AdjustEjectChance`: record last chance (the ×4 for operation members left with the SWI build)
 - [x] `md/conversations.xml` diff: choice plus hostile allowance; `t/0001-l044.xml`
 - [x] Settings in the config and settings scripts
 - [x] Game tests (below); validate patches and XML; `make test`
@@ -104,7 +103,6 @@ On ending, the target's state is removed and wingmen's orders finish by themselv
 Scenarios: [`tests/game/features/capture-operation.feature`](../../tests/game/features/capture-operation.feature).
 
 - **Game tests pass:**
-  - `capture_wing_full_chance`: the hook gives op members ×4×2, non-members ×2, and members only ×2 when the setting is off; the last chance is recorded.
   - `capture_start_and_destroyed`: `Start` accepts a capturable fighter and refuses a player-owned ship and a second operation; destroying the target ends the op as destroyed.
   - `capture_abandoned`: a forced pilot bail ends the op as abandoned, clears the target's state, and an ownerless ship can't start a new op.
   - `capture_escaped`: a target warped 25 km away from an engaged operation ends it as escaped after 30 s.

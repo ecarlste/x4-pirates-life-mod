@@ -3,8 +3,10 @@
      PlayerOwnedShipAttacks, the cue that makes every bail decision. See docs/specs/bail-hook.md. -->
 <mdscript name="APiratesLife_Bail" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
-    <!-- Called just before vanilla rolls for a bail, with its final chance (after its own modifiers).
-         Returns the chance vanilla should roll with. -->
+    <!-- Called just before the game rolls for a bail, with its final chance (after its own
+         modifiers; under SWI, the chance its Enhanced Bailing works out, often a fraction).
+         Returns the chance the game should roll with: for now always the game's own, unchanged.
+         Bail pressure in capture operations will plug in here. -->
     <library name="AdjustEjectChance" purpose="run_actions">
       <params>
         <param name="EjectChance"/>
@@ -13,31 +15,17 @@
       </params>
       <actions>
         <set_value name="$Chance" exact="$EjectChance"/>
-        <set_value name="$Note" exact="''"/>
 
-        <!-- Capture operations (md/apirateslife_capture.xml): a wingman's hit counts like the
-             player's while the player leads the operation in the target's sector, undoing vanilla's
-             quarter chance for attackers the player isn't flying -->
+        <!-- Capture operations (md/apirateslife_capture.xml) -->
         <set_value name="$Op" exact="null"/>
         <do_if value="$Target">
           <set_value name="$Op" exact="@global.$APiratesLife_CaptureOps.{$Target}"/>
         </do_if>
-        <do_if value="$Op and $Attacker and $Attacker != player.occupiedship">
-          <do_if value="$Op.$members.indexof.{$Attacker} and $Op.$leader == player.occupiedship and player.occupiedship.sector == $Target.sector">
-            <do_if value="not (global.$APiratesLife_CaptureWingFullChance? and global.$APiratesLife_CaptureWingFullChance == 0)">
-              <set_value name="$Chance" exact="$Chance * 4"/>
-              <set_value name="$Note" exact="' (capture wing x4)'"/>
-            </do_if>
-          </do_if>
-        </do_if>
-
-        <!-- Bail rate doubled for now; notoriety and difficulty modifiers will plug in here -->
-        <set_value name="$Chance" exact="[($Chance * 2)i, 100].min"/>
         <do_if value="$Op">
           <!-- For the operation's readout -->
           <set_value name="$Op.$lastchance" exact="$Chance"/>
         </do_if>
-        <debug_text text="'[apirateslife] bail check: %s (%s) attacking %s (%s): chance %s -> %s%s'.[@$Attacker.knownname, @$Attacker.idcode, @$Target.knownname, @$Target.idcode, $EjectChance, $Chance, $Note]"/>
+        <debug_text text="'[apirateslife] bail check: %s (%s) attacking %s (%s): chance %s -> %s'.[@$Attacker.knownname, @$Attacker.idcode, @$Target.knownname, @$Target.idcode, $EjectChance, $Chance]"/>
         <!-- Every call is an evaluated check, for the capture metrics (md/apirateslife_metrics.xml) -->
         <signal_cue_instantly cue="md.APiratesLife_Metrics.BailChecked" param="table[$attacker = $Attacker, $target = $Target, $chance = $Chance]"/>
         <return value="$Chance"/>

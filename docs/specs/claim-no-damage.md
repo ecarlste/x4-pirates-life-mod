@@ -16,6 +16,7 @@ A captured ship arrives as the player left it. Neither the bailing pilot nor the
 ## Design
 
 - **Zero the value instead of deleting vanilla's code.** Insert `set_value $damagemaxpercent = 0` right after vanilla computes it, in both attention blocks. Vanilla's own `gt 0` check then skips all damage, and the patch keeps working if vanilla changes what the damage does. Rejected: removing the blocks (Better Piracy), which breaks if their structure changes.
+- **SWI build:** the pilot-bail part is gone ([#117](https://github.com/ecarlste/x4-pirates-life-mod/issues/117)). SWI's Enhanced Bailing has no `$damageminpercent` or `$scuttle`, so the selectors found nothing, and its bail does no hull drop or sabotage. The next two points describe the 9.x line.
 - **The same pattern for the pilot bail:** our existing `md/notifications.xml` patch sets `$damageminpercent` to **100** and `$scuttle` to false right after vanilla sets them, so the hull stays where it is and vanilla skips the sabotage. **Not 0:** vanilla's `do_if $damageminpercent gt 0` has a `do_else` that destroys the ship (meant for a perfect-skill pilot scuttling it), so 0 blew up every bailed ship in our first test. Vanilla sets the hull to `min(current, value)`, so 100 keeps the current hull.
 - **Check what vanilla does after every value we change**, including `do_else` branches, not just whether the patch applies. Both other values are safe: `$scuttle` and the claim's `$damagemaxpercent` are only read in a `do_if` with no `else`. The cargo removal stays for now, since cargo has its own design (forced drops, hot goods).
 - **All marine claims, any ship size.** Abandoned L/XL ships use the same claim step (boarding occupied ships is a separate system), and claim damage is just as unwanted there.
@@ -34,7 +35,7 @@ A captured ship arrives as the player left it. Neither the bailing pilot nor the
 
 Scenarios: [`tests/game/features/intact-captures.feature`](../../tests/game/features/intact-captures.feature).
 
-- The log shows `[apirateslife] claim: <ship> claimed without damage (vanilla max damage N)` and `[apirateslife] pilot bail: <ship> keeps its hull and equipment …`.
+- The log shows `[apirateslife] claim: <ship> claimed without damage (vanilla max damage N)` (and, on the 9.x line, `[apirateslife] pilot bail: <ship> keeps its hull and equipment …`).
 - A captured ship's hull and equipment are the same as when the pilot bailed, and unchanged by the claim.
 - No diff-patch errors for `move.claim.xml` or `notifications.xml` in the log.
 

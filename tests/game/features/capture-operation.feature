@@ -30,22 +30,6 @@ Feature: Capture operations
     And the fighter is no longer part of an operation
     And no new operation can start on the now ownerless fighter
 
-  @capture_wing_full_chance
-  Scenario Outline: My wingmen's hits get my bail chance during an operation
-    Given a capture operation on a fighter, led by the ship I'm flying, in my sector
-    And the attacker is <attacker>
-    And "wing full chance" is <setting>
-    When the attacker's hit gets a bail check at vanilla's <vanilla>%
-    Then the pilot rolls at <final>%
-    And the mission readout shows <final>% as the last check
-
-    Examples:
-      | attacker                   | setting | vanilla | final |
-      | one of its wingmen         | on      | 5       | 40    |
-      | one of its wingmen         | on      | 20      | 100   |
-      | one of its wingmen         | off     | 5       | 10    |
-      | a ship outside the wing    | on      | 5       | 10    |
-
   @capture_wing_holds_fire
   Scenario: A wingman stops firing once the target is inside the bail gate
     Given a capture operation on a capturable fighter with 80% hull and its shields kept down until the hull is below 75%

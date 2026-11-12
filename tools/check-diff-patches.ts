@@ -27,9 +27,6 @@ const KNOWN: Known[] = [
     sel: "//do_if[@value='not $firestorpedo? or not this.assignedcontrolled.dps.lasers.all']",
     issue: "#121",
   },
-  // The intact-on-eject ops: SWI's Enhanced Bailing has no hull drop or sabotage to switch off
-  { file: "md/notifications.xml", sel: "//cue[@name='PlayerOwnedShipAttacks']//set_value[@name='$damageminpercent']", issue: "#117" },
-  { file: "md/notifications.xml", sel: "//cue[@name='PlayerOwnedShipAttacks']//set_value[@name='$scuttle']", issue: "#117" },
 ];
 
 let values;

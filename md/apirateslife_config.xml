@@ -20,17 +20,9 @@
       <actions>
         <!-- ===== Captures ===== -->
 
-        <!-- Intact when the pilot ejects: the bailing pilot doesn't lower the hull or sabotage
-             weapons, turrets and shields. 0 = vanilla behavior. -->
-        <set_value name="global.$APiratesLife_IntactOnEject" exact="1"/>
-
         <!-- Intact when marines claim: claiming an abandoned ship with marines doesn't damage the
              hull or destroy equipment. 0 = vanilla behavior. -->
         <set_value name="global.$APiratesLife_IntactOnClaim" exact="1"/>
-
-        <!-- Capture operations: a wingman's hit gets the same bail chance as yours while you lead the
-             operation in the same sector. 0 = vanilla, where a wingman's chance is a quarter of yours. -->
-        <set_value name="global.$APiratesLife_CaptureWingFullChance" exact="1"/>
 
         <!-- ===== Tuning ===== -->
 

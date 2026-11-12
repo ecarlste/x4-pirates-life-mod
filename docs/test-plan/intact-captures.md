@@ -2,13 +2,13 @@
 
 # Captured ships arrive intact
 
-Captured ships arrive as the player left them: the bailing pilot doesn't drop the hull or sabotage equipment, and the claiming marine doesn't damage the ship. Each part can be switched back to vanilla in the config file.
+Captured ships arrive as the player left them: the claiming marine doesn't damage the ship, which can be switched back to vanilla in the config file. SWI's bailing pilot already leaves the hull and equipment alone.
 
 Source: [`tests/game/features/intact-captures.feature`](../../tests/game/features/intact-captures.feature)
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 5 | 0 | 0 | **0** |
+| 0 | 3 | 0 | 0 | **0** |
 
 ## Scenarios
 
@@ -20,30 +20,6 @@ Source: [`tests/game/features/intact-captures.feature`](../../tests/game/feature
   Given the config file, with any values set at deploy time
   When a game starts
   Then every setting has the value the config file gives it
-```
-
-### The bailing pilot leaves the ship intact
-
-**Automated:** in game `pilot_bail_intact`
-
-```gherkin
-  Given "intact when the pilot ejects" is on
-  And a crewless Imperial fighter at full hull, with a pilot skilled enough to sabotage it
-  When the pilot bails
-  Then the fighter keeps its full hull
-  And it keeps all its weapons, turrets and shields
-```
-
-### With the setting off, the bailing pilot damages the ship as in vanilla
-
-**Automated:** in game `pilot_bail_vanilla_when_off`
-
-```gherkin
-  Given "intact when the pilot ejects" is off
-  And a crewless Imperial fighter at full hull
-  When the pilot bails
-  Then the hull drops to about (100 - pilot skill)%
-  And the pilot destroys as many parts as vanilla's sabotage rule allows
 ```
 
 ### The claiming marine leaves the ship intact
