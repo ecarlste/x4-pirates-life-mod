@@ -1,4 +1,4 @@
-# The machine-wide game lock, PowerShell twin of tools/game-lock.sh: only one game run (or deploy
+# The game lock, PowerShell twin of tools/game-lock.sh: only one game run (or deploy
 # into the game) at a time, across this repo and the bounty hunter's. The lock is the file
 # <X4_PATH>\game.lock; its format and rules are in tools/README.md ("The game lock").
 #
