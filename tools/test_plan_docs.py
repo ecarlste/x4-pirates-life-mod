@@ -147,12 +147,12 @@ def release_checklist(features_dir, scenarios, game_tests, unit_tests, classify)
     return "\n".join(lines).rstrip() + "\n"
 
 
-def generate(features_dir, harness, units_dir, out_dir):
+def generate(features_dir, harness, units_dir, out_dir, runner):
     """Returns ({file name: content}, problems)."""
     scenarios, problems = checker.read_features(features_dir)
     if problems:
         return {}, problems
-    game_tests = checker.game_test_names(harness)
+    game_tests = checker.game_test_names(harness, runner)
     unit_tests, _ = checker.unit_test_names(units_dir)
     pages, rows, total = {}, [], dict.fromkeys(LEVELS, 0)
     for path in sorted(glob.glob(os.path.join(features_dir, "*.feature"))):
@@ -175,13 +175,14 @@ def main(argv):
     parser.add_argument("--features", default=os.path.join(ROOT, "tests", "game", "features"))
     parser.add_argument("--harness", default=os.path.join(ROOT, "tests", "game", "apirateslife_tests", "md", "apirateslife_tests.xml"))
     parser.add_argument("--units", default=os.path.join(ROOT, "tests", "lua"))
+    parser.add_argument("--runner", default=os.path.join(ROOT, "tools", "run-game-tests.ps1"))
     parser.add_argument("--out", default=os.path.join(ROOT, "docs", "test-plan"))
     args = parser.parse_args(argv)
 
     out_dir = os.path.abspath(args.out)
     if args.checklist:
         return write_checklist(args)
-    pages, problems = generate(args.features, args.harness, args.units, out_dir)
+    pages, problems = generate(args.features, args.harness, args.units, out_dir, args.runner)
     if problems:
         print("\n".join(problems), file=sys.stderr)
         print("Fix the test plan first (tools/check_test_plan.py)", file=sys.stderr)
@@ -219,7 +220,7 @@ def write_checklist(args):
         print("Fix the test plan first (tools/check_test_plan.py)", file=sys.stderr)
         return 1
     unit_tests, _ = checker.unit_test_names(args.units)
-    text = release_checklist(args.features, scenarios, checker.game_test_names(args.harness), unit_tests, checker.classify)
+    text = release_checklist(args.features, scenarios, checker.game_test_names(args.harness, args.runner), unit_tests, checker.classify)
     if args.checklist == "-":
         sys.stdout.write(text)
         return 0

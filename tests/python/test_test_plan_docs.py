@@ -52,6 +52,7 @@ class Fixture(unittest.TestCase):
         self.features = os.path.join(self.root, "features")
         self.feature = write(self.features, "things.feature", FEATURE)
         self.harness = write(self.root, "tests.xml", "table[$name = 'alpha_works']")
+        self.runner = write(self.root, "run-game-tests.ps1", "# no log checks\n")
         self.units = os.path.join(self.root, "lua")
         write(self.units, "test_things.lua", "function TestThings:test_beta_rules()\nend\n")
         self.out = os.path.join(self.root, "out")
@@ -63,7 +64,7 @@ class Fixture(unittest.TestCase):
         output = io.StringIO()
         with redirect_stdout(output):
             code = docs.main(["--features", self.features, "--harness", self.harness, "--units", self.units,
-                              "--out", self.out, *args])
+                              "--runner", self.runner, "--out", self.out, *args])
         return code, output.getvalue()
 
 
@@ -128,13 +129,13 @@ class Pages(Fixture):
         self.assertIn("| **Total** | 4 | 1 | 1 | 1 | 1 | **2** |", index)
 
     def test_generate_returns_a_page_per_feature_and_the_index(self):
-        pages, problems = docs.generate(self.features, self.harness, self.units, self.out)
+        pages, problems = docs.generate(self.features, self.harness, self.units, self.out, self.runner)
         self.assertEqual(problems, [])
         self.assertEqual(sorted(pages), ["README.md", "things.md"])
 
     def test_generate_refuses_a_plan_the_checker_cant_read(self):
         write(self.features, "broken.feature", "Feature: B\n  Scenario: No tag\n")
-        pages, problems = docs.generate(self.features, self.harness, self.units, self.out)
+        pages, problems = docs.generate(self.features, self.harness, self.units, self.out, self.runner)
         self.assertEqual(pages, {})
         self.assertTrue(any("scenario has no tag" in p for p in problems))
 

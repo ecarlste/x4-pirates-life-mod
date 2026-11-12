@@ -187,6 +187,7 @@ SCRIPT
     mkdir -p "$REPO/tools" "$REPO/tests/game/features" "$REPO/tests/game/apirateslife_tests/md" "$REPO/tests/lua"
     cp "$REPO_ROOT/tools/test_plan_docs.py" "$REPO_ROOT/tools/check_test_plan.py" "$REPO/tools/"
     printf "<mdscript>\$name = 'alpha_works'</mdscript>\n" > "$REPO/tests/game/apirateslife_tests/md/apirateslife_tests.xml"
+    echo '# no log checks' > "$REPO/tools/run-game-tests.ps1"
     printf 'Feature: Alpha\n\n  @alpha_works\n  Scenario: Alpha works\n    Then it works\n' > "$REPO/tests/game/features/alpha.feature"
     run make -C "$REPO" test-plan
     [ "$status" -eq 0 ]

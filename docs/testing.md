@@ -44,7 +44,7 @@ MD and AI scripts only run inside X4, so what they do can't be tested below game
 
 ## Game tests
 
-`make game-test` deploys the working tree. `tools/run-game-tests.ps1` then starts the X4 8.00 copy's `X4_nonsteam.exe` directly (no Steam) in its own test profile, with the dev-only test extension (`tests/game/apirateslife_tests`). The extension runs scripted scenarios in game and quits, and the runner reads the profile's `debuglog.txt` and reports PASS or FAIL. Profile IDs and paths are in [environment.md](environment.md#paths-eriks-machine).
+`make game-test` deploys the working tree. `tools/run-game-tests.ps1` then starts the X4 8.00 copy's `X4_nonsteam.exe` directly (no Steam) in its own test profile, with the dev-only test extension (`tests/game/apirateslife_tests`). The extension runs scripted scenarios in game and quits, and the runner reads the profile's `debuglog.txt` and reports PASS or FAIL. The runner also checks the log itself: `load_order_after_swi` and `clean_log` (the release scenarios) are named in `New-LogCheck` calls in the runner, which `tools/check_test_plan.py` reads as game tests. Profile IDs and paths are in [environment.md](environment.md#paths-eriks-machine).
 
 - **First run:** `make game-test RUNNER_ARGS=-PrepareProfile` makes the test profile from the root profile's settings and switches on SWI, `apirateslife` and `apirateslife_tests`. Without that, the runner refuses to start. It also refuses while `X4` or `X4_nonsteam` is running.
 - **The game lock:** it waits while another deploy or game run, from this repo or the bounty hunter's, holds the lock ([how it works](../tools/README.md#the-game-lock)).

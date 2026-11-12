@@ -10,6 +10,7 @@ setup() {
     HARNESS="$BATS_TEST_TMPDIR/tests.xml"
     SPECS="$BATS_TEST_TMPDIR/specs"
     UNITS="$BATS_TEST_TMPDIR/lua"
+    RUNNER="$BATS_TEST_TMPDIR/run-game-tests.ps1"
     mkdir -p "$FEATURES" "$SPECS" "$UNITS"
     # One unit test file, written the way tests/lua/test_*.lua are
     printf 'TestThings = {}\nfunction TestThings:test_gamma_rules()\nend\n' > "$UNITS/test_things.lua"
@@ -24,12 +25,13 @@ setup() {
   <signal_cue_instantly cue="Report" param="table[$name = 'beta_works', $ok = true, $detail = '']"/>
 </cues></mdscript>
 XML
+    echo '# no log checks' > "$RUNNER"
 }
 
 # feature <file> <content>: writes a feature file into the fixture folder
 feature() { printf '%s\n' "$2" > "$FEATURES/$1"; }
 
-check() { run python3 "$CHECK" "$FEATURES" "$HARNESS" "$SPECS" "$UNITS"; }
+check() { run python3 "$CHECK" "$FEATURES" "$HARNESS" "$SPECS" "$UNITS" "$RUNNER"; }
 
 GOOD='Feature: Example
   A description line.
@@ -66,6 +68,14 @@ GOOD='Feature: Example
     check
     [ "$status" -eq 0 ]
     [[ "$output" == *"3 scenarios (1 pending, 0 manual) cover all 2 game tests"* ]]
+}
+
+@test "counts the runner's checks on the log as game tests" {
+    echo "New-LogCheck 'gamma_logged' \$true 'ok'" > "$RUNNER"
+    feature a.feature "${GOOD//@pending/@gamma_logged}"
+    check
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"3 scenarios (0 pending, 0 manual) cover all 3 game tests"* ]]
 }
 
 @test "fails when a game test has no scenario" {
