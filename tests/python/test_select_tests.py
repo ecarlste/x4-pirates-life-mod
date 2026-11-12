@@ -12,6 +12,7 @@ FILTERS = st.compile_filters({
     "lua": ["ui/**/*.lua"],
     "typescript": ["tools/**/*.ts"],
     "doc-paths": ["docs/**/*.md", "tools/check-doc-paths.ts"],
+    "doc-names": ["docs/**/*.md", "tools/check-doc-names.ts"],
     "tests/deploy.bats": ["deploy.sh", "tests/deploy.bats"],
     "tests/python/test_texts.py": ["t/**"],
     "tests/Deploy.Tests.ps1": ["deploy.ps1", "deploy.sh"],
@@ -50,31 +51,31 @@ class Pick(unittest.TestCase):
 
     def test_select_suites_skip_everything_none_and_game_keys(self):
         filters = dict(FILTERS, **{"game:booty": []})
-        self.assertEqual(st.suites(filters), ["shellcheck", "lua", "typescript", "doc-paths", "tests/deploy.bats", "tests/python/test_texts.py", "tests/Deploy.Tests.ps1"])
+        self.assertEqual(st.suites(filters), ["shellcheck", "lua", "typescript", "doc-paths", "doc-names", "tests/deploy.bats", "tests/python/test_texts.py", "tests/Deploy.Tests.ps1"])
 
 
 class GithubOutputs(unittest.TestCase):
     def test_select_outputs_say_which_jobs_run(self):
         self.assertEqual(st.github_outputs(["tests/Deploy.Tests.ps1", "lua", "none"], FILTERS), [
             "suites=tests/Deploy.Tests.ps1", "bash=false", "shellcheck=false", "lua=true",
-            "typescript=false", "doc-paths=false", "pester=tests/Deploy.Tests.ps1"])
+            "typescript=false", "doc-paths=false", "doc-names=false", "pester=tests/Deploy.Tests.ps1"])
 
     def test_select_typescript_runs_its_own_job_not_bats(self):
         # The bats job's run.sh has no node_modules, so typescript stays out of its suites
         self.assertEqual(st.github_outputs(["typescript", "tests/deploy.bats"], FILTERS), [
             "suites=tests/deploy.bats", "bash=true", "shellcheck=false", "lua=false", "typescript=true",
-            "doc-paths=false", "pester="])
+            "doc-paths=false", "doc-names=false", "pester="])
         self.assertEqual(st.github_outputs(["typescript"], FILTERS), [
-            "suites=", "bash=false", "shellcheck=false", "lua=false", "typescript=true", "doc-paths=false", "pester="])
+            "suites=", "bash=false", "shellcheck=false", "lua=false", "typescript=true", "doc-paths=false", "doc-names=false", "pester="])
 
     def test_select_doc_paths_runs_its_own_job_not_bats(self):
         # It needs Node 22.18 or later, which the bats job doesn't set up
         self.assertEqual(st.github_outputs(["doc-paths", "none"], FILTERS), [
-            "suites=", "bash=false", "shellcheck=false", "lua=false", "typescript=false", "doc-paths=true", "pester="])
+            "suites=", "bash=false", "shellcheck=false", "lua=false", "typescript=false", "doc-paths=true", "doc-names=false", "pester="])
 
     def test_select_suites_with_their_own_job_stay_out_of_bats(self):
         # The bats job's run.sh lacks what those jobs set up (node_modules, LuaJIT); each job runs its own
-        self.assertTrue({"lua", "typescript", "doc-paths"} <= set(st.OWN_JOB_SUITES))
+        self.assertTrue({"lua", "typescript", "doc-paths", "doc-names"} <= set(st.OWN_JOB_SUITES))
         outputs = st.github_outputs(["everything"], FILTERS)
         bats_suites = outputs[0].removeprefix("suites=").split()
         self.assertIn("tests/deploy.bats", bats_suites)
@@ -84,12 +85,12 @@ class GithubOutputs(unittest.TestCase):
 
     def test_select_own_job_suite_alone_runs_no_bats_job(self):
         self.assertEqual(st.github_outputs(["lua"], FILTERS), [
-            "suites=", "bash=false", "shellcheck=false", "lua=true", "typescript=false", "doc-paths=false", "pester="])
+            "suites=", "bash=false", "shellcheck=false", "lua=true", "typescript=false", "doc-paths=false", "doc-names=false", "pester="])
 
     def test_select_nothing_matched_runs_no_job(self):
         self.assertEqual(st.github_outputs(["none"], FILTERS),
                          ["suites=", "bash=false", "shellcheck=false", "lua=false", "typescript=false", "doc-paths=false",
-                          "pester="])
+                          "doc-names=false", "pester="])
 
     def test_select_everything_runs_every_job(self):
         outputs = st.github_outputs(["everything"], FILTERS)

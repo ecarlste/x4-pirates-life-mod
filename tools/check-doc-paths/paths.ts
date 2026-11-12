@@ -46,7 +46,7 @@ const PLANNED = ["INTEGRATION.md", "dist/"];
 
 // A ticked checklist item records past work, so the files its backticks name may be gone (its links
 // are still checked)
-const TICKED = /^\s*[-*] \[x\]/i;
+export const TICKED = /^\s*[-*] \[x\]/i;
 
 // A slashed name with no extension or trailing slash, outside the repo's folders, is a ref
 // (origin/main, dorny/paths-filter), not a path

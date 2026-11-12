@@ -22,6 +22,7 @@ How to run, add and wire up tests. The scripts say how they fetch and pin their 
 - **Lowercase-paths check** (`tools/check-lowercase-paths.ts`): it runs with the TypeScript tools and fails when a shipped path (an entry in `deploy.include`, or anything under one) has an uppercase letter. A new `deploy.include` entry needs a matching glob in the `typescript` filter; a test fails until it has one.
 - **Doc-size check** (`tools/check-doc-size.ts`, run with the TypeScript tools): it fails when `docs/PROJECT.md` goes over its size budget (set in the script). Move detail into a doc listed in PROJECT.md's "Where to look" table rather than raising the budget.
 - **Doc-paths check** (`tools/check-doc-paths.ts`, also `make doc-paths`): it runs on every change and fails when a doc names a repo path that doesn't exist. Its filter is `**`, which doesn't count as covering a file. Add a rule in `tools/check-doc-paths/paths.ts` only for text that isn't a repo path.
+- **Doc-names check** (`tools/check-doc-names.ts`, also `make doc-names`): it runs on every change and fails when a doc or tool names a mod global (`$APiratesLife_…`) that `md/` and `aiscripts/` don't have, or a game test that was removed (found in the harness's and runner's git history, so it fails in a shallow clone). To keep a removed name as history, say "9.x line" or link the issue that removed it on the same line. Research notes, rejected ideas, `DESIGN.md` and `IMPLEMENTATION_PLAN.md` aren't checked.
 
 ## Flaky tests
 
