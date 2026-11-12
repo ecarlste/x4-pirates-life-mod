@@ -1004,8 +1004,8 @@
     <!-- A player-owned X-wing with two proton torpedo launchers and 12 torpedoes, attacking a TIE
          Advanced 2 km away with vanilla's Attack order. With Flag, its pilot carries
          $APiratesLife_NoMissiles, as our capture order sets it. A top pilot (skill 15), so vanilla's
-         first missile pass comes 10-20 s into the fight. The target can't go below 50% hull, so the
-         fight lasts. Returns table[$wingman, $target, $ammo],
+         first missile pass comes 10-20 s into the fight. The target can't go below 50% hull or bail,
+         so the fight lasts. Returns table[$wingman, $target, $ammo],
          $ammo being the missiles it starts with. -->
     <library name="SpawnMissilePair" purpose="run_actions">
       <params>
@@ -1039,6 +1039,8 @@
         </create_order>
         <!-- The wingman's lasers kill a TIE Advanced within seconds, before its first missile pass -->
         <set_object_min_hull object="$Target" exact="50"/>
+        <!-- No bail: a bailed pilot leaves the ship ownerless and ends the attack -->
+        <set_object_capturable object="$Target" capturable="false"/>
         <!-- Hostile to the player, as an operation makes its target (md/apirateslife_capture.xml) -->
         <set_relation_boost object="$Target" faction="faction.player" value="-1" decay="1" delay="600s"/>
         <do_if value="$Flag">
@@ -1073,6 +1075,9 @@
           <set_value name="$Problems" exact="$Problems + ' the target of the flagged wingman was destroyed;'"/>
         </do_if>
         <do_for_each name="$Pair" in="[$Flagged, $Vanilla]">
+          <do_if value="@$Pair.$target.isoperational and $Pair.$target.owner != faction.galempire">
+            <set_value name="$Problems" exact="$Problems + ' a target changed owner to %s;'.[$Pair.$target.owner]"/>
+          </do_if>
           <do_if value="not @$Pair.$wingman.isoperational">
             <set_value name="$Problems" exact="$Problems + ' a wingman was destroyed;'"/>
           </do_if>
