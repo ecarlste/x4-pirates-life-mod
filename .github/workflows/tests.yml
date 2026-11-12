@@ -82,7 +82,8 @@ jobs:
       - run: sudo apt-get update -q && sudo apt-get install -y -q luajit
       - run: tests/run.sh --lua-only
 
-  # The TypeScript tools: the diff-patch check skips here (no unpacked game files), its unit tests run
+  # The TypeScript tools: the diff-patch check skips here (no unpacked game files), its unit tests run;
+  # also the lowercase-paths check on the shipped files
   typescript:
     name: TypeScript (tsc, unit tests)
     needs: changes
