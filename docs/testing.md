@@ -19,6 +19,7 @@ How to run, add and wire up tests. The scripts say how they fetch and pin their 
 - **TypeScript tools** (`tools/`, Node 22.18 or later, packages from `make setup`): tests are `tools/**/*.test.ts`.
 - **Python tools** in `tools/` are named with underscores (`check_test_plan.py`), so their unit tests in `tests/python/test_*.py` can import them. The tests use the standard library's `unittest`. The tools' bats tests stay as the end-to-end layer.
 - **Diff-patch check** (`tools/check-diff-patches.ts`): it checks every diff patch's selectors against the unpacked 8.00 and SWI files (`X4_UNPACKED` and `SWI_UNPACKED` in `deploy.config`), and skips with a note when they're missing, as it does in CI.
+- **Doc-size check** (`tools/check-doc-size.ts`, run with the TypeScript tools): it fails when `docs/PROJECT.md` goes over its 8 KB budget. Move detail into a doc PROJECT.md's "Where to look" table names rather than raising the budget.
 - **Doc-paths check** (`tools/check-doc-paths.ts`, also `make doc-paths`): it runs on every change and fails when a doc names a repo path that doesn't exist. Its filter is `**`, which doesn't count as covering a file. Add a rule in `tools/check-doc-paths/paths.ts` only for text that isn't a repo path.
 
 ## Test pyramid

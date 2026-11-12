@@ -28,6 +28,7 @@
     "package.json",
     "package-lock.json",
     "tsconfig.json",
+    "docs/PROJECT.md",
     "md/**/*.xml",
     "aiscripts/**/*.xml",
     "libraries/**/*.xml"
