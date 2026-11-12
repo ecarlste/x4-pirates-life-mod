@@ -48,7 +48,7 @@ MD and AI scripts only run inside X4, so what they do can't be tested below game
 
 - **First run:** `make game-test RUNNER_ARGS=-PrepareProfile` makes the test profile from the root profile's settings and switches on SWI, `apirateslife` and `apirateslife_tests`. Without that, the runner refuses to start. It also refuses while `X4` or `X4_nonsteam` is running.
 - **The game lock:** it waits while another deploy or game run, from this repo or the bounty hunter's, holds the lock ([how it works](../tools/README.md#the-game-lock)).
-- **Windows only**, and not in CI. Add a game test with each feature.
+- **Windows only**, and not in CI. Add a game test with each feature. List it in `$Tests` in the harness, one test per line; `tests/python/test_game_tests_list.py` fails on a test cue that isn't listed.
 - **Reporting:** `make game-test-report` posts the report to your PR as a comment and a `game-tests` check. It works only if the run was on the PR's latest pushed commit, with nothing uncommitted.
 - Background: [research/automated-game-testing.md](research/automated-game-testing.md).
 
