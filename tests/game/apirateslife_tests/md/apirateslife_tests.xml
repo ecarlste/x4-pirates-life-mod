@@ -200,8 +200,8 @@
     </library>
 
     <!-- An ownerless, crewless TIE Advanced and a player-owned Gauntlet (an M gunboat) with
-         marines, set to claim abandoned ships, 2-3 km from the player (vanilla aiscripts/interrupt.foundabandonedship.xml
-         and move.claim.xml do the rest). The player is nearby, so claims run at the "visible"
+         marines, set to claim abandoned ships, 2-3 km from the player (vanilla
+         aiscripts/interrupt.foundabandonedship.xml and move.claim.xml do the rest). The player is nearby, so claims run at the "visible"
          attention level. Returns table[$claimer, $target]. -->
     <library name="SpawnClaimPair" purpose="run_actions">
       <actions>
@@ -872,8 +872,8 @@
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
         <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
         <!-- A fixed loadout from this extension's libraries/loadouts.xml: an X-wing's four lasers
-             and no missile launcher. A random loadout made the test a lottery: slow mass drivers
-             barely landed a shot and torpedoes one-shot the target. -->
+             and no missile launcher. A random loadout made the test a lottery: slow guns barely
+             landed a shot and torpedoes one-shot the target. -->
         <create_ship name="$Wingman" macro="t65b_xwing_macro" sector="player.sector">
           <owner exact="faction.player" overridenpc="true"/>
           <loadout ref="apirateslife_test_xwing_lasers"/>
