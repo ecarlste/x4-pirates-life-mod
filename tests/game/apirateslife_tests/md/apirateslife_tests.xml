@@ -11,7 +11,8 @@
      Adding a test: a root cue named after it that fires on event_cue_signalled, sets things up,
      and signals Report exactly once (from a result cue or a timeout cue) with
      table[$name, $ok, $detail]. Then add it to $Tests in Run, on a line of its own
-     (tests/python/test_game_tests_list.py checks the list against the test cues). Set any mod
+     (tests/python/test_game_tests_list.py checks the list against the test cues; the runner's
+     -Test and -Repeat rewrite it in the installed copy, so keep its layout). Set any mod
      setting the test relies on, so settings overridden at deploy time can't change its outcome. -->
 <mdscript name="APiratesLife_Tests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
@@ -111,6 +112,11 @@
           <actions>
             <set_value name="$Index" operation="add"/>
             <do_if value="$Index le $Tests.count">
+              <!-- A test cue runs once, then stays complete. The runner's -Repeat lists a test more
+                   than once, so put it back to waiting first (this also cancels its sub-cues) -->
+              <do_if value="$Tests.{$Index}.state == cuestate.complete">
+                <reset_cue cue="$Tests.{$Index}"/>
+              </do_if>
               <signal_cue cue="$Tests.{$Index}"/>
             </do_if>
             <do_else>
@@ -155,7 +161,8 @@
 
     <!-- The config file's values are in place when the game starts (md/apirateslife_settings.xml
          applies it on every start and load). Runs first, before any test sets a setting: the
-         values found must be the ones the config gives. -->
+         values found must be the ones the config gives. The runner's -Test and -Repeat run it
+         once, first ($FirstOnlyTests in tools/run-game-tests.ps1). -->
     <cue name="ConfigAppliedOnStart">
       <conditions>
         <event_cue_signalled/>

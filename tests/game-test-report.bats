@@ -30,10 +30,10 @@ SH
 }
 teardown() { teardown_sandbox; }
 
-# write_report <commit> <dirty> <result> <passed> <total>
+# write_report <commit> <dirty> <result> <passed> <total> [<extra marker fields>]
 write_report() {
-    printf '<!-- apirateslife-game-tests commit=%s dirty=%s result=%s passed=%s total=%s -->\n### Game tests\n' \
-        "$1" "$2" "$3" "$4" "$5" > "$REPO/tests/game/report.md"
+    printf '<!-- apirateslife-game-tests commit=%s dirty=%s result=%s passed=%s total=%s%s -->\n### Game tests\n' \
+        "$1" "$2" "$3" "$4" "$5" "${6:+ $6}" > "$REPO/tests/game/report.md"
 }
 
 post() { run "$REPO/tools/post-game-test-report.sh" "$@"; }
@@ -59,6 +59,14 @@ post() { run "$REPO/tools/post-game-test-report.sh" "$@"; }
     post
     [ "$status" -ne 0 ]
     [[ "$output" == *"uncommitted changes"* ]]
+    [ ! -e "$GH_LOG" ]
+}
+
+@test "refuses a run of selected tests only" {
+    write_report "$HEAD_SHA" false pass 20 20 selected=true
+    post
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"not the whole suite"* ]]
     [ ! -e "$GH_LOG" ]
 }
 

@@ -6,6 +6,8 @@ BeforeAll {
     . (Join-Path $PSScriptRoot 'TestHelpers.ps1')
     . (Join-Path $PSScriptRoot 'RunGameTestsSandbox.ps1')
     $script:Runner = Join-Path $script:RepoRoot 'tools/run-game-tests.ps1'
+    # For Get-GameTestNames
+    . $script:Runner
 }
 
 Describe 'run-game-tests.ps1' {
@@ -50,6 +52,37 @@ Describe 'run-game-tests.ps1' {
         $r.Output | Should -BeLike '*FAIL clean_log: 1 errors or warnings from our files in debuglog.txt*'
         $r.Output | Should -BeLike '*GAME TESTS FAILED (3 passed): 1 failed: clean_log*'
         $r.ExitCode | Should -Be 1
+    }
+
+    It 'runs only the selected tests, repeated, from a rewritten copy of the harness' {
+        Set-Content $env:FAKE_SOURCE_LOG @(
+            '[Scripts] 1.00 *** Context:x: [apirateslife-test] RUN START 3 tests'
+            '[Scripts] 2.00 *** Context:x: [apirateslife-test] PASS capture_wing_holds_fire: lowest hull 70%'
+            '[Scripts] 3.00 *** Context:x: [apirateslife-test] FAIL capture_wing_holds_fire: lowest hull 54%'
+            '[Scripts] 4.00 *** Context:x: [apirateslife-test] PASS capture_wing_holds_fire: lowest hull 71%'
+            '[Scripts] 5.00 *** Context:x: [apirateslife-test] DONE passed=2 failed=1'
+        )
+        $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire', '-Repeat', '3', '-KeepExtension'))
+        $r.Output | Should -BeLike '*Running 3 selected tests: CaptureWingHoldsFire, 3 times*'
+        $r.Output | Should -BeLike '*Repeated: capture_wing_holds_fire: 1 of 3 runs failed*'
+        $r.Output | Should -BeLike '*failed: capture_wing_holds_fire, load_order_after_swi*'
+        $r.ExitCode | Should -Be 1
+        $installed = Get-Content "$x4/extensions/apirateslife_tests/md/apirateslife_tests.xml" -Raw
+        Get-GameTestNames $installed | Should -Be @('CaptureWingHoldsFire', 'CaptureWingHoldsFire', 'CaptureWingHoldsFire')
+        # The repo's harness is untouched
+        Get-GameTestNames (Get-Content (Join-Path $script:RepoRoot 'tests/game/apirateslife_tests/md/apirateslife_tests.xml') -Raw) |
+            Should -Contain 'BailRaisesBailed'
+        (Get-Content $markdown)[0] | Should -BeLike '* selected=true -->'
+    }
+
+    It 'refuses an unknown test before anything changes, even with -PreflightOnly' {
+        foreach ($extra in @(@('-Test', 'NoSuchTest'), @('-Test', 'NoSuchTest', '-PreflightOnly'))) {
+            $r = Invoke-Script $script:Runner ($runArgs + $extra)
+            $r.Output | Should -BeLike '*No game test named NoSuchTest*'
+            $r.ExitCode | Should -Not -Be 0
+            Test-Path $env:FAKE_ARGS | Should -BeFalse
+            Test-Path "$x4/extensions/apirateslife_tests" | Should -BeFalse
+        }
     }
 
     It 'fails when the game exits without finishing' {
