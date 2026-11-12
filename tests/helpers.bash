@@ -25,7 +25,7 @@ setup_sandbox() {
     git init -q -b main "$REPO"
     cp "$REPO_ROOT/deploy.sh" "$REPO_ROOT/deploy.include" "$REPO_ROOT/deploy.config.example" "$REPO_ROOT/Makefile" "$REPO/"
     mkdir -p "$REPO/tools"
-    cp "$REPO_ROOT/tools/game-lock.sh" "$REPO/tools/"
+    cp "$REPO_ROOT/tools/game-lock.sh" "$REPO_ROOT/tools/deploy-config.sh" "$REPO/tools/"
     write_content_xml testmod
     mkdir -p "$REPO/libraries" "$REPO/md/sub" "$REPO/docs"
     echo '<diff/>' > "$REPO/libraries/god.xml"

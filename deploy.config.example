@@ -3,8 +3,9 @@
 # The mod is synced into <X4_PATH>/extensions/<id from content.xml>.
 #
 # The same file works from WSL and PowerShell: use Windows paths (E:\...), which are converted
-# automatically under WSL. Quotes are optional. Environment variables of the same names override
-# this file.
+# automatically under WSL. Quotes are optional. Each setting comes from the environment variable of
+# the same name, else this checkout's deploy.config, else the main checkout's (for a worktree), so
+# only the main checkout needs this file (docs/environment.md, Settings).
 
 # The X4 8.00 install that has SWI in extensions\starwarsmod_m1 (the deploy only needs this one)
 X4_PATH="E:\SteamLibrary\steamapps\common\X4 Foundations - 8.00"

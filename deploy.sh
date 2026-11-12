@@ -54,7 +54,8 @@ cd "$(dirname "$0")"
 # shellcheck source=tools/game-lock.sh
 . tools/game-lock.sh
 
-# Resolve the X4 install folder: environment first, then deploy.config
+# Resolve the X4 install folder: environment first, then deploy.config (this checkout's, else the
+# main checkout's)
 x4_path_resolve . || exit 1
 
 STAGE=$(mktemp -d)

@@ -46,7 +46,9 @@ function New-DeploySandbox {
         Copy-Item (Join-Path $script:RepoRoot $f) $s.Repo
     }
     New-Item -ItemType Directory -Force -Path (Join-Path $s.Repo 'tools') | Out-Null
-    Copy-Item (Join-Path $script:RepoRoot 'tools/game-lock.ps1') (Join-Path $s.Repo 'tools')
+    foreach ($f in 'tools/game-lock.ps1', 'tools/deploy-config.ps1') {
+        Copy-Item (Join-Path $script:RepoRoot $f) (Join-Path $s.Repo 'tools')
+    }
     Set-TestModId $s 'testmod'
     Write-LfFile (Join-Path $s.Repo 'libraries/god.xml') '<diff/>'
     Write-LfFile (Join-Path $s.Repo 'md/sub/nested.xml') '<mdscript/>'

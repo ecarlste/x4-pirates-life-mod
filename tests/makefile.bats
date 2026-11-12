@@ -36,6 +36,15 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     assert_file_content "$REPO/deploy.config" 'X4_PATH=/mine'
 }
 
+@test "make setup in a worktree leaves deploy.config to the main checkout's" {
+    echo 'X4_PATH=/mine' > "$REPO/deploy.config"
+    git -C "$REPO" worktree add -q --detach "$REPO/.claude/worktrees/wt"
+    run make -C "$REPO/.claude/worktrees/wt" setup
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Using the main checkout's deploy.config: $REPO/deploy.config"* ]]
+    [ ! -e "$REPO/.claude/worktrees/wt/deploy.config" ]
+}
+
 @test "make setup turns on the repo's git hooks, also when deploy.config exists" {
     run make -C "$REPO" setup
     [ "$status" -eq 0 ]
@@ -196,6 +205,16 @@ SCRIPT
     [[ "$output" == *"token: $token"* ]]
     [[ "$output" == *"wslenv: X4_GAME_LOCK_TOKEN"* ]]
     [ ! -e "$X4_PATH/game.lock" ]
+}
+
+@test "make game-test hands the X4 settings in the environment on to the Windows runner" {
+    write_lock_runner
+    run env X4_PROFILE_ID=123 make -C "$REPO" game-test GAME_TEST_RUNNER="$SANDBOX/runner"
+    [ "$status" -eq 0 ]
+    # WSL passes Windows programs only the variables WSLENV names
+    for key in X4_PATH X4_EXE X4_PROFILE_ID X4_PROFILE_ROOT; do
+        grep -q "^wslenv: .*\b$key\b" <<< "$output" || { echo "missing from WSLENV: $key"; return 1; }
+    done
 }
 
 @test "make game-test refuses while another run holds the game lock" {

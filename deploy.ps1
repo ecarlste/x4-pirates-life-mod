@@ -8,7 +8,8 @@
     removing files that are no longer part of the mod. By default it deploys the latest
     origin/main, not your working tree.
 
-    X4_PATH comes from the X4_PATH environment variable, else deploy.config (see deploy.config.example).
+    X4_PATH comes from the X4_PATH environment variable, else deploy.config: this checkout's, else
+    the main checkout's for a worktree (see deploy.config.example).
 
     While it changes the game folder it holds the game lock (<X4_PATH>\game.lock, see
     tools/game-lock.ps1), waiting for any other deploy or game run to finish first.
@@ -78,19 +79,20 @@ function Get-RelativeFiles([string] $Root) {
 }
 
 . (Join-Path $PSScriptRoot 'tools/game-lock.ps1')
+. (Join-Path $PSScriptRoot 'tools/deploy-config.ps1')
 
 Push-Location $PSScriptRoot
 $gameLock = $null
 $stage = Join-Path ([IO.Path]::GetTempPath()) ("x4deploy-" + [guid]::NewGuid())
 try {
-    # Resolve the X4 install folder: environment first, then deploy.config
+    # Resolve the X4 install folder: environment first, then deploy.config (the checkout's, else the
+    # main checkout's)
     $x4Path = $env:X4_PATH
     if (-not $x4Path) {
-        if (-not (Test-Path deploy.config)) {
+        if (-not (Get-DeployConfigFiles $PSScriptRoot)) {
             throw "deploy.config not found. Copy deploy.config.example to deploy.config and set X4_PATH"
         }
-        $line = Get-Content deploy.config | Where-Object { $_ -match '^\s*X4_PATH\s*=' } | Select-Object -Last 1
-        if ($line) { $x4Path = ($line -replace '^\s*X4_PATH\s*=', '').Trim().Trim('"').Trim("'") }
+        $x4Path = Get-ConfigValue $PSScriptRoot 'X4_PATH'
     }
     if (-not $x4Path) { throw "X4_PATH not set in deploy.config" }
     if (-not (Test-Path $x4Path -PathType Container)) { throw "X4 install folder not found: $x4Path" }

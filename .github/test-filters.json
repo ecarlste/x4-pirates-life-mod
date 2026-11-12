@@ -41,8 +41,8 @@
     "t/**"
   ],
 
-  "tests/deploy.bats": ["deploy.sh", "deploy.include", "deploy.config.example", "tools/game-lock.sh", "tests/helpers.bash", "tests/deploy.bats"],
-  "tests/makefile.bats": ["Makefile", "deploy.sh", "deploy.include", "deploy.config.example", "tools/game-lock.sh", "tests/helpers.bash", "tests/makefile.bats"],
+  "tests/deploy.bats": ["deploy.sh", "deploy.include", "deploy.config.example", "tools/game-lock.sh", "tools/deploy-config.sh", "tests/helpers.bash", "tests/deploy.bats"],
+  "tests/makefile.bats": ["Makefile", "deploy.sh", "deploy.include", "deploy.config.example", "tools/game-lock.sh", "tools/deploy-config.sh", "tests/helpers.bash", "tests/makefile.bats"],
   "tests/githooks.bats": [".githooks/**", "tests/helpers.bash", "tests/githooks.bats"],
   "tests/game-test-report.bats": ["tools/post-game-test-report.sh", "tests/helpers.bash", "tests/game-test-report.bats"],
   "tests/lua-checks.bats": ["tests/lua/run.sh", "tests/lua-checks.bats"],
@@ -77,15 +77,15 @@
   "tests/python/test_test_plan_docs.py": ["tools/test_plan_docs.py", "tools/check_test_plan.py", "tests/python/helpers.py", "tests/python/test_test_plan_docs.py"],
   "tests/python/test_texts.py": ["t/**", "tests/python/test_texts.py"],
 
-  "tests/Deploy.Tests.ps1": ["deploy.ps1", "deploy.include", "deploy.config.example", "tools/game-lock.ps1", "tests/TestHelpers.ps1", "tests/Deploy.Tests.ps1"],
-  "tests/DeploySettings.Tests.ps1": ["deploy.ps1", "deploy.include", "deploy.config.example", "tools/game-lock.ps1", "tests/TestHelpers.ps1", "tests/DeploySettings.Tests.ps1"],
-  "tests/DeploySources.Tests.ps1": ["deploy.ps1", "deploy.include", "deploy.config.example", "tools/game-lock.ps1", "tests/TestHelpers.ps1", "tests/DeploySources.Tests.ps1"],
-  "tests/DeployLock.Tests.ps1": ["deploy.ps1", "deploy.include", "tools/game-lock.ps1", "tests/TestHelpers.ps1", "tests/DeployLock.Tests.ps1"],
+  "tests/Deploy.Tests.ps1": ["deploy.ps1", "deploy.include", "deploy.config.example", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tests/TestHelpers.ps1", "tests/Deploy.Tests.ps1"],
+  "tests/DeploySettings.Tests.ps1": ["deploy.ps1", "deploy.include", "deploy.config.example", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tests/TestHelpers.ps1", "tests/DeploySettings.Tests.ps1"],
+  "tests/DeploySources.Tests.ps1": ["deploy.ps1", "deploy.include", "deploy.config.example", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tests/TestHelpers.ps1", "tests/DeploySources.Tests.ps1"],
+  "tests/DeployLock.Tests.ps1": ["deploy.ps1", "deploy.include", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tests/TestHelpers.ps1", "tests/DeployLock.Tests.ps1"],
   "tests/Download.Tests.ps1": ["tests/Download.ps1", "tests/TestHelpers.ps1", "tests/Download.Tests.ps1"],
   "tests/RunPs1.Tests.ps1": ["tests/run.ps1", "tests/TestHelpers.ps1", "tests/RunPs1.Tests.ps1"],
-  "tests/GameTests.Tests.ps1": ["tools/run-game-tests.ps1", "tests/TestHelpers.ps1", "tests/GameTests.Tests.ps1"],
-  "tests/RunGameTests.Tests.ps1": ["tools/run-game-tests.ps1", "tests/game/apirateslife_tests/**", "tools/game-lock.ps1", "tests/TestHelpers.ps1", "tests/RunGameTestsSandbox.ps1", "tests/RunGameTests.Tests.ps1"],
-  "tests/RunGameTestsProfile.Tests.ps1": ["tools/run-game-tests.ps1", "tests/game/apirateslife_tests/**", "tools/game-lock.ps1", "tests/TestHelpers.ps1", "tests/RunGameTestsSandbox.ps1", "tests/RunGameTestsProfile.Tests.ps1"],
-  "tests/RunGameTestsLock.Tests.ps1": ["tools/run-game-tests.ps1", "tools/game-lock.ps1", "tests/game/apirateslife_tests/**", "tests/TestHelpers.ps1", "tests/RunGameTestsSandbox.ps1", "tests/RunGameTestsLock.Tests.ps1"],
+  "tests/GameTests.Tests.ps1": ["tools/run-game-tests.ps1", "tools/deploy-config.ps1", "tests/TestHelpers.ps1", "tests/GameTests.Tests.ps1"],
+  "tests/RunGameTests.Tests.ps1": ["tools/run-game-tests.ps1", "tests/game/apirateslife_tests/**", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tools/deploy-config.ps1", "tests/TestHelpers.ps1", "tests/RunGameTestsSandbox.ps1", "tests/RunGameTests.Tests.ps1"],
+  "tests/RunGameTestsProfile.Tests.ps1": ["tools/run-game-tests.ps1", "tests/game/apirateslife_tests/**", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tools/deploy-config.ps1", "tests/TestHelpers.ps1", "tests/RunGameTestsSandbox.ps1", "tests/RunGameTestsProfile.Tests.ps1"],
+  "tests/RunGameTestsLock.Tests.ps1": ["tools/run-game-tests.ps1", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tests/game/apirateslife_tests/**", "tests/TestHelpers.ps1", "tests/RunGameTestsSandbox.ps1", "tests/RunGameTestsLock.Tests.ps1"],
   "tests/Unpack.Tests.ps1": ["tools/unpack-x4.ps1", "tests/TestHelpers.ps1", "tests/Unpack.Tests.ps1"]
 }

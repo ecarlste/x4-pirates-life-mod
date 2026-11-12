@@ -6,9 +6,19 @@ Setting up, deploying, and where the game, its files and its profiles live on Er
 
 Run `make setup` once. It does three things:
 
-- Creates `deploy.config` with the X4 install path. When it gains or changes a setting, update `deploy.config.example` too.
+- Creates `deploy.config` from `deploy.config.example`, in the main checkout only: a worktree uses the main checkout's ([Settings](#settings)). When it gains or changes a setting, update `deploy.config.example` too.
 - Turns on the git hooks in `.githooks/`. The pre-commit hook refuses commits on `main`, and the commit-msg hook refuses attribution lines (co-author trailers, session links, "Generated with/by" lines).
 - Installs the TypeScript tools' packages with `npm install`.
+
+## Settings
+
+The deploy, the game tests and the diff-patch check read their settings (`X4_PATH`, `X4_EXE`, `X4_PROFILE_ID`, `X4_PROFILE_ROOT`, `X4_UNPACKED`, `SWI_UNPACKED`; what each is for is in `deploy.config.example`) in this order, setting by setting:
+
+1. **An environment variable** of the same name, e.g. `X4_PATH='E:\…\X4 Foundations' make game-test`. `make game-test` hands them on to the Windows runner.
+2. **The checkout's own `deploy.config`.**
+3. **The main checkout's `deploy.config`**, for a worktree. It's the one source for every checkout: since `main` is the SWI build, it points at the 8.00 copy. A worktree needs no `deploy.config` of its own; add one only to override a setting there, e.g. `X4_PATH` for 9.00 on the 9.x line.
+
+`tools/deploy-config.sh`, `tools/deploy-config.ps1` and `tools/diff-patches/config.ts` implement this order, one per language.
 
 ## Deploying
 
@@ -39,7 +49,7 @@ Run `make setup` once. It does three things:
 | X4 8.00 game-test profile | `…\Egosoft\X4\90000301\`, made by `make game-test RUNNER_ARGS=-PrepareProfile`. Its `debuglog.txt` is the game tests' log. Runs never touch the playthrough's profile or the bounty hunter's (`90000201`) |
 | X4 8.00 profile | The root folder `…\Egosoft\X4\`, which NoSteam uses by default. The old 7.60 profile and saves (they don't load in 8.00) are backed up in `E:\x4-dev\backups\x4-root-profile-7.60-2026-10-30\` |
 
-`deploy.config` sets `X4_PATH`, `X4_EXE`, `X4_PROFILE_ID` and `X4_PROFILE_ROOT` for the game tests.
+The main checkout's `deploy.config` sets `X4_PATH` (the 8.00 copy), `X4_EXE`, `X4_PROFILE_ID` and `X4_PROFILE_ROOT` for the game tests ([Settings](#settings)).
 
 `-personalfolderid` gives a separate profile only with a numeric ID; the 2026-10-28 NoSteam spike made `…\Egosoft\X4\90000001\`. With a full path or a plain folder name (tested 2026-10-17/18), X4 falls back to the root folder.
 
