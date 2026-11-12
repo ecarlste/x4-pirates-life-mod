@@ -22,8 +22,9 @@
     deploy-local). Holds the game lock (<X4_PATH>\game.lock, tools/game-lock.ps1) from the process
     check to the cleanup, waiting first for any other deploy or game run; make game-test hands
     down the lock it took for its deploy and run. Refuses to start while X4 or X4_nonsteam is
-    running. -PreflightOnly runs the setup checks alone, before the deploy. Exits 1 if any test failed, the run didn't finish, or a log check failed: the runner
-    checks that the mod loaded after SWI and that the log has no errors or warnings from our files.
+    running. -PreflightOnly runs the setup checks alone, before the deploy. Exits 1 if any test
+    failed, the run didn't finish, or a log check failed: the runner checks that the mod loaded
+    after SWI and that the log has no errors or warnings from our files.
 
     Settings come from the parameters, else environment variables of the same name, else
     deploy.config (see deploy.config.example): X4_PATH, X4_EXE, X4_PROFILE_ID, X4_PROFILE_ROOT.
@@ -71,7 +72,8 @@
     Run only the setup checks and exit: the executable exists, X4_PROFILE_ID is numeric, SWI is
     installed, the test profile has SWI, A Pirate's Life and the test extension on (skipped with
     -PrepareProfile, which the run then does), and no X4 is running. Doesn't check the mod is
-    deployed and changes nothing, so make game-test runs it before its deploy.
+    deployed, changes nothing and doesn't take the game lock, so make game-test runs it (inside the
+    lock it holds) before its deploy.
 
 .PARAMETER KeepExtension
     Leave the test extension installed afterwards (X4 then starts the tests on every launch, in
@@ -381,8 +383,9 @@ function Assert-NoGameRunning([string[]] $ProcessNames) {
     }
 }
 
-function Assert-ProfileReady([string] $ProfileDir) {
-    $profileProblems = @(Get-ProfileProblems (Join-Path $ProfileDir 'content.xml'))
+function Assert-ProfileReady([string] $ContentXml) {
+    $ProfileDir = Split-Path $ContentXml -Parent
+    $profileProblems = @(Get-ProfileProblems $ContentXml)
     if ($profileProblems.Count) {
         throw "Test profile $ProfileDir isn't ready: $($profileProblems -join '; '). Run with -PrepareProfile (make game-test RUNNER_ARGS=-PrepareProfile), or start X4 in that profile and switch them on in Extensions"
     }
@@ -473,10 +476,11 @@ if (-not (Test-Path $GameExe)) { throw "$GameExe not found; check X4_PATH and X4
 if (-not (Test-Path (Join-Path $X4Path "extensions/$SwiFolder/content.xml"))) {
     throw "SWI isn't installed in $X4Path (no extensions\$SwiFolder)"
 }
+$contentXml = Join-Path $profileDir 'content.xml'
 $processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
 if ($PreflightOnly) {
     Assert-NoGameRunning $processNames
-    if (-not $PrepareProfile) { Assert-ProfileReady $profileDir }
+    if (-not $PrepareProfile) { Assert-ProfileReady $contentXml }
     Write-Host "Game test setup OK: $GameExe, test profile $profileDir"
     exit 0
 }
@@ -502,7 +506,6 @@ $gameLock = Enter-GameLock (Join-Path $X4Path 'game.lock') 'game-test' $root
 try {
     Assert-NoGameRunning $processNames
 
-    $contentXml = Join-Path $profileDir 'content.xml'
     if ($PrepareProfile) {
         New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
         # Start from the root profile's extension and graphics settings, read only
@@ -513,7 +516,7 @@ try {
         Enable-Extensions $contentXml @($SwiId, $ModId, $TestExtensionId)
         Write-Host "Test profile $profileDir ready: $((Get-EnabledExtensions $contentXml) -join ', ') on"
     }
-    Assert-ProfileReady $profileDir
+    Assert-ProfileReady $contentXml
 
     Update-GameLock $gameLock
     $startedAt = Get-Date
