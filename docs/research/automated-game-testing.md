@@ -72,7 +72,7 @@ So 6x is the most MD can speed things up. Tests should avoid waiting for travel 
 | `…/md/notifications.xml` | Test-only patch that switches on `$testcheat` |
 | `tools/run-game-tests.ps1` | The runner |
 | `tests/GameTests.Tests.ps1` | Pester tests for the runner (log parsing, report, whole runs against a fake game), run by `make test` and CI |
-| `Makefile` | `make game-test`: deploys the working tree, then runs the runner through Windows PowerShell |
+| `Makefile` | `make game-test`: deploys the working tree, then runs the runner through Windows PowerShell, holding the [game lock](../../tools/README.md#the-game-lock) around both |
 
 **Tests:**
 
@@ -101,7 +101,7 @@ make game-test        # or: .\deploy.ps1 -WorkingTree; .\tools\run-game-tests.ps
 ```
 
 1. The runner reads `X4_PATH`, `X4_EXE`, `X4_PROFILE_ID` (default `90000301`) and `X4_PROFILE_ROOT` from the environment or `deploy.config`, the same names and rules as the bounty hunter's `test.config`. The profile ID must be numeric: anything else makes X4 fall back to the root profile, the series playthrough's.
-2. It checks the mod is deployed, SWI is installed, and neither `X4` nor `X4_nonsteam` is running. Then it checks the test profile's `content.xml`: SWI (`SW Interworlds`, whose own `content.xml` starts it off) must be listed as on, and `apirateslife` and `apirateslife_tests` must not be listed as off. `-PrepareProfile` (`make game-test RUNNER_ARGS=-PrepareProfile`) makes the profile folder, copies the root profile's `content.xml` and `config.xml` into it if it has none (reading the root profile only), and switches all three on.
+2. It checks the mod is deployed and SWI is installed, then takes the [game lock](../../tools/README.md#the-game-lock) (`<X4_PATH>\game.lock`), waiting while another deploy or game run in either repo holds it, or uses the one `make game-test` hands down. It holds the lock until the cleanup. Then it checks neither `X4` nor `X4_nonsteam` is running. Then it checks the test profile's `content.xml`: SWI (`SW Interworlds`, whose own `content.xml` starts it off) must be listed as on, and `apirateslife` and `apirateslife_tests` must not be listed as off. `-PrepareProfile` (`make game-test RUNNER_ARGS=-PrepareProfile`) makes the profile folder, copies the root profile's `content.xml` and `config.xml` into it if it has none (reading the root profile only), and switches all three on.
 3. It copies the test extension into `extensions\apirateslife_tests`, moves the profile's old `debuglog.txt` to `debuglog.previous.txt`, and starts `<X4_PATH>\<X4_EXE>` with `-skipintro -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid <id>`. NoSteam passes the arguments through, unlike `X4.exe`, which hands over to Steam.
 4. The Lua autostart starts the test gamestart; MD runs the tests and quits the game.
 5. The runner reads `<X4_PROFILE_ROOT>\<id>\debuglog.txt` (no guessing at the newest log) and prints each result as it arrives. It ends the run when no log appears within 60 s (`-LaunchTimeoutSeconds`: `-personalfolderid` didn't take), and closes the game if it's still running after `DONE` (30 s grace) or at the timeout (1200 s, since SWI loads slowly). Then it removes the test extension, writes `tests/game/results.xml` (JUnit) and `tests/game/report.md`, and exits 0 or 1.

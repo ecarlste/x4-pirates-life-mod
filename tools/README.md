@@ -5,6 +5,8 @@ Reusable scripts for working on the mod. Windows-side scripts are PowerShell (`.
 | Script | What it does |
 | --- | --- |
 | [`run-game-tests.ps1`](run-game-tests.ps1) | Runs the in-game tests: installs the test extension, starts the X4 8.00 copy's `X4_nonsteam.exe` directly in its own test profile (`-personalfolderid`, `X4_PROFILE_ID` in `deploy.config`; `-PrepareProfile` makes it and switches SWI and our extensions on), follows that profile's `debuglog.txt` until the tests finish (or time out), removes the extension and writes a JUnit report to `tests/game/results.xml` and a Markdown report to `tests/game/report.md`. Deploy the mod first; `make game-test` does both. See [the research note](../docs/research/automated-game-testing.md) |
+| [`game-lock.sh`](game-lock.sh) | The [game lock](#the-game-lock) in bash: one deploy or game run at a time, in this repo and the bounty hunter's. `deploy.sh` sources it and takes the lock while it changes the game folder; `make game-test` runs it around both its deploy and its run (`tools/game-lock.sh --what game-test -- <command>`), handing the lock down to them (`tests/deploy.bats`, `tests/makefile.bats`) |
+| [`game-lock.ps1`](game-lock.ps1) | The game lock's PowerShell twin, dot-sourced by `deploy.ps1` (while it changes the game folder) and `run-game-tests.ps1` (for its whole run). The bounty hunter's runner can copy it (`tests/DeployLock.Tests.ps1`, `tests/RunGameTestsLock.Tests.ps1`) |
 | [`post-game-test-report.sh`](post-game-test-report.sh) | Posts `tests/game/report.md` to the branch's PR as a comment and a `game-tests` commit status, after checking it's for the PR's latest commit with no uncommitted changes. Needs `gh`; `make game-test-report` runs it, `--dry-run` previews |
 | [`check_test_plan.py`](check_test_plan.py) | Checks the test plan (`tests/game/features/*.feature`) against the game tests and unit tests: every scenario's tag names a test (or `@pending` or `@manual`, counted separately, never mixed), every game test has a scenario, unit test names (Lua in `tests/lua/`, Python in `tests/python/`) are unique, every spec links an existing feature file, steps use Gherkin keywords. `make test` runs it (`tests/test-plan.bats`) |
 | [`test_plan_docs.py`](test_plan_docs.py) | Generates the readable test plan in `docs/test-plan/` (a page per feature file plus an index with coverage counts). `make test-plan` runs it; `--check` exits 1 naming stale pages (CI's test-plan check; `make test` only warns); `--checklist <file>` writes the release checklist, every `@manual` and `@pending` scenario with its steps (`-` prints it) (`tests/test-plan-docs.bats`) |
@@ -39,6 +41,39 @@ powershell.exe -ExecutionPolicy Bypass -File "$(wslpath -w tools/unpack-x4.ps1)"
 ```
 
 Run `Get-Help .\tools\unpack-x4.ps1 -Full` for every parameter (`-X4Path`, `-OutRoot`, `-ToolPath`, `-Force`).
+
+## The game lock
+
+X4 runs one game per Windows login, and this repo and the bounty hunter's share the X4 8.00 copy, so a deploy or game run from either waits for any other. Any tool that changes the game folder or starts the game should take the lock the same way:
+
+- **Where:** the file `game.lock` in the X4 install folder (`<X4_PATH>\game.lock`), the folder both repos' configs name.
+- **Format:** UTF-8 text, one `key=value` per line, LF endings:
+
+  ```
+  token=<unique per holder>
+  what=deploy | game-test | <the tool's own word>
+  repo=<repo folder name>
+  branch=<branch, or ->
+  pid=<holder's process id>
+  host=wsl | windows | linux
+  started=<UTC, 2026-11-11T09:00:00Z>
+  heartbeat=<counter> <UTC time>
+  ```
+
+  Only `token` and the rule that the file keeps changing matter to the protocol; the rest is for the waiting message.
+- **Taking it:** create the file exclusively (fail if it exists: `CreateNew` in .NET, `set -o noclobber` in bash), then write the lines. If it exists, someone holds it: wait, polling every few seconds, and say who holds it.
+- **Holding it:** rewrite the file (bump the `heartbeat` line) at least every 10 s, and stop if its `token` is no longer yours.
+- **A crashed holder:** a lock whose text hasn't changed for 60 s, as watched by the waiter on its own clock (so the two clocks never need to agree), is taken over: delete it and take it as above.
+- **Letting go:** delete the file, but only if its `token` is still yours.
+- **Handing it down:** a holder that starts another tool which takes the lock passes its token in `X4_GAME_LOCK_TOKEN` (from WSL to a Windows program, list it in `WSLENV` too). A tool whose `X4_GAME_LOCK_TOKEN` matches the file's `token` goes ahead without waiting, and leaves the file for the holder to delete.
+- **Settings** (environment only): `X4_GAME_LOCK_WAIT`, seconds to wait (default 1800; 0 refuses at once with the holder's name), `X4_GAME_LOCK_STALE` (default 60) and `X4_GAME_LOCK_POLL` (default 5).
+
+Limits:
+
+- **It's per install, not per machine.** It serializes everything that names the same `X4_PATH`, which today is every deploy and game run in both repos (the 8.00 copy). A tool pointed at another install (the 9.00 Steam copy, say) takes a different lock; X4's own one-game-per-login rule and the runner's process check stop the second game from starting, but not the deploy into it.
+- It doesn't cover a game started by hand (the runner refuses while `X4` or `X4_nonsteam` runs).
+- `X4_GAME_LOCK_STALE` must be the same in both repos: a holder beats every STALE/6 s, so a waiter with a smaller value could take over a live lock.
+- Two waiters taking over the same crashed lock at the same moment could both think they hold it; each checks the text is unchanged right before deleting it, which makes that window tiny, and at our scale the rest is left to chance.
 
 ## Rules
 

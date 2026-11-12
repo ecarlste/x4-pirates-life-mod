@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: shellcheck deploy.sh tests/run.sh tests/lua/run.sh tools/post-game-test-report.sh .githooks/pre-commit
+      - run: shellcheck deploy.sh tests/run.sh tests/lua/run.sh tools/game-lock.sh tools/post-game-test-report.sh .githooks/pre-commit
       - run: shellcheck -s bash tests/*.bash tests/*.bats
 
   # The bash tooling (deploy.sh, tests/run.sh, the tools) runs in WSL (Ubuntu), so Linux only

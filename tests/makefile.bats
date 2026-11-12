@@ -145,6 +145,44 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
     [[ "$output" == *"-Branch main -Dirty"* ]]
 }
 
+# A runner that shows what it was handed: the lock file and the lock variables
+write_lock_runner() {
+    cat > "$SANDBOX/runner" <<'SCRIPT'
+#!/bin/sh
+cat "$X4_PATH/game.lock"
+echo "token: $X4_GAME_LOCK_TOKEN"
+echo "wslenv: $WSLENV"
+SCRIPT
+    chmod +x "$SANDBOX/runner"
+}
+
+@test "make game-test holds one game lock across the deploy and the run" {
+    write_lock_runner
+    run make -C "$REPO" game-test GAME_TEST_RUNNER="$SANDBOX/runner"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"what=game-test"* ]]
+    token=$(sed -n 's/^token=//p' <<< "$output")
+    [ -n "$token" ]
+    [[ "$output" == *"token: $token"* ]]
+    [[ "$output" == *"wslenv: X4_GAME_LOCK_TOKEN"* ]]
+    [ ! -e "$X4_PATH/game.lock" ]
+}
+
+@test "make game-test refuses while another run holds the game lock" {
+    write_game_lock
+    run env X4_GAME_LOCK_WAIT=0 make -C "$REPO" game-test GAME_TEST_RUNNER='echo game tests ran'
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"held by game-test (x4-swi-bounty-hunter, feature/other)"* ]]
+    [[ "$output" != *"game tests ran"* ]]
+    [ ! -e "$TARGET" ]
+}
+
+@test "make game-test frees the game lock when the run fails" {
+    run make -C "$REPO" game-test GAME_TEST_RUNNER=false
+    [ "$status" -ne 0 ]
+    [ ! -e "$X4_PATH/game.lock" ]
+}
+
 @test "make test-plan regenerates docs/test-plan/" {
     mkdir -p "$REPO/tools" "$REPO/tests/game/features" "$REPO/tests/game/apirateslife_tests/md" "$REPO/tests/lua"
     cp "$REPO_ROOT/tools/test_plan_docs.py" "$REPO_ROOT/tools/check_test_plan.py" "$REPO/tools/"

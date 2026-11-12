@@ -24,6 +24,8 @@ setup_sandbox() {
     REPO="$SANDBOX/repo"
     git init -q -b main "$REPO"
     cp "$REPO_ROOT/deploy.sh" "$REPO_ROOT/deploy.include" "$REPO_ROOT/deploy.config.example" "$REPO_ROOT/Makefile" "$REPO/"
+    mkdir -p "$REPO/tools"
+    cp "$REPO_ROOT/tools/game-lock.sh" "$REPO/tools/"
     write_content_xml testmod
     mkdir -p "$REPO/libraries" "$REPO/md/sub" "$REPO/docs"
     echo '<diff/>' > "$REPO/libraries/god.xml"
@@ -102,4 +104,9 @@ XML
 # Prints the deployed value of one config setting
 deployed_setting() {
     grep -o "APiratesLife_$1\" exact=\"[^\"]*\"" "$TARGET/md/apirateslife_config.xml" | sed 's/.*exact="\([^"]*\)"/\1/'
+}
+
+# A game lock held by another run, as tools/game-lock.sh writes it
+write_game_lock() {
+    printf 'token=other\nwhat=game-test\nrepo=x4-swi-bounty-hunter\nbranch=feature/other\npid=4242\nhost=windows\nstarted=2026-11-11T09:00:00Z\nheartbeat=1 2026-11-11T09:00:00Z\n' > "$X4_PATH/game.lock"
 }
