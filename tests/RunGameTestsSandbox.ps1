@@ -24,6 +24,7 @@ function New-FakeGame([string] $Dir) {
 @echo off
 echo %*>"%FAKE_ARGS%"
 if exist "%FAKE_X4%\extensions\apirateslife_tests\content.xml" echo installed>"%FAKE_MARK%"
+if exist "%FAKE_X4%\game.lock" copy /y "%FAKE_X4%\game.lock" "%FAKE_LOCKSEEN%" >nul
 if defined FAKE_HANG ping -n 20 127.0.0.1 >nul
 copy /y "%FAKE_SOURCE_LOG%" "%FAKE_LOGPATH%" >nul
 '@
@@ -35,6 +36,7 @@ copy /y "%FAKE_SOURCE_LOG%" "%FAKE_LOGPATH%" >nul
 #!/bin/sh
 echo "$*" > "$FAKE_ARGS"
 [ -f "$FAKE_X4/extensions/apirateslife_tests/content.xml" ] && echo installed > "$FAKE_MARK"
+[ -f "$FAKE_X4/game.lock" ] && cp "$FAKE_X4/game.lock" "$FAKE_LOCKSEEN"
 # exec, so closing the game kills the sleep too and nothing keeps the output open
 [ -n "$FAKE_HANG" ] && exec sleep 20
 cp "$FAKE_SOURCE_LOG" "$FAKE_LOGPATH"
@@ -66,6 +68,7 @@ function New-RunSandbox {
     $env:FAKE_X4 = $x4
     $env:FAKE_MARK = Join-Path $root 'installed.txt'
     $env:FAKE_ARGS = Join-Path $root 'args.txt'
+    $env:FAKE_LOCKSEEN = Join-Path $root 'lock-seen.txt'
     $env:FAKE_SOURCE_LOG = Join-Path $root 'source.log'
     $env:FAKE_LOGPATH = Join-Path $profileDir 'debuglog.txt'
     $env:FAKE_HANG = $null
@@ -78,5 +81,5 @@ function New-RunSandbox {
 
 function Remove-RunSandbox {
     Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
-    foreach ($v in 'X4_PROFILE_ROOT', 'FAKE_X4', 'FAKE_MARK', 'FAKE_ARGS', 'FAKE_SOURCE_LOG', 'FAKE_LOGPATH', 'FAKE_HANG') { Remove-Item "env:$v" -ErrorAction SilentlyContinue }
+    foreach ($v in 'X4_PROFILE_ROOT', 'FAKE_X4', 'FAKE_MARK', 'FAKE_ARGS', 'FAKE_LOCKSEEN', 'FAKE_SOURCE_LOG', 'FAKE_LOGPATH', 'FAKE_HANG') { Remove-Item "env:$v" -ErrorAction SilentlyContinue }
 }

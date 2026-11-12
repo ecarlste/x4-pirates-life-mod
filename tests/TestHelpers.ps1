@@ -45,6 +45,8 @@ function New-DeploySandbox {
     foreach ($f in 'deploy.ps1', 'deploy.include') {
         Copy-Item (Join-Path $script:RepoRoot $f) $s.Repo
     }
+    New-Item -ItemType Directory -Force -Path (Join-Path $s.Repo 'tools') | Out-Null
+    Copy-Item (Join-Path $script:RepoRoot 'tools/game-lock.ps1') (Join-Path $s.Repo 'tools')
     Set-TestModId $s 'testmod'
     Write-LfFile (Join-Path $s.Repo 'libraries/god.xml') '<diff/>'
     Write-LfFile (Join-Path $s.Repo 'md/sub/nested.xml') '<mdscript/>'
@@ -120,4 +122,20 @@ function Write-TestConfig($s) {
 function Get-DeployedSetting($s, [string] $Name) {
     $text = [IO.File]::ReadAllText("$($s.Target)/md/apirateslife_config.xml")
     [regex]::Match($text, "APiratesLife_$Name"" exact=""([^""]*)""").Groups[1].Value
+}
+
+# A game lock held by another run, as tools/game-lock.ps1 and tools/game-lock.sh write it
+function Write-TestGameLock([string] $X4) {
+    Write-LfFile (Join-Path $X4 'game.lock') "token=other`nwhat=game-test`nrepo=x4-swi-bounty-hunter`nbranch=feature/other`npid=4242`nhost=windows`nstarted=2026-11-11T09:00:00Z`nheartbeat=1 2026-11-11T09:00:00Z`n"
+}
+
+# Sets the lock's environment variables for one test; Clear-GameLockEnv undoes it
+function Set-GameLockEnv([hashtable] $Values) {
+    foreach ($k in $Values.Keys) { [Environment]::SetEnvironmentVariable($k, [string] $Values[$k]) }
+}
+
+function Clear-GameLockEnv {
+    foreach ($k in 'X4_GAME_LOCK_WAIT', 'X4_GAME_LOCK_STALE', 'X4_GAME_LOCK_POLL', 'X4_GAME_LOCK_TOKEN') {
+        [Environment]::SetEnvironmentVariable($k, $null)
+    }
 }

@@ -19,8 +19,10 @@
        report (tests/game/report.md) that make game-test-report can post to the PR.
 
     The previous debuglog.txt is kept as debuglog.previous.txt. Deploy the mod first (make
-    deploy-local). Refuses to start while X4 or X4_nonsteam is running. Exits 1 if any test
-    failed, the run didn't finish, or the log has errors from the mod.
+    deploy-local). Holds the game lock (<X4_PATH>\game.lock, tools/game-lock.ps1) from the process
+    check to the cleanup, waiting first for any other deploy or game run; make game-test hands
+    down the lock it took for its deploy and run. Refuses to start while X4 or X4_nonsteam is
+    running. Exits 1 if any test failed, the run didn't finish, or the log has errors from the mod.
 
     Settings come from the parameters, else environment variables of the same name, else
     deploy.config (see deploy.config.example): X4_PATH, X4_EXE, X4_PROFILE_ID, X4_PROFILE_ROOT.
@@ -359,6 +361,8 @@ function Read-SharedFile([string] $Path) {
 # Dot-sourced by the tests for the functions above
 if ($MyInvocation.InvocationName -eq '.') { return }
 
+. (Join-Path $PSScriptRoot 'game-lock.ps1')
+
 $root = Split-Path $PSScriptRoot -Parent
 if (-not $X4Path) { $X4Path = Resolve-Setting $root 'X4_PATH' '' }
 if (-not $X4Path) { throw "X4_PATH not set: pass -X4Path, set X4_PATH, or run make setup and edit deploy.config" }
@@ -391,35 +395,40 @@ if (-not (Test-Path (Join-Path $X4Path "extensions/$ModId/content.xml"))) {
 if (-not (Test-Path (Join-Path $X4Path "extensions/$SwiFolder/content.xml"))) {
     throw "SWI isn't installed in $X4Path (no extensions\$SwiFolder)"
 }
-$processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
-foreach ($name in $processNames) {
-    if (Get-Process -Name $name -ErrorAction SilentlyContinue) { throw "$name is already running; close it first" }
-}
-
-$contentXml = Join-Path $profileDir 'content.xml'
-if ($PrepareProfile) {
-    New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
-    # Start from the root profile's extension and graphics settings, read only
-    foreach ($file in 'content.xml', 'config.xml') {
-        $source = Join-Path $profileRoot $file
-        if (-not (Test-Path (Join-Path $profileDir $file)) -and (Test-Path $source)) { Copy-Item $source $profileDir }
-    }
-    Enable-Extensions $contentXml @($SwiId, $ModId, $TestExtensionId)
-    Write-Host "Test profile $profileDir ready: $((Get-EnabledExtensions $contentXml) -join ', ') on"
-}
-$profileProblems = @(Get-ProfileProblems $contentXml)
-if ($profileProblems.Count) {
-    throw "Test profile $profileDir isn't ready: $($profileProblems -join '; '). Run with -PrepareProfile (make game-test RUNNER_ARGS=-PrepareProfile), or start X4 in that profile and switch them on in Extensions"
-}
-
 $extension = Join-Path $X4Path "extensions/$TestExtensionId"
 $arguments = Get-LaunchArguments $ProfileId
-$startedAt = Get-Date
 $game = $null
+$installed = $false
 $ending = ''
 $seen = @{}
+# Only one run uses the game at a time (tools/game-lock.ps1): wait for any other deploy or game
+# run, or use the lock make game-test hands down
+$gameLock = Enter-GameLock (Join-Path $X4Path 'game.lock') 'game-test' $root
 try {
+    $processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
+    foreach ($name in $processNames) {
+        if (Get-Process -Name $name -ErrorAction SilentlyContinue) { throw "$name is already running; close it first" }
+    }
+
+    $contentXml = Join-Path $profileDir 'content.xml'
+    if ($PrepareProfile) {
+        New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
+        # Start from the root profile's extension and graphics settings, read only
+        foreach ($file in 'content.xml', 'config.xml') {
+            $source = Join-Path $profileRoot $file
+            if (-not (Test-Path (Join-Path $profileDir $file)) -and (Test-Path $source)) { Copy-Item $source $profileDir }
+        }
+        Enable-Extensions $contentXml @($SwiId, $ModId, $TestExtensionId)
+        Write-Host "Test profile $profileDir ready: $((Get-EnabledExtensions $contentXml) -join ', ') on"
+    }
+    $profileProblems = @(Get-ProfileProblems $contentXml)
+    if ($profileProblems.Count) {
+        throw "Test profile $profileDir isn't ready: $($profileProblems -join '; '). Run with -PrepareProfile (make game-test RUNNER_ARGS=-PrepareProfile), or start X4 in that profile and switch them on in Extensions"
+    }
+
+    $startedAt = Get-Date
     if (Test-Path $extension) { Remove-Item $extension -Recurse -Force }
+    $installed = $true
     Copy-Item (Join-Path $root "tests/game/$TestExtensionId") $extension -Recurse
     # A stale log would report the previous run; keep it out of the way instead
     if (Test-Path $LogPath) { Move-Item $LogPath (Join-Path $profileDir 'debuglog.previous.txt') -Force }
@@ -431,6 +440,7 @@ try {
     $reported = 0
     while ($true) {
         Start-Sleep -Milliseconds ([int] ($PollSeconds * 1000))
+        Update-GameLock $gameLock
         $run = Read-GameTestLog (Read-SharedFile $LogPath)
         for ($i = $reported; $i -lt $run.Results.Count; $i++) {
             $r = $run.Results[$i]
@@ -457,12 +467,13 @@ try {
 }
 finally {
     if ($game -and -not $game.HasExited) { Stop-Process -Id $game.Id -Force -ErrorAction SilentlyContinue }
-    if (-not $KeepExtension -and (Test-Path $extension)) {
+    if ($installed -and -not $KeepExtension -and (Test-Path $extension)) {
         # The game may still hold files for a moment after exiting
         for ($i = 0; $i -lt 10 -and (Test-Path $extension); $i++) {
             try { Remove-Item $extension -Recurse -Force } catch { Start-Sleep -Seconds 1 }
         }
     }
+    Exit-GameLock $gameLock
 }
 
 $run = Read-GameTestLog (Read-SharedFile $LogPath)

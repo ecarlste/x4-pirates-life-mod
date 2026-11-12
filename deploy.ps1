@@ -10,6 +10,9 @@
 
     X4_PATH comes from the X4_PATH environment variable, else deploy.config (see deploy.config.example).
 
+    While it changes the game folder it holds the game lock (<X4_PATH>\game.lock, see
+    tools/game-lock.ps1), waiting for any other deploy or game run to finish first.
+
 .PARAMETER Ref
     Git ref to deploy. Defaults to origin/main, which is fetched first.
 
@@ -74,7 +77,10 @@ function Get-RelativeFiles([string] $Root) {
     $files
 }
 
+. (Join-Path $PSScriptRoot 'tools/game-lock.ps1')
+
 Push-Location $PSScriptRoot
+$gameLock = $null
 $stage = Join-Path ([IO.Path]::GetTempPath()) ("x4deploy-" + [guid]::NewGuid())
 try {
     # Resolve the X4 install folder: environment first, then deploy.config
@@ -156,6 +162,9 @@ try {
     if ($setSummary) { Write-Host "  with settings: $($setSummary -join ', ')" }
     if ($DryRun) { Write-Host "Dry run: nothing will be changed" -ForegroundColor Yellow }
 
+    # Only one run touches the game at a time (tools/game-lock.ps1); a dry run changes nothing
+    if (-not $DryRun) { $gameLock = Enter-GameLock (Join-Path $x4Path 'game.lock') 'deploy' $PSScriptRoot }
+
     # Mirror the staged files into the target, deleting anything that's no longer in the mod
     $src = Get-RelativeFiles $stageMod
     $dst = Get-RelativeFiles $target
@@ -191,6 +200,7 @@ try {
     }
 }
 finally {
+    Exit-GameLock $gameLock
     Pop-Location
     if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
 }

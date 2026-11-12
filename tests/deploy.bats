@@ -386,3 +386,74 @@ STUB
     [[ "$output" == *"with settings: IntactOnEject=0"* ]]
     [ ! -e "$TARGET" ]
 }
+
+# --- Game lock ----------------------------------------------------------------
+
+@test "refuses while another run holds the game lock, naming it" {
+    write_game_lock
+
+    X4_GAME_LOCK_WAIT=0 deploy --working-tree
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"game-test (x4-swi-bounty-hunter, feature/other)"* ]]
+    [ ! -e "$TARGET" ]
+}
+
+@test "waits for the holder to finish, then deploys and frees the lock" {
+    write_game_lock
+    X4_GAME_LOCK_POLL=0.2 "$REPO/deploy.sh" --working-tree > "$SANDBOX/out" 2>&1 &
+    pid=$!
+    # The holder finishes once the deploy is waiting for it
+    for _ in $(seq 300); do grep -q "Waiting for the game lock" "$SANDBOX/out" && break; sleep 0.1; done
+    rm -f "$X4_PATH/game.lock"
+    status=0
+    wait "$pid" || status=$?
+
+    [ "$status" -eq 0 ]
+    grep -q "held by game-test (x4-swi-bounty-hunter, feature/other)" "$SANDBOX/out"
+    [ -f "$TARGET/content.xml" ]
+    [ ! -e "$X4_PATH/game.lock" ]
+}
+
+@test "takes over a lock that stopped changing, as from a crashed run" {
+    write_game_lock
+
+    X4_GAME_LOCK_STALE=1 X4_GAME_LOCK_POLL=0.2 deploy --working-tree
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"looks crashed"* ]]
+    [ -f "$TARGET/content.xml" ]
+    [ ! -e "$X4_PATH/game.lock" ]
+}
+
+@test "a dry run doesn't need the game lock" {
+    write_game_lock
+
+    X4_GAME_LOCK_WAIT=0 deploy --working-tree --dry-run
+    [ "$status" -eq 0 ]
+    [ -e "$X4_PATH/game.lock" ]
+}
+
+@test "deploys under a lock its caller holds and leaves it to the caller" {
+    write_game_lock
+
+    X4_GAME_LOCK_WAIT=0 X4_GAME_LOCK_TOKEN=other deploy --working-tree
+    [ "$status" -eq 0 ]
+    [ -f "$TARGET/content.xml" ]
+    [[ "$(cat "$X4_PATH/game.lock")" == token=other* ]]
+}
+
+@test "holds the lock while it mirrors, naming itself" {
+    # An rsync that notes the lock it ran under, then does the real work
+    mkdir -p "$SANDBOX/bin"
+    cat > "$SANDBOX/bin/rsync" <<SCRIPT
+#!/bin/sh
+cat "$X4_PATH/game.lock" > "$SANDBOX/seen"
+exec $(command -v rsync) "\$@"
+SCRIPT
+    chmod +x "$SANDBOX/bin/rsync"
+
+    PATH="$SANDBOX/bin:$PATH" deploy --working-tree
+    [ "$status" -eq 0 ]
+    grep -q '^what=deploy$' "$SANDBOX/seen"
+    grep -q '^repo=repo$' "$SANDBOX/seen"
+    [ ! -e "$X4_PATH/game.lock" ]
+}

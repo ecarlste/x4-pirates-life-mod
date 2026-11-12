@@ -3,6 +3,8 @@
 # X4 Foundations Mod Deployment Script
 # Syncs the mod into <X4_PATH>/extensions/<id>, removing files that are no longer
 # part of it. By default it deploys the latest origin/main, not your working tree.
+# While it changes the game folder it holds the game lock (<X4_PATH>/game.lock, tools/game-lock.sh),
+# waiting for any other deploy or game run to finish first.
 #
 # Usage: ./deploy.sh [--ref <git-ref>] [--working-tree] [--set NAME=VALUE]... [--dry-run]
 
@@ -49,22 +51,14 @@ done
 
 cd "$(dirname "$0")"
 
+# shellcheck source=tools/game-lock.sh
+. tools/game-lock.sh
+
 # Resolve the X4 install folder: environment first, then deploy.config
-if [ -z "${X4_PATH:-}" ]; then
-    [ -f deploy.config ] || die "deploy.config not found. Run 'make setup' first to create it from deploy.config.example"
-    X4_PATH=$(sed -n 's/^[[:space:]]*X4_PATH[[:space:]]*=[[:space:]]*//p' deploy.config | tail -n 1 | sed 's/[[:space:]]*$//')
-    X4_PATH=${X4_PATH#\"}; X4_PATH=${X4_PATH%\"}
-    X4_PATH=${X4_PATH#\'}; X4_PATH=${X4_PATH%\'}
-fi
-[ -n "$X4_PATH" ] || die "X4_PATH not set in deploy.config"
-if [[ "$X4_PATH" =~ ^[A-Za-z]:[\\/] ]]; then
-    command -v wslpath >/dev/null || die "X4_PATH is a Windows path, but wslpath isn't available to convert it"
-    X4_PATH=$(wslpath -u "$X4_PATH")
-fi
-[ -d "$X4_PATH" ] || die "X4 install folder not found: $X4_PATH"
+x4_path_resolve . || exit 1
 
 STAGE=$(mktemp -d)
-trap 'rm -rf "$STAGE"' EXIT
+trap 'game_lock_release; rm -rf "$STAGE"' EXIT
 mkdir "$STAGE/mod"
 
 # Stage the mod files
@@ -124,6 +118,11 @@ echo -e "${GREEN}Deploying $SOURCE${NC}"
 echo "  to $TARGET"
 [ -n "${SET_SUMMARY:-}" ] && echo "  with settings: $SET_SUMMARY"
 [ "$DRY_RUN" = 1 ] && warn "Dry run: nothing will be changed"
+
+# Only one run touches the game at a time (tools/game-lock.sh); a dry run changes nothing
+if [ "$DRY_RUN" = 0 ]; then
+    game_lock_acquire "$X4_PATH/game.lock" deploy || exit 1
+fi
 
 # Mirror the staged files into the target, deleting anything that's no longer in the mod
 if command -v rsync >/dev/null; then
