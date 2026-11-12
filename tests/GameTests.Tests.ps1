@@ -287,3 +287,27 @@ Describe 'ConvertFrom-WslPath' {
         ConvertFrom-WslPath 'E:\X4' | Should -Be 'E:\X4'
     }
 }
+
+Describe 'Watch-GameRun' {
+    BeforeEach {
+        $script:dir = New-TestDir
+        $script:log = Join-Path $dir 'debuglog.txt'
+        $failingLog = $script:PassingLog -replace 'PASS eject_chance_doubled: 5 cases', 'FAIL eject_chance_doubled: 30 gave 30, expected 60;'
+        # A game that writes its whole log and quits just before the runner asks whether it has
+        # exited: the race that once lost the results from the live output (CI, PowerShell 5.1)
+        $script:game = [pscustomobject]@{ Log = $log; Lines = $failingLog }
+        $game | Add-Member ScriptProperty HasExited { [IO.File]::WriteAllLines($this.Log, [string[]] $this.Lines); $true }
+    }
+    AfterEach { Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'reports every result a game wrote just before it exited' {
+        $seen = @{}
+        $out = Watch-GameRun $game $log 0 60 60 '90000301' $null (Get-Date) $seen 6>&1
+        $ending = @($out | Where-Object { $_ -is [string] })
+        $shown = ($out | Where-Object { $_ -is [Management.Automation.InformationRecord] } | ForEach-Object { "$_" }) -join "`n"
+        $shown | Should -BeLike '*FAIL eject_chance_doubled: 30 gave 30, expected 60;*'
+        $shown | Should -BeLike '*PASS pilot_bail_intact*'
+        $ending | Should -Be @('finished')
+        $seen.Keys | Sort-Object | Should -Be @('done', 'menu', 'tests')
+    }
+}

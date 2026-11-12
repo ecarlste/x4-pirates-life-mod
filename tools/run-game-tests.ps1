@@ -358,6 +358,39 @@ function Read-SharedFile([string] $Path) {
     $text -split "`r?`n"
 }
 
+# Polls the log while the game runs, reporting each result as it appears and noting in $Seen when
+# each phase began; returns how the run ended
+function Watch-GameRun($Game, [string] $LogPath, [double] $PollSeconds, [int] $TimeoutSeconds, [int] $LaunchTimeoutSeconds,
+                       [string] $ProfileId, $GameLock, [datetime] $StartedAt, [hashtable] $Seen) {
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $launchDeadline = (Get-Date).AddSeconds($LaunchTimeoutSeconds)
+    $reported = 0
+    while ($true) {
+        Start-Sleep -Milliseconds ([int] ($PollSeconds * 1000))
+        if ($GameLock) { Update-GameLock $GameLock }
+        # Whether the game had exited before this read: if so, the read has all it wrote. Asked
+        # after the read instead, a game that wrote its last lines and quit in between would end
+        # the loop with those lines never reported
+        $exited = $Game.HasExited
+        $run = Read-GameTestLog (Read-SharedFile $LogPath)
+        for ($i = $reported; $i -lt $run.Results.Count; $i++) {
+            $r = $run.Results[$i]
+            Write-Host ("  {0} {1}: {2}" -f $(if ($r.Passed) { 'PASS' } else { 'FAIL' }), $r.Name, $r.Detail)
+        }
+        $reported = $run.Results.Count
+        $now = ((Get-Date) - $StartedAt).TotalSeconds
+        if ($run.MenuReady -and -not $Seen.ContainsKey('menu')) { $Seen.menu = $now }
+        if ($run.Started -and -not $Seen.ContainsKey('tests')) { $Seen.tests = $now }
+        if ($run.Done -and -not $Seen.ContainsKey('done')) { $Seen.done = $now }
+        if ($run.Done) { return 'finished' }
+        if ($exited) { return 'the game exited early' }
+        if (-not (Test-Path $LogPath) -and (Get-Date) -gt $launchDeadline) {
+            return "no $LogPath within $LaunchTimeoutSeconds s (did -personalfolderid $ProfileId take?)"
+        }
+        if ((Get-Date) -gt $deadline) { return "timed out after $TimeoutSeconds s" }
+    }
+}
+
 # Dot-sourced by the tests for the functions above
 if ($MyInvocation.InvocationName -eq '.') { return }
 
@@ -436,30 +469,7 @@ try {
 
     Write-Host "Starting $GameExe $arguments; results go to $LogPath"
     $game = Start-Process -FilePath $GameExe -ArgumentList $arguments -WorkingDirectory $X4Path -PassThru
-    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    $launchDeadline = (Get-Date).AddSeconds($LaunchTimeoutSeconds)
-    $reported = 0
-    while ($true) {
-        Start-Sleep -Milliseconds ([int] ($PollSeconds * 1000))
-        Update-GameLock $gameLock
-        $run = Read-GameTestLog (Read-SharedFile $LogPath)
-        for ($i = $reported; $i -lt $run.Results.Count; $i++) {
-            $r = $run.Results[$i]
-            Write-Host ("  {0} {1}: {2}" -f $(if ($r.Passed) { 'PASS' } else { 'FAIL' }), $r.Name, $r.Detail)
-        }
-        $reported = $run.Results.Count
-        $now = ((Get-Date) - $startedAt).TotalSeconds
-        if ($run.MenuReady -and -not $seen.ContainsKey('menu')) { $seen.menu = $now }
-        if ($run.Started -and -not $seen.ContainsKey('tests')) { $seen.tests = $now }
-        if ($run.Done -and -not $seen.ContainsKey('done')) { $seen.done = $now }
-        if ($run.Done) { $ending = 'finished'; break }
-        if ($game.HasExited) { $ending = 'the game exited early'; break }
-        if (-not (Test-Path $LogPath) -and (Get-Date) -gt $launchDeadline) {
-            $ending = "no $LogPath within $LaunchTimeoutSeconds s (did -personalfolderid $ProfileId take?)"
-            break
-        }
-        if ((Get-Date) -gt $deadline) { $ending = "timed out after $TimeoutSeconds s"; break }
-    }
+    $ending = Watch-GameRun $game $LogPath $PollSeconds $TimeoutSeconds $LaunchTimeoutSeconds $ProfileId $gameLock $startedAt $seen
     # The tests quit the game themselves; give it a moment, then close it
     if (-not $game.HasExited -and ($ending -ne 'finished' -or -not $game.WaitForExit(30000))) {
         Write-Host "Closing the game"
