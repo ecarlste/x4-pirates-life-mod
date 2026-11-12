@@ -29,7 +29,7 @@ help:
 	@echo "               make game-test RUNNER_ARGS=-PrepareProfile  (options for tools/run-game-tests.ps1)"
 
 setup:
-	@git config core.hooksPath .githooks && echo "Git hooks on (.githooks: no commits on main)"
+	@git config core.hooksPath .githooks && echo "Git hooks on (.githooks: no commits on main, no attribution lines in commit messages)"
 	@if command -v $(NPM) >/dev/null; then \
 		$(NPM) install --no-fund --no-audit; \
 	else \

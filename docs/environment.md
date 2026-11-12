@@ -7,7 +7,7 @@ Setting up, deploying, and where the game, its files and its profiles live on Er
 Run `make setup` once. It does three things:
 
 - Creates `deploy.config` with the X4 install path. When it gains or changes a setting, update `deploy.config.example` too.
-- Turns on the git hooks in `.githooks/`. The pre-commit hook refuses commits on `main`.
+- Turns on the git hooks in `.githooks/`. The pre-commit hook refuses commits on `main`, and the commit-msg hook refuses attribution lines (co-author trailers, session links, "Generated with/by" lines).
 - Installs the TypeScript tools' packages with `npm install`.
 
 ## Deploying
