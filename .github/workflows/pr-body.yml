@@ -1,0 +1,27 @@
+name: PR description
+
+# PRs are squash-merged with the description as the commit body on main, so it gets the check the
+# commit-msg hook gives local commits: no co-author trailers, session links or "Generated with/by"
+# lines (docs/PROJECT.md, Workflow). The hook's tests are in tests/githooks.bats.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  attribution:
+    name: No attribution lines
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .githooks
+      - name: Check the PR description
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s\n' "$BODY" > "$RUNNER_TEMP/body.md"
+          .githooks/commit-msg --pr-body "$RUNNER_TEMP/body.md"
+          echo "OK: no attribution lines"
