@@ -29,9 +29,13 @@
     "package-lock.json",
     "tsconfig.json",
     "docs/PROJECT.md",
-    "md/**/*.xml",
-    "aiscripts/**/*.xml",
-    "libraries/**/*.xml"
+    "deploy.include",
+    "content.xml",
+    "aiscripts/**",
+    "libraries/**",
+    "maps/**",
+    "md/**",
+    "t/**"
   ],
 
   "tests/deploy.bats": ["deploy.sh", "deploy.include", "deploy.config.example", "tools/game-lock.sh", "tests/helpers.bash", "tests/deploy.bats"],

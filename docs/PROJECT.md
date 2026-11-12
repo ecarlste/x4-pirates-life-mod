@@ -20,7 +20,7 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
   - It builds on kuertee's UI Extensions, declared as an optional dependency, and the mod works without it. The SWI build has no UI, so it doesn't declare it.
   - Use SirNukes' Mod Support APIs only where there's no alternative.
   - Why: [research/third-party-ui-apis.md](research/third-party-ui-apis.md).
-- **Filenames lowercase** (X4 3.0+ convention; it matters for loose, uncatalogued files).
+- **Filenames lowercase** (X4 3.0+ convention; it matters for loose, uncatalogued files). `make test` checks every shipped path.
 - **Build order:** the core loop on standard vanilla starts first; custom starts and redemption later.
 
 ## The two lines in git
