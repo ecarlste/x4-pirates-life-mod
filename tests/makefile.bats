@@ -107,7 +107,36 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 @test "make game-test stops when the deploy fails" {
     run env X4_PATH="$SANDBOX/nope" make -C "$REPO" game-test GAME_TEST_RUNNER='echo game tests ran'
     [ "$status" -ne 0 ]
-    [[ "$output" != *"game tests ran"* ]]
+    [[ "$output" != *"game tests ran -Commit"* ]]
+}
+
+# A runner that logs each call's arguments and whether the mod was deployed yet, and fails its
+# preflight when FAIL_PREFLIGHT is set
+write_logging_runner() {
+    cat > "$SANDBOX/runner" <<SCRIPT
+#!/bin/sh
+deployed=no; [ -e "$TARGET" ] && deployed=yes
+echo "\$* deployed=\$deployed" >> "$SANDBOX/runner.log"
+case "\$1" in -PreflightOnly) [ -z "\$FAIL_PREFLIGHT" ] ;; esac
+SCRIPT
+    chmod +x "$SANDBOX/runner"
+}
+
+@test "make game-test checks the runner's setup before deploying" {
+    write_logging_runner
+    run make -C "$REPO" game-test RUNNER_ARGS=-PrepareProfile GAME_TEST_RUNNER="$SANDBOX/runner"
+    [ "$status" -eq 0 ]
+    [ "$(sed -n 1p "$SANDBOX/runner.log")" = "-PreflightOnly -PrepareProfile deployed=no" ]
+    [[ "$(sed -n 2p "$SANDBOX/runner.log")" == "-Commit "*" -PrepareProfile deployed=yes" ]]
+}
+
+@test "make game-test deploys nothing when the runner's setup check fails" {
+    write_logging_runner
+    run env FAIL_PREFLIGHT=1 make -C "$REPO" game-test GAME_TEST_RUNNER="$SANDBOX/runner"
+    [ "$status" -ne 0 ]
+    [ ! -e "$TARGET" ]
+    [ "$(wc -l < "$SANDBOX/runner.log")" -eq 1 ]
+    [ ! -e "$X4_PATH/game.lock" ]
 }
 
 @test "make passes ARGS through to deploy.sh" {
@@ -161,7 +190,8 @@ SCRIPT
     run make -C "$REPO" game-test GAME_TEST_RUNNER="$SANDBOX/runner"
     [ "$status" -eq 0 ]
     [[ "$output" == *"what=game-test"* ]]
-    token=$(sed -n 's/^token=//p' <<< "$output")
+    # The preflight and the run each print the lock; both hold the same one
+    token=$(sed -n 's/^token=//p' <<< "$output" | sort -u)
     [ -n "$token" ]
     [[ "$output" == *"token: $token"* ]]
     [[ "$output" == *"wslenv: X4_GAME_LOCK_TOKEN"* ]]

@@ -65,3 +65,46 @@ Describe 'run-game-tests.ps1 before the game starts' {
         Test-Path $env:FAKE_ARGS | Should -BeFalse
     }
 }
+
+# make game-test runs these before its deploy, so a bad setup stops before the game folder changes
+Describe 'run-game-tests.ps1 -PreflightOnly' {
+    BeforeEach { New-RunSandbox }
+    AfterEach { Remove-RunSandbox }
+
+    It 'passes a good setup before the mod is deployed, then stops without touching the game' {
+        Remove-Item "$x4/extensions/apirateslife" -Recurse
+        $r = Invoke-Script $script:Runner ($runArgs + @('-PreflightOnly'))
+        $r.Output | Should -BeLike '*Game test setup OK*'
+        $r.ExitCode | Should -Be 0
+        Test-Path $env:FAKE_ARGS | Should -BeFalse
+        Test-Path "$x4/extensions/apirateslife_tests" | Should -BeFalse
+        Test-Path "$x4/game.lock" | Should -BeFalse
+        Test-Path $report | Should -BeFalse
+    }
+
+    It 'fails when the game executable is missing' {
+        $r = Invoke-Script $script:Runner (($runArgs -replace '^.*fakegame(\.cmd)?$', (Join-Path $root 'nope.exe')) + @('-PreflightOnly'))
+        $r.Output | Should -BeLike '*nope.exe not found*'
+        $r.ExitCode | Should -Not -Be 0
+    }
+
+    It 'fails a profile ID that is not numeric' {
+        $r = Invoke-Script $script:Runner (($runArgs -replace '^90000301$', 'tests') + @('-PreflightOnly'))
+        $r.Output | Should -BeLike '*X4_PROFILE_ID must be numeric*'
+        $r.ExitCode | Should -Not -Be 0
+    }
+
+    It 'fails when the test profile is not ready' {
+        Write-LfFile $contentXml '<content><extension id="apirateslife" enabled="true"/></content>'
+        $r = Invoke-Script $script:Runner ($runArgs + @('-PreflightOnly'))
+        $r.Output | Should -BeLike "*'SW Interworlds' isn't switched on*-PrepareProfile*"
+        $r.ExitCode | Should -Not -Be 0
+    }
+
+    It 'leaves the profile to the run with -PrepareProfile, making nothing itself' {
+        Remove-Item $profileDir -Recurse
+        $r = Invoke-Script $script:Runner ($runArgs + @('-PreflightOnly', '-PrepareProfile'))
+        $r.ExitCode | Should -Be 0
+        Test-Path $profileDir | Should -BeFalse
+    }
+}

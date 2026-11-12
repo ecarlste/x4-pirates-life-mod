@@ -22,8 +22,9 @@
     deploy-local). Holds the game lock (<X4_PATH>\game.lock, tools/game-lock.ps1) from the process
     check to the cleanup, waiting first for any other deploy or game run; make game-test hands
     down the lock it took for its deploy and run. Refuses to start while X4 or X4_nonsteam is
-    running. Exits 1 if any test failed, the run didn't finish, or a log check failed: the runner
-    checks that the mod loaded after SWI and that the log has no errors or warnings from our files.
+    running. -PreflightOnly runs the setup checks alone, before the deploy. Exits 1 if any test
+    failed, the run didn't finish, or a log check failed: the runner checks that the mod loaded
+    after SWI and that the log has no errors or warnings from our files.
 
     Settings come from the parameters, else environment variables of the same name, else
     deploy.config (see deploy.config.example): X4_PATH, X4_EXE, X4_PROFILE_ID, X4_PROFILE_ROOT.
@@ -67,6 +68,13 @@
     config.xml (graphics) into it if it has none, then switch SWI, A Pirate's Life and the test
     extension on in its content.xml. Only reads the root profile, never changes it.
 
+.PARAMETER PreflightOnly
+    Run only the setup checks and exit: the executable exists, X4_PROFILE_ID is numeric, SWI is
+    installed, the test profile has SWI, A Pirate's Life and the test extension on (skipped with
+    -PrepareProfile, which the run then does), and no X4 is running. Doesn't check the mod is
+    deployed, changes nothing and doesn't take the game lock, so make game-test runs it (inside the
+    lock it holds) before its deploy.
+
 .PARAMETER KeepExtension
     Leave the test extension installed afterwards (X4 then starts the tests on every launch, in
     every profile where it's on).
@@ -88,7 +96,8 @@ param(
     [string] $Branch,
     [switch] $Dirty,
     [switch] $PrepareProfile,
-    [switch] $KeepExtension
+    [switch] $KeepExtension,
+    [switch] $PreflightOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -368,6 +377,20 @@ function Get-ProfileProblems([string] $ContentXml) {
     $problems
 }
 
+function Assert-NoGameRunning([string[]] $ProcessNames) {
+    foreach ($name in $ProcessNames) {
+        if (Get-Process -Name $name -ErrorAction SilentlyContinue) { throw "$name is already running; close it first" }
+    }
+}
+
+function Assert-ProfileReady([string] $ContentXml) {
+    $ProfileDir = Split-Path $ContentXml -Parent
+    $profileProblems = @(Get-ProfileProblems $ContentXml)
+    if ($profileProblems.Count) {
+        throw "Test profile $ProfileDir isn't ready: $($profileProblems -join '; '). Run with -PrepareProfile (make game-test RUNNER_ARGS=-PrepareProfile), or start X4 in that profile and switch them on in Extensions"
+    }
+}
+
 # Switches these extensions on in a profile's content.xml (made if missing), keeping other entries
 function Enable-Extensions([string] $ContentXml, [string[]] $Ids) {
     $doc = New-Object System.Xml.XmlDocument
@@ -449,6 +472,21 @@ if (-not $MarkdownPath) { $MarkdownPath = Join-Path $root 'tests/game/report.md'
 # machine doesn't stop the tests
 $fakeGame = [bool] $GameExe
 if (-not $GameExe) { $GameExe = Join-Path $X4Path $exeName }
+if (-not (Test-Path $GameExe)) { throw "$GameExe not found; check X4_PATH and X4_EXE in deploy.config" }
+if (-not (Test-Path (Join-Path $X4Path "extensions/$SwiFolder/content.xml"))) {
+    throw "SWI isn't installed in $X4Path (no extensions\$SwiFolder)"
+}
+$contentXml = Join-Path $profileDir 'content.xml'
+$processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
+if ($PreflightOnly) {
+    Assert-NoGameRunning $processNames
+    if (-not $PrepareProfile) { Assert-ProfileReady $contentXml }
+    Write-Host "Game test setup OK: $GameExe, test profile $profileDir"
+    exit 0
+}
+if (-not (Test-Path (Join-Path $X4Path "extensions/$ModId/content.xml"))) {
+    throw "A Pirate's Life isn't deployed to $X4Path. Run make deploy-local (or .\deploy.ps1 -WorkingTree) first"
+}
 if (-not $Commit) {
     $git = Get-GitState $root
     $Commit = $git.Commit
@@ -456,13 +494,6 @@ if (-not $Commit) {
     if ($git.Dirty) { $Dirty = [switch] $true }
 }
 
-if (-not (Test-Path $GameExe)) { throw "$GameExe not found; check X4_PATH and X4_EXE in deploy.config" }
-if (-not (Test-Path (Join-Path $X4Path "extensions/$ModId/content.xml"))) {
-    throw "A Pirate's Life isn't deployed to $X4Path. Run make deploy-local (or .\deploy.ps1 -WorkingTree) first"
-}
-if (-not (Test-Path (Join-Path $X4Path "extensions/$SwiFolder/content.xml"))) {
-    throw "SWI isn't installed in $X4Path (no extensions\$SwiFolder)"
-}
 $extension = Join-Path $X4Path "extensions/$TestExtensionId"
 $arguments = Get-LaunchArguments $ProfileId
 $game = $null
@@ -473,12 +504,8 @@ $seen = @{}
 # run, or use the lock make game-test hands down
 $gameLock = Enter-GameLock (Join-Path $X4Path 'game.lock') 'game-test' $root
 try {
-    $processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
-    foreach ($name in $processNames) {
-        if (Get-Process -Name $name -ErrorAction SilentlyContinue) { throw "$name is already running; close it first" }
-    }
+    Assert-NoGameRunning $processNames
 
-    $contentXml = Join-Path $profileDir 'content.xml'
     if ($PrepareProfile) {
         New-Item -ItemType Directory -Force -Path $profileDir | Out-Null
         # Start from the root profile's extension and graphics settings, read only
@@ -489,10 +516,7 @@ try {
         Enable-Extensions $contentXml @($SwiId, $ModId, $TestExtensionId)
         Write-Host "Test profile $profileDir ready: $((Get-EnabledExtensions $contentXml) -join ', ') on"
     }
-    $profileProblems = @(Get-ProfileProblems $contentXml)
-    if ($profileProblems.Count) {
-        throw "Test profile $profileDir isn't ready: $($profileProblems -join '; '). Run with -PrepareProfile (make game-test RUNNER_ARGS=-PrepareProfile), or start X4 in that profile and switch them on in Extensions"
-    }
+    Assert-ProfileReady $contentXml
 
     Update-GameLock $gameLock
     $startedAt = Get-Date
