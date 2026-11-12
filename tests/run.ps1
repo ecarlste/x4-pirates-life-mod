@@ -16,11 +16,21 @@
     Run only these test files (default: every tests/*.Tests.ps1); commas separate several in one
     argument. tests/run.sh runs each file in its own process, in parallel.
 
+.PARAMETER Name
+    Run only the tests whose full name ("<Describe> <It>") matches this wildcard pattern.
+
+.PARAMETER Repeat
+    Run the selected tests this many times and report how many runs failed, to measure a flaky
+    test's failure rate (docs/testing.md, Flaky tests). Fails if any run failed.
+
 .EXAMPLE
     .\tests\run.ps1
+
+.EXAMPLE
+    .\tests\run.ps1 -Path tests/RunGameTests.Tests.ps1 -Name '*fails a run with a failing test' -Repeat 50
 #>
 [CmdletBinding()]
-param([switch] $CI, [switch] $SetupOnly, [string[]] $Path)
+param([switch] $CI, [switch] $SetupOnly, [string[]] $Path, [string] $Name, [int] $Repeat = 0)
 
 $ErrorActionPreference = 'Stop'
 $PesterVersion = '5.7.1'
@@ -64,6 +74,34 @@ $config = New-PesterConfiguration
 $Path = @($Path | ForEach-Object { $_ -split ',' } | Where-Object { $_ })
 $config.Run.Path = if ($Path) { $Path } else { $PSScriptRoot }
 $config.Output.Verbosity = 'Detailed'
+if ($Name) { $config.Filter.FullName = $Name }
+
+if ($Repeat -gt 0) {
+    if ($CI) { throw '-Repeat is for measuring a flaky test locally; it writes no JUnit report, so it does not go with -CI' }
+    # Quiet runs; each failed run prints its first failure, then one count at the end
+    $config.Output.Verbosity = 'None'
+    $config.Run.PassThru = $true
+    $failed = 0
+    for ($i = 1; $i -le $Repeat; $i++) {
+        $result = Invoke-Pester -Configuration $config
+        if ($result.TotalCount -eq $result.NotRunCount) {
+            Write-Host "no test matches $(if ($Name) { "'$Name'" } else { 'in these files' })"
+            exit 1
+        }
+        if ($result.FailedCount -gt 0 -or $result.FailedContainersCount -gt 0) {
+            $failed++
+            $first = if ($result.Failed.Count) { $result.Failed[0] } else { $result.FailedContainers[0] }
+            $where = if ($first.ExpandedPath) { $first.ExpandedPath } else { $first.Item }
+            # A setup block that throws fails its tests with the error on the block, not the test
+            $errors = $first.ErrorRecord
+            for ($block = $first.Block; -not $errors.Count -and $block; $block = $block.Parent) { $errors = $block.ErrorRecord }
+            Write-Host "Run $i failed: ${where}: $(if ($errors.Count) { $errors[0].Exception.Message })"
+        }
+    }
+    Write-Host "$failed of $Repeat runs failed ($($PSVersionTable.PSEdition) $($PSVersionTable.PSVersion))"
+    if ($failed) { exit 1 }
+    exit 0
+}
 if ($CI) {
     $config.Run.Exit = $true
     $config.TestResult.Enabled = $true
