@@ -63,6 +63,13 @@
       </actions>
     </library>
 
+    <!-- The bail pressure cap, CapturePressureCap: no check's chance goes above it with pressure -->
+    <library name="PressureCap" purpose="run_actions">
+      <actions>
+        <return value="if global.$APiratesLife_CapturePressureCap? then global.$APiratesLife_CapturePressureCap else 80"/>
+      </actions>
+    </library>
+
     <!-- Starts an operation on Target, led by the ship the player is flying. Returns whether it
          started. Every entry point (comm choice, interact menu, hotkeys) goes through here. -->
     <library name="Start" purpose="run_actions">
@@ -250,7 +257,8 @@
                 <set_value name="$Progress" exact="[[(100 - $Target.shieldpercentage)i, 0].max, 80].min"/>
                 <set_value name="$Max" exact="80"/>
               </do_if>
-              <do_elseif value="$Target.hullpercentage ge 75">
+              <!-- Also while docked, the gate that hull and shields don't show -->
+              <do_elseif value="not $InGates">
                 <set_value name="$Step" exact="1"/>
                 <set_value name="$Text" exact="{1774100, 21}"/>
                 <set_value name="$Progress" exact="[[(100 - $Target.hullpercentage)i, 0].max, 25].min"/>
@@ -271,7 +279,8 @@
                   <run_actions ref="Pressure" result="$Pressure">
                     <param name="Target" value="$Target"/>
                   </run_actions>
-                  <set_value name="$Cap" exact="[(if global.$APiratesLife_CapturePressureCap? then global.$APiratesLife_CapturePressureCap else 80), 1].max"/>
+                  <run_actions ref="PressureCap" result="$Cap"/>
+                  <set_value name="$Cap" exact="[$Cap, 1].max"/>
                   <set_value name="$Step" exact="2"/>
                   <set_value name="$Text" exact="if $Chance != null then {1774100, 23}.[$Chance] else {1774100, 22}"/>
                   <set_value name="$Progress" exact="[($Cap - ($Pressure)f)i, 0].max"/>

@@ -156,6 +156,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   Then the mission shows "Pilot's nerve" as step 2, with a bar of about 72 of 80
   When one of its crew bails
   Then the mission shows "Crew aboard n/max" with the last check's chance as step 3, with a bar of the crew left
+  And a capture operation on a crewless fighter has only the first 2 steps
 ```
 
 ### The comm choice and the mission's Abort work in SWI's menus

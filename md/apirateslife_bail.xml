@@ -28,7 +28,7 @@
           <run_actions ref="md.APiratesLife_Capture.Pressure" result="$Pressure">
             <param name="Target" value="$Target"/>
           </run_actions>
-          <set_value name="$Cap" exact="if global.$APiratesLife_CapturePressureCap? then global.$APiratesLife_CapturePressureCap else 80"/>
+          <run_actions ref="md.APiratesLife_Capture.PressureCap" result="$Cap"/>
           <set_value name="$Chance" exact="[$EjectChance, [$EjectChance + $Pressure, $Cap].min].max"/>
           <!-- For the operation's readout -->
           <set_value name="$Op.$lastchance" exact="$Chance"/>
