@@ -19,7 +19,7 @@ Feature: Bail hook
 
   @pilot_bail_intact
   Scenario: A pilot bail raises our Bailed signal
-    Given a crewless Argon fighter attacked by one of my ships
+    Given a crewless Imperial fighter attacked by one of my ships
     When the pilot bails
     Then our Bailed signal fires with the pilot marked as bailed
     And the fighter is ownerless

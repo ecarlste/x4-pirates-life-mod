@@ -165,23 +165,22 @@
 
     <!-- ===== Helpers ===== -->
 
-    <!-- A player-owned fighter and a crewless Argon fighter at full hull, 2-3 km from the player.
-         With no crew, the first bail takes the pilot and leaves the ship ownerless. Returns
+    <!-- A player-owned X-wing and a crewless Imperial TIE Advanced at full hull, 2-3 km from the
+         player. With no crew, the first bail takes the pilot and leaves the ship ownerless. Returns
          table[$attacker, $target]. -->
     <library name="SpawnBailPair" purpose="run_actions">
       <actions>
-        <create_ship name="$Attacker" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector">
+        <create_ship name="$Attacker" macro="t65b_xwing_macro" sector="player.sector">
           <owner exact="faction.player" overridenpc="true"/>
-          <loadout>
-            <level exact="0.5"/>
-          </loadout>
+          <!-- A fixed loadout: under SWI, a level loadout for the player faction gets no engines -->
+          <loadout ref="apirateslife_test_xwing_lasers"/>
           <pilot>
-            <select faction="faction.argon" tags="tag.aipilot"/>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
           </pilot>
           <safepos object="player.occupiedship" z="2km" allowyaxis="true"/>
         </create_ship>
-        <create_ship name="$Target" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector" capturable="true">
-          <owner exact="faction.argon" overridenpc="true"/>
+        <create_ship name="$Target" macro="tie_advanced_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.galempire" overridenpc="true"/>
           <loadout>
             <level exact="1.0"/>
           </loadout>
@@ -189,7 +188,7 @@
             <fillpercent exact="0"/>
           </people>
           <pilot>
-            <select faction="faction.argon" tags="tag.aipilot"/>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
           </pilot>
           <safepos object="player.occupiedship" z="3km" allowyaxis="true"/>
         </create_ship>
@@ -200,13 +199,13 @@
       </actions>
     </library>
 
-    <!-- An ownerless, crewless fighter and a player-owned frigate with marines, set to claim
-         abandoned ships, 2-3 km from the player (vanilla aiscripts/interrupt.foundabandonedship.xml
-         and move.claim.xml do the rest). The player is nearby, so claims run at the "visible"
+    <!-- An ownerless, crewless TIE Advanced and a player-owned Gauntlet (an M gunboat) with
+         marines, set to claim abandoned ships, 2-3 km from the player (vanilla
+         aiscripts/interrupt.foundabandonedship.xml and move.claim.xml do the rest). The player is nearby, so claims run at the "visible"
          attention level. Returns table[$claimer, $target]. -->
     <library name="SpawnClaimPair" purpose="run_actions">
       <actions>
-        <create_ship name="$Target" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector" capturable="true">
+        <create_ship name="$Target" macro="tie_advanced_macro" sector="player.sector" capturable="true">
           <owner exact="faction.ownerless" overridenpc="true"/>
           <loadout>
             <level exact="1.0"/>
@@ -217,18 +216,18 @@
           <pilot actor="null"/>
           <safepos object="player.occupiedship" x="2km" allowyaxis="true"/>
         </create_ship>
-        <create_ship name="$Claimer" macro="ship_arg_m_frigate_01_a_macro" sector="player.sector">
+        <create_ship name="$Claimer" macro="gauntlet_macro" sector="player.sector">
           <owner exact="faction.player" overridenpc="true"/>
-          <loadout>
-            <level exact="0.5"/>
-          </loadout>
+          <!-- SWI's own Gauntlet loadout: under SWI, a level loadout for the player faction gets no
+               engines, and the claimer has to fly to its prize -->
+          <loadout ref="sw_gauntlet_outcast"/>
           <pilot>
-            <select faction="faction.argon" tags="tag.aipilot"/>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
           </pilot>
           <!-- Vanilla claim damage is (100 - marine skill)%, so any marine short of perfect damages the ship -->
           <people>
             <person role="marine" weight="100">
-              <select faction="faction.argon" tags="tag.marine"/>
+              <select faction="faction.galempire" tags="tag.marine"/>
             </person>
           </people>
           <safepos object="player.occupiedship" x="3km" allowyaxis="true"/>
@@ -872,25 +871,25 @@
         <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
         <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
-        <!-- A fixed loadout from this extension's libraries/loadouts.xml: two pulse lasers and no
-             missile launcher. A random loadout made the test a lottery: slow mass drivers barely
+        <!-- A fixed loadout from this extension's libraries/loadouts.xml: an X-wing's four lasers
+             and no missile launcher. A random loadout made the test a lottery: slow guns barely
              landed a shot and torpedoes one-shot the target. -->
-        <create_ship name="$Wingman" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector">
+        <create_ship name="$Wingman" macro="t65b_xwing_macro" sector="player.sector">
           <owner exact="faction.player" overridenpc="true"/>
-          <loadout ref="apirateslife_test_nova_lasers"/>
+          <loadout ref="apirateslife_test_xwing_lasers"/>
           <pilot>
-            <select faction="faction.argon" tags="tag.aipilot"/>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
           </pilot>
           <safepos object="player.occupiedship" x="-1km" allowyaxis="true"/>
         </create_ship>
         <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
-        <create_ship name="$Target" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector" capturable="true">
-          <owner exact="faction.argon" overridenpc="true"/>
+        <create_ship name="$Target" macro="tie_advanced_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.galempire" overridenpc="true"/>
           <loadout>
             <level exact="1.0"/>
           </loadout>
           <pilot>
-            <select faction="faction.argon" tags="tag.aipilot"/>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
           </pilot>
           <safepos object="player.occupiedship" z="3km" allowyaxis="true"/>
         </create_ship>
@@ -948,7 +947,7 @@
                       <set_value name="$Finished" exact="$HeldFor ge 30"/>
                     </do_if>
                     <!-- Above the gate, keep the shields down. They recharge (about 125 hp/s) 15 s
-                         after the last hit, faster than two pulse lasers in a dogfight break them:
+                         after the last hit, faster than a fighter's lasers in a dogfight break them:
                          in one run the hull stalled at 75.4% for the full 180 s. Below the gate
                          they recharge as usual, so the wingman's shields-only fire is tested too. -->
                     <do_elseif value="$Target.shield gt 0">
@@ -1017,8 +1016,8 @@
         <do_if value="$Rec.$outcome != $Outcome">
           <set_value name="$P" exact="$P + ' outcome %s, expected %s;'.[$Rec.$outcome, $Outcome]"/>
         </do_if>
-        <do_if value="$Rec.$macro != 'ship_arg_s_fighter_01_a_macro' or $Rec.$size != 'S' or $Rec.$owner != 'argon'">
-          <set_value name="$P" exact="$P + ' target %s, %s, %s, expected the Argon S fighter;'.[$Rec.$macro, $Rec.$size, $Rec.$owner]"/>
+        <do_if value="$Rec.$macro != 'tie_advanced_macro' or $Rec.$size != 'S' or $Rec.$owner != 'galempire'">
+          <set_value name="$P" exact="$P + ' target %s, %s, %s, expected the Imperial TIE Advanced;'.[$Rec.$macro, $Rec.$size, $Rec.$owner]"/>
         </do_if>
         <do_if value="not $Rec.$total? or $Rec.$total lt 0">
           <set_value name="$P" exact="$P + ' no total time;'"/>
@@ -1356,7 +1355,7 @@
     <!-- ===== Pirated ships (md/apirateslife_pirated.xml) ===== -->
 
     <!-- A fighter bails to one of my ships, then becomes mine (set_owner stands in for the claim,
-         which vanilla does the same way): marked pirated by bail, from the Argon -->
+         which vanilla does the same way): marked pirated by bail, from the Empire -->
     <cue name="PiratedBailThenClaim">
       <conditions>
         <event_cue_signalled/>
@@ -1398,7 +1397,7 @@
                 <run_actions ref="md.APiratesLife_Pirated.IsPirated" result="$Mark">
                   <param name="Ship" value="$Pair.$target"/>
                 </run_actions>
-                <set_value name="$Ok" exact="$Mark and $Mark.$how == 'bail' and $Mark.$from == faction.argon"/>
+                <set_value name="$Ok" exact="$Mark and $Mark.$how == 'bail' and $Mark.$from == faction.galempire"/>
                 <signal_cue_instantly cue="Report" param="table[$name = 'pirated_bail_then_claim', $ok = $Ok, $detail = (if $Mark then 'marked pirated by %s, from %s'.[$Mark.$how, @$Mark.$from.id] else 'not marked pirated')]"/>
                 <destroy_object object="$Pair.$attacker"/>
                 <destroy_object object="$Pair.$target"/>
@@ -1421,20 +1420,21 @@
       </cues>
     </cue>
 
-    <!-- My boarding operation on an Argon frigate, which then becomes mine (set_owner stands in
-         for the boarding's end, which vanilla does the same way): marked pirated by boarding -->
+    <!-- My boarding operation on an Imperial Gozanti cruiser (an M ship), which then becomes mine
+         (set_owner stands in for the boarding's end, which vanilla does the same way): marked
+         pirated by boarding -->
     <cue name="PiratedBoarding">
       <conditions>
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <create_ship name="$Target" macro="ship_arg_m_frigate_01_a_macro" sector="player.sector" capturable="true">
-          <owner exact="faction.argon" overridenpc="true"/>
+        <create_ship name="$Target" macro="impgozanti_cr_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.galempire" overridenpc="true"/>
           <loadout>
             <level exact="0.5"/>
           </loadout>
           <pilot>
-            <select faction="faction.argon" tags="tag.aipilot"/>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
           </pilot>
           <safepos object="player.occupiedship" z="4km" allowyaxis="true"/>
         </create_ship>
@@ -1460,7 +1460,7 @@
                 <run_actions ref="md.APiratesLife_Pirated.IsPirated" result="$Mark">
                   <param name="Ship" value="$Target"/>
                 </run_actions>
-                <set_value name="$Ok" exact="$Mark and $Mark.$how == 'boarding' and $Mark.$from == faction.argon"/>
+                <set_value name="$Ok" exact="$Mark and $Mark.$how == 'boarding' and $Mark.$from == faction.galempire"/>
                 <signal_cue_instantly cue="Report" param="table[$name = 'pirated_boarding', $ok = $Ok, $detail = (if $Mark then 'marked pirated by %s, from %s'.[$Mark.$how, @$Mark.$from.id] else 'not marked pirated (boarding operation created: %s)'.[$Op != null])]"/>
                 <destroy_object object="$Target"/>
               </actions>
@@ -1470,7 +1470,7 @@
               <delay exact="10s"/>
               <actions>
                 <cancel_cue cue="PiratedBoarding_Decided"/>
-                <signal_cue_instantly cue="Report" param="table[$name = 'pirated_boarding', $ok = false, $detail = 'nothing decided within 10s of the frigate becoming mine (owner %s, operation created: %s)'.[@$Target.trueowner.id, $Op != null]]"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'pirated_boarding', $ok = false, $detail = 'nothing decided within 10s of the cruiser becoming mine (owner %s, operation created: %s)'.[@$Target.trueowner.id, $Op != null]]"/>
                 <destroy_object object="$Target"/>
               </actions>
             </cue>
@@ -1485,7 +1485,7 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <create_ship name="$Target" macro="ship_arg_s_fighter_01_a_macro" sector="player.sector" capturable="true">
+        <create_ship name="$Target" macro="tie_advanced_macro" sector="player.sector" capturable="true">
           <owner exact="faction.ownerless" overridenpc="true"/>
           <people>
             <fillpercent exact="0"/>

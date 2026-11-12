@@ -5,7 +5,7 @@ Feature: Capture metrics
 
   @capture_metrics_operation
   Scenario: A capture operation ends in one summary
-    Given a capture operation on a capturable Argon fighter with no crew
+    Given a capture operation on a capturable Imperial fighter with no crew
     When the fighter's pilot bails
     Then one summary is logged for the fighter, as an operation that ended "abandoned"
     And it names the fighter's macro and size, its owner and its pilot's skill
@@ -13,7 +13,7 @@ Feature: Capture metrics
 
   @capture_metrics_plain_attack
   Scenario: A plain attack ends in one summary
-    Given a capturable Argon fighter with no crew and no capture operation
+    Given a capturable Imperial fighter with no crew and no capture operation
     When the ship I fly gets a bail check on it and the fighter's pilot bails
     Then one summary is logged for the fighter, as a plain attack that ended "abandoned"
     And it lists the ship I fly as an attacker

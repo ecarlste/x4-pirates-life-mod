@@ -17,9 +17,9 @@ Source: [`tests/game/features/pirated-ships.feature`](../../tests/game/features/
 **Automated:** in game `pirated_bail_then_claim`
 
 ```gherkin
-  Given a capturable Argon fighter whose pilot bails while one of my ships attacks it
+  Given a capturable Imperial fighter whose pilot bails while one of my ships attacks it
   When I claim the abandoned fighter
-  Then it's marked pirated, by bail, from the Argon
+  Then it's marked pirated, by bail, from the Empire
 ```
 
 ### A ship I board is pirated
@@ -27,9 +27,9 @@ Source: [`tests/game/features/pirated-ships.feature`](../../tests/game/features/
 **Automated:** in game `pirated_boarding`
 
 ```gherkin
-  Given my boarding operation on an Argon frigate
-  When the frigate becomes mine
-  Then it's marked pirated, by boarding, from the Argon
+  Given my boarding operation on an Imperial M ship
+  When the ship becomes mine
+  Then it's marked pirated, by boarding, from the Empire
 ```
 
 ### A ship docked at a ship I board is pirated

@@ -2,7 +2,7 @@
 
 **Status: WIP, working (2026-10-20).** `make game-test` runs in the real game: all 5 tests pass in about 2½ minutes from command to report, with no clicks once Steam's one-time launch prompt has been accepted (see [first runs](#first-runs-in-game)). Still open: the questions at the end.
 
-**Update (2026-11-11):** for the SWI build, the runner no longer goes through Steam. It starts the X4 8.00 copy's `X4_nonsteam.exe` directly, in its own numeric test profile (see [A run](#a-run)). The Steam launch below stays on the `9.x` branch with the 9.x line.
+**Update (2026-11-11):** for the SWI build, the runner no longer goes through Steam. It starts the X4 8.00 copy's `X4_nonsteam.exe` directly, in its own numeric test profile (see [A run](#a-run)). The Steam launch below stays on the `9.x` branch with the 9.x line. The tests run inside SWI too: the test extension depends on X4 8.00 and SWI and has its own SWI gamestart (see [The SWI test gamestart](#the-swi-test-gamestart)). First run on SWI (2026-11-11): 15 of 20 tests pass in 2 min 10 s. The 5 that force a bail (`pilot_bail_intact`, `pilot_bail_vanilla_when_off`, `capture_metrics_operation`, `capture_metrics_plain_attack`, `pirated_bail_then_claim`) get no `Bailed` signal: the mod loads before SWI, so SWI's Enhanced Bailing replaces the block our bail hook patched. Loading after SWI is [issue 116](https://github.com/ecarlste/x4-pirates-life-mod/issues/116).
 
 Goal: Cypress/Playwright-style regression tests that play a short, controlled scenario in the real game and report PASS/FAIL, run locally on Erik's Windows machine with one command.
 
@@ -26,12 +26,21 @@ Goal: Cypress/Playwright-style regression tests that play a short, controlled sc
 ### A fixed test gamestart
 
 - **Gamestarts can switch off the living universe:** `<universe><jobs enabled="false"/><god enabled="false"/></universe>` (vanilla's debug start `thevoid`). No god means no stations; no jobs means no NPC traffic. Every test then spawns exactly what it needs, and runs start the same each time.
-- **Vanilla ships debug test starts** (`group="100"`, `debug="true"`): `test_smallship`, `test_squadron`, `test_battle`, `thevoid` (an empty `blackgalaxy_macro`), `testbed1`, `default`. Ours copies `test_smallship`'s spot in Argon Prime, without `debug="true"`, so it also shows in the New Game menu for starting it by hand.
-- **The test start uses the tutorials' empty galaxy** (`basegame_map_tutorial_default_empty_galaxy_macro`, one cluster with one sector), not the full universe. Measured 2026-10-26: loading to the first test went from 1 min 32 s to 28 s, and a whole run from 2 min 50 s to about 1 min 30 s. The about 380 vanilla "Error in MD cue" lines (DLC and story setup cues looking for stations god never built) are gone too. Tests spawn everything they need in `player.sector`, so nothing depended on Argon Prime.
+- **Vanilla ships debug test starts** (`group="100"`, `debug="true"`): `test_smallship`, `test_squadron`, `test_battle`, `thevoid` (an empty `blackgalaxy_macro`), `testbed1`, `default`. On the `9.x` branch, ours copies `test_smallship`'s spot in Argon Prime, without `debug="true"`, so it also shows in the New Game menu for starting it by hand.
+- **The SWI test gamestart** (2026-11-11, [issue 113](https://github.com/ecarlste/x4-pirates-life-mod/issues/113)) replaces the vanilla one on `main`; see [below](#the-swi-test-gamestart).
+- **The `9.x` branch's test start uses the tutorials' empty galaxy** (`basegame_map_tutorial_default_empty_galaxy_macro`, one cluster with one sector), not the full universe. Measured 2026-10-26: loading to the first test went from 1 min 32 s to 28 s, and a whole run from 2 min 50 s to about 1 min 30 s. The about 380 vanilla "Error in MD cue" lines (DLC and story setup cues looking for stations god never built) are gone too. Tests spawn everything they need in `player.sector`, so nothing depended on Argon Prime.
 - **Ships calling in stop SETA:** the player's global standing orders (Player Info > Global orders) can "ask" before responding to six signals (`attacked`, `foundabandonedship`, `foundlockbox`, `piratehalt`, `policefoundcontraband`, `policehalt`); a ship that asks opens a conversation, and SETA stops. MD can only set "ask" per ship (`set_object_signal_response ... ask="false"`); the global orders are set from Lua with `C.SetDefaultResponseToSignalForFaction2(response, ask, signal, "player", purpose)` for the purposes `""`, `"fight"` and `"auxiliary"`, as vanilla's menu does. The test extension's Lua turns "ask" off for all 18 at the start of a run, keeping each response. With that, SETA stayed on for a whole run (`player.timewarp.active`; the harness's `KeepSeta` cue logs and fixes any drop, and the report says whether SETA held).
 - **The `nosave` tag** (used by tutorials) keeps test games out of the save list.
 - **MD knows which gamestart it's in:** `player.module` is the gamestart ID (vanilla compares it with e.g. `'custom_creative'`). That's the guard for test code.
 - **`md.Setup.GameStart` also fires for the main menu's background game**, which explains the double fire noted in [spike 1](spike-1-bailing-boarding.md#extension-loading). It's another reason to check `player.module`.
+
+#### The SWI test gamestart
+
+- **The same quiet start as the SWI bounty hunter's game tests:** SWI's one-sector showcase galaxy (`sws_galaxy_macro`, sector `sws_clustercoruscant_sector001_macro`), god and jobs off, `nosave`, in SWI's "utility" group 9 so it can be started by hand from New Game. The player is the Bankrupt Bounty Hunter start's character and ship (`fortitude_macro`) with SETA. The gamestart id stays `apirateslife_test`, so the autostart, the harness's `player.module` guard and the runner need no change.
+- **It loads after SWI:** the test extension's `content.xml` depends on game version 800 and `SW Interworlds`, because SWI's `libraries/gamestarts.xml` does `<replace sel="//gamestarts">`, which wipes any gamestart added before it.
+- **SWI picks for the tests' ships:** the Galactic Empire (`galempire`, pinned neutral to the player in the gamestart) instead of the Argon; an Imperial TIE Advanced (`tie_advanced_macro`, S, shielded) as the prize instead of a Nova; an X-wing (`t65b_xwing_macro`) as the player's fighter, on the extension's lasers-only loadout `apirateslife_test_xwing_lasers`; a Gauntlet (`gauntlet_macro`, an M gunboat with crew room for marines) on SWI's `sw_gauntlet_outcast` loadout as the claimer instead of a Cerberus frigate; and an Imperial Gozanti cruiser (`impgozanti_cr_macro`, M) as the boarding target.
+- **Player ships get fixed loadouts:** under SWI, a level loadout (`<level exact="…"/>`) for the player faction gets no engines (found by the bounty hunter's tests), so a claimer would never reach its prize. NPC and ownerless ships keep level loadouts.
+- **The force-bail patch still matches:** SWI's Enhanced Bailing replaces only the `do_if` on `$target.iscapturable`, and keeps the `$testcheat` switches; the test patch's anchor (`$targetpilotskill`) sits before that block, and matches once on 8.00 + SWI.
 
 ### Time acceleration and quitting from MD
 
@@ -65,8 +74,10 @@ So 6x is the most MD can speed things up. Tests should avoid waiting for travel 
 
 | Path | What |
 | --- | --- |
-| `tests/game/apirateslife_tests/` | The test extension (ID `apirateslife_tests`, depends on `apirateslife`). Never shipped: it's outside `deploy.include` |
-| `…/libraries/gamestarts.xml` | Diff adding the `apirateslife_test` gamestart: Argon Prime, god and jobs off, a scout with SETA, `nosave` |
+| `tests/game/apirateslife_tests/` | The test extension (ID `apirateslife_tests`, depends on X4 8.00, `SW Interworlds` and `apirateslife`). Never shipped: it's outside `deploy.include` |
+| `…/libraries/gamestarts.xml` | Diff adding the `apirateslife_test` gamestart: SWI's showcase galaxy, god and jobs off, the bounty hunter's ship with SETA, `nosave` ([above](#the-swi-test-gamestart)) |
+| `…/libraries/loadouts.xml` | The lasers-only X-wing loadout for the player's fighters |
+| `…/md/apirateslife_smoketest.xml` | The smoke test (logs and notifies on load, and when a target the player's ships attacked bails); moved here from the mod's `md/` so `deploy.include` stays the only list of what ships |
 | `…/ui.xml`, `…/ui/apirateslife_tests_autostart.lua` | Starts the test gamestart 3 s into the main menu |
 | `…/md/apirateslife_tests.xml` | The harness, shared helpers (`SpawnBailPair`, `SpawnClaimPair`, `EquipmentCount`, `ForceBail`) and five tests, run one after another |
 | `…/md/notifications.xml` | Test-only patch that switches on `$testcheat` |
