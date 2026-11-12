@@ -27,7 +27,7 @@ Points a capture operation adds to its target's bail chance for the time the tar
 _Avoid_: Bail bonus, fear (the pressure left on a pilot after the operation ends)
 
 **Fear**:
-The bail pressure a pilot keeps when a capture operation on their ship is called off or they escape. It fades with time, and a new operation on that pilot starts from what's left; a capture or the ship's destruction ends it.
+The bail pressure a pilot keeps, fading with time, after a capture operation on their ship ends without a capture.
 _Avoid_: Fear as the player's reputation (the 9.x line's "fear vs. honor"), morale (SWI's pilot morale, part of the game's own chance)
 
 **Claim**:

@@ -1124,7 +1124,7 @@
         </run_actions>
         <set_value name="$Problems" exact="''"/>
         <!-- [factor, interval, time since the fear was set, points left of 40] -->
-        <set_value name="$Cases" exact="[[0.5, 300, 0s, 40], [0.5, 300, 150s, 28.284], [0.5, 300, 300s, 20], [0.5, 300, 600s, 10], [0.25, 100, 100s, 10], [0.25, 100, 50s, 20], [1, 300, 600s, 40], [0, 300, 300s, 0]]"/>
+        <set_value name="$Cases" exact="[[0.5, 300, 0s, 40], [0.5, 300, 150s, 28.284], [0.5, 300, 300s, 20], [0.5, 300, 600s, 10], [0.25, 100, 100s, 10], [0.25, 100, 50s, 20], [1, 300, 600s, 40], [2, 300, 300s, 40], [0, 300, 300s, 0]]"/>
         <do_for_each name="$Case" in="$Cases">
           <set_value name="global.$APiratesLife_CaptureFearDecayFactor" exact="$Case.{1}"/>
           <set_value name="global.$APiratesLife_CaptureFearDecayInterval" exact="$Case.{2}"/>

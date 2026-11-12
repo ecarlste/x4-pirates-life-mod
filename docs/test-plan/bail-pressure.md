@@ -123,6 +123,7 @@ Source: [`tests/game/features/bail-pressure.feature`](../../tests/game/features/
     | 100 s | 0.25   | 100      | 10    |
     | 50 s  | 0.25   | 100      | 20    |
     | 600 s | 1      | 300      | 40    |
+    | 300 s | 2      | 300      | 40    |
     | 300 s | 0      | 300      | 0     |
 ```
 
