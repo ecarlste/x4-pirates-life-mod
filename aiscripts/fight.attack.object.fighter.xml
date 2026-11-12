@@ -11,7 +11,10 @@
   <!-- Out of sight (simulated combat), 8.00 has no missile gate: get_attackstrength picks the
        missiles, then the script spends them and applies their damage. Empty what it picked, for
        this ship and for each formation follower that joins the attack, so no missile spends ammo,
-       deals damage or draws a countermeasure. -->
+       deals damage or draws a countermeasure. A follower goes by this ship's flag (this is the
+       leader's pilot), not its own: capture wingmen run their own attack, so they lead. -->
+  <!-- The added blocks name 8.00's own variables; the patch check validates only the sel, so
+       recheck the names if vanilla's script changes. -->
   <add sel="//get_attackstrength[@object='this.assignedcontrolled' and missileresult]" pos="after">
     <do_if value="@this.$APiratesLife_NoMissiles">
       <set_value name="$spentammotable" exact="table[]"/>
