@@ -2,7 +2,7 @@
 
 # Capture operations
 
-I start a capture operation on a capturable ship, alone or with my wing. My wingmen break its hull below the bail gate, then only keep its shields down, so the pilot bails instead of dying.
+I start a capture operation on a capturable ship, alone or with my wing. My wingmen break its hull below the bail gate, then only keep its shields down, so the pilot bails instead of dying. Bail pressure and the checks the operation asks for are in bail-pressure.feature.
 
 Source: [`tests/game/features/capture-operation.feature`](../../tests/game/features/capture-operation.feature) · Spec: [`docs/specs/capture-operation.md`](../specs/capture-operation.md)
 
