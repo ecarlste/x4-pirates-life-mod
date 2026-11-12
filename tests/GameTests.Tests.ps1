@@ -109,6 +109,56 @@ Describe 'Get-RunPhases' {
     }
 }
 
+Describe 'Get-LogChecks' {
+    # X4 checks each file's signature as it reads it, in load order: a file both SWI and the mod
+    # patch is read from SWI first only when the mod loads after SWI
+    BeforeAll {
+        $script:SwiFirst = @(
+            "[=ERROR=] 0.00 File I/O: Could not find signature file '.\extensions\starwarsmod_m1\libraries\colors.xml.sig' (there will be no more errors for missing signatures)"
+            "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file '.\extensions\starwarsmod_m1\libraries\icons.xml' (error: 14)"
+            "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file '.\extensions\apirateslife\libraries\icons.xml' (error: 14)"
+            "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file '.\extensions\apirateslife_tests\libraries\icons.xml' (error: 14)"
+            "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file 'extensions\starwarsmod_m1\md\conversations.xml' (error: 14)"
+            "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file 'extensions\apirateslife\md\conversations.xml' (error: 14)"
+        )
+        function Get-Check($Lines, [string] $Name) { Get-LogChecks (Read-GameTestLog $Lines) | Where-Object { $_.Name -eq $Name } }
+    }
+
+    It 'passes the load order when SWI''s copy of every shared file is read first' {
+        $check = Get-Check $script:SwiFirst 'load_order_after_swi'
+        $check.Passed | Should -BeTrue
+        $check.Detail | Should -Be 'SWI read first for all 2 files both patch'
+    }
+
+    It 'fails the load order, naming the files the mod read first' {
+        $check = Get-Check ($script:SwiFirst[0], $script:SwiFirst[2], $script:SwiFirst[1], $script:SwiFirst[4], $script:SwiFirst[5]) 'load_order_after_swi'
+        $check.Passed | Should -BeFalse
+        $check.Detail | Should -Be 'apirateslife read before SWI: libraries\icons.xml'
+    }
+
+    It 'fails the load order when no file was read from both' {
+        $check = Get-Check $script:PassingLog 'load_order_after_swi'
+        $check.Passed | Should -BeFalse
+        $check.Detail | Should -Be 'no file read from both SWI and apirateslife, so the order is unknown'
+    }
+
+    It 'passes a clean log, ignoring the unsigned-file warnings every mod gets' {
+        $check = Get-Check ($script:PassingLog + $script:SwiFirst) 'clean_log'
+        $check.Passed | Should -BeTrue
+        $check.Detail | Should -Be 'no errors or warnings from our files in debuglog.txt'
+    }
+
+    It 'fails the clean log on errors and warnings from our files' {
+        $check = Get-Check ($script:PassingLog + @(
+            "[=ERROR=] 0.00 No matching node for path '//do_if' in patch file 'extensions\apirateslife\aiscripts\fight.attack.object.fighter.xml'. Skipping node."
+            "[General] 0.00 extensions\apirateslife\md\apirateslife_bail.xml(12): Warning while parsing expression: Property lookup failed"
+            "[General] 0.00 extensions\starwarsmod_m1\md\kuertee_emergent_missions_rescue.xml(2672): Warning while parsing expression"
+        )) 'clean_log'
+        $check.Passed | Should -BeFalse
+        $check.Detail | Should -Be '2 errors or warnings from our files in debuglog.txt'
+    }
+}
+
 Describe 'Get-RunProblems' {
     It 'finds none in a passing run' {
         @(Get-RunProblems (Read-GameTestLog $script:PassingLog) 'finished').Count | Should -Be 0
@@ -129,9 +179,16 @@ Describe 'Get-RunProblems' {
         $problems | Should -Contain '1 of 2 tests reported'
     }
 
-    It 'reports errors from the mod' {
-        $log = $script:PassingLog + @('[=ERROR=] 9.00 Error in MD cue md.APiratesLife_Bail.Bailed')
-        Get-RunProblems (Read-GameTestLog $log) 'finished' | Should -Contain '1 errors from the mod in debuglog.txt'
+    It 'reports errors from the mod as the failed clean_log check' {
+        $run = Read-GameTestLog ($script:PassingLog + @('[=ERROR=] 9.00 Error in MD cue md.APiratesLife_Bail.Bailed'))
+        Add-LogChecks $run | Out-Null
+        Get-RunProblems $run 'finished' | Should -Contain '2 failed: load_order_after_swi, clean_log'
+    }
+
+    It 'counts the log checks among the results a run expects' {
+        $run = Read-GameTestLog $script:PassingLog[0..7]
+        Add-LogChecks $run | Out-Null
+        Get-RunProblems $run 'the game exited early' | Should -Contain '3 of 4 tests reported'
     }
 }
 
@@ -144,6 +201,14 @@ Describe 'ConvertTo-JUnitXml' {
         $xml.testsuite.failures | Should -Be '1'
         $case = $xml.testsuite.testcase | Where-Object { $_.name -eq 'pilot_bail_intact' }
         $case.failure.message | Should -BeLike 'hull <72%> & "worse"*'
+    }
+
+    It 'lists the mod''s log errors under the failed clean_log case, not the run' {
+        $run = Read-GameTestLog ($script:PassingLog + @('[=ERROR=] 9.00 Error in MD cue md.APiratesLife_Bail.Bailed'))
+        Add-LogChecks $run | Out-Null
+        $xml = [xml] (ConvertTo-JUnitXml $run (Get-RunProblems $run 'finished'))
+        ($xml.testsuite.testcase | Where-Object { $_.name -eq 'clean_log' }).failure.InnerText | Should -Be '[=ERROR=] 9.00 Error in MD cue md.APiratesLife_Bail.Bailed'
+        ($xml.testsuite.testcase | Where-Object { $_.name -eq 'run' }).failure | Should -BeNullOrEmpty
     }
 
     It 'fails the run case when the run has problems' {
@@ -180,7 +245,6 @@ Describe 'ConvertTo-MarkdownReport' {
         # Contains, not -BeLike: backticks are escape characters in wildcard patterns
         $md.Contains('on `feature/x` **plus uncommitted changes**,') | Should -BeTrue
         $md.Contains('| `pilot_bail_intact` | **FAIL** | hull 72% \| worse, 4 equipment kept, pilot skill 38 |') | Should -BeTrue
-        $md | Should -BeLike '*- 1 errors from the mod in debuglog.txt*'
         $md | Should -BeLike '*Error in MD cue md.APiratesLife_Bail.Bailed*'
     }
 
