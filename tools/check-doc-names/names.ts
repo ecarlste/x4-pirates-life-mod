@@ -7,16 +7,14 @@ import { isCheckedDoc, TICKED } from "../check-doc-paths/paths.ts";
 export interface Known {
   // The mod globals the scripts in md/ and aiscripts/ mention, with their $
   globals: Set<string>;
-  // The game tests the harness and runner report now
-  tests: Set<string>;
-  // The game tests they reported at some commit but don't now
+  // The game tests the harness and runner reported at some commit but don't now
   retired: Set<string>;
 }
 
 export interface Stale {
   line: number;
   name: string;
-  why: string;
+  why: "isn't a mod global" | "is a retired game test";
 }
 
 // --- The rules ---
@@ -25,14 +23,16 @@ export interface Stale {
 // line's design and plan, which name what was or will be; and the tools' code and docs, but their
 // tests and fixtures, which make up names on purpose
 const NOT_CHECKED_DOCS = /^docs\/(research|rejected)\/|^docs\/(DESIGN|IMPLEMENTATION_PLAN)\.md$/;
-const TOOL_FILE = /^tools\/.*\.(md|ts|py|ps1|sh)$/;
 const NOT_CHECKED_TOOLS = /\.test\.ts$|\/fixtures\//;
 export const isCheckedFile = (path: string) =>
-  (isCheckedDoc(path) && !NOT_CHECKED_DOCS.test(path)) || (TOOL_FILE.test(path) && !NOT_CHECKED_TOOLS.test(path));
+  (isCheckedDoc(path) && !NOT_CHECKED_DOCS.test(path)) || (path.startsWith("tools/") && !NOT_CHECKED_TOOLS.test(path));
 
 // A line that records history names what is gone on purpose: it says "9.x line", or links the issue
 // that removed the name (#117, …/issues/117), or is a ticked checklist item (past work)
-const HISTORY = [/9\.x line/i, /#\d+|\/issues\/\d+/, TICKED];
+const HISTORY = [/9\.x line/i, /(^|[\s([])#\d+\b|\/issues\/\d+/, TICKED];
+
+// Names agreed in a spec but not in the mod yet, outside the 9.x line's docs (none yet)
+const PLANNED: string[] = [];
 
 const GLOBAL = /\$APiratesLife_\w+/g;
 // A game test is named backticked (`claim_intact`, `@claim_intact`) or as a scenario tag
@@ -52,12 +52,12 @@ export const gameTestNames = (text: string) =>
 
 function lineStale(line: string, known: Known): Omit<Stale, "line">[] {
   const globals = modGlobals(line)
-    .filter((name) => !known.globals.has(name))
-    .map((name) => ({ name, why: "isn't a mod global" }));
+    .filter((name) => !known.globals.has(name) && !PLANNED.includes(name))
+    .map((name) => ({ name, why: "isn't a mod global" as const }));
   const tests = [...line.matchAll(TEST_NAME)]
-    .map(([, ticked, tagged]) => ticked ?? tagged)
-    .filter((name) => known.retired.has(name) && !known.tests.has(name))
-    .map((name) => ({ name, why: "is a retired game test" }));
+    .map(([, backticked, tagged]) => backticked ?? tagged)
+    .filter((name) => known.retired.has(name))
+    .map((name) => ({ name, why: "is a retired game test" as const }));
   return [...globals, ...tests];
 }
 

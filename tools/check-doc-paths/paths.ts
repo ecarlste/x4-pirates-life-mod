@@ -19,7 +19,8 @@ export interface Repo {
 
 // --- The rules ---
 
-// The docs checked: docs/**/*.md but the generated test plan, and the top-level docs
+// The docs checked: docs/**/*.md but the generated test plan, and the top-level docs (the doc-names
+// check, tools/check-doc-names/names.ts, starts from these too)
 const TOP_LEVEL_DOCS = ["README.md", "tools/README.md", "GLOSSARY.md", "CLAUDE.md"];
 export const isCheckedDoc = (path: string) =>
   (/^docs\/.*\.md$/.test(path) && !path.startsWith("docs/test-plan/")) || TOP_LEVEL_DOCS.includes(path);
@@ -45,7 +46,7 @@ const GAME_FOLDERS = /^(md|aiscripts|libraries|ui|index|t|voice|assets|maps|exte
 const PLANNED = ["INTEGRATION.md", "dist/"];
 
 // A ticked checklist item records past work, so the files its backticks name may be gone (its links
-// are still checked)
+// are still checked); the doc-names check skips these lines too
 export const TICKED = /^\s*[-*] \[x\]/i;
 
 // A slashed name with no extension or trailing slash, outside the repo's folders, is a ref

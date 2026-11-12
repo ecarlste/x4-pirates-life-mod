@@ -5,7 +5,6 @@ import { isCheckedFile, staleNames, type Known } from "./names.ts";
 // The mod's globals and game tests, as the CLI reads them from the scripts and the harness's history
 const known = (over: Partial<Known> = {}): Known => ({
   globals: new Set(["$APiratesLife_CaptureOps"]),
-  tests: new Set(["claim_intact"]),
   retired: new Set(["old_bail_test"]),
   ...over,
 });
@@ -38,10 +37,12 @@ test("a line marked as history is skipped: 9.x line, an issue link, or a ticked 
     "Dropped `$APiratesLife_Gone` (see https://github.com/o/r/issues/117).",
     "- [x] Test `old_bail_test` in game",
     "- [ ] Test `old_bail_test` in game",
+    "See [the scenarios](plan.md#2) for `old_bail_test`.",
   ].join("\n");
 
   assert.deepEqual(staleNames(text, known()), [
     { line: 5, name: "old_bail_test", why: "is a retired game test" },
+    { line: 6, name: "old_bail_test", why: "is a retired game test" },
   ]);
 });
 

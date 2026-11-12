@@ -41,7 +41,6 @@ const everReported = [HARNESS, RUNNER].flatMap((path) =>
 );
 const known: Known = {
   globals: new Set(files.filter((file) => /^(md|aiscripts)\//.test(file)).flatMap((file) => modGlobals(read(file)))),
-  tests,
   retired: new Set(everReported.filter((name) => !tests.has(name))),
 };
 
