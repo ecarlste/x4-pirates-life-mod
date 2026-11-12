@@ -2,7 +2,7 @@
 
 # Test plan
 
-What the mod should do, feature by feature, and how each scenario is verified. Prefer the lowest level that can prove a scenario: unit tests, then game tests, then by hand. **By hand** (manual plus pending) is the number to drive to zero; see [`docs/PROJECT.md`](../PROJECT.md#workflow), "Test plan".
+What the mod should do, feature by feature, and how each scenario is verified. Prefer the lowest level that can prove a scenario: unit tests, then game tests, then by hand. **By hand** (manual plus pending) is the number to drive to zero; see [`docs/testing.md`](../testing.md#test-plan).
 
 | Feature | Scenarios | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- | --- | --- |

@@ -66,7 +66,9 @@ The log is written to your X4 profile folder, `<Documents>\Egosoft\X4\<Steam acc
 
 ## Docs
 
-- [`docs/PROJECT.md`](docs/PROJECT.md): **read first.** Key decisions, workflow rules, and which docs to update when.
+- [`docs/PROJECT.md`](docs/PROJECT.md): **read first.** Key decisions, workflow rules, and where to look for the rest.
+- [`docs/testing.md`](docs/testing.md): running, adding and wiring up tests, and the test plan.
+- [`docs/environment.md`](docs/environment.md): setup, deploying, and where X4 and its files live.
 - [`docs/DESIGN.md`](docs/DESIGN.md): the high-level design.
 - [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md): every agreed piece of work, with checkboxes.
 - [`docs/specs/`](docs/specs/): one spec per feature, written before it's built.

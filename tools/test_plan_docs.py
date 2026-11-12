@@ -5,7 +5,7 @@ tests/game/features/, plus docs/test-plan/README.md, an index with the coverage 
 The feature files stay the source; these pages are generated from them (and from which tests
 exist) so the plan can be read on GitHub at any commit. Each scenario is labelled with how it's
 verified: by unit tests, by game tests, by hand (@manual), or by hand until its planned test
-exists (@pending). Manual plus pending is the number to drive to zero (docs/PROJECT.md, "Test
+exists (@pending). Manual plus pending is the number to drive to zero (docs/testing.md, "Test
 plan").
 
 It also writes the release checklist: every scenario still checked by hand (@manual and
@@ -107,7 +107,7 @@ def index_page(rows, total):
         "",
         "What the mod should do, feature by feature, and how each scenario is verified. Prefer the lowest "
         "level that can prove a scenario: unit tests, then game tests, then by hand. **By hand** (manual plus "
-        "pending) is the number to drive to zero; see [`docs/PROJECT.md`](../PROJECT.md#workflow), \"Test plan\".",
+        "pending) is the number to drive to zero; see [`docs/testing.md`](../testing.md#test-plan).",
         "",
         "| Feature | Scenarios | Unit tests | Game tests | Manual | Pending | By hand |",
         "| --- | --- | --- | --- | --- | --- | --- |",
