@@ -48,6 +48,14 @@ Feature: Bail pressure
     Then it gets a bail check every 5 s, with my ship as the attacker
     And each check goes through the game's own bail path
 
+  @bail_pressure_tick_keeps_cooldown
+  Scenario: Hits and the pressure tick together roll no more often than every 5 s
+    Given a crewed target inside the bail gates, hit every second by one of my ships
+    And SWI's 5 s cooldown is running from a check 2.5 s ago
+    When I start a capture operation on it
+    Then the pressure tick waits for the cooldown instead of clearing it
+    And the target's checks stay about 5 s apart
+
   @bail_pressure_through_partial_bail
   Scenario: Pressure keeps building through a partial crew bail
     Given a capture operation on a crewed ship inside the bail gates

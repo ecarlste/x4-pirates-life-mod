@@ -215,15 +215,21 @@
                    the target is inside the gates, ask for a bail check every
                    CapturePressureInterval, so checks don't wait for hits (a wing holding the
                    shields down barely hits). It goes through the game's own bail path, as an
-                   attacked ship's AI asks for one (aiscripts/interrupt.attacked.xml); expiring the
-                   pilot's cooldown first lets the game evaluate it. -->
-              <do_if value="$InGates and player.occupiedship == $Leader and $Leader.sector == $Target.sector and $Leader.distanceto.{$Target} lt 10km and (not $NextPressureTick? or player.age ge $NextPressureTick)">
+                   attacked ship's AI asks for one (aiscripts/interrupt.attacked.xml).
+                   The pilot's cooldown ($nextcapturechance): a cooldown longer than the interval
+                   (vanilla's 30 s) is cut short, so the game evaluates the check; a shorter one
+                   (SWI's 5 s after a recent check) is left alone, and the tick waits for it, so
+                   hits and ticks together never roll more often than once per interval. -->
+              <do_if value="$InGates and @$Target.pilot.exists and player.occupiedship == $Leader and $Leader.sector == $Target.sector and $Leader.distanceto.{$Target} lt 10km and (not $NextPressureTick? or player.age ge $NextPressureTick)">
                 <set_value name="$Interval" exact="(if global.$APiratesLife_CapturePressureInterval? then global.$APiratesLife_CapturePressureInterval else 5) * 1s"/>
-                <set_value name="$NextPressureTick" exact="player.age + $Interval"/>
-                <do_if value="@$Target.pilot.exists">
-                  <set_value name="$Target.pilot.$nextcapturechance" exact="player.age - 1s"/>
+                <set_value name="$Cooldown" exact="if $Target.pilot.$nextcapturechance? then $Target.pilot.$nextcapturechance - player.age else 0s"/>
+                <do_if value="$Cooldown le 0s or $Cooldown gt $Interval">
+                  <set_value name="$NextPressureTick" exact="player.age + $Interval"/>
+                  <do_if value="$Cooldown gt 0s">
+                    <set_value name="$Target.pilot.$nextcapturechance" exact="player.age - 1s"/>
+                  </do_if>
+                  <signal_objects object="player.galaxy" param="$Leader" param2="$Target" param3="'shouldwebail'"/>
                 </do_if>
-                <signal_objects object="player.galaxy" param="$Leader" param2="$Target" param3="'shouldwebail'"/>
               </do_if>
 
               <!-- The readout: what the next bail check still needs. Only updated on change. -->

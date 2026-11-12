@@ -8,7 +8,7 @@ Source: [`tests/game/features/bail-pressure.feature`](../../tests/game/features/
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 5 | 0 | 1 | **1** |
+| 0 | 6 | 0 | 1 | **1** |
 
 ## Scenarios
 
@@ -68,6 +68,18 @@ Source: [`tests/game/features/bail-pressure.feature`](../../tests/game/features/
   And nobody fires at it
   Then it gets a bail check every 5 s, with my ship as the attacker
   And each check goes through the game's own bail path
+```
+
+### Hits and the pressure tick together roll no more often than every 5 s
+
+**Automated:** in game `bail_pressure_tick_keeps_cooldown`
+
+```gherkin
+  Given a crewed target inside the bail gates, hit every second by one of my ships
+  And SWI's 5 s cooldown is running from a check 2.5 s ago
+  When I start a capture operation on it
+  Then the pressure tick waits for the cooldown instead of clearing it
+  And the target's checks stay about 5 s apart
 ```
 
 ### Pressure keeps building through a partial crew bail

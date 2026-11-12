@@ -25,10 +25,11 @@
     </do_if>
   </add>
 
-  <!-- While a test sets global.$APiratesLifeTest_BailCrew, a bail takes that many crew: a partial
-       bail when the ship has more. SWI's Enhanced Bailing block only (its pilot-bail check). -->
+  <!-- While a test sets global.$APiratesLifeTest_BailCrew, a bail takes that many crew (0 too): a
+       partial bail when the ship has more. SWI's Enhanced Bailing block only (its pilot-bail
+       check). -->
   <add sel="//cue[@name='PlayerOwnedShipAttacks']//do_if[@value='($numcrewbailing ge $target.people.count) and not $target.isplayerowned']" pos="before">
-    <do_if value="@global.$APiratesLifeTest_BailCrew">
+    <do_if value="global.$APiratesLifeTest_BailCrew?">
       <set_value name="$numcrewbailing" exact="global.$APiratesLifeTest_BailCrew"/>
     </do_if>
   </add>
