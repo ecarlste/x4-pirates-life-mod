@@ -2,7 +2,7 @@
 """Checks the test plan (tests/game/features/*.feature) against the game tests and unit tests.
 
 The feature files describe, in Gherkin (Given/When/Then), what the mod should do. Every scenario
-carries tags saying how it's verified (docs/PROJECT.md, "Test plan"):
+carries tags saying how it's verified (docs/testing.md, "Test plan"):
   - the tests that cover it: game tests by the name they report (e.g. @pilot_bail_intact), unit
     tests by their test function's name (e.g. @test_refuses_default_in_any_case); or
   - @pending: no test yet, one is planned; checked by hand until then; or

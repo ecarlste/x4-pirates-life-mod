@@ -69,7 +69,7 @@ def main():
         print("\n".join(f"  {problem}" for problem in problems))
         return 0
     print("\n".join(problems))
-    print("Update the scenarios in tests/game/features/ (see docs/PROJECT.md, Workflow), or say "
+    print("Update the scenarios in tests/game/features/ (see docs/testing.md, Test plan), or say "
           "'Test plan: no change' in the PR description if the behaviour didn't change.")
     return 1
 

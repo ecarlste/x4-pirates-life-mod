@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # Tests for the repo's git hooks (.githooks/, turned on by make setup). The pre-commit hook keeps
-# commits off main: every change goes through a feature branch and a PR (docs/PROJECT.md, Workflow).
+# commits off main: every change goes through a feature branch and a PR (docs/PROJECT.md, Workflow rules).
 
 load helpers
 
