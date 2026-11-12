@@ -14,6 +14,7 @@ In a capture operation the target's pilot gets likelier to bail the longer it is
 
 ## Design
 
+- **The gates** are the game's own: shields under 20% or none, hull under 75%, not docked.
 - **Time in the gates, not checks.** The operation's state keeps `$gatestime` (time inside the gates so far) and `$gatessince` (when the current stretch began, or null while outside). The operation's 1 s tick updates them; the start sets `$gatessince` if the target is already inside. Pressure is `time / 10 s × CapturePressureStep`. It pauses outside the gates rather than resetting, and nothing resets it on a partial bail.
 - **The hook applies it** (`AdjustEjectChance`): `max(chance, min(chance + pressure, CapturePressureCap))`, only for targets with an operation. A fresh operation has no time yet, so its first check is plain.
 - **The pressure tick**, in the operation's tick: every `CapturePressureInterval` while `player.occupiedship` is the leader, in the target's sector within 10 km, and the target is inside the gates, it sets the pilot's `$nextcapturechance` to just past and signals `'shouldwebail'` with the leader as attacker. The game then runs its own check, with its own gates, chance and crew batches, through our hook. On vanilla this makes checks every 5 s instead of every 30 s.

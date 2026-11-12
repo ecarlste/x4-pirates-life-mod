@@ -32,14 +32,14 @@
       </actions>
     </library>
 
-    <!-- Whether Target is inside the bail gates: shields under 20% (or none) and hull under 75%,
-         the game's own conditions for a bail check -->
+    <!-- Whether Target is inside the bail gates: shields under 20% (or none), hull under 75% and
+         not docked, the game's own conditions for a bail check of a non-capital ship -->
     <library name="InGates" purpose="run_actions">
       <params>
         <param name="Target"/>
       </params>
       <actions>
-        <return value="(not $Target.maxshield or $Target.shieldpercentage lt 20) and $Target.hullpercentage lt 75"/>
+        <return value="(not $Target.maxshield or $Target.shieldpercentage lt 20) and $Target.hullpercentage lt 75 and not $Target.assigneddock"/>
       </actions>
     </library>
 
@@ -58,8 +58,8 @@
         <do_if value="$Op.$gatessince != null">
           <set_value name="$Time" exact="$Time + (player.age - $Op.$gatessince)"/>
         </do_if>
-        <set_value name="$Step" exact="if global.$APiratesLife_CapturePressureStep? then global.$APiratesLife_CapturePressureStep else 8"/>
-        <return value="$Time / 10s * $Step"/>
+        <set_value name="$PressureStep" exact="if global.$APiratesLife_CapturePressureStep? then global.$APiratesLife_CapturePressureStep else 8"/>
+        <return value="$Time / 10s * $PressureStep"/>
       </actions>
     </library>
 
