@@ -26,7 +26,7 @@ The player picks a capturable ship (not a capital ship) and starts a **capture o
 
 - **Eligible targets:** an operational ship with a pilot, `iscapturable`, not a capital ship, not player-owned, not already in an operation. A generic check, with no class or faction IDs (profile pillar).
 - **Who takes part:** the leader is `player.occupiedship`, plus its subordinate ships that are in the same sector, operational and undocked. Their other orders are cancelled, as vanilla's squad commands do, so a queued Attack can't kill the prize later. Each wingman gets our internal order, `immediate`; when the order ends, the wingman's default behavior (formation) resumes. A wingman added later doesn't join. That's acceptable for v1, since the player can start a new op.
-- **The target turns hostile to the player,** like vanilla's "Mark as hostile" (-1 boost, decay 1, 600 s). Starting a capture is the act of piracy, and player-owned ships won't fire on a ship they aren't hostile to: vanilla's own Attack order stands down on a "friendly target". Faction reputation is left to vanilla's cost for the damage done.
+- **The target turns hostile to the player,** like vanilla's "Mark as hostile" (-1 boost, decay 1, 600 s, reason `relationchangereason.markedashostile`), so it reads the same in logs and to anything that reads boost reasons. 8.00's `common.xsd` doesn't list that reason, but the game accepts it. Vanilla's police and relation chain then applies unchanged. Starting a capture is the act of piracy, and player-owned ships won't fire on a ship they aren't hostile to: vanilla's own Attack order stands down on a "friendly target". Faction reputation is left to vanilla's cost for the damage done.
   - **Ordering matters:** with wingmen, each capture order applies the boost once it runs. Applied first, the wingmen's escort behavior saw a new enemy and queued vanilla's Attack (missiles and all) ahead of ours.
   - If the op is called off or the target escapes, the boost is reset so the player's escorts don't hunt it down.
 - **Operation state:** `global.$APiratesLife_CaptureOps.{$Target} = table[$leader, $members, $op, $lastchance]`, which the bail hook and the order read. A global table, because X4 can't store script variables on a ship (only on NPCs; found by the first game-test run), and AI scripts can read globals.
@@ -109,13 +109,16 @@ Scenarios: [`tests/game/features/capture-operation.feature`](../../tests/game/fe
   - `capture_abandoned`: a forced pilot bail ends the op as abandoned, clears the target's state, and an ownerless ship can't start a new op.
   - `capture_escaped`: a target warped 25 km away from an engaged operation ends it as escaped after 30 s.
   - `capture_escape_waits_for_engagement`: an operation started 20 km away is still running 40 s later.
+  - `capture_marked_as_hostile`: the boost from an operation without wingmen, and from a wingman's order, carries the same reason as vanilla's "Mark as hostile", made by the test extension's Lua with the call vanilla's menu makes.
+  - `capture_comm_choice`: in an SWI game, opening vanilla's default comm with a capturable fighter's pilot and picking the choice through the engine functions the dialog menu uses starts an operation.
+  - `capture_abort_calls_wing_off`: in an SWI game, aborting the mission with the engine call the mission menus make ends the op as called off, and the wingman drops the capture order for its default one.
+  - Neither clicks a menu, so a manual scenario covers SWI's own comm and mission menus.
   - `capture_wing_holds_fire`: a real wingman (a fixed pulse-laser loadout from the test extension) breaks a capturable fighter (80% hull, shields held down until then) to under 75% and keeps it there for 30 s, with the hull never more than 20 points under the gate (nor below the floor), and the wingman never still (under 10 m/s) for 5 s in a row. The target is made uncapturable after the start, so no bail ends the fight.
   - `no_missiles_in_sight` and `no_missiles_out_of_sight`: a flagged torpedo X-wing and an unflagged one each attack a TIE Advanced held at 50% hull, 1-6 km from the player and 150 km away. Within 60 s the unflagged wingman fires a missile, as vanilla does, and the flagged one fires none.
 - **In game:**
   - With 3 S ships, a comm choice on a neutral or SCA fighter starts the op.
   - The wing doesn't kill it, the HUD walks through shields, hull, then bail checks, and the pilot bails.
   - The log shows wing checks with the higher chance.
-  - Aborting the mission calls the wing off.
 
 ## Open questions
 

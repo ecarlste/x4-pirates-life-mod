@@ -73,18 +73,32 @@ Feature: Capture operations
     Then the pilot bails within a few minutes
     And the operation ends as "abandoned" with the hull above the floor
 
-  @pending
+  @capture_comm_choice
   Scenario: The comm choice starts an operation
     Given I'm flying a ship and hail the pilot of a capturable fighter
     When I choose "Heave to. We're taking your ship."
     Then a capture operation starts on that fighter
 
-  @pending
+  @capture_abort_calls_wing_off
   Scenario: Aborting the mission calls the wing off
     Given a capture operation with my wingman attacking
     When I abort the capture mission
     Then the operation ends as "called off"
     And the wingman stops attacking and returns to formation
+
+  @manual
+  Scenario: The comm choice and the mission's Abort work in SWI's menus
+    Given I'm playing on SWI, flying a ship with a wingman
+    When I hail a capturable fighter and click "Heave to. We're taking your ship."
+    Then a capture operation starts and its mission shows
+    When I click Abort on that mission in SWI's mission menu
+    Then the operation ends as "called off" and the wingman returns to formation
+
+  @capture_marked_as_hostile
+  Scenario: The target turns hostile as with vanilla's "Mark as hostile"
+    Given a capturable fighter
+    When I start a capture operation on it, alone or with my wing
+    Then it turns hostile to me with the same reason as vanilla's "Mark as hostile"
 
   @capture_escaped
   Scenario: The target escapes

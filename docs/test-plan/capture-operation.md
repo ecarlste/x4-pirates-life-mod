@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 10 | 0 | 4 | **4** |
+| 0 | 13 | 1 | 2 | **3** |
 
 ## Scenarios
 
@@ -124,7 +124,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 ### The comm choice starts an operation
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+**Automated:** in game `capture_comm_choice`
 
 ```gherkin
   Given I'm flying a ship and hail the pilot of a capturable fighter
@@ -134,13 +134,35 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 ### Aborting the mission calls the wing off
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+**Automated:** in game `capture_abort_calls_wing_off`
 
 ```gherkin
   Given a capture operation with my wingman attacking
   When I abort the capture mission
   Then the operation ends as "called off"
   And the wingman stops attacking and returns to formation
+```
+
+### The comm choice and the mission's Abort work in SWI's menus
+
+- [ ] **Manual:** checked by hand for now
+
+```gherkin
+  Given I'm playing on SWI, flying a ship with a wingman
+  When I hail a capturable fighter and click "Heave to. We're taking your ship."
+  Then a capture operation starts and its mission shows
+  When I click Abort on that mission in SWI's mission menu
+  Then the operation ends as "called off" and the wingman returns to formation
+```
+
+### The target turns hostile as with vanilla's "Mark as hostile"
+
+**Automated:** in game `capture_marked_as_hostile`
+
+```gherkin
+  Given a capturable fighter
+  When I start a capture operation on it, alone or with my wing
+  Then it turns hostile to me with the same reason as vanilla's "Mark as hostile"
 ```
 
 ### The target escapes
