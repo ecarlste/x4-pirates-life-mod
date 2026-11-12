@@ -23,11 +23,11 @@ const files = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--
   .split("\0")
   .filter(Boolean);
 
-const bad = uppercasePaths(readFileSync(join(root, "deploy.include"), "utf8"), files);
-if (bad.length === 0) {
+const uppercase = uppercasePaths(readFileSync(join(root, "deploy.include"), "utf8"), files);
+if (uppercase.length === 0) {
   console.log("Lowercase paths: ok");
 } else {
-  console.log(`Lowercase paths: ${bad.length} shipped with uppercase letters (X4 expects lowercase)`);
-  for (const path of bad) console.log(`  ${path}`);
+  console.log(`Lowercase paths: ${uppercase.length} shipped with uppercase letters (X4 expects lowercase)`);
+  for (const path of uppercase) console.log(`  ${path}`);
   process.exitCode = 1;
 }
