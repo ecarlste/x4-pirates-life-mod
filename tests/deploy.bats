@@ -258,6 +258,50 @@ config_deploy() {
     [ -f "$TARGET/content.xml" ]
 }
 
+# A linked worktree of $REPO, where parallel sessions work
+add_worktree() {
+    WORKTREE="$REPO/.claude/worktrees/wt"
+    git -C "$REPO" worktree add -q --detach "$WORKTREE"
+}
+
+@test "a worktree without deploy.config deploys with the main checkout's" {
+    unset X4_PATH
+    echo "X4_PATH=\"$SANDBOX/x4\"" > "$REPO/deploy.config"
+    add_worktree
+    run "$WORKTREE/deploy.sh" --working-tree
+    [ "$status" -eq 0 ]
+    [ -f "$TARGET/content.xml" ]
+}
+
+@test "a worktree's own deploy.config wins over the main checkout's" {
+    unset X4_PATH
+    echo 'X4_PATH=/does/not/exist' > "$REPO/deploy.config"
+    add_worktree
+    echo "X4_PATH=\"$SANDBOX/x4\"" > "$WORKTREE/deploy.config"
+    run "$WORKTREE/deploy.sh" --working-tree
+    [ "$status" -eq 0 ]
+    [ -f "$TARGET/content.xml" ]
+}
+
+@test "X4_PATH in the environment wins over a worktree's and the main checkout's deploy.config" {
+    echo 'X4_PATH=/does/not/exist' > "$REPO/deploy.config"
+    add_worktree
+    echo 'X4_PATH=/does/not/exist/either' > "$WORKTREE/deploy.config"
+    run "$WORKTREE/deploy.sh" --working-tree
+    [ "$status" -eq 0 ]
+    [ -f "$TARGET/content.xml" ]
+}
+
+@test "an empty X4_PATH in a worktree's deploy.config falls through to the main checkout's" {
+    unset X4_PATH
+    echo "X4_PATH=\"$SANDBOX/x4\"" > "$REPO/deploy.config"
+    add_worktree
+    echo 'X4_PATH=' > "$WORKTREE/deploy.config"
+    run "$WORKTREE/deploy.sh" --working-tree
+    [ "$status" -eq 0 ]
+    [ -f "$TARGET/content.xml" ]
+}
+
 @test "missing X4 folder fails" {
     run env X4_PATH="$SANDBOX/nope" "$REPO/deploy.sh" --working-tree
     [ "$status" -eq 1 ]

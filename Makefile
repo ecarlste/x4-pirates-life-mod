@@ -11,7 +11,7 @@ help:
 	@echo "X4 Foundations - A Pirate's Life Mod"
 	@echo ""
 	@echo "Available commands:"
-	@echo "  make setup          - Create deploy.config from example, turn on the git hooks, npm install the TypeScript tools"
+	@echo "  make setup          - Create deploy.config from example (main checkout only), turn on the git hooks, npm install the TypeScript tools"
 	@echo "  make deploy         - Sync the latest origin/main into the X4 extensions folder"
 	@echo "  make deploy-local   - Sync your working tree instead (uncommitted changes included)"
 	@echo "  make deploy-dry-run - Show what 'make deploy' would change"
@@ -36,9 +36,13 @@ setup:
 	else \
 		echo "npm not found: install Node.js 22.18 or later for the TypeScript tools (make test runs them)"; \
 	fi
-	@if [ -f deploy.config ]; then \
+	@main=$$(bash -c '. tools/deploy-config.sh && deploy_config_main "$$PWD"'); \
+	if [ -f deploy.config ]; then \
 		echo "deploy.config already exists"; \
 		echo "Edit it to update your X4 installation path"; \
+	elif [ -n "$$main" ] && [ -f "$$main/deploy.config" ]; then \
+		echo "Using the main checkout's deploy.config: $$main/deploy.config"; \
+		echo "A deploy.config here would override it, setting by setting"; \
 	else \
 		cp deploy.config.example deploy.config; \
 		echo "Created deploy.config"; \
@@ -69,6 +73,10 @@ doc-names:
 # One game lock (tools/game-lock.sh) around both, so no other run deploys between them
 game-test:
 	@tools/game-lock.sh --what game-test -- $(MAKE) --no-print-directory game-test-locked
+
+# The X4 settings in the environment reach the Windows runner: WSL passes Windows programs only the
+# variables WSLENV names
+game-test-locked: export WSLENV := $(if $(WSLENV),$(WSLENV):)X4_PATH:X4_EXE:X4_PROFILE_ID:X4_PROFILE_ROOT
 
 # make game-test's steps, run while it holds the game lock: the runner's setup checks first, so a
 # bad setup stops before the deploy changes the game folder

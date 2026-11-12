@@ -116,6 +116,47 @@ Describe 'deploy.ps1' {
             "$($s.Target)/content.xml" | Should -Exist
         }
 
+        It "reads the main checkout's deploy.config from a worktree without one" {
+            Write-LfFile "$($s.Repo)/deploy.config" "X4_PATH=`"$($s.X4)`"`n"
+            $worktree = Join-Path $s.Repo '.claude/worktrees/wt'
+            Invoke-TestGit -C $s.Repo worktree add -q --detach $worktree
+
+            $r = Invoke-Script (Join-Path $worktree 'deploy.ps1') @('-WorkingTree')
+            $r.ExitCode | Should -Be 0 -Because $r.Output
+            "$($s.Target)/content.xml" | Should -Exist
+        }
+
+        It "lets a worktree's own deploy.config win over the main checkout's" {
+            Write-LfFile "$($s.Repo)/deploy.config" 'X4_PATH=/does/not/exist'
+            $worktree = Join-Path $s.Repo '.claude/worktrees/wt'
+            Invoke-TestGit -C $s.Repo worktree add -q --detach $worktree
+            Write-LfFile "$worktree/deploy.config" "X4_PATH=`"$($s.X4)`"`n"
+
+            (Invoke-Script (Join-Path $worktree 'deploy.ps1') @('-WorkingTree')).ExitCode | Should -Be 0
+            "$($s.Target)/content.xml" | Should -Exist
+        }
+
+        It "lets X4_PATH in the environment win over a worktree's and the main checkout's deploy.config" {
+            Write-LfFile "$($s.Repo)/deploy.config" 'X4_PATH=/does/not/exist'
+            $worktree = Join-Path $s.Repo '.claude/worktrees/wt'
+            Invoke-TestGit -C $s.Repo worktree add -q --detach $worktree
+            Write-LfFile "$worktree/deploy.config" 'X4_PATH=/does/not/exist/either'
+            $env:X4_PATH = $s.X4
+
+            (Invoke-Script (Join-Path $worktree 'deploy.ps1') @('-WorkingTree')).ExitCode | Should -Be 0
+            "$($s.Target)/content.xml" | Should -Exist
+        }
+
+        It "lets an empty X4_PATH in a worktree's deploy.config fall through to the main checkout's" {
+            Write-LfFile "$($s.Repo)/deploy.config" "X4_PATH=`"$($s.X4)`"`n"
+            $worktree = Join-Path $s.Repo '.claude/worktrees/wt'
+            Invoke-TestGit -C $s.Repo worktree add -q --detach $worktree
+            Write-LfFile "$worktree/deploy.config" 'X4_PATH='
+
+            (Invoke-Script (Join-Path $worktree 'deploy.ps1') @('-WorkingTree')).ExitCode | Should -Be 0
+            "$($s.Target)/content.xml" | Should -Exist
+        }
+
         It 'fails when the X4 folder does not exist' {
             $env:X4_PATH = Join-Path $s.Root 'nope'
             $r = Invoke-Deploy $s @('-WorkingTree')

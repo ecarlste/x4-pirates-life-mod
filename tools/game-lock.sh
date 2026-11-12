@@ -6,7 +6,7 @@
 # Sourced by deploy.sh for its functions:
 #   game_lock_acquire FILE WHAT   take the lock, waiting for another holder; returns 1 if it can't
 #   game_lock_release             let it go (only if this script took it)
-#   x4_path_resolve ROOT          set X4_PATH from the environment or ROOT/deploy.config
+#   x4_path_resolve ROOT          set X4_PATH from the environment, else deploy.config (tools/deploy-config.sh)
 #
 # Run, it holds the lock around a command, e.g. make game-test's deploy and run:
 #   tools/game-lock.sh [--what NAME] -- command [args...]
@@ -19,17 +19,19 @@
 #                                 both repos, since a holder beats every STALE/6 s)
 #              X4_GAME_LOCK_POLL  seconds between checks while waiting (default 5)
 
+# shellcheck source=tools/deploy-config.sh
+. "$(dirname "${BASH_SOURCE[0]}")/deploy-config.sh"
+
 GAME_LOCK_FILE=''
 GAME_LOCK_HEARTBEAT_PID=''
 
-# Sets X4_PATH (a WSL path if it was a Windows one) from the environment, else ROOT/deploy.config
+# Sets X4_PATH (a WSL path if it was a Windows one) from the environment, else deploy.config: the
+# checkout's own, else the main checkout's (tools/deploy-config.sh)
 x4_path_resolve() {
     local root=$1
     if [ -z "${X4_PATH:-}" ]; then
-        [ -f "$root/deploy.config" ] || { echo "deploy.config not found. Run 'make setup' first to create it from deploy.config.example" >&2; return 1; }
-        X4_PATH=$(sed -n 's/^[[:space:]]*X4_PATH[[:space:]]*=[[:space:]]*//p' "$root/deploy.config" | tail -n 1 | sed 's/[[:space:]]*$//')
-        X4_PATH=${X4_PATH#\"}; X4_PATH=${X4_PATH%\"}
-        X4_PATH=${X4_PATH#\'}; X4_PATH=${X4_PATH%\'}
+        [ -n "$(deploy_config_files "$root")" ] || { echo "deploy.config not found. Run 'make setup' first to create it from deploy.config.example" >&2; return 1; }
+        X4_PATH=$(deploy_config_value "$root" X4_PATH)
     fi
     [ -n "$X4_PATH" ] || { echo "X4_PATH not set in deploy.config" >&2; return 1; }
     if [[ "$X4_PATH" =~ ^[A-Za-z]:[\\/] ]]; then

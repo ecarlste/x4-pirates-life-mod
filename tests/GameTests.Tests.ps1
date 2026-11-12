@@ -345,6 +345,54 @@ Describe 'Resolve-Setting' {
     }
 }
 
+Describe 'Resolve-Setting in a worktree' {
+    BeforeEach {
+        # A main checkout and a linked worktree, laid out as git worktree add makes them
+        $main = New-TestDir
+        $gitdir = Join-Path $main '.git/worktrees/wt'
+        Write-LfFile (Join-Path $gitdir 'commondir') "../..`n"
+        $worktree = Join-Path $main '.claude/worktrees/wt'
+        Write-LfFile (Join-Path $worktree '.git') "gitdir: $gitdir`n"
+        Write-LfFile (Join-Path $main 'deploy.config') "X4_PATH=`"E:\X4 - 8.00`"`nX4_PROFILE_ID=90000301`n"
+    }
+    AfterEach {
+        Remove-Item $main -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item env:X4_PROFILE_ID -ErrorAction SilentlyContinue
+    }
+
+    It "reads the main checkout's deploy.config when the worktree has none" {
+        Resolve-Setting $worktree 'X4_PATH' '' | Should -Be 'E:\X4 - 8.00'
+    }
+
+    It "lets the worktree's own deploy.config win, setting by setting" {
+        Write-LfFile (Join-Path $worktree 'deploy.config') "X4_PATH=`"E:\X4 - 9.00`"`n"
+        Resolve-Setting $worktree 'X4_PATH' '' | Should -Be 'E:\X4 - 9.00'
+        Resolve-Setting $worktree 'X4_PROFILE_ID' '' | Should -Be '90000301'
+    }
+
+    It 'lets the environment win over both' {
+        $env:X4_PROFILE_ID = '123'
+        Resolve-Setting $worktree 'X4_PROFILE_ID' '' | Should -Be '123'
+    }
+}
+
+Describe 'Resolve-GitDir' {
+    It "maps a WSL worktree's Linux gitdir onto its \\wsl.localhost path, as Windows sees it" {
+        Resolve-GitDir '\\wsl.localhost\Ubuntu\home\me\repo\.claude\worktrees\wt' '/home/me/repo/.git/worktrees/wt' |
+            Should -Be '\\wsl.localhost\Ubuntu\home\me\repo\.git\worktrees\wt'
+        Resolve-GitDir '\\wsl$\Ubuntu\home\me\wt' '/home/me/repo/.git/worktrees/wt' |
+            Should -Be '\\wsl$\Ubuntu\home\me\repo\.git\worktrees\wt'
+    }
+
+    It 'resolves a relative gitdir against the worktree, and keeps an absolute one' {
+        $root = New-TestDir
+        Resolve-GitDir $root '../repo/.git/worktrees/wt' | Should -Be ([IO.Path]::GetFullPath((Join-Path $root '../repo/.git/worktrees/wt')))
+        $absolute = Join-Path $root 'repo/.git/worktrees/wt'
+        Resolve-GitDir $root $absolute | Should -Be $absolute
+        Remove-Item $root -Recurse -Force
+    }
+}
+
 Describe 'ConvertFrom-WslPath' {
     It 'turns a WSL /mnt path into a Windows one, and leaves Windows paths alone' {
         ConvertFrom-WslPath '/mnt/e/SteamLibrary/X4 Foundations - 8.00' | Should -Be 'E:\SteamLibrary\X4 Foundations - 8.00'

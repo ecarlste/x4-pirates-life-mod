@@ -27,7 +27,8 @@
     after SWI and that the log has no errors or warnings from our files.
 
     Settings come from the parameters, else environment variables of the same name, else
-    deploy.config (see deploy.config.example): X4_PATH, X4_EXE, X4_PROFILE_ID, X4_PROFILE_ROOT.
+    deploy.config, the main checkout's for a worktree (tools/deploy-config.ps1, see
+    deploy.config.example): X4_PATH, X4_EXE, X4_PROFILE_ID, X4_PROFILE_ROOT.
 
 .PARAMETER X4Path
     The X4 8.00 install folder (X4_PATH), with SWI in extensions\starwarsmod_m1.
@@ -313,22 +314,9 @@ function Get-GitState([string] $Root) {
     $state
 }
 
-# A KEY="value" line from deploy.config ('' if the file or key is missing)
-function Get-ConfigValue([string] $Root, [string] $Key) {
-    $config = Join-Path $Root 'deploy.config'
-    if (-not (Test-Path $config)) { return '' }
-    $line = Get-Content $config | Where-Object { $_ -match "^\s*$Key\s*=" } | Select-Object -Last 1
-    if (-not $line) { return '' }
-    ($line -replace "^\s*$Key\s*=", '').Trim().Trim('"').Trim("'")
-}
-
-# A setting from the environment, else deploy.config, else the default
-function Resolve-Setting([string] $Root, [string] $Key, [string] $Default) {
-    $value = [Environment]::GetEnvironmentVariable($Key)
-    if (-not $value) { $value = Get-ConfigValue $Root $Key }
-    if (-not $value) { $value = $Default }
-    $value
-}
+# Resolve-Setting: a setting from the environment, else deploy.config (the checkout's, else the
+# main checkout's), else the default
+. (Join-Path $PSScriptRoot 'deploy-config.ps1')
 
 # /mnt/e/x -> E:\x, so deploy.config can hold either form
 function ConvertFrom-WslPath([string] $Path) {
