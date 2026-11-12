@@ -71,9 +71,9 @@
   "tests/python/test_capture_metrics.py": ["tools/capture_metrics.py", "tests/python/helpers.py", "tests/python/test_capture_metrics.py"],
   "tests/python/test_check_test_plan.py": ["tools/check_test_plan.py", "tests/python/helpers.py", "tests/python/test_check_test_plan.py"],
   "tests/python/test_check_test_plan_changes.py": ["tools/check_test_plan_changes.py", "tests/python/helpers.py", "tests/python/test_check_test_plan_changes.py"],
+  "tests/python/test_game_tests_list.py": ["tests/game/apirateslife_tests/md/apirateslife_tests.xml", "tests/python/test_game_tests_list.py"],
   "tests/python/test_select_tests.py": ["tests/python/helpers.py", "tests/python/test_select_tests.py"],
   "tests/python/test_test_plan_docs.py": ["tools/test_plan_docs.py", "tools/check_test_plan.py", "tests/python/helpers.py", "tests/python/test_test_plan_docs.py"],
-  "tests/python/test_game_tests_list.py": ["tests/game/apirateslife_tests/md/apirateslife_tests.xml", "tests/python/test_game_tests_list.py"],
   "tests/python/test_texts.py": ["t/**", "tests/python/test_texts.py"],
 
   "tests/Deploy.Tests.ps1": ["deploy.ps1", "deploy.include", "deploy.config.example", "tools/game-lock.ps1", "tests/TestHelpers.ps1", "tests/Deploy.Tests.ps1"],

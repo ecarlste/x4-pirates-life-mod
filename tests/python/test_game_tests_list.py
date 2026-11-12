@@ -67,7 +67,7 @@ def harness_problems(text):
     return problems
 
 
-def harness(tests_value, cues):
+def make_harness(tests_value, cues):
     """A minimal harness: Run with the given $Tests value, plus the given root cues' XML."""
     return """<mdscript name="T"><cues>
   <cue name="Run">
@@ -93,25 +93,26 @@ class GameTestsList(unittest.TestCase):
             self.assertEqual(harness_problems(f.read()), [])
 
     def test_game_tests_list_accepts_one_per_line(self):
-        text = harness("[\n  A,\n  B\n]", make_test_cue("A") + make_test_cue("B"))
+        text = make_harness("[\n  A,\n  B\n]", make_test_cue("A") + make_test_cue("B"))
         self.assertEqual(harness_problems(text), [])
 
     def test_game_tests_list_flags_unlisted_test_cue(self):
-        text = harness("[\n  A\n]", make_test_cue("A") + make_test_cue("B"))
+        text = make_harness("[\n  A\n]", make_test_cue("A") + make_test_cue("B"))
         self.assertEqual(harness_problems(text), ["B is a test cue missing from $Tests, so it never runs"])
 
     def test_game_tests_list_flags_name_with_no_cue(self):
-        text = harness("[\n  A,\n  Gone\n]", make_test_cue("A"))
+        text = make_harness("[\n  A,\n  Gone\n]", make_test_cue("A"))
         self.assertEqual(harness_problems(text), ["$Tests lists Gone, but there's no root cue by that name"])
 
     def test_game_tests_list_flags_two_names_on_one_line(self):
-        text = harness("[\n  A, B\n]", make_test_cue("A") + make_test_cue("B"))
+        text = make_harness("[\n  A, B\n]", make_test_cue("A") + make_test_cue("B"))
         self.assertIn("$Tests line 2 is not one test name: 'A, B'", harness_problems(text))
 
     def test_game_tests_list_flags_single_line(self):
-        text = harness("[A, B]", make_test_cue("A") + make_test_cue("B"))
-        self.assertEqual(len(harness_problems(text)), 1)
-        self.assertIn("each on its own line", harness_problems(text)[0])
+        text = make_harness("[A, B]", make_test_cue("A") + make_test_cue("B"))
+        problems = harness_problems(text)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("each on its own line", problems[0])
 
     def test_game_tests_list_flags_commas_and_duplicates(self):
         _, problems = list_problems("[\n  A\n  B,\n  A,\n]")
@@ -123,7 +124,7 @@ class GameTestsList(unittest.TestCase):
 
     def test_game_tests_list_ignores_cues_that_are_not_tests(self):
         helper = '<cue name="Helper"><conditions><event_cue_signalled/></conditions></cue>'
-        text = harness("[\n  A\n]", make_test_cue("A") + helper)
+        text = make_harness("[\n  A\n]", make_test_cue("A") + helper)
         self.assertEqual(harness_problems(text), [])
 
 
