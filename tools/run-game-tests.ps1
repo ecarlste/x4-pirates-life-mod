@@ -106,15 +106,15 @@ function Read-GameTestLog([string[]] $Lines) {
     $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0; FirstRead = @{} }
     $results = New-Object System.Collections.ArrayList
     $errors = New-Object System.Collections.ArrayList
-    $number = 0
+    $lineNumber = 0
     foreach ($line in $Lines) {
-        $number++
+        $lineNumber++
         # X4 follows each script error with "* Expression: ..." and "* Action: ..." lines, which
         # can quote our markers; only the error's own line counts
         if ($line -like '`* *') { continue }
         if ($line -match "(?i)extensions\\($ModId|$SwiFolder)\\([^'\s]+)") {
             $key = "$($Matches[1].ToLower())|$($Matches[2].ToLower() -replace '\.sig$', '')"
-            if (-not $run.FirstRead.ContainsKey($key)) { $run.FirstRead[$key] = $number }
+            if (-not $run.FirstRead.ContainsKey($key)) { $run.FirstRead[$key] = $lineNumber }
         }
         if ($line -match 'Game initialisation time until start menu|\[apirateslife-test\] autostart: starting gamestart') {
             $run.MenuReady = $true
@@ -148,29 +148,20 @@ function Read-GameTestLog([string[]] $Lines) {
 # The runner's own checks on the log, reported like game tests (tools/check_test_plan.py reads
 # their names from the New-LogCheck calls): the mod loads after SWI, and nothing in the log is an
 # error or warning from our files
-function New-LogCheck([string] $Name, [bool] $Passed, [string] $Detail) {
-    [pscustomobject]@{ Name = $Name; Passed = $Passed; Detail = $Detail }
+function New-LogCheck([string] $Name, [bool] $Passed, [string] $Detail, [string[]] $Lines = @()) {
+    [pscustomobject]@{ Name = $Name; Passed = $Passed; Detail = $Detail; Lines = $Lines }
 }
 
 function Get-LogChecks($Run) {
     $shared = @($Run.FirstRead.Keys | Where-Object { $_ -like "$ModId|*" } | ForEach-Object { $_.Substring($ModId.Length + 1) } |
         Where-Object { $Run.FirstRead.ContainsKey("$SwiFolder|$_") } | Sort-Object)
     $early = @($shared | Where-Object { $Run.FirstRead["$ModId|$_"] -lt $Run.FirstRead["$SwiFolder|$_"] })
-    if (-not $shared.Count) {
-        New-LogCheck 'load_order_after_swi' $false "no file read from both SWI and $ModId, so the order is unknown"
-    }
-    elseif ($early.Count) {
-        New-LogCheck 'load_order_after_swi' $false "$ModId read before SWI: $($early -join ', ')"
-    }
-    else {
-        New-LogCheck 'load_order_after_swi' $true "SWI read first for all $($shared.Count) files both patch"
-    }
-    if ($Run.Errors.Count) {
-        New-LogCheck 'clean_log' $false "$($Run.Errors.Count) errors or warnings from our files in debuglog.txt"
-    }
-    else {
-        New-LogCheck 'clean_log' $true 'no errors or warnings from our files in debuglog.txt'
-    }
+    $order = if (-not $shared.Count) { "no file read from both SWI and $ModId, so the order is unknown" }
+             elseif ($early.Count) { "$ModId read before SWI: $($early -join ', ')" }
+             else { "SWI read first for all $($shared.Count) files both patch" }
+    New-LogCheck 'load_order_after_swi' ($shared.Count -and -not $early.Count) $order
+    $count = if ($Run.Errors.Count) { $Run.Errors.Count } else { 'no' }
+    New-LogCheck 'clean_log' (-not $Run.Errors.Count) "$count errors or warnings from our files in debuglog.txt" $Run.Errors
 }
 
 # Adds the log checks to a run read from the finished log, as results it expects; returns them
@@ -198,9 +189,8 @@ function ConvertTo-JUnitXml($Run, [string[]] $Problems) {
     $esc = { param($s) [Security.SecurityElement]::Escape([string] $s) }
     $cases = @()
     foreach ($r in $Run.Results) {
-        # A failed clean_log carries the log lines it found
-        $lines = if ($r.Name -eq 'clean_log') { & $esc ($Run.Errors -join "`n") } else { '' }
-        $body = if ($r.Passed) { '' } else { "<failure message=`"$(& $esc $r.Detail)`">$lines</failure>" }
+        # A failed log check carries the log lines it found
+        $body = if ($r.Passed) { '' } else { "<failure message=`"$(& $esc $r.Detail)`">$(& $esc (@($r.Lines) -join "`n"))</failure>" }
         $cases += "    <testcase classname=`"game`" name=`"$(& $esc $r.Name)`">$body</testcase>"
     }
     # The run itself is a test case too, so an unfinished run shows up as a failure
