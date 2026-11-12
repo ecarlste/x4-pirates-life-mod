@@ -38,6 +38,7 @@ result=$(field result)
 passed=$(field passed)
 total=$(field total)
 
+[ "$(field selected)" != true ] || die "the run was a selection (-Test or -Repeat), not the whole suite. Run make game-test without them"
 [ "$dirty" = false ] || die "the run included uncommitted changes. Commit them, push, and run make game-test again"
 head=$(git rev-parse HEAD)
 [ "$commit" = "$head" ] || die "the report is for ${commit:0:7}, but HEAD is ${head:0:7}. Run make game-test again"

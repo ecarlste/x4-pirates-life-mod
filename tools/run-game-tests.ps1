@@ -76,12 +76,27 @@
     deployed, changes nothing and doesn't take the game lock, so make game-test runs it (inside the
     lock it holds) before its deploy.
 
+.PARAMETER Test
+    Run only these game tests, by cue name (CaptureWingHoldsFire) or the name they report
+    (capture_wing_holds_fire), comma-separated. The runner rewrites the $Tests list in the
+    installed copy of the test extension, never the repo's. An unknown name stops the run before
+    anything changes, -PreflightOnly included.
+
+.PARAMETER Repeat
+    Run the selected tests (all of them without -Test) this many times in one game session, in
+    rounds: A, B, A, B. The reports then add a tally per test of its runs and failures, for
+    measuring a flaky test. Default 1. A run with -Test or -Repeat is marked as a selection in
+    its report, and make game-test-report won't post it.
+
 .PARAMETER KeepExtension
     Leave the test extension installed afterwards (X4 then starts the tests on every launch, in
     every profile where it's on).
 
 .EXAMPLE
     .\tools\run-game-tests.ps1 -PrepareProfile
+
+.EXAMPLE
+    .\tools\run-game-tests.ps1 -Test capture_wing_holds_fire -Repeat 20
 #>
 [CmdletBinding()]
 param(
@@ -98,7 +113,9 @@ param(
     [switch] $Dirty,
     [switch] $PrepareProfile,
     [switch] $KeepExtension,
-    [switch] $PreflightOnly
+    [switch] $PreflightOnly,
+    [string[]] $Test,
+    [int] $Repeat = 1
 )
 
 $ErrorActionPreference = 'Stop'
@@ -155,6 +172,58 @@ function Read-GameTestLog([string[]] $Lines) {
     $run
 }
 
+# The $Tests list in the harness (the Run cue of the test extension's md file): "[", one cue name
+# per line, "]" (tests/python/test_game_tests_list.py keeps it that way)
+$TestsListPattern = '(<set_value name="\$Tests" exact="\[)([^"\]]*)(\]")'
+
+function Get-GameTestNames([string] $HarnessText) {
+    if ($HarnessText -notmatch $TestsListPattern) { throw 'no $Tests list found in the game-test harness' }
+    @($Matches[2] -split '[,\s]+' | Where-Object { $_ })
+}
+
+# The cue names to run for -Test and -Repeat: each named test, by cue name or the name it reports
+# (capture_wing_holds_fire is CaptureWingHoldsFire), or every test without -Test; in rounds of the
+# selection, $Repeat times. -Test can arrive as one comma-separated string (powershell -File passes
+# "a,b" as is), so names are split on commas too.
+function Resolve-GameTestSelection([string[]] $Available, [string[]] $Test, [int] $Repeat) {
+    if ($Repeat -lt 1) { throw "-Repeat must be 1 or more (got $Repeat)" }
+    $key = { param($n) ($n -replace '_', '').ToLowerInvariant() }
+    $requested = @($Test | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $selected = $Available
+    if ($requested.Count) {
+        $selected = @()
+        $unknown = @()
+        foreach ($name in $requested) {
+            $match = @($Available | Where-Object { (& $key $_) -eq (& $key $name) })
+            if ($match.Count) { $selected += $match[0] } else { $unknown += $name }
+        }
+        if ($unknown.Count) { throw "No game test named $($unknown -join ', '). The tests: $($Available -join ', ')" }
+    }
+    @(for ($i = 0; $i -lt $Repeat; $i++) { $selected })
+}
+
+# The harness text with its $Tests list replaced by these cue names, one per line
+function Set-GameTestList([string] $HarnessText, [string[]] $Names) {
+    $list = "`n          " + ($Names -join ",`n          ") + "`n        "
+    [regex]::Replace($HarnessText, $TestsListPattern, { param($m) $m.Groups[1].Value + $list + $m.Groups[3].Value })
+}
+
+# Each test's runs and failures, in the order first seen (Group-Object sorts its groups)
+function Get-TestTally($Results) {
+    $tally = [ordered]@{}
+    foreach ($r in $Results) {
+        if (-not $tally.Contains($r.Name)) { $tally[$r.Name] = [pscustomobject]@{ Name = $r.Name; Runs = 0; Failed = 0 } }
+        $tally[$r.Name].Runs++
+        if (-not $r.Passed) { $tally[$r.Name].Failed++ }
+    }
+    @($tally.Values)
+}
+
+# The tests that ran more than once (-Repeat)
+function Get-RepeatTally($Results) {
+    @(Get-TestTally $Results | Where-Object { $_.Runs -gt 1 })
+}
+
 # The runner's own checks on the log, reported like game tests (tools/check_test_plan.py reads
 # their names from the New-LogCheck calls): the mod loads after SWI, and nothing in the log is an
 # error or warning from our files
@@ -191,7 +260,11 @@ function Get-RunProblems($Run, [string] $Ending) {
         $problems += "$($Run.Results.Count) of $($Run.Expected) tests reported"
     }
     $failed = @($Run.Results | Where-Object { -not $_.Passed })
-    if ($failed.Count) { $problems += "$($failed.Count) failed: $(($failed | ForEach-Object { $_.Name }) -join ', ')" }
+    if ($failed.Count) {
+        # A repeated test is named once, with how often it failed
+        $names = Get-TestTally $failed | ForEach-Object { if ($_.Runs -gt 1) { "$($_.Name) x$($_.Runs)" } else { $_.Name } }
+        $problems += "$($failed.Count) failed: $($names -join ', ')"
+    }
     $problems
 }
 
@@ -222,7 +295,8 @@ function ConvertTo-JUnitXml($Run, [string[]] $Problems) {
 # The Markdown report for a PR comment. Its first line is a hidden marker that
 # tools/post-game-test-report.sh reads to check the report matches the PR's commit.
 # $Info: Commit, Branch, Dirty, StartedAt (datetime), DurationSeconds, and optionally Phases
-# (an ordered list of @{ Name; Seconds }, from Get-RunPhases).
+# (an ordered list of @{ Name; Seconds }, from Get-RunPhases) and Selected (a -Test or -Repeat run,
+# marked so tools/post-game-test-report.sh won't post it as the whole suite).
 function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     $passed = @($Run.Results | Where-Object { $_.Passed }).Count
     $total = [Math]::Max($Run.Expected, $Run.Results.Count)
@@ -233,9 +307,10 @@ function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     $minutes = [int] [Math]::Floor($Info.DurationSeconds / 60)
     $seconds = [int] $Info.DurationSeconds % 60
     $lines = @(
-        "<!-- apirateslife-game-tests commit=$commit dirty=$dirty result=$(if ($ok) { 'pass' } else { 'fail' }) passed=$passed total=$total -->"
+        "<!-- apirateslife-game-tests commit=$commit dirty=$dirty result=$(if ($ok) { 'pass' } else { 'fail' }) passed=$passed total=$total$(if ($Info.Selected) { ' selected=true' }) -->"
         "### Game tests: $(if ($ok) { 'passed' } else { 'FAILED' }), $passed of $total"
         ''
+        if ($Info.Selected) { 'Selected tests only (`-Test`, `-Repeat`), not the whole suite.'; '' }
         "Commit ``$short`` on ``$($Info.Branch)``$(if ($Info.Dirty) { ' **plus uncommitted changes**' }), X4 $(if ($Run.GameVersion) { $Run.GameVersion } else { 'version unknown' }), ${minutes} min ${seconds} s, $($Info.StartedAt.ToString('yyyy-MM-dd HH:mm'))"
         ''
         '| Test | Result | Detail |'
@@ -244,6 +319,15 @@ function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     foreach ($r in $Run.Results) {
         $detail = ($r.Detail -replace '\|', '\|')
         $lines += "| ``$($r.Name)`` | $(if ($r.Passed) { 'PASS' } else { '**FAIL**' }) | $detail |"
+    }
+    $tallies = @(Get-RepeatTally $Run.Results)
+    if ($tallies.Count) {
+        $lines += ''
+        $lines += '| Repeated test | Runs | Failed |'
+        $lines += '| --- | --- | --- |'
+        foreach ($t in $tallies) {
+            $lines += "| ``$($t.Name)`` | $($t.Runs) | $($t.Failed) ($([Math]::Round(100 * $t.Failed / $t.Runs))%) |"
+        }
     }
     if ($Run.Started) {
         $lines += ''
@@ -465,6 +549,13 @@ if (-not (Test-Path (Join-Path $X4Path "extensions/$SwiFolder/content.xml"))) {
     throw "SWI isn't installed in $X4Path (no extensions\$SwiFolder)"
 }
 $contentXml = Join-Path $profileDir 'content.xml'
+# -Test and -Repeat: checked here, so an unknown name stops make game-test before its deploy
+$harness = "md/$TestExtensionId.xml"
+$selection = $null
+if ($Test -or $Repeat -ne 1) {
+    $available = Get-GameTestNames (Get-Content (Join-Path $root "tests/game/$TestExtensionId/$harness") -Raw)
+    $selection = @(Resolve-GameTestSelection $available $Test $Repeat)
+}
 $processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
 if ($PreflightOnly) {
     Assert-NoGameRunning $processNames
@@ -511,6 +602,11 @@ try {
     if (Test-Path $extension) { Remove-Item $extension -Recurse -Force }
     $installed = $true
     Copy-Item (Join-Path $root "tests/game/$TestExtensionId") $extension -Recurse
+    if ($selection) {
+        $installedHarness = Join-Path $extension $harness
+        [IO.File]::WriteAllText($installedHarness, (Set-GameTestList (Get-Content $installedHarness -Raw) $selection))
+        Write-Host "Running $($selection.Count) selected tests: $((Get-TestTally ($selection | ForEach-Object { @{ Name = $_; Passed = $true } }) | ForEach-Object { "$($_.Name) x$($_.Runs)" }) -join ', ')"
+    }
     # A stale log would report the previous run; keep it out of the way instead
     if (Test-Path $LogPath) { Move-Item $LogPath (Join-Path $profileDir 'debuglog.previous.txt') -Force }
 
@@ -544,13 +640,14 @@ New-Item -ItemType Directory -Force -Path (Split-Path $ReportPath -Parent) | Out
 [IO.File]::WriteAllText($ReportPath, (ConvertTo-JUnitXml $run $problems))
 $total = ((Get-Date) - $startedAt).TotalSeconds
 $phases = if ($seen.Count) { @(Get-RunPhases $seen $total) } else { @() }
-$info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = $total; Phases = $phases }
+$info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = $total; Phases = $phases; Selected = [bool] $selection }
 New-Item -ItemType Directory -Force -Path (Split-Path $MarkdownPath -Parent) | Out-Null
 [IO.File]::WriteAllText($MarkdownPath, (ConvertTo-MarkdownReport $run $problems $info) + "`n")
 
 $passed = @($run.Results | Where-Object { $_.Passed }).Count
 foreach ($e in $run.Errors) { Write-Host "  log error: $e" }
 if ($phases) { Write-Host ("Timings: " + (($phases | ForEach-Object { "$($_.Name -replace '\*', '') $(Format-Seconds $_.Seconds)" }) -join '; ')) }
+foreach ($t in (Get-RepeatTally $run.Results)) { Write-Host "Repeated: $($t.Name): $($t.Failed) of $($t.Runs) runs failed" }
 if ($run.Started -and $run.SetaDrops) { Write-Host "SETA dropped $($run.SetaDrops) times during the run" }
 if ($problems.Count) {
     Write-Host "GAME TESTS FAILED ($passed passed): $($problems -join '; ')"

@@ -192,6 +192,87 @@ Describe 'Get-RunProblems' {
     }
 }
 
+Describe 'Get-RunProblems with repeated tests' {
+    It 'names a repeated test once, with how often it failed' {
+        $run = Read-GameTestLog @(
+            '[Scripts] 1.00 *** Context:x: [apirateslife-test] FAIL fixture_test_a: hull 54%'
+            '[Scripts] 2.00 *** Context:x: [apirateslife-test] PASS fixture_test_a: hull 70%'
+            '[Scripts] 3.00 *** Context:x: [apirateslife-test] FAIL fixture_test_a: hull 52%'
+            '[Scripts] 4.00 *** Context:x: [apirateslife-test] FAIL fixture_test_b: no'
+        )
+        Get-RunProblems $run 'finished' | Should -Contain '3 failed: fixture_test_a x2, fixture_test_b'
+    }
+}
+
+Describe 'Game test selection (-Test, -Repeat)' {
+    BeforeAll {
+        $script:Harness = @'
+<cue name="Run">
+        <set_value name="$QuitWhenDone" exact="true"/>
+        <set_value name="$Tests" exact="[
+          ConfigAppliedOnStart,
+          CaptureWingHoldsFire,
+          BailRaisesBailed
+        ]"/>
+        <set_value name="$Index" exact="0"/>
+'@
+    }
+
+    It 'reads the cue names from the harness''s $Tests list' {
+        Get-GameTestNames $script:Harness | Should -Be @('ConfigAppliedOnStart', 'CaptureWingHoldsFire', 'BailRaisesBailed')
+    }
+
+    It 'reads the real harness''s list' {
+        $text = Get-Content (Join-Path $script:RepoRoot 'tests/game/apirateslife_tests/md/apirateslife_tests.xml') -Raw
+        Get-GameTestNames $text | Should -Contain 'CaptureWingHoldsFire'
+    }
+
+    It 'fails on a harness without the list' {
+        { Get-GameTestNames '<cue name="Run"/>' } | Should -Throw '*no $Tests list*'
+    }
+
+    It 'selects a test by its cue name or the name it reports, in rounds of -Repeat' {
+        $names = @('ConfigAppliedOnStart', 'CaptureWingHoldsFire', 'BailRaisesBailed')
+        Resolve-GameTestSelection $names @('capture_wing_holds_fire') 3 | Should -Be @('CaptureWingHoldsFire', 'CaptureWingHoldsFire', 'CaptureWingHoldsFire')
+        # As powershell -File passes it: one comma-separated string
+        Resolve-GameTestSelection $names @('bailraisesbailed,CaptureWingHoldsFire') 2 |
+            Should -Be @('BailRaisesBailed', 'CaptureWingHoldsFire', 'BailRaisesBailed', 'CaptureWingHoldsFire')
+    }
+
+    It 'repeats every test without -Test' {
+        Resolve-GameTestSelection @('A', 'B') @() 2 | Should -Be @('A', 'B', 'A', 'B')
+    }
+
+    It 'refuses an unknown test, naming the ones there are, and a -Repeat under 1' {
+        { Resolve-GameTestSelection @('A', 'B') @('A,Nope') 1 } | Should -Throw 'No game test named Nope. The tests: A, B'
+        { Resolve-GameTestSelection @('A') @() 0 } | Should -Throw '*-Repeat must be 1 or more*'
+    }
+
+    It 'rewrites the list, one name per line, leaving the rest of the harness alone' {
+        $text = Set-GameTestList $script:Harness @('CaptureWingHoldsFire', 'CaptureWingHoldsFire')
+        Get-GameTestNames $text | Should -Be @('CaptureWingHoldsFire', 'CaptureWingHoldsFire')
+        $text.Contains("exact=`"[`n          CaptureWingHoldsFire,`n          CaptureWingHoldsFire`n        ]`"/>") | Should -BeTrue
+        $text | Should -BeLike '*<set_value name="$QuitWhenDone" exact="true"/>*<set_value name="$Index" exact="0"/>*'
+    }
+
+    It 'tallies each repeated test''s runs and failures, in the order first seen' {
+        $run = Read-GameTestLog @(
+            '[Scripts] 1.00 *** Context:x: [apirateslife-test] PASS fixture_test_b: ok'
+            '[Scripts] 2.00 *** Context:x: [apirateslife-test] FAIL fixture_test_a: hull 54%'
+            '[Scripts] 3.00 *** Context:x: [apirateslife-test] PASS fixture_test_a: hull 70%'
+            '[Scripts] 4.00 *** Context:x: [apirateslife-test] PASS fixture_test_b: ok'
+            '[Scripts] 5.00 *** Context:x: [apirateslife-test] PASS fixture_test_c: once'
+        )
+        $tally = @(Get-RepeatTally $run.Results)
+        $tally.Count | Should -Be 2
+        $tally[0].Name | Should -Be 'fixture_test_b'
+        $tally[0].Runs | Should -Be 2
+        $tally[0].Failed | Should -Be 0
+        $tally[1].Name | Should -Be 'fixture_test_a'
+        $tally[1].Failed | Should -Be 1
+    }
+}
+
 Describe 'ConvertTo-JUnitXml' {
     It 'writes one case per test plus the run, with failures escaped' {
         $log = $script:PassingLog -replace 'PASS fixture_test_b: hull 100%', 'FAIL fixture_test_b: hull <72%> & "worse"'
@@ -246,6 +327,26 @@ Describe 'ConvertTo-MarkdownReport' {
         $md.Contains('on `feature/x` **plus uncommitted changes**,') | Should -BeTrue
         $md.Contains('| `fixture_test_b` | **FAIL** | hull 72% \| worse, 4 equipment kept, pilot skill 38 |') | Should -BeTrue
         $md | Should -BeLike '*Error in MD cue md.APiratesLife_Bail.Bailed*'
+    }
+
+    It 'marks a selected run, and tallies its repeated tests' {
+        $run = Read-GameTestLog @(
+            '[Scripts] 1.00 *** Context:x: [apirateslife-test] RUN START 4 tests'
+            '[Scripts] 2.00 *** Context:x: [apirateslife-test] FAIL fixture_test_a: hull 54%'
+            '[Scripts] 3.00 *** Context:x: [apirateslife-test] PASS fixture_test_a: hull 70%'
+            '[Scripts] 4.00 *** Context:x: [apirateslife-test] PASS fixture_test_a: hull 71%'
+            '[Scripts] 5.00 *** Context:x: [apirateslife-test] PASS fixture_test_a: hull 72%'
+            '[Scripts] 6.00 *** Context:x: [apirateslife-test] DONE passed=3 failed=1'
+        )
+        $info = $script:Info.Clone(); $info.Selected = $true
+        $lines = (ConvertTo-MarkdownReport $run (Get-RunProblems $run 'finished') $info) -split "`n"
+        $lines[0] | Should -BeLike '* result=fail passed=3 total=4 selected=true -->'
+        $lines | Should -Contain 'Selected tests only (`-Test`, `-Repeat`), not the whole suite.'
+        $lines | Should -Contain '| `fixture_test_a` | 4 | 1 (25%) |'
+        # A whole-suite run has neither
+        $plain = ConvertTo-MarkdownReport (Read-GameTestLog $script:PassingLog) @() $script:Info
+        $plain | Should -Not -BeLike '*selected*'
+        $plain | Should -Not -BeLike '*Repeated test*'
     }
 
     It 'says whether SETA stayed on, and shows the phase timings' {

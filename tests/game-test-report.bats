@@ -62,6 +62,14 @@ post() { run "$REPO/tools/post-game-test-report.sh" "$@"; }
     [ ! -e "$GH_LOG" ]
 }
 
+@test "refuses a run of selected tests only" {
+    printf '<!-- apirateslife-game-tests commit=%s dirty=false result=pass passed=20 total=20 selected=true -->\n' "$HEAD_SHA" > "$REPO/tests/game/report.md"
+    post
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"not the whole suite"* ]]
+    [ ! -e "$GH_LOG" ]
+}
+
 @test "refuses a report for another commit than HEAD" {
     write_report 0123456789abcdef0123456789abcdef01234567 false pass 5 5
     post
