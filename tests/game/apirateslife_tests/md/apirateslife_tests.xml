@@ -52,6 +52,7 @@
           CaptureMarkedAsHostile,
           CaptureCommChoice,
           CaptureAbortCallsWingOff,
+          CaptureReadout,
           CaptureMetricsOperation,
           CaptureMetricsPlainAttack,
           CaptureMetricsDropped,
@@ -2213,6 +2214,239 @@
               </cues>
             </cue>
           </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- What's wrong with a reading of the operation's mission (the test extension's Lua answers
+         "step|steps|text|progress|max"), as a problems string ('' if it is one of Expected) -->
+    <library name="ReadoutProblems" purpose="run_actions">
+      <params>
+        <param name="Label"/>
+        <param name="Got"/>
+        <param name="Expected"/>
+      </params>
+      <actions>
+        <do_if value="$Expected.indexof.{$Got}">
+          <return value="''"/>
+        </do_if>
+        <return value="' %s: read %s, expected %s;'.[$Label, $Got, $Expected.{1}]"/>
+      </actions>
+    </library>
+
+    <!-- The operation's mission readout, read as the mission menus read it: on a crewed M, the
+         shields gate, then the hull gate (step 1), then the pilot's nerve draining as pressure
+         builds (step 2), then crew aboard with the last check's chance after a partial bail
+         (step 3). A crewless fighter's mission has only the first two steps. The target is 12 km from the player, beyond the pressure tick's reach, so only
+         the forced check rolls. -->
+    <cue name="CaptureReadout">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="$Cap" exact="global.$APiratesLife_CapturePressureCap"/>
+        <!-- The pair's crewless fighter gets an operation too, with no crew step -->
+        <run_actions ref="SpawnBailPair" result="$Pair"/>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$FighterStarted">
+          <param name="Target" value="$Pair.$target"/>
+        </run_actions>
+        <set_value name="$FighterMission" exact="{1774100, 10}.[$Pair.$target.knownname]"/>
+        <run_actions ref="SpawnGatedTarget" result="$Target">
+          <param name="Macro" value="macro.gauntlet_macro"/>
+          <param name="Distance" value="12km"/>
+          <param name="Crew" value="100"/>
+        </run_actions>
+        <!-- Outside the gates to begin with -->
+        <remove_from_list name="global.$APiratesLifeTest_ShieldsDown" exact="$Target"/>
+        <set_object_hull object="$Target" exact="100"/>
+        <set_object_shield object="$Target" exact="100"/>
+        <set_value name="$CrewBefore" exact="$Target.people.count"/>
+        <set_value name="$Mission" exact="{1774100, 10}.[$Target.knownname]"/>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <set_value name="$Problems" exact="if $Started and $FighterStarted then '' else ' operations did not start: %s, fighter %s;'.[$Started, $FighterStarted]"/>
+        <set_value name="$Stage" exact="'shields'"/>
+      </actions>
+      <cues>
+        <cue name="CaptureReadout_Shields">
+          <delay exact="3s"/>
+          <actions>
+            <raise_lua_event name="'apirateslife_tests.readMission'" param="$Mission"/>
+          </actions>
+          <cues>
+            <cue name="CaptureReadout_ShieldsRead">
+              <conditions>
+                <event_ui_triggered screen="'apirateslife_tests'" control="'readMission'"/>
+              </conditions>
+              <actions>
+                <run_actions ref="ReadoutProblems" result="$P">
+                  <param name="Label" value="'shields'"/>
+                  <param name="Got" value="event.param3"/>
+                  <param name="Expected" value="['1|3|%s|0|80'.[{1774100, 20}]]"/>
+                </run_actions>
+                <set_value name="$Problems" exact="$Problems + $P"/>
+                <set_value name="$Stage" exact="'hull'"/>
+                <append_to_list name="global.$APiratesLifeTest_ShieldsDown" exact="$Target"/>
+                <set_object_shield object="$Target" exact="0"/>
+              </actions>
+              <cues>
+                <cue name="CaptureReadout_Hull">
+                  <delay exact="3s"/>
+                  <actions>
+                    <raise_lua_event name="'apirateslife_tests.readMission'" param="$Mission"/>
+                  </actions>
+                  <cues>
+                    <cue name="CaptureReadout_HullRead">
+                      <conditions>
+                        <event_ui_triggered screen="'apirateslife_tests'" control="'readMission'"/>
+                      </conditions>
+                      <actions>
+                        <run_actions ref="ReadoutProblems" result="$P">
+                          <param name="Label" value="'hull'"/>
+                          <param name="Got" value="event.param3"/>
+                          <param name="Expected" value="['1|3|%s|0|25'.[{1774100, 21}]]"/>
+                        </run_actions>
+                        <set_value name="$Problems" exact="$Problems + $P"/>
+                        <set_value name="$Stage" exact="'nerve'"/>
+                        <set_object_hull object="$Target" exact="50"/>
+                      </actions>
+                      <cues>
+                        <!-- About 8 points of pressure by then: the bar shows about 72 of the cap, 80 -->
+                        <cue name="CaptureReadout_Nerve">
+                          <delay exact="10s"/>
+                          <actions>
+                            <run_actions ref="md.APiratesLife_Capture.Pressure" result="$Pressure">
+                              <param name="Target" value="$Target"/>
+                            </run_actions>
+                            <set_value name="$Left" exact="($Cap - ($Pressure)f)i"/>
+                            <set_value name="$Expected" exact="[]"/>
+                            <do_for_each name="$N" in="[$Left, $Left - 1, $Left + 1]">
+                              <append_to_list name="$Expected" exact="'2|3|%s|%s|%s'.[{1774100, 22}, $N, $Cap]"/>
+                            </do_for_each>
+                            <raise_lua_event name="'apirateslife_tests.readMission'" param="$Mission"/>
+                          </actions>
+                          <cues>
+                            <cue name="CaptureReadout_NerveRead">
+                              <conditions>
+                                <event_ui_triggered screen="'apirateslife_tests'" control="'readMission'"/>
+                              </conditions>
+                              <actions>
+                                <run_actions ref="ReadoutProblems" result="$P">
+                                  <param name="Label" value="'nerve'"/>
+                                  <param name="Got" value="event.param3"/>
+                                  <param name="Expected" value="$Expected"/>
+                                </run_actions>
+                                <set_value name="$Problems" exact="$Problems + $P"/>
+                                <do_if value="$Left ge $Cap">
+                                  <set_value name="$Problems" exact="$Problems + ' no pressure after 10 s in the gates;'"/>
+                                </do_if>
+                                <set_value name="$Stage" exact="'crew bail'"/>
+                              </actions>
+                              <cues>
+                                <!-- From a cue of its own: the bail can land in the same frame, before
+                                     the sub-cues of a cue fired by a UI event are listening -->
+                                <cue name="CaptureReadout_Bail">
+                                  <delay exact="1s"/>
+                                  <actions>
+                                    <set_value name="global.$APiratesLifeTest_BailCrew" exact="1"/>
+                                    <run_actions ref="ForceBail">
+                                      <param name="Attacker" value="$Pair.$attacker"/>
+                                      <param name="Target" value="$Target"/>
+                                    </run_actions>
+                                  </actions>
+                                  <cues>
+                                    <cue name="CaptureReadout_Bailed">
+                                      <conditions>
+                                        <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+                                        <check_value value="event.param.$target == $Target"/>
+                                      </conditions>
+                                      <actions>
+                                        <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                                        <remove_value name="global.$APiratesLifeTest_BailCrew"/>
+                                        <set_value name="$Stage" exact="'crew'"/>
+                                      </actions>
+                                      <cues>
+                                        <cue name="CaptureReadout_Crew">
+                                          <delay exact="3s"/>
+                                          <actions>
+                                            <set_value name="$Crew" exact="$Target.people.count"/>
+                                            <set_value name="$Chance" exact="(@global.$APiratesLife_CaptureOps.{$Target}.$lastchance)f"/>
+                                            <set_value name="$Expected" exact="['3|3|%s|%s|%s'.[{1774100, 25}.[$Crew, $CrewBefore, ($Chance + 0.5)i], $Crew, $CrewBefore]]"/>
+                                            <raise_lua_event name="'apirateslife_tests.readMission'" param="$Mission"/>
+                                          </actions>
+                                          <cues>
+                                            <cue name="CaptureReadout_CrewRead">
+                                              <conditions>
+                                                <event_ui_triggered screen="'apirateslife_tests'" control="'readMission'"/>
+                                              </conditions>
+                                              <actions>
+                                                <run_actions ref="ReadoutProblems" result="$P">
+                                                  <param name="Label" value="'crew'"/>
+                                                  <param name="Got" value="event.param3"/>
+                                                  <param name="Expected" value="$Expected"/>
+                                                </run_actions>
+                                                <set_value name="$Problems" exact="$Problems + $P"/>
+                                                <do_if value="$Crew ge $CrewBefore">
+                                                  <set_value name="$Problems" exact="$Problems + ' no crew left: %s of %s aboard;'.[$Crew, $CrewBefore]"/>
+                                                </do_if>
+                                                <set_value name="$CrewReading" exact="event.param3"/>
+                                                <set_value name="$Stage" exact="'fighter'"/>
+                                                <raise_lua_event name="'apirateslife_tests.readMission'" param="$FighterMission"/>
+                                              </actions>
+                                              <cues>
+                                                <cue name="CaptureReadout_FighterRead">
+                                                  <conditions>
+                                                    <event_ui_triggered screen="'apirateslife_tests'" control="'readMission'"/>
+                                                  </conditions>
+                                                  <actions>
+                                                    <cancel_cue cue="CaptureReadout_Timeout"/>
+                                                    <run_actions ref="ReadoutProblems" result="$P">
+                                                      <param name="Label" value="'crewless fighter'"/>
+                                                      <param name="Got" value="event.param3"/>
+                                                      <param name="Expected" value="['1|2|%s|0|80'.[{1774100, 20}]]"/>
+                                                    </run_actions>
+                                                    <set_value name="$Problems" exact="$Problems + $P"/>
+                                                    <signal_cue_instantly cue="Report" param="table[$name = 'capture_readout', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'gates, then nerve %s of %s, then %s; a crewless fighter has 2 steps'.[$Left, $Cap, $CrewReading] else $Problems)]"/>
+                                                    <destroy_object object="$Pair.$attacker"/>
+                                                    <destroy_object object="$Pair.$target"/>
+                                                    <run_actions ref="EndPressureTest">
+                                                      <param name="Target" value="$Target"/>
+                                                    </run_actions>
+                                                  </actions>
+                                                </cue>
+                                              </cues>
+                                            </cue>
+                                          </cues>
+                                        </cue>
+                                      </cues>
+                                    </cue>
+                                  </cues>
+                                </cue>
+                              </cues>
+                            </cue>
+                          </cues>
+                        </cue>
+                      </cues>
+                    </cue>
+                  </cues>
+                </cue>
+              </cues>
+            </cue>
+          </cues>
+        </cue>
+        <cue name="CaptureReadout_Timeout">
+          <delay exact="60s"/>
+          <actions>
+            <cancel_cue cue="CaptureReadout_Shields"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'capture_readout', $ok = false, $detail = 'stuck at the %s stage after 60s;%s'.[$Stage, $Problems]]"/>
+            <destroy_object object="$Pair.$attacker"/>
+            <destroy_object object="$Pair.$target"/>
+            <run_actions ref="EndPressureTest">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
         </cue>
       </cues>
     </cue>

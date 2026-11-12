@@ -26,7 +26,7 @@ In a capture operation the target's pilot gets likelier to bail the longer it is
   - **Cleared:** a capture (the ship becomes the player's, or the pilot bails) or the ship's destruction leaves no fear, because the operation already took it off the pilot and puts nothing back.
   - Fear isn't capped: a long hold can leave more than `CapturePressureCap`, which then lasts longer before the chance drops below the cap. The cap still applies to the chance. Agreed in the #119 session.
 - **Settings** in `md/apirateslife_config.xml`: `CapturePressureStep` (8), `CapturePressureCap` (80), `CapturePressureInterval` (5), `CaptureFearDecayFactor` (0.5), `CaptureFearDecayInterval` (300). The code falls back to these defaults when a global is missing. A factor of 0 or less, or an interval of 0 or less, means no fear; a factor above 1 counts as 1 (no decay).
-- **Not here:** the readout, whose countdown still assumes 30 s ([#120](https://github.com/ecarlste/x4-pirates-life-mod/issues/120)).
+- **The mission readout** shows the pressure, fear included, as the pilot's nerve: see [capture-operation.md](capture-operation.md).
 
 ## Done when
 

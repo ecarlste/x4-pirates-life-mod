@@ -11,6 +11,8 @@
 --   conversation, as a click on it would.
 --   "apirateslife_tests.abortMission": aborts the player mission named by param, as the mission
 --   menus do.
+--   "apirateslife_tests.readMission": the live objective of the player mission named by param, as
+--   the mission menus read it, answered as "step|steps|text|progress|max".
 
 local ffi = require("ffi")
 local C = ffi.C
@@ -20,8 +22,32 @@ ffi.cdef[[
 	bool SetDefaultResponseToSignalForFaction2(const char* newresponse, bool ask, const char* signalid, const char* factionid, const char* purposeid);
 	typedef uint64_t UniverseID;
 	typedef uint64_t MissionID;
+	typedef struct {
+		const char* missionName;
+		const char* missionDescription;
+		int difficulty;
+		int upkeepalertlevel;
+		const char* threadType;
+		const char* mainType;
+		const char* subType;
+		const char* subTypeName;
+		const char* faction;
+		int64_t reward;
+		const char* rewardText;
+		size_t numBriefingObjectives;
+		int activeBriefingStep;
+		const char* opposingFaction;
+		const char* license;
+		float timeLeft;
+		double duration;
+		bool abortable;
+		bool hasObjective;
+		UniverseID associatedComponent;
+		UniverseID threadMissionID;
+	} MissionDetails;
 	void SetRelationBoostToFaction(UniverseID componentid, const char* factionid, const char* reasonid, float boostvalue, float decayrate, double decaydelay);
 	void AbortMission(MissionID missionid);
+	MissionDetails GetMissionIDDetails(uint64_t missionid);
 ]]
 
 local gamestart = "apirateslife_test"
@@ -113,11 +139,29 @@ local function abortMission(_, name)
 	AddUITriggeredEvent("apirateslife_tests", "abortMission", result)
 end
 
+-- What the mission menus show of a mission (menu_map.lua's getMissionInfoHelper): the active
+-- briefing step, the number of briefing steps, and the objective's text and progress bar
+local function readMission(_, name)
+	local result = "no mission named " .. tostring(name)
+	for i = 1, GetNumMissions() do
+		local missionid, missionname = GetMissionDetails(i)
+		if missionname == name then
+			local text, _, _, progress, max = GetMissionObjective(i)
+			local details = C.GetMissionIDDetails(ConvertStringTo64Bit(tostring(missionid)))
+			result = string.format("%s|%s|%s|%s|%s", tostring(details.activeBriefingStep), tonumber(details.numBriefingObjectives), tostring(text), tostring(progress), tostring(max))
+			break
+		end
+	end
+	log("read mission: " .. result)
+	AddUITriggeredEvent("apirateslife_tests", "readMission", result)
+end
+
 local function init()
 	RegisterEvent("apirateslife_tests.quietOrders", quietOrders)
 	RegisterEvent("apirateslife_tests.markHostile", markHostile)
 	RegisterEvent("apirateslife_tests.chooseComm", chooseComm)
 	RegisterEvent("apirateslife_tests.abortMission", abortMission)
+	RegisterEvent("apirateslife_tests.readMission", readMission)
 	local module = ffi.string(C.GetGameStartName())
 	if module ~= "startmenu" then
 		log("module is '" .. module .. "', only serving the tests' events")
