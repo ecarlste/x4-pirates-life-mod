@@ -6,7 +6,7 @@ How to run, add and wire up tests. The scripts say how they fetch and pin their 
 
 `make test` (or `tests/run.sh`) runs only the suites your changes need, counted since your branch left `origin/main`, uncommitted files included. It takes about 30 s. `make test ALL=1` (`tests/run.sh --all`) runs everything. Keep it fast: it's meant to run often.
 
-- **One kind of suite:** `tests/run.sh --lua-only` or `--typescript-only`. `.\tests\run.ps1` runs only the Pester suites (`-Path <file>` for one file). `tests/run.sh --windows-powershell` runs them in Windows PowerShell 5.1 from WSL (serial, about 4 minutes).
+- **One kind of suite:** `tests/run.sh --lua-only` or `--typescript-only`. `.\tests\run.ps1` runs only the Pester suites (`-Path <file>` for one file, `-Name <pattern>` for matching tests, `-Repeat <n>` for [flaky tests](#flaky-tests)). `tests/run.sh --windows-powershell` runs them in Windows PowerShell 5.1 from WSL (serial, about 4 minutes).
 - **One-time installs in WSL:** `sudo apt install parallel libicu78 luajit`. GNU parallel makes bats faster and LuaJIT runs the Lua tests. ICU is optional, since the tests pass without it. The rest gets fetched on the first run.
 - CI runs the suites each PR needs, and all of them on pushes to `main`.
 
@@ -22,6 +22,14 @@ How to run, add and wire up tests. The scripts say how they fetch and pin their 
 - **Lowercase-paths check** (`tools/check-lowercase-paths.ts`): it runs with the TypeScript tools and fails when a shipped path (an entry in `deploy.include`, or anything under one) has an uppercase letter. A new `deploy.include` entry needs a matching glob in the `typescript` filter; a test fails until it has one.
 - **Doc-size check** (`tools/check-doc-size.ts`, run with the TypeScript tools): it fails when `docs/PROJECT.md` goes over its size budget (set in the script). Move detail into a doc listed in PROJECT.md's "Where to look" table rather than raising the budget.
 - **Doc-paths check** (`tools/check-doc-paths.ts`, also `make doc-paths`): it runs on every change and fails when a doc names a repo path that doesn't exist. Its filter is `**`, which doesn't count as covering a file. Add a rule in `tools/check-doc-paths/paths.ts` only for text that isn't a repo path.
+
+## Flaky tests
+
+A test that fails once and passes on a rerun is a bug, in the test or the code under it.
+
+- **Log it:** open an issue with the run and job IDs before or right after rerunning. A rerun replaces what `gh run view --log-failed` shows; the failed attempt's log stays at `gh api repos/ecarlste/x4-pirates-life-mod/actions/jobs/<job-id>/logs --allow-escape-sequences`.
+- **Measure it:** `.\tests\run.ps1 -Path <file> -Name '<pattern>' -Repeat 50` runs one Pester test 50 times and counts the failed runs. From WSL, run it in Windows PowerShell 5.1 with `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(wslpath -w tests/run.ps1)" …`, or in PowerShell 7 with `.tools/powershell-*/pwsh -NoProfile -File tests/run.ps1 …`. Several copies at once add load. If it stays green, widen the suspect timing window with a temporary sleep until it goes red, then fix the cause and show the rate before and after in the PR.
+- **Make timing testable:** a script that polls a process or a file keeps that loop in a function a test can drive with a fake process or file (as `Watch-GameRun` in `tools/run-game-tests.ps1`), so its timing is tested every run instead of by luck.
 
 ## Test pyramid
 

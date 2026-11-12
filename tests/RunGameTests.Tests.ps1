@@ -16,6 +16,9 @@ Describe 'run-game-tests.ps1' {
         Set-Content $env:FAKE_SOURCE_LOG $script:PassingLog
         $r = Invoke-Script $script:Runner $runArgs
         $r.Output | Should -BeLike '*Game tests passed (2 of 2)*'
+        # Each result as the run reports it live, not only in the summary
+        $r.Output | Should -BeLike '*PASS eject_chance_doubled: 5 cases*'
+        $r.Output | Should -BeLike '*PASS pilot_bail_intact: hull 100%, 4 equipment kept, pilot skill 38*'
         $r.ExitCode | Should -Be 0
         Get-TestFile $env:FAKE_MARK | Should -Be 'installed'
         Test-Path "$x4/extensions/apirateslife_tests" | Should -BeFalse
