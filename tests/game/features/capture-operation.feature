@@ -40,6 +40,32 @@ Feature: Capture operations
     And the hull never drops below the 35% floor
     And the wingman keeps moving while it holds fire, never sitting still for 5 seconds
 
+  @no_missiles_in_sight
+  Scenario: My wingmen fire no missiles or torpedoes at the target in my sight
+    Given my wingman flies an X-wing with proton torpedoes, 1 km from me
+    And its pilot is in a capture operation
+    When it attacks a fighter for a minute
+    Then it fires no missiles or torpedoes
+
+  @no_missiles_out_of_sight
+  Scenario: My wingmen fire no missiles or torpedoes at the target out of my sight
+    Given my wingman flies an X-wing with proton torpedoes, 150 km from me
+    And its pilot is in a capture operation
+    When it attacks a fighter for a minute
+    Then it spends no missiles or torpedoes
+
+  @no_missiles_in_sight @no_missiles_out_of_sight
+  Scenario: A ship outside an operation fires missiles as in vanilla
+    Given an X-wing with proton torpedoes whose pilot is in no operation
+    When it attacks a fighter, in my sight or out of it
+    Then it fires missiles as vanilla does
+
+  @pending
+  Scenario: A formation follower of my wingman fires no missiles out of my sight
+    Given my wingman in a capture operation leads a formation of its own, 150 km from me
+    When a follower joins its attack on the target
+    Then the follower spends no missiles or torpedoes and its missiles deal no damage
+
   @pending
   Scenario: My wing forces a pilot to bail without killing the ship
     Given a capture operation on a capturable fighter, with my wingman firing and me nearby

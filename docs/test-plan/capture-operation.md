@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 7 | 0 | 3 | **3** |
+| 0 | 10 | 0 | 4 | **4** |
 
 ## Scenarios
 
@@ -67,6 +67,48 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   And for 30 seconds the hull stays below 75% and above 55%
   And the hull never drops below the 35% floor
   And the wingman keeps moving while it holds fire, never sitting still for 5 seconds
+```
+
+### My wingmen fire no missiles or torpedoes at the target in my sight
+
+**Automated:** in game `no_missiles_in_sight`
+
+```gherkin
+  Given my wingman flies an X-wing with proton torpedoes, 1 km from me
+  And its pilot is in a capture operation
+  When it attacks a fighter for a minute
+  Then it fires no missiles or torpedoes
+```
+
+### My wingmen fire no missiles or torpedoes at the target out of my sight
+
+**Automated:** in game `no_missiles_out_of_sight`
+
+```gherkin
+  Given my wingman flies an X-wing with proton torpedoes, 150 km from me
+  And its pilot is in a capture operation
+  When it attacks a fighter for a minute
+  Then it spends no missiles or torpedoes
+```
+
+### A ship outside an operation fires missiles as in vanilla
+
+**Automated:** in game `no_missiles_in_sight`, `no_missiles_out_of_sight`
+
+```gherkin
+  Given an X-wing with proton torpedoes whose pilot is in no operation
+  When it attacks a fighter, in my sight or out of it
+  Then it fires missiles as vanilla does
+```
+
+### A formation follower of my wingman fires no missiles out of my sight
+
+- [ ] **Pending:** checked by hand until its planned automated test exists
+
+```gherkin
+  Given my wingman in a capture operation leads a formation of its own, 150 km from me
+  When a follower joins its attack on the target
+  Then the follower spends no missiles or torpedoes and its missiles deal no damage
 ```
 
 ### My wing forces a pilot to bail without killing the ship
