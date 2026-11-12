@@ -9,8 +9,8 @@
 #   - the Python unit tests for tools/ (tests/python/, with the standard library's unittest)
 #   - the TypeScript tools (tools/*.ts, under Node): node_modules matches the lock (make setup
 #     installs it), the types check, their unit tests pass, the lowercase-paths check (every
-#     shipped path is lowercase) and the diff-patch check (it skips with a note without the
-#     unpacked game files, as in CI)
+#     shipped path is lowercase), the doc-size check (docs/PROJECT.md within its budget) and the
+#     diff-patch check (it skips with a note without the unpacked game files, as in CI)
 #   - the doc-paths check (tools/check-doc-paths.ts): the docs name only repo paths that exist
 #   - the Pester suites under PowerShell 7: pwsh if installed, else Microsoft's Linux build
 #     fetched into .tools/ (pinned by SHA-256), one process per test file, in parallel. CI also
@@ -32,8 +32,8 @@ PWSH_SHA256=1da6d6d6035d651f20e70ddee7c4c15ac6ab8b9fb40ee92240d91263f28a884b
 cd "$(dirname "$0")/.."
 
 # The TypeScript tools: node_modules matches package-lock.json (first, so a missing package is named),
-# the types check, the unit tests pass, every shipped path is lowercase, then the diff-patch check on
-# the unpacked 8.00 and SWI files
+# the types check, the unit tests pass, every shipped path is lowercase, docs/PROJECT.md is within its
+# size budget, then the diff-patch check on the unpacked 8.00 and SWI files
 run_typescript() {
     echo "== TypeScript"
     if ! command -v node >/dev/null; then
@@ -44,6 +44,7 @@ run_typescript() {
     { npx --no-install tsc && echo "Types: ok"; } || return 1
     node --test --test-reporter=dot 'tools/**/*.test.ts' || return 1
     node tools/check-lowercase-paths.ts || return 1
+    node tools/check-doc-size.ts || return 1
     node tools/check-diff-patches.ts
 }
 
