@@ -441,19 +441,12 @@ STUB
     [[ "$(cat "$X4_PATH/game.lock")" == token=other* ]]
 }
 
-@test "holds the lock while it mirrors, naming itself" {
-    # An rsync that notes the lock it ran under, then does the real work
-    mkdir -p "$SANDBOX/bin"
-    cat > "$SANDBOX/bin/rsync" <<SCRIPT
-#!/bin/sh
-cat "$X4_PATH/game.lock" > "$SANDBOX/seen"
-exec $(command -v rsync) "\$@"
-SCRIPT
-    chmod +x "$SANDBOX/bin/rsync"
+@test "frees the game lock when the deploy fails after taking it" {
+    # A file where the extension folder should be: the mirror fails, after the lock is taken
+    echo 'not a folder' > "$TARGET"
 
-    PATH="$SANDBOX/bin:$PATH" deploy --working-tree
-    [ "$status" -eq 0 ]
-    grep -q '^what=deploy$' "$SANDBOX/seen"
-    grep -q '^repo=repo$' "$SANDBOX/seen"
+    deploy --working-tree
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Deploying working tree"* ]]
     [ ! -e "$X4_PATH/game.lock" ]
 }

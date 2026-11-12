@@ -4,7 +4,7 @@
 #
 # Dot-source it, then:
 #   $lock = Enter-GameLock <file> <what> <repo root>   # waits for another holder; throws if it can't
-#   Update-GameLock $lock                              # the heartbeat: at least every 10 s while held
+#   Update-GameLock $lock                              # the heartbeat: call it in every loop while held
 #   Exit-GameLock $lock                                # in a finally
 #
 # A caller that holds the lock hands it down in X4_GAME_LOCK_TOKEN (make game-test does); then
@@ -47,6 +47,7 @@ function Write-GameLockFile($Lock) {
 function Enter-GameLock([string] $File, [string] $What, [string] $Root) {
     $wait = Get-GameLockSetting 'X4_GAME_LOCK_WAIT' 1800
     $stale = Get-GameLockSetting 'X4_GAME_LOCK_STALE' 60
+    if ($wait -ne [Math]::Floor($wait) -or $stale -ne [Math]::Floor($stale)) { throw "X4_GAME_LOCK_WAIT and X4_GAME_LOCK_STALE take whole seconds" }
     $poll = Get-GameLockSetting 'X4_GAME_LOCK_POLL' 5
 
     # A lock handed down by a caller that holds it: use it, don't wait for it
@@ -71,6 +72,7 @@ function Enter-GameLock([string] $File, [string] $What, [string] $Root) {
             catch { }
             $lock = [pscustomobject]@{
                 File = $File; Owned = $true; What = $What; Beat = 0
+                Every = [Math]::Max(1, $stale / 6); Clock = [Diagnostics.Stopwatch]::StartNew()
                 Token = "$PID-$([guid]::NewGuid().ToString('N'))"
                 Repo = Split-Path $Root -Leaf
                 Branch = $(if ($branch) { $branch } else { '-' })
@@ -95,8 +97,12 @@ function Enter-GameLock([string] $File, [string] $What, [string] $Root) {
             $seenAt = $clock.Elapsed.TotalSeconds
         }
         elseif ($clock.Elapsed.TotalSeconds - $seenAt -ge $stale) {
-            Write-Host "Taking over the game lock: $(Get-GameLockHolder $text) hasn't updated it for $stale s, so it looks crashed"
-            Remove-Item $File -Force -ErrorAction SilentlyContinue
+            # Only if it's still the same text: another waiter may have taken it over just now
+            if ((Read-GameLockText $File) -eq $seen) {
+                Write-Host "Taking over the game lock: $(Get-GameLockHolder $text) hasn't updated it for $stale s, so it looks crashed"
+                Remove-Item $File -Force -ErrorAction SilentlyContinue
+            }
+            $seen = $null
             continue
         }
 
@@ -112,9 +118,13 @@ function Enter-GameLock([string] $File, [string] $What, [string] $Root) {
     }
 }
 
-# The heartbeat: rewrites the lock so waiters can tell a long run from a crashed one
+# The heartbeat: rewrites the lock so waiters can tell a long run from a crashed one. Call it as
+# often as you like (in any loop); it writes every STALE/6 s at most, and only while the lock is
+# still ours
 function Update-GameLock($Lock) {
-    if (-not $Lock -or -not $Lock.Owned) { return }
+    if (-not $Lock -or -not $Lock.Owned -or $Lock.Clock.Elapsed.TotalSeconds -lt $Lock.Every) { return }
+    $Lock.Clock.Restart()
+    if ((Get-GameLockField (Read-GameLockText $Lock.File) 'token') -ne $Lock.Token) { return }
     $Lock.Beat++
     try { Write-GameLockFile $Lock } catch { }  # a waiter reading it right now; the next beat will do
 }

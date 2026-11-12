@@ -172,6 +172,7 @@ try {
     foreach ($rel in ($src.Keys | Sort-Object)) {
         if ($dst.ContainsKey($rel) -and
             (Get-FileHash $src[$rel]).Hash -eq (Get-FileHash $dst[$rel]).Hash) { continue }
+        Update-GameLock $gameLock
         Write-Host "  send $rel"
         $changed++
         if (-not $DryRun) {

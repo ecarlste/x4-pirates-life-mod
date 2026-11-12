@@ -15,7 +15,8 @@
 #
 # Environment: X4_GAME_LOCK_WAIT  seconds to wait for another holder (default 1800; 0 refuses at once)
 #              X4_GAME_LOCK_STALE seconds a holder's lock may go unchanged before it counts as
-#                                 crashed and is taken over (default 60)
+#                                 crashed and is taken over (default 60; keep it the same in
+#                                 both repos, since a holder beats every STALE/6 s)
 #              X4_GAME_LOCK_POLL  seconds between checks while waiting (default 5)
 
 GAME_LOCK_FILE=''
@@ -67,7 +68,8 @@ _game_lock_write() {
 game_lock_acquire() {
     local file=$1 what=$2
     local wait=${X4_GAME_LOCK_WAIT:-1800} stale=${X4_GAME_LOCK_STALE:-60} poll=${X4_GAME_LOCK_POLL:-5}
-    local started=$SECONDS seen='' seen_at=$SECONDS holder='' current
+    local started=$SECONDS seen='' seen_at=$SECONDS holder='' current now
+    [[ "$wait" =~ ^[0-9]+$ && "$stale" =~ ^[0-9]+$ ]] || { echo "X4_GAME_LOCK_WAIT and X4_GAME_LOCK_STALE take whole seconds" >&2; return 1; }
 
     # A lock handed down by a caller that holds it (make game-test): use it, don't wait for it
     if [ -n "${X4_GAME_LOCK_TOKEN:-}" ] && [ "$(_game_lock_field "$file" token)" = "$X4_GAME_LOCK_TOKEN" ]; then
@@ -101,13 +103,18 @@ game_lock_acquire() {
         if [ "$current" != "$seen" ]; then
             seen=$current seen_at=$SECONDS
         elif [ $(( SECONDS - seen_at )) -ge "$stale" ]; then
-            echo "Taking over the game lock: $(_game_lock_holder "$file") hasn't updated it for ${stale} s, so it looks crashed" >&2
-            rm -f "$file"
+            # Only if it's still the same text: another waiter may have taken it over just now
+            if [ "$(cat "$file" 2>/dev/null)" = "$seen" ]; then
+                echo "Taking over the game lock: $(_game_lock_holder "$file") hasn't updated it for ${stale} s, so it looks crashed" >&2
+                rm -f "$file"
+            fi
+            seen='' seen_at=$SECONDS
             continue
         fi
 
-        if [ "$(_game_lock_holder "$file")" != "$holder" ]; then
-            holder=$(_game_lock_holder "$file")
+        now=$(_game_lock_holder "$file")
+        if [ "$now" != "$holder" ]; then
+            holder=$now
             [ "$wait" -gt 0 ] && echo "Waiting for the game lock ($file): held by $holder" >&2
         fi
         if [ $(( SECONDS - started )) -ge "$wait" ]; then

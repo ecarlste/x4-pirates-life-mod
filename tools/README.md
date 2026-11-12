@@ -61,13 +61,18 @@ X4 runs one game per Windows login, and this repo and the bounty hunter's share 
 
   Only `token` and the rule that the file keeps changing matter to the protocol; the rest is for the waiting message.
 - **Taking it:** create the file exclusively (fail if it exists: `CreateNew` in .NET, `set -o noclobber` in bash), then write the lines. If it exists, someone holds it: wait, polling every few seconds, and say who holds it.
-- **Holding it:** rewrite the file (bump the `heartbeat` line) at least every 10 s.
+- **Holding it:** rewrite the file (bump the `heartbeat` line) at least every 10 s, and stop if its `token` is no longer yours.
 - **A crashed holder:** a lock whose text hasn't changed for 60 s, as watched by the waiter on its own clock (so the two clocks never need to agree), is taken over: delete it and take it as above.
 - **Letting go:** delete the file, but only if its `token` is still yours.
 - **Handing it down:** a holder that starts another tool which takes the lock passes its token in `X4_GAME_LOCK_TOKEN` (from WSL to a Windows program, list it in `WSLENV` too). A tool whose `X4_GAME_LOCK_TOKEN` matches the file's `token` goes ahead without waiting, and leaves the file for the holder to delete.
 - **Settings** (environment only): `X4_GAME_LOCK_WAIT`, seconds to wait (default 1800; 0 refuses at once with the holder's name), `X4_GAME_LOCK_STALE` (default 60) and `X4_GAME_LOCK_POLL` (default 5).
 
-It doesn't cover a game started by hand (the runner refuses while `X4` or `X4_nonsteam` runs), or two waiters taking over the same crashed lock at the same moment, which at our scale is left to chance.
+Limits:
+
+- **It's per install, not per machine.** It serializes everything that names the same `X4_PATH`, which today is every deploy and game run in both repos (the 8.00 copy). A tool pointed at another install (the 9.00 Steam copy, say) takes a different lock; X4's own one-game-per-login rule and the runner's process check stop the second game from starting, but not the deploy into it.
+- It doesn't cover a game started by hand (the runner refuses while `X4` or `X4_nonsteam` runs).
+- `X4_GAME_LOCK_STALE` must be the same in both repos: a holder beats every STALE/6 s, so a waiter with a smaller value could take over a live lock.
+- Two waiters taking over the same crashed lock at the same moment could both think they hold it; each checks the text is unchanged right before deleting it, which makes that window tiny, and at our scale the rest is left to chance.
 
 ## Rules
 

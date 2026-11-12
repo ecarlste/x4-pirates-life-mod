@@ -426,6 +426,7 @@ try {
         throw "Test profile $profileDir isn't ready: $($profileProblems -join '; '). Run with -PrepareProfile (make game-test RUNNER_ARGS=-PrepareProfile), or start X4 in that profile and switch them on in Extensions"
     }
 
+    Update-GameLock $gameLock
     $startedAt = Get-Date
     if (Test-Path $extension) { Remove-Item $extension -Recurse -Force }
     $installed = $true
@@ -470,6 +471,7 @@ finally {
     if ($installed -and -not $KeepExtension -and (Test-Path $extension)) {
         # The game may still hold files for a moment after exiting
         for ($i = 0; $i -lt 10 -and (Test-Path $extension); $i++) {
+            Update-GameLock $gameLock
             try { Remove-Item $extension -Recurse -Force } catch { Start-Sleep -Seconds 1 }
         }
     }
