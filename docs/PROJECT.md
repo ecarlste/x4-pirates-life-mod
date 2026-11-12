@@ -32,7 +32,7 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 ## Workflow rules
 
 - **Worktrees:** parallel sessions each work in a worktree under `.claude/worktrees/`. `make worktrees` flags any with work that hasn't reached `main`; remove a worktree once it says "can be removed".
-- **Every change goes through a feature branch and a PR**, never straight to `main`. Branch names are `feature/…`, `fix/…`, `docs/…` or `spike/…`. Erik and an automated reviewer review every PR. Design discussions happen in chat and build work happens locally in WSL. Commit and push often: GitHub is the hub.
+- **Every change goes through a feature branch and a PR**, never straight to `main`. Branch names are `feature/…`, `fix/…`, `docs/…` or `spike/…`. Erik reviews every PR; there is no automated reviewer yet. Before opening one, run `/mattpocock-skills:code-review` against `origin/main`, which checks the diff against [`CODING_STANDARDS.md`](../CODING_STANDARDS.md). Design discussions happen in chat and build work happens locally in WSL. Commit and push often: GitHub is the hub.
 - **PRs are squash-merged:** the PR title becomes the commit title on `main`, and the description becomes its body. Commits inside a branch can be informal.
 - **PR titles follow [Conventional Commits](https://www.conventionalcommits.org/):** `type(scope): summary`, at **72 characters or fewer**. It's about where GitHub cuts commit titles off, so `main`'s commit list reads at a glance; don't tighten it. CI checks the title.
   - Types: `feat`, `fix`, `docs`, `test`, `ci`, `build`, `refactor`, `perf`, `style`, `chore`, `revert`. Add `!` for a breaking change.
@@ -62,6 +62,7 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 | About to propose a design idea | [`rejected/README.md`](rejected/README.md) first, then research |
 | Rejecting or reopening an idea, or splitting a proposal | [`rejected/README.md`](rejected/README.md), [`agents/domain.md`](agents/domain.md#recording-decisions-in-place-of-adrs) |
 | Changing or adding a tool in `tools/` | [`tools/README.md`](../tools/README.md) |
+| Reviewing a diff, or adding a rule a check can't enforce | [`CODING_STANDARDS.md`](../CODING_STANDARDS.md) |
 
 ## Current status
 

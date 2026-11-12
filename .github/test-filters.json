@@ -11,6 +11,7 @@
     "docs/**",
     "README.md",
     "CLAUDE.md",
+    "CODING_STANDARDS.md",
     "GLOSSARY.md",
     "tools/README.md",
     ".kiro/**",
