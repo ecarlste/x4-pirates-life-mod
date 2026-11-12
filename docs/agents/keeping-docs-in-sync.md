@@ -2,7 +2,7 @@
 
 Check this before opening a PR. When one of these happens, update the matching docs in the same PR.
 
-Some updates are left out of the table because a check fails when they're missed. Those are test filters, feature-file tags, `make test-plan`, scenarios for a changed spec, doc paths, and a row in the `tools/README.md` table for each file. See [testing.md](../testing.md#wiring-a-test-in).
+Some updates are left out of the table because a check fails when they're missed. Those are test filters, feature-file tags naming real tests, `make test-plan`, doc paths, and a row in the `tools/README.md` table for each file. See [testing.md](../testing.md#wiring-a-test-in) and [its test plan section](../testing.md#test-plan).
 
 | When | Update |
 | --- | --- |
@@ -10,6 +10,8 @@ Some updates are left out of the table because a check fails when they're missed
 | A PR is opened for a plan item | Link the PR from the item |
 | A PR finishes a plan item | Tick it off and drop any **Not built:** label; if it has a spec, mark the spec Done in the spec and in `docs/specs/README.md` |
 | A feature's design is agreed | Write a spec from `docs/specs/_template.md`, add it to `docs/specs/README.md`, link it from the plan item; write its scenarios in `tests/game/features/` (tagged `@pending`) |
+| A spec's behaviour changes (requirements, thresholds, outcomes) | Its scenarios in `tests/game/features/` |
+| A test now covers a `@pending` or `@manual` scenario | Swap the tag for the test's name |
 | Building a feature changes its design | Update its spec |
 | Erik signs off a design choice or change | `DESIGN.md`, in the same PR as the work or its own `docs/` PR |
 | Research or other work suggests a design change not yet signed off | A "Design proposals" list in the PR description; not `DESIGN.md` |

@@ -1,4 +1,4 @@
--- luacheck settings for the mod's Lua (tests/run.sh runs luacheck; see docs/testing.md).
+-- luacheck settings for the mod's Lua (tests/run.sh runs luacheck; see docs/testing.md, Wiring a test in).
 -- X4 runs LuaJIT (Lua 5.1 with ffi and bit). Its UI provides the globals below.
 std = "luajit"
 max_line_length = false

@@ -19,7 +19,7 @@ How to run, add and wire up tests. The scripts say how they fetch and pin their 
 - **TypeScript tools** (`tools/`, Node 22.18 or later, packages from `make setup`): tests are `tools/**/*.test.ts`.
 - **Python tools** in `tools/` are named with underscores (`check_test_plan.py`), so their unit tests in `tests/python/test_*.py` can import them. The tests use the standard library's `unittest`. The tools' bats tests stay as the end-to-end layer.
 - **Diff-patch check** (`tools/check-diff-patches.ts`): it checks every diff patch's selectors against the unpacked 8.00 and SWI files (`X4_UNPACKED` and `SWI_UNPACKED` in `deploy.config`), and skips with a note when they're missing, as it does in CI.
-- **Doc-paths check** (`tools/check-doc-paths.ts`, also `make doc-paths`): it runs on every change and fails when a doc names a repo path that doesn't exist. Add a rule in `tools/check-doc-paths/paths.ts` only for text that isn't a repo path.
+- **Doc-paths check** (`tools/check-doc-paths.ts`, also `make doc-paths`): it runs on every change and fails when a doc names a repo path that doesn't exist. Its filter is `**`, which doesn't count as covering a file. Add a rule in `tools/check-doc-paths/paths.ts` only for text that isn't a repo path.
 
 ## Test pyramid
 
@@ -30,14 +30,14 @@ Put each test at the lowest level that can prove the scenario:
 3. Game tests on the `apirateslife_test` start (`make game-test`)
 4. By hand
 
-MD and AI scripts only run inside X4, so what they do can't be tested below game tests. The goal is no manual UAT for releases, with a full CI/CD pipeline: by-hand scenarios are debt to drive to zero.
+MD and AI scripts only run inside X4, so what they do can't be tested below game tests. The goal is no manual UAT for releases, with a full CI/CD pipeline: by-hand scenarios are debt to drive to zero, and faster tests are better.
 
 ## Game tests
 
 `make game-test` deploys the working tree. `tools/run-game-tests.ps1` then starts the X4 8.00 copy's `X4_nonsteam.exe` directly (no Steam) in its own test profile, with the dev-only test extension (`tests/game/apirateslife_tests`). The extension runs scripted scenarios in game and quits, and the runner reads the profile's `debuglog.txt` and reports PASS or FAIL. Profile IDs and paths are in [environment.md](environment.md#paths-eriks-machine).
 
 - **First run:** `make game-test RUNNER_ARGS=-PrepareProfile` makes the test profile from the root profile's settings and switches on SWI, `apirateslife` and `apirateslife_tests`. Without that, the runner refuses to start. It also refuses while `X4` or `X4_nonsteam` is running.
-- **The game lock:** it waits while another deploy or game run, from this repo or the bounty hunter's, holds the lock (see [environment.md](environment.md#deploying)).
+- **The game lock:** it waits while another deploy or game run, from this repo or the bounty hunter's, holds the lock ([how it works](../tools/README.md#the-game-lock)).
 - **Windows only**, and not in CI. Add a game test with each feature.
 - **Reporting:** `make game-test-report` posts the report to your PR as a comment and a `game-tests` check. It works only if the run was on the PR's latest pushed commit, with nothing uncommitted.
 - Background: [research/automated-game-testing.md](research/automated-game-testing.md).
