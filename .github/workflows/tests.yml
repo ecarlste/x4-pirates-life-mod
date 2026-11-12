@@ -22,6 +22,7 @@ jobs:
       shellcheck: ${{ steps.pick.outputs.shellcheck }}
       lua: ${{ steps.pick.outputs.lua }}
       typescript: ${{ steps.pick.outputs.typescript }}
+      doc-paths: ${{ steps.pick.outputs.doc-paths }}
       pester: ${{ steps.pick.outputs.pester }}
     steps:
       - uses: actions/checkout@v7
@@ -96,6 +97,20 @@ jobs:
           cache: npm
       - run: npm ci --no-fund --no-audit
       - run: tests/run.sh --typescript-only
+
+  # The docs name only repo paths that exist (tools/check-doc-paths.ts; Node only, no packages)
+  doc-paths:
+    name: Doc paths
+    needs: changes
+    if: needs.changes.outputs.doc-paths == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # The check runs .ts directly, which needs Node's type stripping
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+      - run: node tools/check-doc-paths.ts
 
   # The PowerShell scripts (deploy.ps1, tools/run-game-tests.ps1, tools/unpack-x4.ps1) run on
   # Windows: test both PowerShells a Windows user may have. (make test runs Pester under

@@ -2,9 +2,10 @@
 """Picks the test suites a change needs, from .github/test-filters.json.
 
 The filters file is dorny/paths-filter's format, which CI reads with that action: each key names
-a suite (a test file, or "shellcheck", "lua", "typescript") and lists the path globs it depends on;
-"everything" lists files that need every suite, "none" files that need no test. This script reads
-the same file for make test, so CI and local runs pick alike.
+a suite (a test file, or "shellcheck", "lua", "typescript", "doc-paths") and lists the path globs
+it depends on; "everything" lists files that need every suite, "none" files that need no test. A
+suite whose filter is "**" runs on every change ("doc-paths": any file leaving can break a doc).
+This script reads the same file for make test, so CI and local runs pick alike.
 
 The change is everything since the branch left the base ref (git diff BASE...HEAD), plus
 uncommitted and untracked files. Prints the picked suites, one per line, and on stderr why.
@@ -22,12 +23,13 @@ import sys
 
 FILTERS = ".github/test-filters.json"
 EVERYTHING, NONE = "everything", "none"
-PSEUDO_SUITES = ("shellcheck", "lua", "typescript")
+PSEUDO_SUITES = ("shellcheck", "lua", "typescript", "doc-paths")
 # Suites with a CI job of their own: each gets a <name>=true/false output and stays out of suites=,
-# the bats job's list, whose run.sh lacks what they need (LuaJIT, node_modules). To give a suite its
-# own job: add it here, add its output to the changes job in .github/workflows/tests.yml, and add a
-# job that runs when that output is true (else it is out of suites= and nothing runs it).
-OWN_JOB_SUITES = ("lua", "typescript")
+# the bats job's list, whose run.sh lacks what they need (LuaJIT, Node 22.18 or later, node_modules).
+# To give a suite its own job: add it here, add its output to the changes job in
+# .github/workflows/tests.yml, and add a job that runs when that output is true (else it is out of
+# suites= and nothing runs it).
+OWN_JOB_SUITES = ("lua", "typescript", "doc-paths")
 # Test files that must each have a filter, so they run at all
 SUITE_FILES = re.compile(r"^tests/([^/]+\.bats|[^/]+\.Tests\.ps1|python/test_[^/]+\.py)$")
 
@@ -90,9 +92,17 @@ def pick(filters, paths):
     return picked, None
 
 
+def uncovered(filters, paths):
+    """Paths no filter covers. A suite run on every change ("**") covers nothing, so a new kind of
+    file still needs a filter that says which suites test it."""
+    every_change = glob_regex("**").pattern
+    covering = {key: patterns for key, patterns in filters.items()
+                if [p.pattern for p in patterns] != [every_change]}
+    return [path for path in paths if path and not matching_keys(covering, path)]
+
+
 def check(filters):
-    problems = [f"{path} matches no filter in {FILTERS}" for path in git("ls-files")
-                if path and not matching_keys(filters, path)]
+    problems = [f"{path} matches no filter in {FILTERS}" for path in uncovered(filters, git("ls-files"))]
     problems += [f"{path} has no filter of its own in {FILTERS}" for path in git("ls-files")
                  if SUITE_FILES.match(path) and path not in filters]
     problems += [f"{key} names a test file that doesn't exist" for key in suites(filters)
