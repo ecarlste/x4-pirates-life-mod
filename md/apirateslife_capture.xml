@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Capture operations: the player starts one on a ship (for now from a comm choice, our
      md/conversations.xml patch); their wingmen get aiscripts/order.apirateslife.capture.xml, which
-     breaks the hull to a hold line and then only keeps the shields down. A mission shows what the
-     next bail check needs, and every outcome ends the operation with its own message.
+     breaks the hull to a hold line and then only keeps the shields down. A mission shows the bail
+     gates, the pilot's nerve and crew aboard, and every outcome ends the operation with its own message.
      See docs/specs/capture-operation.md.
 
      While an operation runs, it is listed by target in
@@ -137,13 +137,22 @@
           <set_relation_boost object="$Target" faction="faction.player" value="-1" decay="1" delay="600s" reason="relationchangereason.markedashostile"/>
         </do_if>
 
+        <!-- The readout's steps: the bail gates, the pilot's nerve, and crew aboard for a ship with
+             crew besides the pilot -->
+        <set_value name="$CrewStart" exact="$Target.people.count"/>
         <create_mission cue="this" name="{1774100, 10}.[$Name]" description="{1774100, 11}" faction="faction.player" type="missiontype.fight" abortable="true">
           <briefing>
-            <objective step="1" action="objective.custom" customaction="{1774100, 20}" object="$Target"/>
-            <objective step="2" action="objective.custom" customaction="{1774100, 21}" object="$Target"/>
-            <objective step="3" action="objective.custom" customaction="{1774100, 22}" object="$Target"/>
+            <objective step="1" action="objective.custom" customaction="{1774100, 26}" object="$Target"/>
+            <objective step="2" action="objective.custom" customaction="{1774100, 22}" object="$Target"/>
           </briefing>
         </create_mission>
+        <do_if value="$CrewStart">
+          <update_mission cue="this">
+            <briefing>
+              <objective step="3" action="objective.custom" customaction="{1774100, 27}" object="$Target"/>
+            </briefing>
+          </update_mission>
+        </do_if>
         <set_value name="$Objective" exact="''"/>
         <set_value name="$Started" exact="player.age"/>
         <show_notification text="{1774100, 30}.[$Name]"/>
@@ -232,7 +241,9 @@
                 </do_if>
               </do_if>
 
-              <!-- The readout: what the next bail check still needs. Only updated on change. -->
+              <!-- The readout: the bail gates, then the pilot's nerve, then crew aboard once crew
+                   start to leave. Nothing in it assumes a cooldown length, so it reads the same
+                   with SWI's 5 s and vanilla's 30 s. Only updated on change. -->
               <do_if value="$Target.maxshield and $Target.shieldpercentage ge 20">
                 <set_value name="$Step" exact="1"/>
                 <set_value name="$Text" exact="{1774100, 20}"/>
@@ -240,21 +251,32 @@
                 <set_value name="$Max" exact="80"/>
               </do_if>
               <do_elseif value="$Target.hullpercentage ge 75">
-                <set_value name="$Step" exact="2"/>
+                <set_value name="$Step" exact="1"/>
                 <set_value name="$Text" exact="{1774100, 21}"/>
                 <set_value name="$Progress" exact="[[(100 - $Target.hullpercentage)i, 0].max, 25].min"/>
                 <set_value name="$Max" exact="25"/>
               </do_elseif>
               <do_else>
-                <!-- Vanilla allows one evaluated check per pilot every 30 s -->
-                <set_value name="$Step" exact="3"/>
-                <set_value name="$Text" exact="if $Op.$lastchance then {1774100, 23}.[$Op.$lastchance] else {1774100, 22}"/>
-                <set_value name="$Wait" exact="0"/>
-                <do_if value="@$Target.pilot.$nextcapturechance">
-                  <set_value name="$Wait" exact="[[($Target.pilot.$nextcapturechance - player.age)i, 0].max, 30].min"/>
+                <!-- The last check's chance, rounded for display only -->
+                <set_value name="$Chance" exact="if $Op.$lastchance != null then (($Op.$lastchance)f + 0.5)i else null"/>
+                <set_value name="$Crew" exact="$Target.people.count"/>
+                <do_if value="$CrewStart and $Crew lt $CrewStart">
+                  <set_value name="$Step" exact="3"/>
+                  <set_value name="$Text" exact="if $Chance != null then {1774100, 25}.[$Crew, $CrewStart, $Chance] else {1774100, 24}.[$Crew, $CrewStart]"/>
+                  <set_value name="$Progress" exact="$Crew"/>
+                  <set_value name="$Max" exact="$CrewStart"/>
                 </do_if>
-                <set_value name="$Progress" exact="30 - $Wait"/>
-                <set_value name="$Max" exact="30"/>
+                <do_else>
+                  <!-- The nerve bar empties as pressure builds toward the cap -->
+                  <run_actions ref="Pressure" result="$Pressure">
+                    <param name="Target" value="$Target"/>
+                  </run_actions>
+                  <set_value name="$Cap" exact="[(if global.$APiratesLife_CapturePressureCap? then global.$APiratesLife_CapturePressureCap else 80), 1].max"/>
+                  <set_value name="$Step" exact="2"/>
+                  <set_value name="$Text" exact="if $Chance != null then {1774100, 23}.[$Chance] else {1774100, 22}"/>
+                  <set_value name="$Progress" exact="[($Cap - ($Pressure)f)i, 0].max"/>
+                  <set_value name="$Max" exact="$Cap"/>
+                </do_else>
               </do_else>
               <set_value name="$Key" exact="'%s|%s|%s'.[$Step, $Text, $Progress]"/>
               <do_if value="$Key != $Objective">

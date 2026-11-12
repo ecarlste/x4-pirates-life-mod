@@ -21,7 +21,7 @@ In a capture operation the target's pilot gets likelier to bail the longer it is
 - **The tick and the pilot's cooldown** (`$nextcapturechance`): a cooldown longer than the interval (vanilla's 30 s) is cut short; a shorter one (SWI's 5 s after a recent check) is left alone, and the tick waits for it. Clearing every cooldown, as first agreed, let a hit's check and a tick's land 1 s apart, so a fight where the player also fires rolled up to twice as often as a wing-only one. Erik agreed the change in the #118 session.
 - **The tick's attacker is the leader**, the ship the player flies, even when only the wing fires. SWI's chance counts the attacker's size and health, so the leader's set those parts of a tick's check. Rejected: naming the wingman nearest the target, whose chance would jump around as wingmen move and take damage. Erik chose the leader in the #118 session.
 - **Settings** in `md/apirateslife_config.xml`: `CapturePressureStep` (8), `CapturePressureCap` (80), `CapturePressureInterval` (5). The code falls back to these defaults when a global is missing.
-- **Not here:** fear, the pressure left on a pilot after an escape ([#119](https://github.com/ecarlste/x4-pirates-life-mod/issues/119)), and the readout, whose countdown still assumes 30 s ([#120](https://github.com/ecarlste/x4-pirates-life-mod/issues/120)).
+- **Not here:** fear, the pressure left on a pilot after an escape ([#119](https://github.com/ecarlste/x4-pirates-life-mod/issues/119)). The mission readout shows the pressure as the pilot's nerve: see [capture-operation.md](capture-operation.md).
 
 ## Done when
 

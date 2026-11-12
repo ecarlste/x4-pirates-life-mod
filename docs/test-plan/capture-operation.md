@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 13 | 1 | 2 | **3** |
+| 0 | 14 | 1 | 2 | **3** |
 
 ## Scenarios
 
@@ -141,6 +141,21 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   When I abort the capture mission
   Then the operation ends as "called off"
   And the wingman stops attacking and returns to formation
+```
+
+### The mission readout shows the gates, the pilot's nerve and crew aboard
+
+**Automated:** in game `capture_readout`
+
+```gherkin
+  Given a capture operation on a crewed ship with full shields and hull, out of the pressure tick's reach
+  Then the mission shows "Knock shields below 20%" as step 1 of 3
+  When its shields are down
+  Then the mission shows "Damage hull below 75%" as step 1
+  When its hull is at 50% for 10 seconds
+  Then the mission shows "Pilot's nerve" as step 2, with a bar of about 72 of 80
+  When one of its crew bails
+  Then the mission shows "Crew aboard n/max" with the last check's chance as step 3, with a bar of the crew left
 ```
 
 ### The comm choice and the mission's Abort work in SWI's menus

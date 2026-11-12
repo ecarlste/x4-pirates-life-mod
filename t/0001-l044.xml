@@ -10,8 +10,13 @@
     <t id="11">Make the pilot abandon ship without destroying it. Your wing breaks the hull, then only keeps the shields down. Abort this mission to call the capture off.</t>
     <t id="20">Knock shields below 20%</t>
     <t id="21">Damage hull below 75%</t>
-    <t id="22">Keep the pressure on: next bail check</t>
-    <t id="23">Keep the pressure on: last check %s%%</t>
+    <t id="22">Pilot's nerve</t>
+    <t id="23">Pilot's nerve: last check %s%%</t>
+    <t id="24">Crew aboard %s/%s</t>
+    <t id="25">Crew aboard %s/%s: last check %s%%</t>
+    <!-- Briefing steps 1 and 3 -->
+    <t id="26">Knock shields below 20%, then hull below 75%</t>
+    <t id="27">Crew aboard</t>
 
     <!-- Notifications -->
     <t id="30">Capture started: %s</t>

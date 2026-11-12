@@ -10,6 +10,7 @@ read_globals = {
 	"DebugError",
 	"GetDialogOption",
 	"GetMissionDetails",
+	"GetMissionObjective",
 	"GetNumMissions",
 	"NewGame",
 	"ReadText",

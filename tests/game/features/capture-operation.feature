@@ -87,6 +87,17 @@ Feature: Capture operations
     Then the operation ends as "called off"
     And the wingman stops attacking and returns to formation
 
+  @capture_readout
+  Scenario: The mission readout shows the gates, the pilot's nerve and crew aboard
+    Given a capture operation on a crewed ship with full shields and hull, out of the pressure tick's reach
+    Then the mission shows "Knock shields below 20%" as step 1 of 3
+    When its shields are down
+    Then the mission shows "Damage hull below 75%" as step 1
+    When its hull is at 50% for 10 seconds
+    Then the mission shows "Pilot's nerve" as step 2, with a bar of about 72 of 80
+    When one of its crew bails
+    Then the mission shows "Crew aboard n/max" with the last check's chance as step 3, with a bar of the crew left
+
   @manual
   Scenario: The comm choice and the mission's Abort work in SWI's menus
     Given I'm playing on SWI, flying a ship with a wingman
