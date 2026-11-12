@@ -1,137 +1,69 @@
 # A Pirate's Life — Project Context
 
-Read this first. It is the shared context for anyone (and any tool) working on this repo.
+Read this first. It holds the rules for anyone, and any tool, working on this repo, plus pointers to everything else.
 
 ## What this is
 
-An X4: Foundations piracy overhaul: the one pirate mod a player needs, from small-time raider to pirate lord, playable as piracy alone. Base game first; designed so total conversions (Star Wars Interworlds) can plug in through data profiles.
-
-- Extension ID: `apirateslife` (see `content.xml`)
-- Full design: [`docs/DESIGN.md`](DESIGN.md), the source of truth for the agreed design
+An X4: Foundations piracy overhaul: the one pirate mod a player needs, from small-time raider to pirate lord, playable as piracy alone. Base game first, and designed so total conversions such as Star Wars Interworlds can plug in through data profiles. Extension ID: `apirateslife` (see `content.xml`).
 
 ## Key decisions
 
-- **SWI build first, 9.x line on hold.** Two lines of the mod (terms in [`GLOSSARY.md`](../GLOSSARY.md)):
-  - The **SWI build** is the main focus: A Pirate's Life for X4 8.00 (made for and tested on SWI 0.91 HF1, meant to work on any 8.00 setup), S/M capture only (no booty, pirate variants or settings page), published on Nexus before the [SWI bounty hunter](https://github.com/ecarlste/x4-swi-bounty-hunter) series' episode 1. It's charted on the wayfinder map [SWI build with S/M capture](https://github.com/ecarlste/x4-pirates-life-mod/issues/89).
-  - The **9.x line** (latest X4 9.x, vanilla first) waits until the SWI build ships.
-  - When SWI moves to 9.x, the work moves back to the 9.x line, with SWI support as a profile or shim on vanilla 9.x. The published 8.00 build stays up unchanged, with no more fixes.
+- **SWI build first, 9.x line on hold.** The two lines of the mod are defined in [`GLOSSARY.md`](../GLOSSARY.md).
+  - The **SWI build** is the focus: A Pirate's Life for X4 8.00 with S/M capture only. It's made for SWI 0.91 HF1, meant to work on any 8.00 setup, and charted on the [map](https://github.com/ecarlste/x4-pirates-life-mod/issues/89).
+  - The **9.x line** (latest X4 9.x, vanilla first) waits until the SWI build ships. When SWI moves to 9.x, work moves back to it, with SWI support as a profile or shim.
 - **Required DLC:** Tides of Avarice (`ego_dlc_pirate`).
-- **Profile-driven core:** no hardcoded vanilla faction/ship/ware/sector IDs in scripts. Universe-specific data lives in profiles; vanilla is the first profile.
-- **Use X4's own systems, always:** do things with existing assets, traffic, stations and economy, and rely on the game's natural systems. Magic (spawning ships, wares or stations, adding credits or cargo, effects with no cause in the universe) only when there's no organic way and fun needs it. See [DESIGN.md, Design pillars](DESIGN.md#design-pillars-and-compatibility-architecture).
-- **Capture tiers are data**, not engine classes (vanilla S/M/L/XL; SWI adds XXL).
+- **Profile-driven core:** no hardcoded vanilla faction, ship, ware or sector IDs in scripts. Universe-specific data lives in profiles; vanilla is the first profile.
+- **Use X4's own systems, always:** existing assets, traffic, stations and economy. Use magic (spawning ships, wares or stations, adding credits or cargo, effects with no cause in the universe) only when there's no organic way and fun needs it. See [DESIGN.md, Design pillars](DESIGN.md#design-pillars-and-compatibility-architecture).
+- **Capture tiers are data**, not engine classes: S/M/L/XL on vanilla, and SWI adds XXL.
 - **XML diff patches only** for library changes; never overwrite base files.
-- **UI** builds on kuertee's UI Extensions (actively maintained, and what SWI uses), declared as an optional dependency with the mod working without it. The SWI build has no UI of its own, so it doesn't declare it. SirNukes' Mod Support APIs only where there's no alternative (not updated since Dec 2025; unreliable on 9.0). See [research/third-party-ui-apis.md](research/third-party-ui-apis.md).
-- **Filenames lowercase** (X4 3.0+ convention; matters for loose, uncatalogued files).
-- **Build order:** core loop via standard vanilla starts first; custom starts and redemption later.
+- **UI:**
+  - It builds on kuertee's UI Extensions, declared as an optional dependency, and the mod works without it. The SWI build has no UI.
+  - Use SirNukes' Mod Support APIs only where there's no alternative.
+  - Why: [research/third-party-ui-apis.md](research/third-party-ui-apis.md).
+- **Filenames lowercase** (X4 3.0+ convention; it matters for loose, uncatalogued files).
+- **Build order:** the core loop on standard vanilla starts first; custom starts and redemption later.
 
 ## The two lines in git
 
-- **`main` is the SWI build.** The 9.x line is parked on the `9.x` branch and the `9.x-parked` tag, both cut from `main` at `bc19472` ([#110](https://github.com/ecarlste/x4-pirates-life-mod/issues/110)), after the PRs both lines needed had merged (test-suite selection, the 8.00 NoSteam copy). Branch protection locks `9.x` (no merges) until the SWI build is done; the 9.x line is unpublished, so it needs no hotfix path.
-- **The way back:** when SWI moves to 9.x and the SWI build is done, `main` is tagged `swi-8.00-final`, matching the last Nexus upload, and nothing ships to the 8.00 build after that. One PR from `9.x` brings the 9.x mod back onto `main`, with SWI support as a profile or shim on top.
-- **SWI build docs:** its spec is an issue (from `/to-spec`), not a `docs/specs/` file. Its decisions live in the resolutions of the [map](https://github.com/ecarlste/x4-pirates-life-mod/issues/89)'s tickets, its research on `research/<name>` branches, and its vocabulary in [`GLOSSARY.md`](../GLOSSARY.md), shared by both lines. `DESIGN.md` and `IMPLEMENTATION_PLAN.md` describe the 9.x line; their pillars and the key decisions above still apply to the SWI build. Specs and feature files of the features the SWI build drops (booty, pirate variants, settings page, settings profiles) leave `main` with their code and stay on `9.x`.
-- **Checks on `main`** keep running and test the SWI build: `make test`, the test-plan check and the PR-title check stay. The variants manifest check and the dropped features' tests left with their code.
+- **`main` is the SWI build.** The 9.x line is parked on the `9.x` branch and the `9.x-parked` tag ([#110](https://github.com/ecarlste/x4-pirates-life-mod/issues/110)). Branch protection locks `9.x` until the SWI build is done.
+- **The way back:** once the SWI build is done and SWI moves to 9.x, `main` is tagged `swi-8.00-final` and nothing ships to the 8.00 build after that. One PR from `9.x` brings the 9.x mod back onto `main`, with SWI support on top.
+- **SWI build docs:** its spec is an issue, and its decisions live in the [map](https://github.com/ecarlste/x4-pirates-life-mod/issues/89)'s ticket resolutions, and its research is on `research/<name>` branches. `DESIGN.md` and `IMPLEMENTATION_PLAN.md` describe the 9.x line, but their pillars and the key decisions above still apply to the SWI build. Docs of the features the SWI build drops stay on `9.x`.
 
-## Paths (Erik's machine)
+## Workflow rules
 
-| What | Path |
+- **Worktrees:** parallel sessions each work in a worktree under `.claude/worktrees/`. `make worktrees` flags any with work that hasn't reached `main`; remove a worktree once it says "can be removed".
+- **Every change goes through a feature branch and a PR**, never straight to `main`. Branch names are `feature/…`, `fix/…`, `docs/…` or `spike/…`. Erik and an automated reviewer review every PR. Commit and push often: GitHub is the hub.
+- **PRs are squash-merged:** the PR title becomes the commit title on `main`, and the description becomes its body.
+- **PR titles follow [Conventional Commits](https://www.conventionalcommits.org/):** `type(scope): summary`, at **72 characters or fewer**. Don't tighten that limit. CI checks the title.
+  - Types: `feat`, `fix`, `docs`, `test`, `ci`, `build`, `refactor`, `perf`, `style`, `chore`, `revert`. Add `!` for a breaking change.
+  - The scope is optional and names the area: `deploy`, `tests`, `tools`, `md`, `plan`, `research`, …
+  - The summary uses the terms someone would search for. Anything that doesn't fit goes in the description.
+- **PR descriptions** list every change by file or area, say what a reviewer should check closely, and note anything not tested or deliberately left out. A **Test plan** section lists the scenarios added, changed and still pending, or says `Test plan: no change`.
+- **Commits and PRs are authored by Erik only** (`Erik S. Carlsten <ecarlste@gmail.com>`). No co-author trailers, no session links, and no tool attribution or "generated by" lines in commits, PR descriptions or files.
+- **Design sign-off:**
+  - Erik signs off every design change, whoever proposes it.
+  - Propose a change in a "Design proposals" section of the PR description, or in chat. Edit `DESIGN.md` only after Erik has explicitly agreed, and say so in the PR's title or description.
+  - Ideas stay in research notes or the plan's "Ideas and maybe" until he signs off. Agreed ideas go into `DESIGN.md`, and get a spec when they're about to be built.
+- **Never commit** the unpacked reference files, or game files copied unchanged. Diff patches are fine.
+- **When one doc refers to another**, link the exact section (`DESIGN.md#roadmap`), not just the file.
+
+## Where to look
+
+| When you're… | Read |
 | --- | --- |
-| Repo (WSL, Ubuntu 26.04) | `~/workspace/x4-pirates-life-mod` |
-| Bounty hunter repo, the model for the TypeScript tooling (WSL) | `~/workspace/x4-swi-bounty-hunter` |
-| X4 install | `E:\SteamLibrary\steamapps\common\X4 Foundations` → `/mnt/e/SteamLibrary/steamapps/common/X4 Foundations` |
-| Deployed mod | `.../X4 Foundations/extensions/apirateslife` |
-| Unpacked reference data (not in git) | `E:\x4-dev\reference\x4-9.xx\` → `/mnt/e/x4-dev/reference/x4-9.xx/`; other mods for study in `E:\x4-dev\reference\mods\` |
-| Unpacked 8.00 and SWI (the diff-patch check's `X4_UNPACKED`, `SWI_UNPACKED`) | `E:\x4-dev\reference\x4-8.00\base\` (DLC folders next to it) and `E:\x4-dev\reference\mods\swi-0.91hf1\` (`ext02\`, `ext\`) |
-| Steam Workshop mods | X4 installs them into the game's `extensions\` folder itself (not Steam's workshop folder), syncing when the game starts |
-| X4 9.00 profile (saves, config, `debuglog.txt`) | Steam profile: `C:\Users\ecarl\OneDrive\Documents\Egosoft\X4\28456535\` (folder named after the Steam account ID). The in-game menu shows save slots 1–10 |
-| X4 9.00 launch options (Steam) | `-skipintro -debug all -logfile debuglog.txt -scriptlogfiles` |
-| X4 8.00 HF4 copy for SWI (NoSteam) | `E:\SteamLibrary\steamapps\common\X4 Foundations - 8.00`, started by the `X4_8.00` desktop shortcut (`X4_nonsteam.exe` with the launch options above). `extensions\` has only the DLCs and SWI 0.90 (`starwarsmod_m1`); other mods get installed by hand. The NoSteam download is kept in `E:\x4-dev\nosteam-8.00\` (9.00's in `nosteam-9.00\`) |
-| X4 8.00 game-test profile | `…\Egosoft\X4\90000301\`, made by `make game-test RUNNER_ARGS=-PrepareProfile`; its `debuglog.txt` is the game tests' log. The bounty hunter's tests use `90000201` |
-| X4 8.00 profile | The root folder `…\Egosoft\X4\`, which NoSteam uses by default. The old 7.60 profile and saves (they don't load in 8.00) are backed up in `E:\x4-dev\backups\x4-root-profile-7.60-2026-10-30\` |
-
-`-personalfolderid` gives a separate profile only with a numeric ID (the 2026-10-28 NoSteam spike made `…\Egosoft\X4\90000001\`); with a full path or a plain folder name (tested 2026-10-17/18), X4 falls back to the root folder.
-
-When X4 updates to a new version: re-unpack the game files into a new `x4-<version>` folder and update this table.
-
-## Workflow
-
-- `make setup` once (creates `deploy.config` with the X4 install path, turns on the git hooks in `.githooks/`: the pre-commit hook refuses commits on `main`, and installs the TypeScript tools' packages with `npm install`), then deploy:
-  - **"Deploy" means `make deploy`:** fetch and sync the latest `origin/main` into `extensions/apirateslife`, deleting files that left the mod. It deploys `main` no matter which branch is checked out.
-  - `make deploy-local` syncs the working tree (uncommitted changes included) for in-game testing before a PR; `./deploy.sh --ref <branch>` deploys a pushed branch; `make deploy-dry-run` previews.
-  - PowerShell equivalent: `.\deploy.ps1` (`-WorkingTree`, `-Ref <branch>`, `-DryRun`).
-  - **Settings for a test deploy:** `--set NAME=VALUE` (PowerShell `-Set`) overrides a value from `md/apirateslife_config.xml` in the deployed copy only, e.g. `make deploy-local ARGS="--set IntactOnEject=0"`. Repeat it or use commas; unknown names fail. The next deploy without it restores the committed values.
-  - **The game lock:** a deploy waits while another deploy or game run, from this repo or the bounty hunter's, holds `<X4_PATH>\game.lock` ([how it works](../tools/README.md#the-game-lock)); `X4_GAME_LOCK_WAIT=0` refuses at once instead. A crashed run's lock is taken over after 60 s.
-  - Only the paths in `deploy.include` ship; add new top-level mod folders there. Restart X4 after deploying.
-- **Game tests:** `make game-test` takes the game lock (`<X4_PATH>\game.lock`, shared with the bounty hunter's runner: one deploy or game run at a time, waiting for any other; see [tools/README.md](../tools/README.md#the-game-lock)), deploys the working tree, then `tools/run-game-tests.ps1` starts the X4 8.00 copy's `X4_nonsteam.exe` directly (no Steam) in its own test profile (`-personalfolderid 90000301`, so runs never touch the playthrough's profile or the bounty hunter's `90000201`) with the dev-only test extension (`tests/game/apirateslife_tests`), which runs scripted scenarios in game and quits; the runner reads that profile's `debuglog.txt` and reports PASS/FAIL. It refuses to start while `X4` or `X4_nonsteam` is running, or unless SWI, `apirateslife` and `apirateslife_tests` are on in the test profile: the first run needs `make game-test RUNNER_ARGS=-PrepareProfile`, which makes the profile from the root profile's settings and switches all three on. `X4_PATH`, `X4_EXE`, `X4_PROFILE_ID` and `X4_PROFILE_ROOT` come from `deploy.config` (see `deploy.config.example`). Windows only, not in CI. Add a game test with each feature. `make game-test-report` then posts the report to your PR (comment plus a `game-tests` check), if the run was on the PR's latest pushed commit with nothing uncommitted. See [research/automated-game-testing.md](research/automated-game-testing.md).
-- **Test scripts before a PR:** `make test` (or `tests/run.sh`) runs the bats suites, shellcheck when installed, the Lua and Python unit tests, the TypeScript tools and their tests, and the Pester suites, in about 30 s; only the ones your changes need (since your branch left `origin/main`, uncommitted files included), and `make test ALL=1` (`tests/run.sh --all`) runs everything. Which suite depends on which files is in `.github/test-filters.json`, in [dorny/paths-filter](https://github.com/dorny/paths-filter)'s format: CI matches PRs against it with that action, and `make test` reads it through `tools/select_tests.py`. Every file in the repo must match a filter (`none` for files that need no test) and every test file needs a filter of its own; the `pick tests` CI job and a Python unit test check both. Keep it fast: it's meant to run often. Pester runs under PowerShell 7 (`pwsh` if installed, else Microsoft's Linux build fetched into `.tools/`, pinned by SHA-256), one process per `tests/*.Tests.ps1` file, all at once and in the background while the other suites run; so keep each test file small enough to finish in under about 20 s, splitting it by topic if not (as `Deploy*.Tests.ps1`). bats runs its files in parallel when GNU parallel is installed. For the fastest run: `sudo apt install parallel libicu78` (without ICU, PowerShell runs in .NET's invariant-globalization mode, which the tests don't notice). CI runs the Pester suites under Windows PowerShell 5.1 and PowerShell 7 on every PR; `tests/run.sh --windows-powershell` runs them in Windows PowerShell 5.1 from WSL (serial, about 4 minutes). `.\tests\run.ps1` runs just the Pester suites (`-Path <file>` for one file). Test frameworks are fetched on first run (bats into `.tools/`, Pester into `.tools/` or `%LOCALAPPDATA%` when the repo is on `\\wsl.localhost`). Pester is downloaded from the PowerShell Gallery's CDN, with its API as a fallback, and checked against the SHA-256 pinned in `tests/run.ps1`; to bump Pester, update the version and the hash together. CI caches `.tools/`. The Lua checks (`tests/lua/run.sh`, also `tests/run.sh --lua-only`) lint the test extension's Lua and `tests/lua/` with luacheck (the mod's own `ui/` Lua, the settings page and booty sale, is on `9.x`) (`.luacheckrc` lists the X4 globals we use; add one there when a file starts using it), then run the LuaUnit tests in `tests/lua/test_*.lua` under LuaJIT, the Lua X4 runs (none on `main`; it notes that and passes). luacheck and LuaUnit are fetched into `.tools/`, pinned by SHA-256; LuaJIT needs a one-time `sudo apt install luajit`. Each skips with a note when it can't run (luacheck has no macOS build); CI runs both in its Lua job. The TypeScript tools in `tools/` (Node 22.18 or later, packages from `make setup`'s `npm install`) are type-checked, their tests (`tools/**/*.test.ts`) run, and the diff-patch check (`tools/check-diff-patches.ts`) checks every diff patch's selectors against the unpacked 8.00 and SWI files (`X4_UNPACKED`, `SWI_UNPACKED` in `deploy.config`), skipping with a note without them, as in CI; also `tests/run.sh --typescript-only`. The doc-paths check (`tools/check-doc-paths.ts`, also `make doc-paths`) runs on every change (its filter is `**`, which doesn't count as covering a file): it fails when a doc names a repo path that doesn't exist, so a doc still naming a file that left the repo is caught before review; add a rule in `tools/check-doc-paths/paths.ts` only for text that isn't a repo path. The Python tools in `tools/` have unit tests in `tests/python/test_*.py` (the standard library's `unittest`, nothing to install), run by `make test` with `tools/` on `PYTHONPATH`; their bats tests stay as the end-to-end layer. Python tools are named with underscores (`check_test_plan.py`) so the tests can import them. CI (`.github/workflows/tests.yml`) runs the suites each PR needs (pushes to `main` and manual runs: all of them; jobs with nothing to run show as skipped), where each script is used: shellcheck, bats, the Lua checks and the TypeScript tools on Linux (the bash tooling runs in WSL), and the Pester suites on Windows under Windows PowerShell 5.1 and PowerShell 7 (the PowerShell scripts run on Windows). macOS isn't tested.
-- **Worktrees:** parallel sessions each work in a worktree under `.claude/worktrees/`. `make worktrees` (`tools/worktree-status.sh`) lists them and flags any with uncommitted or unpushed work that hasn't reached `main`; a SessionStart hook warns about those at the start of every session. Remove a worktree once it says "can be removed".
-- **Test pyramid:** put each test at the lowest level that can prove the scenario: unit tests (LuaUnit, local and CI, `tests/lua/`) > UI tests (the same, with X4's menus stubbed; none on `main`, the settings page's are on `9.x`) > game tests on the `apirateslife_test` start (`make game-test`) > by hand. MD and AI scripts only run inside X4, so what they do can't go below game tests. The goal is no manual UAT for releases, with a full CI/CD pipeline: by-hand scenarios are debt to drive to zero, and faster tests are better.
-- **Test plan:** `tests/game/features/*.feature` says in Gherkin (Given/When/Then) what each feature should do, one file per feature. Each scenario's tags say how it's verified:
-  - the tests that cover it: game tests by the name they report (e.g. `@pilot_bail_intact`), unit tests (LuaUnit in `tests/lua/`, or Python in `tests/python/`, such as the capture metrics tool's) by their test function's name (e.g. `@test_refuses_default_in_any_case`); several tests can share a scenario;
-  - `@pending`: no test yet, one is planned; checked by hand until then;
-  - `@manual`: checked by hand for now, because automating it is hard (e.g. something surviving an X4 restart); automation is still wanted.
-  Tests, `@pending` and `@manual` don't mix on one scenario. `tools/test_plan_docs.py --checklist <file>` writes every scenario still checked by hand (`@manual` and `@pending`) as the release checklist. Write the scenario with the spec, before the test. `make test` runs `tools/check_test_plan.py`: every tag must name a game test or unit test, every game test needs a scenario (unit tests may cover details no scenario names), unit test names are unique, and every spec links its feature file. On PRs, `tools/check_test_plan_changes.py` fails when a spec or a game test changed but the plan didn't (see the PR description rule below); like the PR-title check, it's required by branch protection on `main`. Nothing executes the feature files; the steps live in the tests.
-  - **Readable test plan:** `docs/test-plan/` has a page per feature and an index ([`docs/test-plan/README.md`](test-plan/README.md)) with every scenario's steps, how it's verified, and the counts per feature, including **By hand** (manual plus pending), the number to drive to zero. They're generated from the feature files and tests by **`make test-plan`**: run it after changing either, and commit the result. Don't edit the pages. `make test` warns at the end when they're out of date, without failing; CI (the test-plan check) fails the PR.
-  - Every script change needs a test; `deploy.sh` and `deploy.ps1` share one behavior spec, so a case added to `tests/deploy.bats` belongs in one of the `tests/Deploy*.Tests.ps1` files too.
-- Never commit the unpacked reference files, or game files copied unchanged. Modified copies of vanilla files that the mod ships (diff patches) are fine.
-- Research notes go in `docs/research/`, listed in its README.
-- **Ideas move through three stages:** brainstorming and open questions stay in research notes and under "Ideas and maybe" in the plan; once Erik signs off that we *will* do something, it goes into `DESIGN.md`; when it's about to be built, it gets a spec. Don't put undecided ideas in `DESIGN.md` or specs.
-- **Erik signs off every design change, whoever proposes it** (Claude, another developer, a research spike). Propose changes in a "Design proposals" section of the PR description, or discuss them in chat; edit `DESIGN.md` only after Erik has explicitly agreed, in chat or on the PR. A PR that changes `DESIGN.md` says so in its title or description, so a design change is never buried in other work.
-- **Erik decides each piece of a proposal: accept, keep iterating, or reject.** A proposal can be split, with different pieces getting different outcomes.
-  - *Accepted:* goes into `DESIGN.md`.
-  - *Keep iterating:* stays in its research note (or under "Ideas and maybe") to be researched or reworked.
-  - *Rejected:* moves out of research into [`rejected/`](rejected/README.md), with a rejection notice at the top of its file (date, reason, links to the full reasons and to [reopening](rejected/README.md#reopening-a-rejected-idea)), so it's kept and easy to find but isn't proposed again unchanged. Reopening a rejected idea, e.g. because someone thinks they've solved the reason it was rejected, needs Erik's approval; then it moves back into research.
-- Before proposing a design idea, check [`rejected/`](rejected/README.md) for it.
-- Design discussions happen in chat; build work happens locally in WSL. GitHub is the hub, so commit and push often.
-- **All changes go through a feature branch and a pull request**, never straight to `main`. Erik reviews every PR, and an automated PR reviewer runs on it too. Branch names: `feature/…`, `fix/…`, `docs/…`, `spike/…`.
-- **PRs are squash-merged** (the only merge option): the PR title becomes the commit title on `main` and the PR description becomes its body. Commits inside a branch can be informal. Merged branches are deleted automatically.
-- **PR titles follow [Conventional Commits](https://www.conventionalcommits.org/):** `type(scope): summary`, checked by CI (`.github/workflows/pr-title.yml`). The check is required by branch protection on `main`, for admins too.
-  - Types: `feat`, `fix`, `docs`, `test`, `ci`, `build`, `refactor`, `perf`, `style`, `chore`, `revert`. Add `!` for breaking changes, e.g. `feat(deploy)!: …`.
-  - Scope is optional and names the area: `deploy`, `tests`, `tools`, `md`, `plan`, `research`, …
-  - The whole title is **72 characters or fewer**, about where GitHub cuts commit titles off, so `main`'s commit list reads at a glance with no hovering. That's the whole purpose of the limit, so don't tighten it further. The ` (#123)` GitHub appends when squashing may get cut off, and that's fine. The summary names what changed in the terms someone would search for; anything that doesn't fit goes in the description, which GitHub search and `git log --grep` also cover.
-- **PR descriptions are the commit body:** list every change by file or area, say what a reviewer should check closely, and note anything not tested or deliberately left out.
-  - A **Test plan** section lists the scenarios added, changed and still pending. If a PR changes a spec or a game test but not the plan (a typo fix, say), write `Test plan: no change` instead; the test-plan PR check fails otherwise.
-- **Commits and PRs are authored by Erik only** (`Erik S. Carlsten <ecarlste@gmail.com>`). No co-author trailers, no session links, and no tool attribution or "generated by" lines in commits, PR descriptions, or files.
-
-## Planning docs
-
-- [`GLOSSARY.md`](../GLOSSARY.md): the project's vocabulary, for both lines. It defines words only, never decisions.
-- The SWI build's [wayfinder map](https://github.com/ecarlste/x4-pirates-life-mod/issues/89): its decisions and open questions (see [The two lines in git](#the-two-lines-in-git)).
-- [`DESIGN.md`](DESIGN.md): the agreed high-level design of the 9.x line, edited here through PRs like everything else. Only decided design goes in; ideas still being explored stay in research notes and the plan's "Ideas and maybe".
-- [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md): the tracker for all agreed work on the 9.x line.
-- [`specs/`](specs/): one short spec per agreed feature.
-- [`research/`](research/README.md): what we've learned about vanilla X4 (call flows, hooks, tuning), and design ideas still being worked on. Check its index before digging through game files.
-- [`rejected/`](rejected/README.md): design ideas Erik rejected, and why. Check it before proposing an idea.
-- When one doc refers to another, link the exact section (`DESIGN.md#roadmap`), not just the file.
-
-## Keeping docs in sync
-
-When one of these happens, update the matching docs in the same PR.
-
-| When | Update |
-| --- | --- |
-| We agree to new work, however small or far off | Add it to `IMPLEMENTATION_PLAN.md`, linking the PR that adds it; if it carries its design, start it with **Not built:** |
-| A PR is opened for a plan item | Link the PR from the item |
-| A PR finishes a plan item | Tick it off and drop any **Not built:** label; if it has a spec, mark the spec Done in the spec and in `specs/README.md` |
-| A feature's design is agreed | Write a spec from `specs/_template.md`, add it to `specs/README.md`, link it from the plan item; write its scenarios in `tests/game/features/` (tagged `@pending`) |
-| A game test or unit test is added, renamed or changes what it checks | Its scenarios in `tests/game/features/`: tag them with the test's name; then `make test-plan` |
-| A test now covers a `@pending` or `@manual` scenario | Swap the tag for the test's name; then `make test-plan` |
-| A spec's behaviour changes (requirements, thresholds, outcomes) | Its scenarios in `tests/game/features/`, in the same PR; then `make test-plan` |
-| Building a feature changes its design | Update its spec |
-| Erik signs off a design choice or change | `DESIGN.md`, in the same PR as the work or its own `docs/` PR |
-| Research or other work suggests a design change not yet signed off | A "Design proposals" list in the PR description; not `DESIGN.md` |
-| Erik rejects a design idea | Move it from its research note (or "Ideas and maybe") into a file in `docs/rejected/` made from `_template.md`, with the rejection notice at the top, and add its row to `docs/rejected/README.md`; leave a one-line pointer where it was |
-| Erik approves reopening a rejected idea | Move it back into research, drop its rejection notice, and remove its row from `docs/rejected/README.md` ([how](rejected/README.md#reopening-a-rejected-idea)) |
-| A research note is added or changes status | Its row in `docs/research/README.md` |
-| A research spike finishes | Notes in `docs/research/`; update the plan's order and items to match |
-| A key decision changes (target version, DLC, architecture) | "Key decisions" above, and `DESIGN.md` |
-| A setup step, command, or path changes | "Workflow" or "Paths" above |
-| A script changes | Its tests in `tests/` (and `tools/README.md` for anything in `tools/`) |
-| A file or test file is added, or a suite starts depending on other files | `.github/test-filters.json` |
-| A new top-level mod folder is added (`md/`, `aiscripts/`, …) | `deploy.include`, or it won't ship |
-| `deploy.config` gains or changes a setting | `deploy.config.example` |
+| Running, adding or wiring up tests, or writing test-plan scenarios | [`testing.md`](testing.md) |
+| Setting up, deploying, or looking for X4, its game files or profiles | [`environment.md`](environment.md) |
+| About to open a PR | [`agents/keeping-docs-in-sync.md`](agents/keeping-docs-in-sync.md) |
+| Naming something in the mod's domain | [`GLOSSARY.md`](../GLOSSARY.md) (it defines words only, never decisions) |
+| Working on the SWI build | Its [map](https://github.com/ecarlste/x4-pirates-life-mod/issues/89) |
+| Working on the 9.x line's design or its agreed work | [`DESIGN.md`](DESIGN.md), the source of truth; [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md), the tracker |
+| Building or changing a feature | Its spec, listed in [`specs/README.md`](specs/README.md) |
+| About to dig through game files or vanilla behaviour | [`research/README.md`](research/README.md) first; new notes go there, listed in its README |
+| About to propose a design idea | [`rejected/README.md`](rejected/README.md) first, then research |
+| Rejecting or reopening an idea, or splitting a proposal | [`rejected/README.md`](rejected/README.md), [`agents/domain.md`](agents/domain.md#recording-decisions-in-place-of-adrs) |
+| Changing or adding a tool in `tools/` | [`tools/README.md`](../tools/README.md) |
 
 ## Current status
 
-- **Focus:** the SWI build, on its [map](https://github.com/ecarlste/x4-pirates-life-mod/issues/89). `main` holds what the SWI build ships; booty, the pirate variants and the in-game settings page (with settings profiles) are on [`9.x`](https://github.com/ecarlste/x4-pirates-life-mod/tree/9.x).
-- On `main`: the deploy and test tooling, an in-game smoke test script, and the bail hook (`md/`): every bail check runs through our code (currently 2x chance) and every bail raises our `Bailed` signal; captured ships arrive intact (no pilot-bail hull drop or sabotage, no marine-claim damage), each switchable to vanilla in the config file (`md/apirateslife_config.xml`, applied on every start and load), tested in game. Capture operations started from a comm choice: wingmen break a target to a hold line and then only keep its shields down, with a mission readout ([spec](specs/capture-operation.md)). Capture metrics: one summary line per capture attempt in `debuglog.txt`, and `tools/capture_metrics.py` to turn logs into a CSV ([spec](specs/capture-metrics.md)). Pirated ships: every ship that becomes the player's is marked pirated (taken by boarding or bailing in combat with the player's ships) or a donation, kept for booty on the 9.x line ([spec](specs/pirated-ships.md)). Automated in-game tests (`make game-test`) covering the config, the bail hook, intact captures, capture operations, capture metrics and pirated ships.
-- Next: the SWI build's map. The 9.x line resumes from the first unticked items in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) once SWI moves to 9.x.
+- **Focus:** the SWI build, on its [map](https://github.com/ecarlste/x4-pirates-life-mod/issues/89). What's built is in [`specs/README.md`](specs/README.md) and the [test plan](test-plan/README.md).
+- **Next:** the map. The 9.x line resumes from the first unticked items in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md) once SWI moves to 9.x.

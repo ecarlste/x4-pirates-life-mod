@@ -1,6 +1,8 @@
 # Rejected design ideas
 
-Design ideas Erik has rejected, kept so we know what was decided and why, and so they aren't proposed again unchanged. See [PROJECT.md, Workflow](../PROJECT.md#workflow).
+Design ideas Erik has rejected, kept so we know what was decided and why, and so they aren't proposed again unchanged. See [PROJECT.md, Workflow rules](../PROJECT.md#workflow-rules) for sign-off.
+
+A rejected idea moves out of research and into this folder, with a rejection notice at the top of its file, so it's kept and easy to find. Reopening one needs Erik's approval.
 
 ## Rejecting an idea
 
