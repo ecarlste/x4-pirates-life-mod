@@ -15,8 +15,8 @@ BeforeAll {
         '[General] 3.11 Failed to verify the file signature for file extensions\apirateslife\md\apirateslife_bail.xml (error: 14)'
         '[Scripts] 40.01 *** Context:md.APiratesLife_Tests.Run<inst:2a1b>: [apirateslife-test] RUN START 2 tests'
         '[Scripts] 40.02 *** Context:md.APiratesLife_Bail.AdjustEjectChance: [apirateslife] bail check: null attacking null: chance 30 -> 60'
-        '[Scripts] 40.03 *** Context:md.APiratesLife_Tests.Report<inst:2a1c>: [apirateslife-test] PASS eject_chance_doubled: 5 cases'
-        '[Scripts] 44.00 *** Context:md.APiratesLife_Tests.Report<inst:2a1d>: [apirateslife-test] PASS pilot_bail_intact: hull 100%, 4 equipment kept, pilot skill 38'
+        '[Scripts] 40.03 *** Context:md.APiratesLife_Tests.Report<inst:2a1c>: [apirateslife-test] PASS fixture_test_a: 5 cases'
+        '[Scripts] 44.00 *** Context:md.APiratesLife_Tests.Report<inst:2a1d>: [apirateslife-test] PASS fixture_test_b: hull 100%, 4 equipment kept, pilot skill 38'
         '[Scripts] 44.01 *** Context:md.APiratesLife_Tests.NextTest<inst:2a1e>: [apirateslife-test] DONE passed=2 failed=0'
     )
 }
@@ -28,14 +28,14 @@ Describe 'Read-GameTestLog' {
         $run.Expected | Should -Be 2
         $run.Done | Should -BeTrue
         $run.Results.Count | Should -Be 2
-        $run.Results[1].Name | Should -Be 'pilot_bail_intact'
+        $run.Results[1].Name | Should -Be 'fixture_test_b'
         $run.Results[1].Passed | Should -BeTrue
         $run.Results[1].Detail | Should -Be 'hull 100%, 4 equipment kept, pilot skill 38'
         $run.GameVersion | Should -Be '9.00 (611726)'
     }
 
     It 'reads a failure and its detail' {
-        $run = Read-GameTestLog @('[Scripts] 1.00 *** Context:x: [apirateslife-test] FAIL claim_intact: hull 72%, expected 100%;')
+        $run = Read-GameTestLog @('[Scripts] 1.00 *** Context:x: [apirateslife-test] FAIL fixture_test_c: hull 72%, expected 100%;')
         $run.Results[0].Passed | Should -BeFalse
         $run.Results[0].Detail | Should -Be 'hull 72%, expected 100%;'
     }
@@ -165,8 +165,8 @@ Describe 'Get-RunProblems' {
     }
 
     It 'names failed tests' {
-        $log = $script:PassingLog -replace 'PASS pilot_bail_intact', 'FAIL pilot_bail_intact'
-        Get-RunProblems (Read-GameTestLog $log) 'finished' | Should -Contain '1 failed: pilot_bail_intact'
+        $log = $script:PassingLog -replace 'PASS fixture_test_b', 'FAIL fixture_test_b'
+        Get-RunProblems (Read-GameTestLog $log) 'finished' | Should -Contain '1 failed: fixture_test_b'
     }
 
     It 'reports a run that never started' {
@@ -194,12 +194,12 @@ Describe 'Get-RunProblems' {
 
 Describe 'ConvertTo-JUnitXml' {
     It 'writes one case per test plus the run, with failures escaped' {
-        $log = $script:PassingLog -replace 'PASS pilot_bail_intact: hull 100%', 'FAIL pilot_bail_intact: hull <72%> & "worse"'
+        $log = $script:PassingLog -replace 'PASS fixture_test_b: hull 100%', 'FAIL fixture_test_b: hull <72%> & "worse"'
         $run = Read-GameTestLog $log
         $xml = [xml] (ConvertTo-JUnitXml $run (Get-RunProblems $run 'finished'))
         $xml.testsuite.tests | Should -Be '3'
         $xml.testsuite.failures | Should -Be '1'
-        $case = $xml.testsuite.testcase | Where-Object { $_.name -eq 'pilot_bail_intact' }
+        $case = $xml.testsuite.testcase | Where-Object { $_.name -eq 'fixture_test_b' }
         $case.failure.message | Should -BeLike 'hull <72%> & "worse"*'
     }
 
@@ -231,11 +231,11 @@ Describe 'ConvertTo-MarkdownReport' {
         $lines[0] | Should -Be '<!-- apirateslife-game-tests commit=0123456789abcdef0123456789abcdef01234567 dirty=false result=pass passed=2 total=2 -->'
         $lines[1] | Should -Be '### Game tests: passed, 2 of 2'
         $lines[3] | Should -Be 'Commit `0123456` on `feature/x`, X4 9.00 (611726), 2 min 21 s, 2026-10-20 15:24'
-        $lines | Should -Contain '| `pilot_bail_intact` | PASS | hull 100%, 4 equipment kept, pilot skill 38 |'
+        $lines | Should -Contain '| `fixture_test_b` | PASS | hull 100%, 4 equipment kept, pilot skill 38 |'
     }
 
     It 'marks a failing, dirty run, and lists run problems and mod errors' {
-        $log = ($script:PassingLog -replace 'PASS pilot_bail_intact: hull 100%', 'FAIL pilot_bail_intact: hull 72% | worse') +
+        $log = ($script:PassingLog -replace 'PASS fixture_test_b: hull 100%', 'FAIL fixture_test_b: hull 72% | worse') +
                @('[=ERROR=] 9.00 Error in MD cue md.APiratesLife_Bail.Bailed')
         $run = Read-GameTestLog $log
         $info = $script:Info.Clone(); $info.Dirty = $true
@@ -244,7 +244,7 @@ Describe 'ConvertTo-MarkdownReport' {
         $md | Should -BeLike '*### Game tests: FAILED, 1 of 2*'
         # Contains, not -BeLike: backticks are escape characters in wildcard patterns
         $md.Contains('on `feature/x` **plus uncommitted changes**,') | Should -BeTrue
-        $md.Contains('| `pilot_bail_intact` | **FAIL** | hull 72% \| worse, 4 equipment kept, pilot skill 38 |') | Should -BeTrue
+        $md.Contains('| `fixture_test_b` | **FAIL** | hull 72% \| worse, 4 equipment kept, pilot skill 38 |') | Should -BeTrue
         $md | Should -BeLike '*Error in MD cue md.APiratesLife_Bail.Bailed*'
     }
 
@@ -356,7 +356,7 @@ Describe 'Watch-GameRun' {
     BeforeEach {
         $script:dir = New-TestDir
         $script:log = Join-Path $dir 'debuglog.txt'
-        $failingLog = $script:PassingLog -replace 'PASS eject_chance_doubled: 5 cases', 'FAIL eject_chance_doubled: 30 gave 30, expected 60;'
+        $failingLog = $script:PassingLog -replace 'PASS fixture_test_a: 5 cases', 'FAIL fixture_test_a: 30 gave 30, expected 60;'
         # A game that writes its whole log and quits just before the runner asks whether it has
         # exited: the race that once lost the results from the live output (CI, PowerShell 5.1)
         $script:game = [pscustomobject]@{ Log = $log; Lines = $failingLog }
@@ -369,8 +369,8 @@ Describe 'Watch-GameRun' {
         $out = Watch-GameRun $game $log 0 60 60 '90000301' $null (Get-Date) $seen 6>&1
         $ending = @($out | Where-Object { $_ -is [string] })
         $shown = ($out | Where-Object { $_ -is [Management.Automation.InformationRecord] } | ForEach-Object { "$_" }) -join "`n"
-        $shown | Should -BeLike '*FAIL eject_chance_doubled: 30 gave 30, expected 60;*'
-        $shown | Should -BeLike '*PASS pilot_bail_intact*'
+        $shown | Should -BeLike '*FAIL fixture_test_a: 30 gave 30, expected 60;*'
+        $shown | Should -BeLike '*PASS fixture_test_b*'
         $ending | Should -Be @('finished')
         $seen.Keys | Sort-Object | Should -Be @('done', 'menu', 'tests')
     }

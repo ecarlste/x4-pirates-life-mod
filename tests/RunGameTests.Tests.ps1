@@ -17,8 +17,8 @@ Describe 'run-game-tests.ps1' {
         $r = Invoke-Script $script:Runner $runArgs
         $r.Output | Should -BeLike '*Game tests passed (4 of 4)*'
         # Each result as the run reports it live, not only in the summary
-        $r.Output | Should -BeLike '*PASS eject_chance_doubled: 5 cases*'
-        $r.Output | Should -BeLike '*PASS pilot_bail_intact: hull 100%, 4 equipment kept, pilot skill 38*'
+        $r.Output | Should -BeLike '*PASS fixture_test_a: 5 cases*'
+        $r.Output | Should -BeLike '*PASS fixture_test_b: hull 100%, 4 equipment kept, pilot skill 38*'
         # The runner's own checks on the log, after the game's results
         $r.Output | Should -BeLike '*PASS load_order_after_swi: SWI read first for all 1 files both patch*'
         $r.Output | Should -BeLike '*PASS clean_log: no errors or warnings from our files in debuglog.txt*'
@@ -37,10 +37,10 @@ Describe 'run-game-tests.ps1' {
     }
 
     It 'fails a run with a failing test' {
-        Set-Content $env:FAKE_SOURCE_LOG ($script:PassingLog -replace 'PASS eject_chance_doubled: 5 cases', 'FAIL eject_chance_doubled: 30 gave 30, expected 60;')
+        Set-Content $env:FAKE_SOURCE_LOG ($script:PassingLog -replace 'PASS fixture_test_a: 5 cases', 'FAIL fixture_test_a: 30 gave 30, expected 60;')
         $r = Invoke-Script $script:Runner $runArgs
-        $r.Output | Should -BeLike '*FAIL eject_chance_doubled: 30 gave 30, expected 60;*'
-        $r.Output | Should -BeLike '*GAME TESTS FAILED (3 passed): 1 failed: eject_chance_doubled*'
+        $r.Output | Should -BeLike '*FAIL fixture_test_a: 30 gave 30, expected 60;*'
+        $r.Output | Should -BeLike '*GAME TESTS FAILED (3 passed): 1 failed: fixture_test_a*'
         $r.ExitCode | Should -Be 1
     }
 
