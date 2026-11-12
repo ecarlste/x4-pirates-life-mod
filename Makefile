@@ -1,4 +1,4 @@
-.PHONY: setup deploy deploy-local deploy-dry-run test test-plan doc-paths game-test game-test-locked game-test-report worktrees help
+.PHONY: setup deploy deploy-local deploy-dry-run test test-plan doc-paths doc-names game-test game-test-locked game-test-report worktrees help
 
 # npm for make setup's install of the TypeScript tools' packages; override to use another
 NPM ?= npm
@@ -18,6 +18,7 @@ help:
 	@echo "  make test           - Run the test suites your changes need (ALL=1: every suite)"
 	@echo "  make test-plan      - Regenerate the readable test plan in docs/test-plan/ from the feature files"
 	@echo "  make doc-paths      - Check the docs name only repo paths that exist (make test runs it too)"
+	@echo "  make doc-names      - Check the docs and tools name no removed mod global or game test (make test runs it too)"
 	@echo "  make game-test      - Deploy your working tree and run the in-game tests in the X4 8.00 copy (Windows),"
 	@echo "                       holding the game lock so no other run uses the game meanwhile"
 	@echo "  make game-test-report - Post the last game-test report to this branch's PR (comment and check)"
@@ -61,6 +62,9 @@ test-plan:
 
 doc-paths:
 	@node tools/check-doc-paths.ts
+
+doc-names:
+	@node tools/check-doc-names.ts
 
 # One game lock (tools/game-lock.sh) around both, so no other run deploys between them
 game-test:

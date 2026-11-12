@@ -12,6 +12,8 @@
 #     shipped path is lowercase), the doc-size check (docs/PROJECT.md within its budget) and the
 #     diff-patch check (it skips with a note without the unpacked game files, as in CI)
 #   - the doc-paths check (tools/check-doc-paths.ts): the docs name only repo paths that exist
+#   - the doc-names check (tools/check-doc-names.ts): the docs and tools name no removed mod global
+#     or game test
 #   - the Pester suites under PowerShell 7: pwsh if installed, else Microsoft's Linux build
 #     fetched into .tools/ (pinned by SHA-256), one process per test file, in parallel. CI also
 #     runs them under Windows PowerShell 5.1; --windows-powershell does that here (under WSL).
@@ -195,6 +197,15 @@ if ! wanted doc-paths; then
     echo "Nothing changed"
 elif command -v node >/dev/null; then
     node tools/check-doc-paths.ts || FAILED=1
+else
+    echo "node not installed; skipping (CI runs it)"
+fi
+
+echo "== Doc names"
+if ! wanted doc-names; then
+    echo "Nothing changed"
+elif command -v node >/dev/null; then
+    node tools/check-doc-names.ts || FAILED=1
 else
     echo "node not installed; skipping (CI runs it)"
 fi

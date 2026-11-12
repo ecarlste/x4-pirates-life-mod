@@ -23,6 +23,7 @@ jobs:
       lua: ${{ steps.pick.outputs.lua }}
       typescript: ${{ steps.pick.outputs.typescript }}
       doc-paths: ${{ steps.pick.outputs.doc-paths }}
+      doc-names: ${{ steps.pick.outputs.doc-names }}
       pester: ${{ steps.pick.outputs.pester }}
     steps:
       - uses: actions/checkout@v7
@@ -112,6 +113,23 @@ jobs:
         with:
           node-version: "26"
       - run: node tools/check-doc-paths.ts
+
+  # The docs and tools name no removed mod global or game test (tools/check-doc-names.ts; Node
+  # only, no packages). It reads the removed tests from git history, so it needs all of it.
+  doc-names:
+    name: Doc names
+    needs: changes
+    if: needs.changes.outputs.doc-names == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # The check runs .ts directly, which needs Node's type stripping
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+      - run: node tools/check-doc-names.ts
 
   # The PowerShell scripts (deploy.ps1, tools/run-game-tests.ps1, tools/unpack-x4.ps1) run on
   # Windows: test both PowerShells a Windows user may have. (make test runs Pester under

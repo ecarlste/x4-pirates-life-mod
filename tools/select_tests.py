@@ -2,10 +2,10 @@
 """Picks the test suites a change needs, from .github/test-filters.json.
 
 The filters file is dorny/paths-filter's format, which CI reads with that action: each key names
-a suite (a test file, or "shellcheck", "lua", "typescript", "doc-paths") and lists the path globs
-it depends on; "everything" lists files that need every suite, "none" files that need no test. A
-suite whose filter is "**" runs on every change ("doc-paths": any file leaving can break a doc).
-This script reads the same file for make test, so CI and local runs pick alike.
+a suite (a test file, or "shellcheck", "lua", "typescript", "doc-paths", "doc-names") and lists the
+path globs it depends on; "everything" lists files that need every suite, "none" files that need no
+test. A suite whose filter is "**" runs on every change ("doc-paths", "doc-names": any file or name
+leaving can break a doc). This script reads the same file for make test, so CI and local runs pick alike.
 
 The change is everything since the branch left the base ref (git diff BASE...HEAD), plus
 uncommitted and untracked files. Prints the picked suites, one per line, and on stderr why.
@@ -23,13 +23,13 @@ import sys
 
 FILTERS = ".github/test-filters.json"
 EVERYTHING, NONE = "everything", "none"
-PSEUDO_SUITES = ("shellcheck", "lua", "typescript", "doc-paths")
+PSEUDO_SUITES = ("shellcheck", "lua", "typescript", "doc-paths", "doc-names")
 # Suites with a CI job of their own: each gets a <name>=true/false output and stays out of suites=,
 # the bats job's list, whose run.sh lacks what they need (LuaJIT, Node 22.18 or later, node_modules).
 # To give a suite its own job: add it here, add its output to the changes job in
 # .github/workflows/tests.yml, and add a job that runs when that output is true (else it is out of
 # suites= and nothing runs it).
-OWN_JOB_SUITES = ("lua", "typescript", "doc-paths")
+OWN_JOB_SUITES = ("lua", "typescript", "doc-paths", "doc-names")
 # Test files that must each have a filter, so they run at all
 SUITE_FILES = re.compile(r"^tests/([^/]+\.bats|[^/]+\.Tests\.ps1|python/test_[^/]+\.py)$")
 
