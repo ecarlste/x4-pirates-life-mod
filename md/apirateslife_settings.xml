@@ -16,7 +16,7 @@
       </conditions>
       <actions>
         <run_actions ref="md.APiratesLife_Config.Defaults"/>
-        <debug_text text="'[apirateslife] settings: config applied (intact on claim %s, capture hold hull %s, floor hull %s, pressure step %s, cap %s, interval %s)'.[global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull, global.$APiratesLife_CapturePressureStep, global.$APiratesLife_CapturePressureCap, global.$APiratesLife_CapturePressureInterval]"/>
+        <debug_text text="'[apirateslife] settings: config applied (intact on claim %s, capture hold hull %s, floor hull %s, pressure step %s, cap %s, interval %s, fear decay x%s per %s s)'.[global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull, global.$APiratesLife_CapturePressureStep, global.$APiratesLife_CapturePressureCap, global.$APiratesLife_CapturePressureInterval, global.$APiratesLife_CaptureFearDecayFactor, global.$APiratesLife_CaptureFearDecayInterval]"/>
       </actions>
     </cue>
   </cues>

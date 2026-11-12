@@ -36,6 +36,9 @@
           BailPressureTick,
           BailPressureTickKeepsCooldown,
           BailPressureThroughPartialBail,
+          FearCarriesOver,
+          FearDecays,
+          FearCleared,
           ClaimIntact,
           ClaimVanillaWhenOff,
           CaptureStartAndDestroyed,
@@ -158,10 +161,10 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <set_value name="$Found" exact="[@global.$APiratesLife_IntactOnClaim, @global.$APiratesLife_CaptureHoldHull, @global.$APiratesLife_CaptureFloorHull, @global.$APiratesLife_CapturePressureStep, @global.$APiratesLife_CapturePressureCap, @global.$APiratesLife_CapturePressureInterval]"/>
+        <set_value name="$Found" exact="[@global.$APiratesLife_IntactOnClaim, @global.$APiratesLife_CaptureHoldHull, @global.$APiratesLife_CaptureFloorHull, @global.$APiratesLife_CapturePressureStep, @global.$APiratesLife_CapturePressureCap, @global.$APiratesLife_CapturePressureInterval, @global.$APiratesLife_CaptureFearDecayFactor, @global.$APiratesLife_CaptureFearDecayInterval]"/>
         <run_actions ref="md.APiratesLife_Config.Defaults"/>
-        <set_value name="$Config" exact="[global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull, global.$APiratesLife_CapturePressureStep, global.$APiratesLife_CapturePressureCap, global.$APiratesLife_CapturePressureInterval]"/>
-        <set_value name="$Names" exact="['IntactOnClaim', 'CaptureHoldHull', 'CaptureFloorHull', 'CapturePressureStep', 'CapturePressureCap', 'CapturePressureInterval']"/>
+        <set_value name="$Config" exact="[global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull, global.$APiratesLife_CapturePressureStep, global.$APiratesLife_CapturePressureCap, global.$APiratesLife_CapturePressureInterval, global.$APiratesLife_CaptureFearDecayFactor, global.$APiratesLife_CaptureFearDecayInterval]"/>
+        <set_value name="$Names" exact="['IntactOnClaim', 'CaptureHoldHull', 'CaptureFloorHull', 'CapturePressureStep', 'CapturePressureCap', 'CapturePressureInterval', 'CaptureFearDecayFactor', 'CaptureFearDecayInterval']"/>
         <set_value name="$Problems" exact="''"/>
         <do_all exact="$Names.count" counter="$i">
           <do_if value="$Found.{$i} == null or $Found.{$i} != $Config.{$i}">
@@ -359,13 +362,15 @@
       </actions>
     </cue>
 
-    <!-- Bail pressure's settings at their config defaults, so deploy-time overrides can't change
-         a test's outcome -->
+    <!-- Bail pressure's and fear's settings at their config defaults, so deploy-time overrides
+         can't change a test's outcome -->
     <library name="PressureDefaults" purpose="run_actions">
       <actions>
         <set_value name="global.$APiratesLife_CapturePressureStep" exact="8"/>
         <set_value name="global.$APiratesLife_CapturePressureCap" exact="80"/>
         <set_value name="global.$APiratesLife_CapturePressureInterval" exact="5"/>
+        <set_value name="global.$APiratesLife_CaptureFearDecayFactor" exact="0.5"/>
+        <set_value name="global.$APiratesLife_CaptureFearDecayInterval" exact="300"/>
       </actions>
     </library>
 
@@ -964,6 +969,284 @@
               </actions>
             </cue>
           </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- ===== Fear =====
+         The pressure an operation leaves on its target's pilot, stored on the pilot as
+         $APiratesLife_Fear = table[$points, $time]. The targets sit 12 km away, beyond the pressure
+         tick, as for bail pressure. -->
+
+    <!-- The pressure left when an operation is called off, or its target escapes, stays on the
+         pilot, and a new operation starts from it. The first operation builds 10 s of pressure and
+         is called off; the second starts from what's left, and its target escapes (warped 25 km
+         away, still inside the gates, so the pressure keeps building); the third starts from what
+         the second left. -->
+    <cue name="FearCarriesOver">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <run_actions ref="SpawnGatedTarget" result="$Target">
+          <param name="Macro" value="macro.tie_fighter_macro"/>
+          <param name="Distance" value="12km"/>
+          <param name="Crew" value="0"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <set_value name="$Problems" exact="if $Started then '' else ' operation did not start;'"/>
+        <!-- Per operation: the pressure it started from, and the fear it left -->
+        <set_value name="$StartedFrom" exact="[]"/>
+        <set_value name="$Left" exact="[]"/>
+      </actions>
+      <cues>
+        <cue name="FearCarriesOver_CallOff">
+          <delay exact="10s"/>
+          <actions>
+            <run_actions ref="PressureOn" result="$P1">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <raise_lua_event name="'apirateslife_tests.abortMission'" param="{1774100, 10}.[$Target.knownname]"/>
+          </actions>
+        </cue>
+        <cue name="FearCarriesOver_Ended" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+            <check_value value="event.param.$target == $Target"/>
+          </conditions>
+          <actions>
+            <set_value name="$Expected" exact="if $Left.count == 0 then 'calledoff' else 'escaped'"/>
+            <do_if value="event.param.$outcome != $Expected">
+              <set_value name="$Problems" exact="$Problems + ' operation %s ended as %s, expected %s;'.[$Left.count + 1, event.param.$outcome, $Expected]"/>
+            </do_if>
+            <set_value name="$Fear" exact="@$Target.pilot.$APiratesLife_Fear.$points"/>
+            <append_to_list name="$Left" exact="$Fear"/>
+            <do_if value="not $Fear">
+              <set_value name="$Problems" exact="$Problems + ' no fear on the pilot after operation %s;'.[$Left.count]"/>
+              <signal_cue cue="FearCarriesOver_Done"/>
+            </do_if>
+            <do_else>
+              <signal_cue_instantly cue="FearCarriesOver_Restart" param="$Fear"/>
+            </do_else>
+          </actions>
+        </cue>
+        <!-- A moment after an operation ends, start the next: it starts from the fear left -->
+        <cue name="FearCarriesOver_Restart" instantiate="true">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <delay exact="1s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <run_actions ref="PressureOn" result="$P">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <append_to_list name="$StartedFrom" exact="$P"/>
+            <do_if value="not $Started">
+              <set_value name="$Problems" exact="$Problems + ' operation %s did not start;'.[$StartedFrom.count + 1]"/>
+            </do_if>
+            <do_if value="$P - event.param lt -0.5 or $P - event.param gt 0.5">
+              <set_value name="$Problems" exact="$Problems + ' operation %s started from %s, the pilot had %s;'.[$StartedFrom.count + 1, $P, event.param]"/>
+            </do_if>
+            <do_if value="$StartedFrom.count == 1">
+              <signal_cue cue="FearCarriesOver_Flee"/>
+            </do_if>
+            <do_else>
+              <signal_cue cue="FearCarriesOver_Done"/>
+            </do_else>
+          </actions>
+        </cue>
+        <!-- The operation counts as engaged once someone has been within 15 km, so the target only
+             flees after the first tick -->
+        <cue name="FearCarriesOver_Flee">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <delay exact="3s"/>
+          <actions>
+            <warp object="$Target" zone="player.occupiedship.zone">
+              <position x="player.occupiedship.position.x" y="player.occupiedship.position.y" z="player.occupiedship.position.z + 25km"/>
+            </warp>
+          </actions>
+        </cue>
+        <cue name="FearCarriesOver_Timeout">
+          <delay exact="90s"/>
+          <actions>
+            <set_value name="$Problems" exact="$Problems + ' timed out after %s operations ended;'.[$Left.count]"/>
+            <signal_cue cue="FearCarriesOver_Done"/>
+          </actions>
+        </cue>
+        <cue name="FearCarriesOver_Done">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="FearCarriesOver_Ended"/>
+            <cancel_cue cue="FearCarriesOver_Restart"/>
+            <cancel_cue cue="FearCarriesOver_Flee"/>
+            <cancel_cue cue="FearCarriesOver_Timeout"/>
+            <!-- Called off right after P1 was read: the fear left is P1, plus at most a few
+                 seconds of pressure while the abort went through -->
+            <do_if value="$Left.count ge 1 and $Left.{1} and ($Left.{1} - $P1 lt -0.5 or $Left.{1} - $P1 gt 3)">
+              <set_value name="$Problems" exact="$Problems + ' called off at %s, left %s;'.[$P1, $Left.{1}]"/>
+            </do_if>
+            <!-- The escape takes over 30 s inside the gates: at least 24 more points -->
+            <do_if value="$Left.count ge 2 and $Left.{2} and $Left.{2} - $StartedFrom.{1} lt 24">
+              <set_value name="$Problems" exact="$Problems + ' started from %s and escaped with only %s;'.[$StartedFrom.{1}, $Left.{2}]"/>
+            </do_if>
+            <signal_cue_instantly cue="Report" param="table[$name = 'fear_carries_over', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'called off at %s and left %s; restarted at %s, escaped with %s; restarted at %s'.[$P1, $Left.{1}, $StartedFrom.{1}, $Left.{2}, $StartedFrom.{2}] else $Problems)]"/>
+            <run_actions ref="EndPressureTest">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Fear decays when it's read, by CaptureFearDecayFactor per CaptureFearDecayInterval: 40
+         points set some time ago read as what's left now, at the defaults and at other settings,
+         and a new operation starts from what's left -->
+    <cue name="FearDecays">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <run_actions ref="SpawnGatedTarget" result="$Target">
+          <param name="Macro" value="macro.tie_fighter_macro"/>
+          <param name="Distance" value="12km"/>
+          <param name="Crew" value="0"/>
+        </run_actions>
+        <set_value name="$Problems" exact="''"/>
+        <!-- [factor, interval, time since the fear was set, points left of 40] -->
+        <set_value name="$Cases" exact="[[0.5, 300, 0s, 40], [0.5, 300, 150s, 28.284], [0.5, 300, 300s, 20], [0.5, 300, 600s, 10], [0.25, 100, 100s, 10], [0.25, 100, 50s, 20], [1, 300, 600s, 40], [2, 300, 300s, 40], [0, 300, 300s, 0]]"/>
+        <do_for_each name="$Case" in="$Cases">
+          <set_value name="global.$APiratesLife_CaptureFearDecayFactor" exact="$Case.{1}"/>
+          <set_value name="global.$APiratesLife_CaptureFearDecayInterval" exact="$Case.{2}"/>
+          <set_value name="$Target.pilot.$APiratesLife_Fear" exact="table[$points = 40, $time = player.age - $Case.{3}]"/>
+          <run_actions ref="md.APiratesLife_Capture.Fear" result="$Got">
+            <param name="Pilot" value="$Target.pilot"/>
+          </run_actions>
+          <do_if value="$Got - $Case.{4} lt -0.1 or $Got - $Case.{4} gt 0.1">
+            <set_value name="$Problems" exact="$Problems + ' x%s per %s s after %s gave %s, expected %s;'.[$Case.{1}, $Case.{2}, $Case.{3}, $Got, $Case.{4}]"/>
+          </do_if>
+        </do_for_each>
+
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="$Target.pilot.$APiratesLife_Fear" exact="table[$points = 40, $time = player.age - 300s]"/>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <run_actions ref="PressureOn" result="$P">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <do_if value="not $Started">
+          <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
+        </do_if>
+        <do_if value="$P - 20 lt -0.5 or $P - 20 gt 0.5">
+          <set_value name="$Problems" exact="$Problems + ' an operation on a pilot with 40 points of fear 300 s old started from %s, expected 20;'.[$P]"/>
+        </do_if>
+        <signal_cue_instantly cue="Report" param="table[$name = 'fear_decays', $ok = ($Problems == ''), $detail = (if $Problems == '' then '%s decay cases; an operation started from %s'.[$Cases.count, $P] else $Problems)]"/>
+        <run_actions ref="EndPressureTest">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+      </actions>
+    </cue>
+
+    <!-- Capture or destruction clears fear: three pilots with 40 points of fear each, in an
+         operation that starts from it; one ship becomes mine, one's pilot bails, and one is
+         destroyed. None of the three pilots keeps any fear. -->
+    <cue name="FearCleared">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="$Problems" exact="''"/>
+        <set_value name="$Outcomes" exact="[null, null, null]"/>
+        <set_value name="$EndedCount" exact="0"/>
+        <set_value name="$Targets" exact="[]"/>
+        <set_value name="$Pilots" exact="[]"/>
+        <do_all exact="3">
+          <run_actions ref="SpawnGatedTarget" result="$Target">
+            <param name="Macro" value="macro.tie_fighter_macro"/>
+            <param name="Distance" value="12km"/>
+            <param name="Crew" value="0"/>
+          </run_actions>
+          <set_value name="$Target.pilot.$APiratesLife_Fear" exact="table[$points = 40, $time = player.age]"/>
+          <append_to_list name="$Targets" exact="$Target"/>
+          <append_to_list name="$Pilots" exact="$Target.pilot"/>
+          <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+            <param name="Target" value="$Target"/>
+          </run_actions>
+          <run_actions ref="PressureOn" result="$P">
+            <param name="Target" value="$Target"/>
+          </run_actions>
+          <do_if value="not $Started or $P lt 39.5">
+            <set_value name="$Problems" exact="$Problems + ' operation %s: started %s, from %s, expected 40;'.[$Targets.count, $Started, $P]"/>
+          </do_if>
+        </do_all>
+      </actions>
+      <cues>
+        <cue name="FearCleared_Act">
+          <delay exact="2s"/>
+          <actions>
+            <set_owner object="$Targets.{1}" faction="faction.player"/>
+            <run_actions ref="ForceBail">
+              <param name="Attacker" value="player.occupiedship"/>
+              <param name="Target" value="$Targets.{2}"/>
+            </run_actions>
+            <destroy_object object="$Targets.{3}"/>
+          </actions>
+        </cue>
+        <cue name="FearCleared_Ended" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+            <check_value value="$Targets.indexof.{event.param.$target}"/>
+          </conditions>
+          <actions>
+            <set_value name="$Outcomes.{$Targets.indexof.{event.param.$target}}" exact="event.param.$outcome"/>
+            <set_value name="$EndedCount" operation="add"/>
+            <do_if value="$EndedCount == 3">
+              <signal_cue cue="FearCleared_Done"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="FearCleared_Timeout">
+          <delay exact="30s"/>
+          <actions>
+            <set_value name="$Problems" exact="$Problems + ' only %s operations ended within 30 s;'.[$EndedCount]"/>
+            <signal_cue cue="FearCleared_Done"/>
+          </actions>
+        </cue>
+        <cue name="FearCleared_Done">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="FearCleared_Ended"/>
+            <cancel_cue cue="FearCleared_Timeout"/>
+            <set_value name="$Expected" exact="['captured', 'abandoned', 'destroyed']"/>
+            <do_all exact="3" counter="$i">
+              <do_if value="$Outcomes.{$i} != $Expected.{$i}">
+                <set_value name="$Problems" exact="$Problems + ' ship %s ended as %s, expected %s;'.[$i, $Outcomes.{$i}, $Expected.{$i}]"/>
+              </do_if>
+              <do_if value="@$Pilots.{$i}.$APiratesLife_Fear">
+                <set_value name="$Problems" exact="$Problems + ' the pilot of the %s ship still has fear;'.[$Expected.{$i}]"/>
+              </do_if>
+            </do_all>
+            <signal_cue_instantly cue="Report" param="table[$name = 'fear_cleared', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'no fear left after %s'.[$Expected] else $Problems)]"/>
+            <do_for_each name="$Target" in="$Targets">
+              <run_actions ref="EndPressureTest">
+                <param name="Target" value="$Target"/>
+              </run_actions>
+            </do_for_each>
+          </actions>
         </cue>
       </cues>
     </cue>
