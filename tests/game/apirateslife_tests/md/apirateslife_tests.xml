@@ -1693,6 +1693,7 @@
               <param name="Target" value="$Target"/>
             </run_actions>
             <set_object_capturable object="$Target" capturable="false"/>
+            <debug_text text="'[apirateslife-test] [DEBUG-172] skills: wingman piloting %s combined %s, target piloting %s combined %s'.[$Wingman.pilot.skill.piloting, $Wingman.pilot.combinedskill, $Target.pilot.skill.piloting, $Target.pilot.combinedskill]" filter="general"/>
           </actions>
           <cues>
             <cue name="CaptureWingHoldsFire_Watch" checkinterval="1s" instantiate="true">
@@ -1757,8 +1758,8 @@
                 </do_if>
                 <!-- Wingmen stop once the hull is under 75% and the shields are gone, so only shots
                      already on their way should take it further. 20 points is a generous margin. -->
-                <do_if value="$Problems == '' and $MinHull lt 55">
-                  <set_value name="$Problems" exact="' lowest hull %s%%, more than 20 points under the 75%% gate;'.[$MinHull]"/>
+                <do_if value="$Problems == '' and $MinHull lt 72">
+                  <set_value name="$Problems" exact="' lowest hull %s%%, [DEBUG-172 margin 3] more than 3 points under the 75%% gate;'.[$MinHull]"/>
                 </do_if>
                 <do_if value="$MaxParked ge 5">
                   <set_value name="$Problems" exact="$Problems + ' the wingman sat still for %s s in a row while holding;'.[$MaxParked]"/>
