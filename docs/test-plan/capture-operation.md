@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 11 | 0 | 1 | **1** |
+| 0 | 11 | 1 | 1 | **2** |
 
 ## Scenarios
 
@@ -118,6 +118,18 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   When I abort the capture mission
   Then the operation ends as "called off"
   And the wingman stops attacking and returns to formation
+```
+
+### The comm choice and the mission's Abort work in SWI's menus
+
+- [ ] **Manual:** checked by hand for now
+
+```gherkin
+  Given I'm playing on SWI, flying a ship with a wingman
+  When I hail a capturable fighter and click "Heave to. We're taking your ship."
+  Then a capture operation starts and its mission shows
+  When I click Abort on that mission in SWI's mission menu
+  Then the operation ends as "called off" and the wingman returns to formation
 ```
 
 ### The target turns hostile as with vanilla's "Mark as hostile"

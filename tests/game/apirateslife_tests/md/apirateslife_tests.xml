@@ -1007,15 +1007,15 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <run_actions ref="SpawnBailPair" result="$Pair"/>
-        <set_value name="$Reference" exact="$Pair.$target"/>
-        <destroy_object object="$Pair.$attacker"/>
-        <run_actions ref="SpawnBailPair" result="$Pair"/>
-        <set_value name="$Solo" exact="$Pair.$target"/>
-        <destroy_object object="$Pair.$attacker"/>
-        <!-- Reasons seen, by ship -->
+        <run_actions ref="SpawnBailPair" result="$VanillaPair"/>
+        <set_value name="$VanillaMarked" exact="$VanillaPair.$target"/>
+        <destroy_object object="$VanillaPair.$attacker"/>
+        <run_actions ref="SpawnBailPair" result="$SoloPair"/>
+        <set_value name="$Solo" exact="$SoloPair.$target"/>
+        <destroy_object object="$SoloPair.$attacker"/>
+        <!-- The first relation change's reason, by ship: later ones (damage) mustn't hide it -->
         <set_value name="$Reasons" exact="table[]"/>
-        <raise_lua_event name="'apirateslife_tests.markHostile'" param="$Reference"/>
+        <raise_lua_event name="'apirateslife_tests.markHostile'" param="$VanillaMarked"/>
       </actions>
       <cues>
         <cue name="CaptureMarkedAsHostile_Changed" instantiate="true">
@@ -1024,8 +1024,8 @@
             <check_value value="event.object != null"/>
           </conditions>
           <actions>
-            <do_for_each name="$Ship" in="[$Reference, $Solo, @$Wing]">
-              <do_if value="$Ship and (event.object == $Ship or event.object == @$Ship.pilot)">
+            <do_for_each name="$Ship" in="[$VanillaMarked, $Solo, @$Wing]">
+              <do_if value="$Ship and not $Reasons.{$Ship}? and (event.object == $Ship or event.object == @$Ship.pilot)">
                 <debug_text text="'[apirateslife-test] trace: relation boost on %s (%s): reason %s'.[$Ship.knownname, $Ship.idcode, event.param3]"/>
                 <set_value name="$Reasons.{$Ship}" exact="event.param3"/>
               </do_if>
@@ -1045,9 +1045,9 @@
               <delay exact="2s"/>
               <actions>
                 <destroy_object object="$Solo"/>
-                <run_actions ref="SpawnBailPair" result="$Pair"/>
-                <set_value name="$Wing" exact="$Pair.$target"/>
-                <set_value name="$Wingman" exact="$Pair.$attacker"/>
+                <run_actions ref="SpawnBailPair" result="$WingPair"/>
+                <set_value name="$Wing" exact="$WingPair.$target"/>
+                <set_value name="$Wingman" exact="$WingPair.$attacker"/>
                 <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
               </actions>
               <cues>
@@ -1063,7 +1063,7 @@
                       <delay exact="10s"/>
                       <actions>
                         <cancel_cue cue="CaptureMarkedAsHostile_Changed"/>
-                        <set_value name="$Expected" exact="@$Reasons.{$Reference}"/>
+                        <set_value name="$Expected" exact="@$Reasons.{$VanillaMarked}"/>
                         <set_value name="$Problems" exact="''"/>
                         <do_if value="not $Expected">
                           <set_value name="$Problems" exact="' vanilla Mark as hostile gave no relation event with a reason;'"/>
@@ -1078,7 +1078,7 @@
                           <set_value name="$Problems" exact="$Problems + ' operation with a wingman: reason %s, expected %s;'.[@$Reasons.{$Wing}, $Expected]"/>
                         </do_if>
                         <signal_cue_instantly cue="Report" param="table[$name = 'capture_marked_as_hostile', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'both boosts carry %s'.[$Expected] else $Problems)]"/>
-                        <destroy_object object="$Reference"/>
+                        <destroy_object object="$VanillaMarked"/>
                         <destroy_object object="$Wing"/>
                         <destroy_object object="$Wingman"/>
                       </actions>
@@ -1093,8 +1093,9 @@
     </cue>
 
     <!-- Hailing a capturable fighter and choosing "Heave to. We're taking your ship." starts an
-         operation on it. The conversation is vanilla's default comm, as a hail opens it; the
-         choice is picked through the dialog menu's own functions (this extension's Lua). -->
+         operation on it. The conversation is vanilla's default comm (with SWI's changes), started
+         from MD as a hail would; the choice is picked through the engine functions the dialog
+         menu uses (this extension's Lua), not by clicking. -->
     <cue name="CaptureCommChoice">
       <conditions>
         <event_cue_signalled/>
@@ -1151,7 +1152,8 @@
       </cues>
     </cue>
 
-    <!-- Aborting the operation's mission, as the mission menus do, ends it as "called off", and
+    <!-- Aborting the operation's mission with the engine call the mission menus make (not a
+         click in SWI's menu) ends it as "called off", and
          the wingman drops its capture order for its default behavior -->
     <cue name="CaptureAbortCallsWingOff">
       <conditions>

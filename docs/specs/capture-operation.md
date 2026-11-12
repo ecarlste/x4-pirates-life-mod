@@ -110,8 +110,9 @@ Scenarios: [`tests/game/features/capture-operation.feature`](../../tests/game/fe
   - `capture_escaped`: a target warped 25 km away from an engaged operation ends it as escaped after 30 s.
   - `capture_escape_waits_for_engagement`: an operation started 20 km away is still running 40 s later.
   - `capture_marked_as_hostile`: the boost from an operation without wingmen, and from a wingman's order, carries the same reason as vanilla's "Mark as hostile", made by the test extension's Lua with the call vanilla's menu makes.
-  - `capture_comm_choice`: hailing a capturable fighter (vanilla's default comm) and picking the choice through the dialog menu's own functions starts an operation.
-  - `capture_abort_calls_wing_off`: aborting the mission with the call the mission menus make (vanilla's and SWI's) ends the op as called off, and the wingman drops the capture order for its default one.
+  - `capture_comm_choice`: in an SWI game, opening vanilla's default comm with a capturable fighter's pilot and picking the choice through the engine functions the dialog menu uses starts an operation.
+  - `capture_abort_calls_wing_off`: in an SWI game, aborting the mission with the engine call the mission menus make ends the op as called off, and the wingman drops the capture order for its default one.
+  - Neither clicks a menu, so a manual scenario covers SWI's own comm and mission menus.
   - `capture_wing_holds_fire`: a real wingman (a fixed pulse-laser loadout from the test extension) breaks a capturable fighter (80% hull, shields held down until then) to under 75% and keeps it there for 30 s, with the hull never more than 20 points under the gate (nor below the floor), and the wingman never still (under 10 m/s) for 5 s in a row. The target is made uncapturable after the start, so no bail ends the fight.
 - **In game:**
   - With 3 S ships, a comm choice on a neutral or SCA fighter starts the op.
