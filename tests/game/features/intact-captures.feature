@@ -4,12 +4,6 @@ Feature: Captured ships arrive intact
   can be switched back to vanilla in the config file. SWI's bailing pilot already leaves the hull
   and equipment alone.
 
-  @config_applied_on_start
-  Scenario: The config file's values apply when a game starts
-    Given the config file, with any values set at deploy time
-    When a game starts
-    Then every setting has the value the config file gives it
-
   @claim_intact
   Scenario: The claiming marine leaves the ship intact
     Given "intact when marines claim" is on

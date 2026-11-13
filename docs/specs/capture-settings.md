@@ -14,8 +14,10 @@ Players choose whether captured ships arrive intact, with two on/off settings: *
 
 ## Design
 
-- **Config file `md/apirateslife_config.xml`:** a commented library that sets the defaults in global variables (`global.$APiratesLife_IntactOnClaim`; on the 9.x line also `global.$APiratesLife_IntactOnEject`). It's re-applied on every game start and load, so edits apply after a restart. Its header explains the values, says in-game settings are planned, and warns that mod updates overwrite edits. Globals, because AI scripts can read them but can't call MD libraries.
+- **Config file `md/apirateslife_config.xml`:** a commented library that sets the defaults in global variables (`global.$APiratesLife_IntactOnClaim`; on the 9.x line also `global.$APiratesLife_IntactOnEject`). It's re-applied on every game start and load, so edits apply after a restart. Its header explains the values and what happens to a bad one, and warns that mod updates overwrite edits. Globals, because AI scripts can read them but can't call MD libraries.
 - **Settings logic `md/apirateslife_settings.xml`:** applies the config on every start and load (proved by the `config_applied_on_start` game test). On the 9.x line, the in-game settings page writes the same globals.
+- **Bad values (SWI build, [#123](https://github.com/ecarlste/x4-pirates-life-mod/issues/123)):** the loader unsets every value, runs the config, then checks each value in its `Validate` library: a number outside its range is clamped, anything else (text, a deleted line) gets the default, and each bad value gets one `settings warning:` line in `debuglog.txt` naming the setting and the value used. The ranges are the SWI build spec's ([Settings without the settings page](https://github.com/ecarlste/x4-pirates-life-mod/issues/109)); the floor's upper limit is the hold line in use, and `IntactOnClaim` takes only 0 or 1 (anything else gets 1). `Validate` returns the bad values instead of logging them, so the game tests can call it without failing `clean_log`.
+- **A config file X4 skipped** (a typo makes X4 skip the whole file) leaves every value unset. The loader then uses its own copy of the defaults (`$Defaults` in `Validate`) with one warning, "config file not loaded, using defaults". `tools/check-settings-defaults.ts` (run by `make test`) keeps that copy the same as the config file's.
 - **Patches read the flags** and treat a missing value as on: `not (global.$X? and global.$X == 0)`. A missing setting never silently means vanilla, unlike Better Piracy's null config (bug 14 in the [prior-art note](../research/prior-art-better-piracy.md)).
 - **Log** the applied values on each start and load.
 
@@ -25,10 +27,11 @@ Players choose whether captured ships arrive intact, with two on/off settings: *
 - [x] Gate the pilot-eject and claim insertions on their flags
 - [x] Validate scripts and patches; check the patched files against vanilla
 - [x] Test in game: each flag on and off via the config file (set with `deploy --set`)
+- [x] Clamp bad values and fall back to built-in defaults, with warnings ([#123](https://github.com/ecarlste/x4-pirates-life-mod/issues/123))
 
 ## Done when
 
-Scenarios: [`tests/game/features/intact-captures.feature`](../../tests/game/features/intact-captures.feature).
+Scenarios: [`tests/game/features/intact-captures.feature`](../../tests/game/features/intact-captures.feature) and [`tests/game/features/settings.feature`](../../tests/game/features/settings.feature).
 
 - Defaults (both on): captures arrive intact, and the log shows the config applied on load.
 - Setting a flag to 0 in the config file and reloading restores vanilla damage for that case, logged as such.

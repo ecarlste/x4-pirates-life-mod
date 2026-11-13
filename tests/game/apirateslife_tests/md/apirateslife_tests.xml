@@ -28,6 +28,8 @@
         <set_value name="$QuitWhenDone" exact="true"/>
         <set_value name="$Tests" exact="[
           ConfigAppliedOnStart,
+          SettingsClamped,
+          SettingsDefaultsWhenConfigSkipped,
           BailChanceGameOwn,
           BailHookInSwiBlock,
           BailRaisesBailed,
@@ -171,8 +173,16 @@
       <actions>
         <set_value name="$Found" exact="[@global.$APiratesLife_IntactOnClaim, @global.$APiratesLife_CaptureHoldHull, @global.$APiratesLife_CaptureFloorHull, @global.$APiratesLife_CapturePressureStep, @global.$APiratesLife_CapturePressureCap, @global.$APiratesLife_CapturePressureInterval, @global.$APiratesLife_CaptureFearDecayFactor, @global.$APiratesLife_CaptureFearDecayInterval]"/>
         <run_actions ref="md.APiratesLife_Config.Defaults"/>
-        <set_value name="$Config" exact="[global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull, global.$APiratesLife_CapturePressureStep, global.$APiratesLife_CapturePressureCap, global.$APiratesLife_CapturePressureInterval, global.$APiratesLife_CaptureFearDecayFactor, global.$APiratesLife_CaptureFearDecayInterval]"/>
+        <!-- The values the config gives, after the loader's range check (they're the same for the
+             config as shipped) -->
+        <run_actions ref="md.APiratesLife_Settings.Validate" result="$Checked">
+          <param name="Raw" value="table[$IntactOnClaim = global.$APiratesLife_IntactOnClaim, $CaptureHoldHull = global.$APiratesLife_CaptureHoldHull, $CaptureFloorHull = global.$APiratesLife_CaptureFloorHull, $CapturePressureStep = global.$APiratesLife_CapturePressureStep, $CapturePressureCap = global.$APiratesLife_CapturePressureCap, $CapturePressureInterval = global.$APiratesLife_CapturePressureInterval, $CaptureFearDecayFactor = global.$APiratesLife_CaptureFearDecayFactor, $CaptureFearDecayInterval = global.$APiratesLife_CaptureFearDecayInterval]"/>
+        </run_actions>
         <set_value name="$Names" exact="['IntactOnClaim', 'CaptureHoldHull', 'CaptureFloorHull', 'CapturePressureStep', 'CapturePressureCap', 'CapturePressureInterval', 'CaptureFearDecayFactor', 'CaptureFearDecayInterval']"/>
+        <set_value name="$Config" exact="[]"/>
+        <do_for_each name="$Name" in="$Names">
+          <append_to_list name="$Config" exact="$Checked.$values.{'$' + $Name}"/>
+        </do_for_each>
         <set_value name="$Problems" exact="''"/>
         <do_all exact="$Names.count" counter="$i">
           <do_if value="$Found.{$i} == null or $Found.{$i} != $Config.{$i}">
@@ -180,6 +190,121 @@
           </do_if>
         </do_all>
         <signal_cue_instantly cue="Report" param="table[$name = 'config_applied_on_start', $ok = ($Problems == ''), $detail = (if $Problems == '' then '%s settings at their config values'.[$Names.count] else $Problems)]"/>
+      </actions>
+    </cue>
+
+    <!-- The loader's range check (md/apirateslife_settings.xml, Validate) on values a player might
+         type: a number outside its range is clamped, anything else gets the default (clamped to
+         the hold line, for the floor), each with one bad-value entry naming the setting and the
+         value used, which the loader writes to the log as a warning. Values in range, at their
+         limits too, pass with none. A plain library call: nothing is written to the log. -->
+    <cue name="SettingsClamped">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="$Defaults" exact="table[$IntactOnClaim = 1, $CaptureHoldHull = 75, $CaptureFloorHull = 35, $CapturePressureStep = 8, $CapturePressureCap = 80, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0.5, $CaptureFearDecayInterval = 300]"/>
+        <set_value name="$Limits" exact="table[$IntactOnClaim = 0, $CaptureHoldHull = 0, $CaptureFloorHull = 0, $CapturePressureStep = 0, $CapturePressureCap = 100, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0, $CaptureFearDecayInterval = 1]"/>
+        <!-- [the values changed from the defaults, the bad setting, the value it gets] -->
+        <set_value name="$Cases" exact="[
+          [table[$CapturePressureCap = 150], 'CapturePressureCap', 100],
+          [table[$CapturePressureCap = -5], 'CapturePressureCap', 0],
+          [table[$CapturePressureCap = 'high'], 'CapturePressureCap', 80],
+          [table[$CapturePressureStep = -1], 'CapturePressureStep', 0],
+          [table[$CaptureHoldHull = 90], 'CaptureHoldHull', 75],
+          [table[$CaptureHoldHull = '75'], 'CaptureHoldHull', 75],
+          [table[$CaptureFloorHull = -10], 'CaptureFloorHull', 0],
+          [table[$CaptureHoldHull = 40, $CaptureFloorHull = 50], 'CaptureFloorHull', 40],
+          [table[$CaptureHoldHull = 20, $CaptureFloorHull = 'x'], 'CaptureFloorHull', 20],
+          [table[$CapturePressureInterval = 2], 'CapturePressureInterval', 5],
+          [table[$CaptureFearDecayFactor = 1.5], 'CaptureFearDecayFactor', 1],
+          [table[$CaptureFearDecayFactor = -0.5], 'CaptureFearDecayFactor', 0],
+          [table[$CaptureFearDecayInterval = 0], 'CaptureFearDecayInterval', 1],
+          [table[$IntactOnClaim = 2], 'IntactOnClaim', 1],
+          [table[$IntactOnClaim = -1], 'IntactOnClaim', 1],
+          [table[$IntactOnClaim = 0.5], 'IntactOnClaim', 1]
+        ]"/>
+        <set_value name="$Problems" exact="''"/>
+
+        <!-- Good values: the defaults, and every value at the limit of its range -->
+        <do_for_each name="$Good" in="[$Defaults, $Limits]">
+          <run_actions ref="md.APiratesLife_Settings.Validate" result="$Got">
+            <param name="Raw" value="$Good"/>
+          </run_actions>
+          <do_for_each name="$Key" valuename="$Want" in="$Good">
+            <do_if value="$Got.$values.{$Key} != $Want">
+              <set_value name="$Problems" exact="$Problems + ' good %s %s became %s;'.[$Key, $Want, $Got.$values.{$Key}]"/>
+            </do_if>
+          </do_for_each>
+          <do_if value="$Got.$bad.count != 0 or not $Got.$loaded">
+            <set_value name="$Problems" exact="$Problems + ' good values gave %s bad (loaded: %s);'.[$Got.$bad.count, $Got.$loaded]"/>
+          </do_if>
+        </do_for_each>
+
+        <do_for_each name="$Case" in="$Cases">
+          <set_value name="$Raw" exact="$Defaults.clone"/>
+          <do_for_each name="$Key" valuename="$Value" in="$Case.{1}">
+            <set_value name="$Raw.{$Key}" exact="$Value"/>
+          </do_for_each>
+          <set_value name="$Want" exact="$Defaults.clone"/>
+          <do_for_each name="$Key" valuename="$Value" in="$Case.{1}">
+            <set_value name="$Want.{$Key}" exact="$Value"/>
+          </do_for_each>
+          <set_value name="$Want.{'$' + $Case.{2}}" exact="$Case.{3}"/>
+          <run_actions ref="md.APiratesLife_Settings.Validate" result="$Got">
+            <param name="Raw" value="$Raw"/>
+          </run_actions>
+          <do_for_each name="$Key" valuename="$Value" in="$Want">
+            <do_if value="$Got.$values.{$Key} != $Value">
+              <set_value name="$Problems" exact="$Problems + ' %s = %s: %s became %s, not %s;'.[$Case.{2}, $Case.{1}.{'$' + $Case.{2}}, $Key, $Got.$values.{$Key}, $Value]"/>
+            </do_if>
+          </do_for_each>
+          <do_if value="$Got.$bad.count != 1">
+            <set_value name="$Problems" exact="$Problems + ' %s: %s bad entries, not 1;'.[$Case.{2}, $Got.$bad.count]"/>
+          </do_if>
+          <do_elseif value="$Got.$bad.{1}.$setting != $Case.{2} or $Got.$bad.{1}.$used != $Case.{3}">
+            <set_value name="$Problems" exact="$Problems + ' %s: bad entry names %s using %s;'.[$Case.{2}, $Got.$bad.{1}.$setting, $Got.$bad.{1}.$used]"/>
+          </do_elseif>
+        </do_for_each>
+
+        <!-- A missing value, as when a player deletes its line: the default -->
+        <set_value name="$Raw" exact="$Defaults.clone"/>
+        <remove_value name="$Raw.$CaptureHoldHull"/>
+        <run_actions ref="md.APiratesLife_Settings.Validate" result="$Got">
+          <param name="Raw" value="$Raw"/>
+        </run_actions>
+        <do_if value="$Got.$values.$CaptureHoldHull != 75 or $Got.$bad.count != 1 or @$Got.$bad.{1}.$setting != 'CaptureHoldHull'">
+          <set_value name="$Problems" exact="$Problems + ' missing CaptureHoldHull: got %s with %s bad entries;'.[$Got.$values.$CaptureHoldHull, $Got.$bad.count]"/>
+        </do_if>
+        <signal_cue_instantly cue="Report" param="table[$name = 'settings_clamped', $ok = ($Problems == ''), $detail = (if $Problems == '' then '%s bad values clamped or reset, one entry each; good values kept'.[$Cases.count + 1] else $Problems)]"/>
+      </actions>
+    </cue>
+
+    <!-- A config file X4 skipped (a typo makes it do that) leaves every value unset: the loader's
+         range check uses its own defaults and says the file wasn't loaded, which the loader writes
+         as one warning, not one per value. A plain library call, as in settings_clamped. -->
+    <cue name="SettingsDefaultsWhenConfigSkipped">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="$Defaults" exact="table[$IntactOnClaim = 1, $CaptureHoldHull = 75, $CaptureFloorHull = 35, $CapturePressureStep = 8, $CapturePressureCap = 80, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0.5, $CaptureFearDecayInterval = 300]"/>
+        <set_value name="$Unset" exact="table[$IntactOnClaim = null, $CaptureHoldHull = null, $CaptureFloorHull = null, $CapturePressureStep = null, $CapturePressureCap = null, $CapturePressureInterval = null, $CaptureFearDecayFactor = null, $CaptureFearDecayInterval = null]"/>
+        <set_value name="$Problems" exact="''"/>
+        <do_for_each name="$Raw" in="[table[], $Unset]">
+          <run_actions ref="md.APiratesLife_Settings.Validate" result="$Got">
+            <param name="Raw" value="$Raw"/>
+          </run_actions>
+          <do_for_each name="$Key" valuename="$Want" in="$Defaults">
+            <do_if value="$Got.$values.{$Key} != $Want">
+              <set_value name="$Problems" exact="$Problems + ' %s was %s, default %s;'.[$Key, $Got.$values.{$Key}, $Want]"/>
+            </do_if>
+          </do_for_each>
+          <do_if value="$Got.$loaded or $Got.$bad.count != 0">
+            <set_value name="$Problems" exact="$Problems + ' %s keys: loaded %s, %s bad entries (want false, 0);'.[$Raw.keys.count, $Got.$loaded, $Got.$bad.count]"/>
+          </do_if>
+        </do_for_each>
+        <signal_cue_instantly cue="Report" param="table[$name = 'settings_defaults_when_config_skipped', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'all %s settings at the built-in defaults, marked not loaded'.[$Defaults.keys.count] else $Problems)]"/>
       </actions>
     </cue>
 
