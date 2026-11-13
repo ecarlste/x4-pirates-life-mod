@@ -1,7 +1,7 @@
 -- Starts or loads the release session's game straight from the main menu, and saves it when MD
 -- asks (md/apirateslife_release_tests.xml). The UI is rebuilt for every module (main menu, game), so
 -- this runs once per module: in the main menu it starts or loads, in the game it serves
--- "apirateslife_release_tests.save".
+-- "apirateslife_release_tests.save" and "apirateslife_release_tests.missions".
 
 local ffi = require("ffi")
 local C = ffi.C
@@ -50,8 +50,20 @@ local function save()
 	AddUITriggeredEvent("apirateslife_release_tests", "save", file)
 end
 
+-- Answers MD with the player's missions, as the mission menus list them: "<id> <name>", joined by
+-- " | ", or "none"
+local function missions()
+	local list = {}
+	for i = 1, GetNumMissions() do
+		local missionid, name = GetMissionDetails(i)
+		table.insert(list, tostring(missionid) .. " " .. tostring(name))
+	end
+	AddUITriggeredEvent("apirateslife_release_tests", "missions", #list > 0 and table.concat(list, " | ") or "none")
+end
+
 local function init()
 	RegisterEvent("apirateslife_release_tests.save", save)
+	RegisterEvent("apirateslife_release_tests.missions", missions)
 	local module = ffi.string(C.GetGameStartName())
 	if module ~= "startmenu" then
 		return

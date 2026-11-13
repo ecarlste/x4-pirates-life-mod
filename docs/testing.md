@@ -56,12 +56,13 @@ MD and AI scripts only run inside X4, so what they do can't be tested below game
 
 ### Release sessions
 
-Some release scenarios need more than one game: a save made without the mod, loaded with it. `make game-test RUNNER_ARGS=-Release` runs them in place of the game tests, one X4 start per session, about 2 minutes in all:
+Some release scenarios need more than one game: a save made without the mod, loaded with it, and a save made with it, loaded without it. `make game-test RUNNER_ARGS=-Release` runs them in place of the game tests, one X4 start per session, about 5 minutes in all:
 
 1. **Without the mod:** the runner switches the mod and the game tests' extension off in the test profile. The release test extension (`tests/game/apirateslife_release_tests`, dev only, like the game tests' one) starts its own gamestart, a copy of the test gamestart that can be saved, and saves it as `apirateslife_release_1`.
-2. **With the mod:** both back on. The release extension loads that save; the harness's `Run` cue starts on the loaded game, with `$Tests` rewritten to the session's tests and the game tests' autostart told to start nothing.
+2. **With the mod:** both back on. The release extension loads that save; the harness's `Run` cue starts on the loaded game, with `$Tests` rewritten to the session's tests and the game tests' autostart told to start nothing. The last test, `ReleaseLeftovers`, leaves ships taken, an operation called off and one still running. Once the tests are done the harness asks the release extension to save, as `apirateslife_release_2`, and the game quits.
+3. **Without the mod again:** the release extension loads that save and finds what `ReleaseLeftovers` left (`global.$APiratesLifeTest_Leftovers`). It checks the uninstall scenario's list on it, plays 10 minutes under SETA and reports `uninstall_leftovers`.
 
-`existing_save_loads` reads both sessions' logs, kept as `debuglog.release-1.txt` and `-2.txt` in the profile, and each session gets the log checks, named for it (`clean_log (session 1)`). The run reports like the game tests, but `make game-test-report` posts it as a `game-tests-release` check. The sessions are in `Get-ReleaseSessions` in the runner, and `tests/python/test_release_gamestart.py` keeps the two gamestarts the same.
+`existing_save_loads` and `save_plays_without_mod` read the sessions' logs, kept as `debuglog.release-1.txt` to `-3.txt` in the profile, and each session gets the log checks, named for it (`clean_log (session 1)`). The run reports like the game tests, but `make game-test-report` posts it as a `game-tests-release` check. The sessions are in `Get-ReleaseSessions` in the runner, and `tests/python/test_release_gamestart.py` keeps the two gamestarts the same.
 
 ## Test plan
 

@@ -2,13 +2,13 @@
 
 # Release
 
-The SWI build installs and loads cleanly next to Star Wars Interworlds on X4 8.00. These are its release gates (spec: the SWI build, issue 109, Testing Decisions). The game test runner checks the first two on the log of every game test run, which starts a fresh game on the SWI test gamestart; the zip make release builds is checked by hand (docs/releasing.md). The scenarios with a save made without the mod run in the release sessions (make game-test RUNNER_ARGS=-Release; docs/testing.md, Release sessions).
+The SWI build installs and loads cleanly next to Star Wars Interworlds on X4 8.00. These are its release gates (spec: the SWI build, issue 109, Testing Decisions). The game test runner checks the first two on the log of every game test run, which starts a fresh game on the SWI test gamestart; the zip make release builds is checked by hand (docs/releasing.md). The scenarios with a save made without the mod, or loaded without it, run in the release sessions (make game-test RUNNER_ARGS=-Release; docs/testing.md, Release sessions).
 
 Source: [`tests/game/features/release.feature`](../../tests/game/features/release.feature)
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 4 | 2 | 0 | **2** |
+| 0 | 5 | 1 | 0 | **1** |
 
 ## Scenarios
 
@@ -69,7 +69,7 @@ Source: [`tests/game/features/release.feature`](../../tests/game/features/releas
 
 ### A save loads and plays with the mod removed
 
-- [ ] **Manual:** checked by hand for now
+**Automated:** in game `release_leftovers`, `save_plays_without_mod`
 
 ```gherkin
   Given a save with A Pirate's Life on, a capture operation running and ships I've taken
