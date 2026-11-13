@@ -1,0 +1,13 @@
+A Pirate's Life: credits
+========================
+
+By Erik S. Carlsten.
+
+Thanks to:
+
+- The Star Wars Interworlds team, for the universe this build is made
+  for. A Pirate's Life is an unofficial add-on: it isn't made or endorsed
+  by them, and it ships none of SWI's files.
+- MoonShadowElf, for Enhanced Bailing, the bail system SWI uses, which
+  this mod's bail pressure builds on.
+- kuertee, for UI Extensions and Emergent Missions.

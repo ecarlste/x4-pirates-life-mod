@@ -12,6 +12,6 @@ What the mod should do, feature by feature, and how each scenario is verified. P
 | [Capture operations](capture-operation.md) | 17 | 0 | 14 | 1 | 2 | **3** |
 | [Captured ships arrive intact](intact-captures.md) | 2 | 0 | 2 | 0 | 0 | **0** |
 | [Pirated ships](pirated-ships.md) | 4 | 0 | 3 | 1 | 0 | **1** |
-| [Release](release.md) | 2 | 0 | 2 | 0 | 0 | **0** |
+| [Release](release.md) | 3 | 0 | 2 | 1 | 0 | **1** |
 | [Settings from the config file](settings.md) | 8 | 0 | 6 | 2 | 0 | **2** |
-| **Total** | 54 | 0 | 45 | 5 | 4 | **9** |
+| **Total** | 55 | 0 | 45 | 6 | 4 | **10** |

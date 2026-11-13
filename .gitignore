@@ -10,6 +10,9 @@ tests/game/results.xml
 .claude/worktrees/
 tests/game/report.md
 
+# make release's zips and checklists
+dist/
+
 # Python bytecode from the unit tests
 __pycache__/
 

@@ -17,7 +17,7 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 @test "make help lists every target" {
     run make -C "$REPO" help
     [ "$status" -eq 0 ]
-    for target in setup deploy deploy-local deploy-dry-run test test-plan doc-paths doc-names game-test game-test-report worktrees; do
+    for target in setup deploy deploy-local deploy-dry-run test test-plan release doc-paths doc-names game-test game-test-report worktrees; do
         [[ "$output" == *"make $target "* ]] || { echo "missing: $target"; return 1; }
     done
 }
@@ -252,4 +252,11 @@ SCRIPT
     [ "$status" -eq 0 ]
     [[ "$output" == *"Updated 2 of 2 test-plan pages"* ]]
     grep -q '^# Alpha$' "$REPO/docs/test-plan/alpha.md"
+}
+
+@test "make release passes TAG to the release script as --tag" {
+    cp "$REPO_ROOT/tools/release.sh" "$REPO/tools/"
+    run make -C "$REPO" release TAG=v9.99
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"no tag v9.99"* ]]
 }

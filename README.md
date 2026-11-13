@@ -45,6 +45,7 @@ Start X4 and check that **A Pirate's Life** is enabled under Extensions. For now
 | Regenerate the readable test plan (`docs/test-plan/`) | `make test-plan` | `python3 tools/test_plan_docs.py` |
 | Run the in-game tests in the X4 8.00 copy (Windows; first run: `RUNNER_ARGS=-PrepareProfile`) | `make game-test` | `.\deploy.ps1 -WorkingTree; .\tools\run-game-tests.ps1` |
 | Post the last game-test report to your PR | `make game-test-report` | (bash only for now) |
+| Build the release zip from a tag ([releasing.md](docs/releasing.md)) | `make release TAG=v<version>` | (bash only) |
 
 Restart X4 after each deploy. For debugging, set X4's launch options (Steam: Properties → General) to
 
@@ -59,6 +60,7 @@ The log is written to your X4 profile folder, `<Documents>\Egosoft\X4\<Steam acc
 | Path | What |
 | --- | --- |
 | `content.xml`, `md/` | The mod itself; `deploy.include` lists everything that ships |
+| `release/`, `LICENSE`, `CHANGELOG.md` | What the release zip ships besides the mod: the player README and credits, the licence and the changelog |
 | `deploy.sh`, `deploy.ps1` | Sync the mod into the game |
 | `tools/` | Dev scripts, such as unpacking the game files ([`tools/README.md`](tools/README.md)) |
 | `tests/` | bats and Pester suites; CI runs bats on Linux and Pester on Windows. `tests/game/` holds the dev-only extension for in-game tests |
@@ -69,6 +71,7 @@ The log is written to your X4 profile folder, `<Documents>\Egosoft\X4\<Steam acc
 - [`docs/PROJECT.md`](docs/PROJECT.md): **read first.** Key decisions, workflow rules, and where to look for the rest.
 - [`docs/testing.md`](docs/testing.md): running, adding and wiring up tests, and the test plan.
 - [`docs/environment.md`](docs/environment.md): setup, deploying, and where X4 and its files live.
+- [`docs/releasing.md`](docs/releasing.md): versions and the release flow.
 - [`docs/DESIGN.md`](docs/DESIGN.md): the high-level design.
 - [`docs/IMPLEMENTATION_PLAN.md`](docs/IMPLEMENTATION_PLAN.md): every agreed piece of work, with checkboxes.
 - [`docs/specs/`](docs/specs/): one spec per feature, written before it's built.
