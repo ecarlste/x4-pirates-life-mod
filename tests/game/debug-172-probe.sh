@@ -48,6 +48,27 @@ analyze() {
         printf "lowest hull values:"; n = asorti(lows, k, "@ind_num_asc"); for (i = 1; i <= n; i++) printf " %s(x%d)", k[i], lows[k[i]]; print ""
         if (deep != "") { print "runs under 60%:"; printf "%s", deep }
     }' "$1"
+    # Wingman distance to the target from the test's 1 s trace: above the gate, and holding (35-75%)
+    awk '
+    function get(re, a, b) { if (match($0, re)) return substr($0, RSTART + a, RLENGTH - a - b) + 0; return -1 }
+    /trace: hull/ { h = get("hull [0-9.]+%", 5, 1); d = get("wingman [0-9.]+m away", 8, 6); s = get("at [0-9.]+ m/s", 3, 4)
+        p = (h < 75 && h >= 35) ? "holding" : (h >= 75) ? "above 75%" : ""
+        if (p == "") next
+        n[p]++; v[p, n[p]] = d; if (d < 100) near[p]++
+        if (d < 100 && s < 10) { st++; if (st > mst) mst = st } else st = 0
+        if (!(p in rmin) || d < rmin[p]) rmin[p] = d }
+    /(PASS|FAIL) capture_wing_holds_fire/ { runs++
+        if (("holding" in rmin) && rmin["holding"] < 100) close_runs = close_runs " " runs
+        if (mst >= 3) parked_runs = parked_runs sprintf(" %d(%ds)", runs, mst)
+        delete rmin; st = 0; mst = 0 }
+    END {
+        print "wingman distance to the target (1 s trace):"
+        for (k = 1; k <= 2; k++) { p = (k == 1) ? "above 75%" : "holding"; if (!n[p]) continue
+            delete D; for (i = 1; i <= n[p]; i++) D[i] = v[p, i]; m = asort(D)
+            printf "  %-9s %5d s, p10 %4.0f m, median %4.0f m, p90 %4.0f m, %d s within 100 m\n", p, m, D[int(m / 10) + 1], D[int((m + 1) / 2)], D[int(m * 9 / 10)], near[p] }
+        print "  runs that came within 100 m while holding:" (close_runs == "" ? " none" : close_runs)
+        print "  runs parked (under 100 m and under 10 m/s) 3 s or more:" (parked_runs == "" ? " none" : parked_runs)
+    }' "$1"
 }
 
 if [ "${1:-}" = --analyze ]; then analyze "$2"; exit 0; fi
