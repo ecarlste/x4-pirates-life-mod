@@ -5,7 +5,7 @@ A piracy overhaul for X4: Foundations. This glossary pins down the words both li
 ## Lines of the mod
 
 **SWI build**:
-A Pirate's Life as its own deployable for X4 8.00: capture only, with no booty, pirate variants or settings page. Made because Star Wars Interworlds runs on 8.00, and tested on SWI 0.91 HF1, but meant to play the same on any 8.00 setup. Released on GitHub for testers first.
+A Pirate's Life as its own deployable for X4 8.00: capture only, with no booty, pirate variants or settings page. Made because Star Wars Interworlds runs on 8.00, and tested on SWI 0.91 HF1, but meant to play the same on any 8.00 setup.
 _Avoid_: SWI port, SWI profile (that's how SWI support works on the 9.x line), 8.00 branch; "requires SWI" (it doesn't)
 
 **9.x line**:
@@ -15,11 +15,11 @@ _Avoid_: Vanilla build, main (the branch name changes meaning)
 ## Releases
 
 **Tester release**:
-A version published only as a GitHub Release, for testers to try and report on. Series viewers who install it count as testers.
+A version published only as a GitHub Release, for testers to try and report on.
 _Avoid_: Beta
 
 **Public release**:
-A version published on Nexus or Steam Workshop, for players at large, once testers' feedback is in and the issues it found are fixed.
+A version published for players at large, on Nexus or another mod site, after tester releases of it.
 _Avoid_: Launch, Nexus release
 
 ## Capture
