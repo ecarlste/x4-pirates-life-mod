@@ -21,3 +21,10 @@ Feature: Captured ships arrive intact
     When the marine claims the fighter
     Then the fighter becomes mine
     And its hull drops to between 70% and 99%
+
+  @manual
+  Scenario: SWI destroys unclaimed bailed ships, and keeps claimed prizes
+    Given two ships whose pilots bailed in my capture operations
+    When I claim one and leave the other ownerless
+    Then SWI destroys the ownerless one 30-70 minutes after its bail
+    And the one I claimed is still mine after 70 minutes

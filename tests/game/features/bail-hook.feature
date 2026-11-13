@@ -40,3 +40,9 @@ Feature: Bail hook
     Given two NPC ships of different factions fighting
     When one of them gets a bail check
     Then the bail hook adjusts its chance
+
+  @manual
+  Scenario: X4 rolls a fractional chance as it is, not rounded down
+    Given a target whose pilot the game has worked out a 0.5% bail chance for, in SWI's Enhanced Bailing
+    When it gets a few hundred bail checks
+    Then about 1 in 200 succeed, so X4 doesn't round 0.5% down to 0

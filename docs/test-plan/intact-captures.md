@@ -8,7 +8,7 @@ Source: [`tests/game/features/intact-captures.feature`](../../tests/game/feature
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 2 | 0 | 0 | **0** |
+| 0 | 2 | 1 | 0 | **1** |
 
 ## Scenarios
 
@@ -36,4 +36,15 @@ Source: [`tests/game/features/intact-captures.feature`](../../tests/game/feature
   When the marine claims the fighter
   Then the fighter becomes mine
   And its hull drops to between 70% and 99%
+```
+
+### SWI destroys unclaimed bailed ships, and keeps claimed prizes
+
+- [ ] **Manual:** checked by hand for now
+
+```gherkin
+  Given two ships whose pilots bailed in my capture operations
+  When I claim one and leave the other ownerless
+  Then SWI destroys the ownerless one 30-70 minutes after its bail
+  And the one I claimed is still mine after 70 minutes
 ```

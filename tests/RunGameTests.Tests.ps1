@@ -17,7 +17,7 @@ Describe 'run-game-tests.ps1' {
     It 'passes a passing run, with the test extension installed only while the game runs' {
         Set-Content $env:FAKE_SOURCE_LOG $script:PassingLog
         $r = Invoke-Script $script:Runner $runArgs
-        $r.Output | Should -BeLike '*Game tests passed (4 of 4)*'
+        $r.Output | Should -BeLike '*Game tests passed (5 of 5)*'
         # Each result as the run reports it live, not only in the summary
         $r.Output | Should -BeLike '*PASS fixture_test_a: 5 cases*'
         $r.Output | Should -BeLike '*PASS fixture_test_b: hull 100%, 4 equipment kept, pilot skill 38*'
@@ -28,7 +28,7 @@ Describe 'run-game-tests.ps1' {
         Get-TestFile $env:FAKE_MARK | Should -Be 'installed'
         Test-Path "$x4/extensions/apirateslife_tests" | Should -BeFalse
         ([xml] (Get-Content $report -Raw)).testsuite.failures | Should -Be '0'
-        (Get-Content $markdown)[0] | Should -Be '<!-- apirateslife-game-tests commit=0123456789abcdef0123456789abcdef01234567 dirty=false result=pass passed=4 total=4 -->'
+        (Get-Content $markdown)[0] | Should -Be '<!-- apirateslife-game-tests commit=0123456789abcdef0123456789abcdef01234567 dirty=false result=pass passed=5 total=5 -->'
     }
 
     It 'marks the report dirty with -Dirty' {
@@ -42,7 +42,7 @@ Describe 'run-game-tests.ps1' {
         Set-Content $env:FAKE_SOURCE_LOG ($script:PassingLog -replace 'PASS fixture_test_a: 5 cases', 'FAIL fixture_test_a: 30 gave 30, expected 60;')
         $r = Invoke-Script $script:Runner $runArgs
         $r.Output | Should -BeLike '*FAIL fixture_test_a: 30 gave 30, expected 60;*'
-        $r.Output | Should -BeLike '*GAME TESTS FAILED (3 passed): 1 failed: fixture_test_a*'
+        $r.Output | Should -BeLike '*GAME TESTS FAILED (4 passed): 1 failed: fixture_test_a*'
         $r.ExitCode | Should -Be 1
     }
 
@@ -50,7 +50,7 @@ Describe 'run-game-tests.ps1' {
         Set-Content $env:FAKE_SOURCE_LOG ($script:PassingLog + @("[=ERROR=] 50.00 No matching node for path '//do_if' in patch file 'extensions\apirateslife\aiscripts\move.claim.xml'. Skipping node."))
         $r = Invoke-Script $script:Runner $runArgs
         $r.Output | Should -BeLike '*FAIL clean_log: 1 errors or warnings from our files in debuglog.txt*'
-        $r.Output | Should -BeLike '*GAME TESTS FAILED (3 passed): 1 failed: clean_log*'
+        $r.Output | Should -BeLike '*GAME TESTS FAILED (4 passed): 1 failed: clean_log*'
         $r.ExitCode | Should -Be 1
     }
 

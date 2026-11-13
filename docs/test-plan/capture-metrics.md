@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-metrics.feature`](../../tests/game/feature
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 5 | 1 | 0 | **1** |
+| 0 | 5 | 2 | 0 | **2** |
 
 ## Scenarios
 
@@ -74,4 +74,15 @@ Source: [`tests/game/features/capture-metrics.feature`](../../tests/game/feature
   Given a debuglog.txt from a session with captures
   When I run tools/capture_metrics.py on it
   Then I get one CSV row per summary line
+```
+
+### Time to reach the bail gates on SWI hulls
+
+- [ ] **Manual:** checked by hand for now
+
+```gherkin
+  Given debuglog.txt files from captures of SWI S and M ships
+  When I run tools/capture_metrics.py on them and read each row's gates field
+  Then I have the time from the first shot to the bail gates for each hull
+  And I note any hull whose time is far beyond the 30-50 s the pressure takes after it
 ```
