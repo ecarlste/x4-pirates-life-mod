@@ -2,7 +2,9 @@ Feature: Release
   The SWI build installs and loads cleanly next to Star Wars Interworlds on X4 8.00. These are its
   release gates (spec: the SWI build, issue 109, Testing Decisions). The game test runner checks
   the first two on the log of every game test run, which starts a fresh game on the SWI test
-  gamestart; the zip make release builds is checked by hand (docs/releasing.md).
+  gamestart; the zip make release builds is checked by hand (docs/releasing.md). The scenarios
+  with a save made without the mod run in the release sessions (make game-test
+  RUNNER_ARGS=-Release; docs/testing.md, Release sessions).
 
   @load_order_after_swi
   Scenario: The mod loads after SWI
@@ -31,11 +33,12 @@ Feature: Release
     When I start a new game on SWI and play
     Then no other extension's files are read
 
-  @manual
+  @existing_save_loads
   Scenario: An existing save loads with the mod added
     Given a save from a game started on SWI without A Pirate's Life
     When I switch A Pirate's Life on and load that save
     Then it loads, and debuglog.txt has no error or warning about our files or scripts
+    And the mod's settings take their config values
     And a capture operation started in it runs and ends as in a new game
 
   @manual

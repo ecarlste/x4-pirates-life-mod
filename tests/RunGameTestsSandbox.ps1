@@ -1,6 +1,10 @@
 # Shared by the whole-run suites of tools/run-game-tests.ps1 (RunGameTests*.Tests.ps1): a fake game
 # that writes a prepared debuglog.txt instead of playing the tests, and a sandbox with a fake X4
-# install and test profile. Dot-source it from BeforeAll, after TestHelpers.ps1.
+# install and test profile. In a release session the fake game writes $FAKE_SOURCE_LOG.new or .load
+# instead, by whether the installed release extension loads a save, and keeps copies of what that
+# session saw: the profile's content.xml ($FAKE_ARGS.<kind>.xml) and, when the game tests'
+# extension is installed, $FAKE_MARK.<kind> and its autostart and harness ($FAKE_ARGS.<kind>.autostart,
+# .harness). Dot-source it from BeforeAll, after TestHelpers.ps1.
 
 # Lines as X4 writes them: MD debug_text under [Scripts], Lua DebugError under [=ERROR=]
 $script:PassingLog = @(
@@ -28,7 +32,18 @@ echo %*>"%FAKE_ARGS%"
 if exist "%FAKE_X4%\extensions\apirateslife_tests\content.xml" echo installed>"%FAKE_MARK%"
 if exist "%FAKE_X4%\game.lock" copy /y "%FAKE_X4%\game.lock" "%FAKE_LOCKSEEN%" >nul
 if defined FAKE_HANG ping -n 20 127.0.0.1 >nul
-copy /y "%FAKE_SOURCE_LOG%" "%FAKE_LOGPATH%" >nul
+set "LOG=%FAKE_SOURCE_LOG%"
+set "REL=%FAKE_X4%\extensions\apirateslife_release_tests\ui\apirateslife_release_tests.lua"
+if not exist "%REL%" goto play
+set KIND=new
+findstr /b /c:"local session = { load" "%REL%" >nul && set KIND=load
+set "LOG=%FAKE_SOURCE_LOG%.%KIND%"
+for %%F in ("%FAKE_LOGPATH%") do copy /y "%%~dpFcontent.xml" "%FAKE_ARGS%.%KIND%.xml" >nul
+if exist "%FAKE_X4%\extensions\apirateslife_tests\content.xml" echo installed>"%FAKE_MARK%.%KIND%"
+if exist "%FAKE_X4%\extensions\apirateslife_tests\content.xml" copy /y "%FAKE_X4%\extensions\apirateslife_tests\ui\apirateslife_tests_autostart.lua" "%FAKE_ARGS%.%KIND%.autostart" >nul
+if exist "%FAKE_X4%\extensions\apirateslife_tests\content.xml" copy /y "%FAKE_X4%\extensions\apirateslife_tests\md\apirateslife_tests.xml" "%FAKE_ARGS%.%KIND%.harness" >nul
+:play
+copy /y "%LOG%" "%FAKE_LOGPATH%" >nul
 '@
         Set-Content $game ($body -replace "`r?`n", "`r`n") -Encoding Ascii
     }
@@ -41,7 +56,22 @@ echo "$*" > "$FAKE_ARGS"
 [ -f "$FAKE_X4/game.lock" ] && cp "$FAKE_X4/game.lock" "$FAKE_LOCKSEEN"
 # exec, so closing the game kills the sleep too and nothing keeps the output open
 [ -n "$FAKE_HANG" ] && exec sleep 20
-cp "$FAKE_SOURCE_LOG" "$FAKE_LOGPATH"
+log="$FAKE_SOURCE_LOG"
+# A release session (-Release): its own log, and a copy of what it saw, by whether it loads a save
+rel="$FAKE_X4/extensions/apirateslife_release_tests/ui/apirateslife_release_tests.lua"
+if [ -f "$rel" ]; then
+    kind=new
+    grep -q '^local session = { load' "$rel" && kind=load
+    log="$FAKE_SOURCE_LOG.$kind"
+    cp "$(dirname "$FAKE_LOGPATH")/content.xml" "$FAKE_ARGS.$kind.xml"
+    tests="$FAKE_X4/extensions/apirateslife_tests"
+    if [ -f "$tests/content.xml" ]; then
+        echo installed > "$FAKE_MARK.$kind"
+        cp "$tests/ui/apirateslife_tests_autostart.lua" "$FAKE_ARGS.$kind.autostart"
+        cp "$tests/md/apirateslife_tests.xml" "$FAKE_ARGS.$kind.harness"
+    fi
+fi
+cp "$log" "$FAKE_LOGPATH"
 '@
         & chmod +x $game
     }

@@ -3,7 +3,8 @@
 
 Compares the current commit with a base ref (the PR's target branch) and fails when:
   - a spec (docs/specs/*.md) changed but none of the feature files it links did
-  - the game tests (tests/game/apirateslife_tests/) changed but no feature file did
+  - the game tests (tests/game/apirateslife_tests/, or the release tests in
+    tests/game/apirateslife_release_tests/) changed but no feature file did
 unless the PR description says "Test plan: no change" (for typo fixes and the like). The
 description comes from the PR_BODY environment variable.
 
@@ -18,6 +19,7 @@ SPECS = "docs/specs/"
 NOT_SPECS = ("docs/specs/README.md", "docs/specs/_template.md")
 FEATURES = "tests/game/features/"
 GAME_TESTS = "tests/game/apirateslife_tests/"
+RELEASE_TESTS = "tests/game/apirateslife_release_tests/"
 FEATURE_LINK = re.compile(r"tests/game/features/([A-Za-z0-9_-]+\.feature)")
 NO_CHANGE = re.compile(r"test plan:\s*no change", re.IGNORECASE)
 
@@ -49,8 +51,8 @@ def find_problems(changed, read):
             if not links & features_changed:
                 linked = ", ".join(sorted(links)) or "its feature file"
                 problems.append(f"{path} changed, but {linked} didn't")
-    if any(path.startswith(GAME_TESTS) for path in changed) and not features_changed:
-        problems.append(f"the game tests ({GAME_TESTS}) changed, but no feature file in {FEATURES} did")
+    if any(path.startswith((GAME_TESTS, RELEASE_TESTS)) for path in changed) and not features_changed:
+        problems.append(f"the game tests ({GAME_TESTS} or {RELEASE_TESTS}) changed, but no feature file in {FEATURES} did")
     return problems
 
 

@@ -18,7 +18,7 @@ LUAUNIT_SHA256=150ed14606ea66c6a02b3142dde02bdf6d48764fcd2af6bf85bfecd7d98a7d0b
 
 cd "$(dirname "$0")/../.."
 
-LINT_PATHS=${LUA_LINT_PATHS:-tests/game/apirateslife_tests/ui tests/lua}
+LINT_PATHS=${LUA_LINT_PATHS:-tests/game/apirateslife_tests/ui tests/game/apirateslife_release_tests/ui tests/lua}
 TESTS_DIR=${LUA_TESTS_DIR:-tests/lua}
 
 sha256() {

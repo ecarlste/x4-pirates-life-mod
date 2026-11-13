@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dev-only extension for A Pirate's Life's release tests: never shipped (not in deploy.include).
+     The game test runner's -Release (tools/run-game-tests.ps1) installs it for each of its game
+     sessions and removes it afterwards. It starts or loads a game from the main menu, as the runner
+     tells it, saves when asked, and logs what happened. See docs/testing.md, Release sessions.
+
+     Unlike the game tests' extension it doesn't need A Pirate's Life: the sessions switch the mod
+     off and on. The mod's dependency is optional, for load order only. It depends on SWI so its
+     gamestart loads after SWI's <replace sel="//gamestarts">. -->
+<content id="apirateslife_release_tests" name="A Pirate's Life: release tests" description="Release tests for A Pirate's Life. Dev only: starts or loads a test game automatically." author="Erik S. Carlsten" version="100" date="2026-11-13" save="false" enabled="true">
+  <dependency version="800"/>
+  <dependency id="SW Interworlds" name="SW Interworlds"/>
+  <dependency id="ego_dlc_pirate" name="Tides of Avarice"/>
+  <dependency id="apirateslife" name="A Pirate's Life" optional="true"/>
+</content>

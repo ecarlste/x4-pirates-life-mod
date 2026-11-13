@@ -54,6 +54,14 @@ post() { run "$REPO/tools/post-game-test-report.sh" "$@"; }
     grep -q "state=failure -f context=game-tests -f description=4 of 5 passed (local run)" "$GH_LOG"
 }
 
+@test "posts a release run (-Release) as its own game-tests-release status" {
+    write_report "$HEAD_SHA" false pass 8 8 release=true
+    post
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Posted to PR #7: game-tests-release success (8 of 8 passed (local run))"* ]]
+    grep -q "statuses/$HEAD_SHA -f state=success -f context=game-tests-release" "$GH_LOG"
+}
+
 @test "refuses a run with uncommitted changes" {
     write_report "$HEAD_SHA" true pass 5 5
     post

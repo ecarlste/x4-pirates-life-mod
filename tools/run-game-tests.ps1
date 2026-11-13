@@ -91,6 +91,16 @@
     measuring a flaky test. Default 1. A run with -Test or -Repeat is marked as a selection in
     its report, and make game-test-report won't post it.
 
+.PARAMETER Release
+    Run the release sessions instead of the game tests: X4 starts once per session, with the
+    mod switched on or off in the test profile, and the release test extension
+    (tests/game/apirateslife_release_tests) starts or loads the game. Session 1 starts a new game
+    without the mod and saves it (<profile>\save\apirateslife_release_1); session 2 loads that save
+    with the mod and runs ConfigAppliedOnStart and CaptureStartAndDestroyed on it. The
+    existing_save_loads check reads both logs, kept as debuglog.release-<n>.txt, and each session
+    gets the log checks. A session that saves nothing stops the run. The profile is left with the
+    mod and the game tests on. Takes no -Test, -Repeat or -KeepExtension.
+
 .PARAMETER KeepExtension
     Leave the test extension installed afterwards (X4 then starts the tests on every launch, in
     every profile where it's on).
@@ -100,6 +110,9 @@
 
 .EXAMPLE
     .\tools\run-game-tests.ps1 -Test capture_wing_holds_fire -Repeat 20
+
+.EXAMPLE
+    .\tools\run-game-tests.ps1 -Release
 #>
 [CmdletBinding()]
 param(
@@ -118,12 +131,14 @@ param(
     [switch] $KeepExtension,
     [switch] $PreflightOnly,
     [string[]] $Test,
-    [int] $Repeat = 1
+    [int] $Repeat = 1,
+    [switch] $Release
 )
 
 $ErrorActionPreference = 'Stop'
 
 $TestExtensionId = 'apirateslife_tests'
+$ReleaseExtensionId = 'apirateslife_release_tests'
 $ModId = 'apirateslife'
 $SwiId = 'SW Interworlds'
 $SwiFolder = 'starwarsmod_m1'
@@ -132,9 +147,11 @@ $SwiFolder = 'starwarsmod_m1'
 # error or a warning, apart from our own markers and the harmless "unsigned file" warnings every
 # mod gets. FirstRead holds the line each file of SWI's and the mod's was first read on
 # ("<folder>|<path>"): X4 checks a file's signature as it reads it, in load order. Extensions holds
-# the extension folders any file was read from, lowercased.
+# the extension folders any file was read from, lowercased. A release session (-Release) logs the
+# save it wrote (Saved, or SaveFailed with why), the save it asked to load (LoadingSave) and the
+# module of the game it loaded (Loaded).
 function Read-GameTestLog([string[]] $Lines) {
-    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0; FirstRead = @{}; Extensions = @() }
+    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0; FirstRead = @{}; Extensions = @(); Saved = ''; SaveFailed = ''; LoadingSave = ''; Loaded = '' }
     $extensions = @{}
     $results = New-Object System.Collections.ArrayList
     $errors = New-Object System.Collections.ArrayList
@@ -149,8 +166,18 @@ function Read-GameTestLog([string[]] $Lines) {
             $key = "$($Matches[1].ToLower())|$($Matches[2].ToLower() -replace '\.sig$', '')"
             if (-not $run.FirstRead.ContainsKey($key)) { $run.FirstRead[$key] = $lineNumber }
         }
-        if ($line -match 'Game initialisation time until start menu|\[apirateslife-test\] autostart: starting gamestart') {
+        if ($line -match 'Game initialisation time until start menu|\[apirateslife-test\] (autostart: starting gamestart|release: (starting gamestart|loading save))') {
             $run.MenuReady = $true
+            if ($line -match 'release: loading save (\S+)') { $run.LoadingSave = $Matches[1] }
+        }
+        elseif ($line -match '\[apirateslife-test\] SAVED (\S+)') {
+            $run.Saved = $Matches[1]
+        }
+        elseif ($line -match '\[apirateslife-test\] SAVE FAILED: (.*)$') {
+            $run.SaveFailed = $Matches[1].Trim()
+        }
+        elseif ($line -match '\[apirateslife-test\] LOADED (\S+)') {
+            $run.Loaded = $Matches[1]
         }
         elseif ($line -match '\[apirateslife-test\] SETA was off') {
             $run.SetaDrops++
@@ -221,6 +248,24 @@ function Set-GameTestList([string] $HarnessText, [string[]] $Names) {
     [regex]::Replace($HarnessText, $TestsListPattern, { param($m) $m.Groups[1].Value + $list + $m.Groups[3].Value })
 }
 
+# The release extension's Lua with its session line set: the gamestart to start (New) or the save
+# to load (Load), and the save to write when MD asks (Save); empty ones are left out
+function Set-ReleaseSession([string] $LuaText, $Session) {
+    $pattern = '(?m)^local session = [^\r\n]*'
+    if ($LuaText -notmatch $pattern) { throw 'no session line (local session = ...) in the release extension''s Lua' }
+    $fields = @(foreach ($key in 'New', 'Load', 'Save') { if ($Session.$key) { "$($key.ToLower()) = `"$($Session.$key)`"" } })
+    $line = "local session = { $($fields -join ', ') }"
+    [regex]::Replace($LuaText, $pattern, { param($m) $line })
+}
+
+# The game tests' autostart Lua with its gamestart set to nil, so it starts nothing: a release
+# session loads a save instead
+function Disable-TestAutostart([string] $LuaText) {
+    $pattern = '(?m)^local gamestart = "[^"]*"'
+    if ($LuaText -notmatch $pattern) { throw 'no gamestart line (local gamestart = "...") in the game tests'' autostart' }
+    [regex]::Replace($LuaText, $pattern, 'local gamestart = nil')
+}
+
 # Each test's runs and failures, in the order first seen (Group-Object sorts its groups)
 function Get-TestTally($Results) {
     $tally = [ordered]@{}
@@ -263,10 +308,29 @@ function Get-LogChecks($Run) {
     New-LogCheck 'swi_only_run' ($swiRead -and -not $others.Count) $detail
 }
 
-# Whether an extension folder belongs in an SWI-only run: an Egosoft DLC, SWI, the mod or the test
+# The release check for an existing save (-Release): session 1 started a game without the mod and
+# saved it, and session 2 loaded that save with the mod and ran the harness's tests on it, all
+# passing, with no errors or warnings from our files in its log
+function Get-ExistingSaveCheck($Without, $With) {
+    $problems = @()
+    if (-not $Without.Saved) { $problems += "session 1 saved nothing ($(if ($Without.SaveFailed) { $Without.SaveFailed } else { 'no SAVED line' }))" }
+    if ($Without.Extensions -contains $ModId) { $problems += "session 1 read files from $ModId, so the mod was on" }
+    if (-not $With.Loaded) { $problems += 'session 2 loaded no save' }
+    elseif ($Without.Saved -and $With.LoadingSave -ne $Without.Saved) { $problems += "session 2 loaded $($With.LoadingSave), not $($Without.Saved)" }
+    if ($With.Extensions -notcontains $ModId) { $problems += "session 2 read no files from $ModId, so the mod was off" }
+    if (-not $With.Done) { $problems += "session 2's tests didn't finish" }
+    $failed = @($With.Results | Where-Object { -not $_.Passed })
+    if ($failed.Count) { $problems += "$($failed.Count) of session 2's tests failed: $(($failed | ForEach-Object { $_.Name }) -join ', ')" }
+    if ($With.Errors.Count) { $problems += "$($With.Errors.Count) errors or warnings from our files in session 2's log" }
+    $detail = if ($problems.Count) { ($problems -join '; ') + ';' }
+              else { "saved $($Without.Saved) without the mod, loaded it with the mod: $($With.Results.Count) tests passed, no errors or warnings from our files" }
+    New-LogCheck 'existing_save_loads' (-not $problems.Count) $detail
+}
+
+# Whether an extension folder belongs in an SWI-only run: an Egosoft DLC, SWI, the mod or a test
 # extension
 function Test-AllowedInSwiOnlyRun([string] $Folder) {
-    $Folder -like 'ego_dlc_*' -or @($SwiFolder, $ModId, $TestExtensionId) -contains $Folder.ToLower()
+    $Folder -like 'ego_dlc_*' -or @($SwiFolder, $ModId, $TestExtensionId, $ReleaseExtensionId) -contains $Folder.ToLower()
 }
 
 # The ids of the extensions installed in an extensions folder that don't belong in an SWI-only run
@@ -345,10 +409,11 @@ function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     $minutes = [int] [Math]::Floor($Info.DurationSeconds / 60)
     $seconds = [int] $Info.DurationSeconds % 60
     $lines = @(
-        "<!-- apirateslife-game-tests commit=$commit dirty=$dirty result=$(if ($ok) { 'pass' } else { 'fail' }) passed=$passed total=$total$(if ($Info.Selected) { ' selected=true' }) -->"
+        "<!-- apirateslife-game-tests commit=$commit dirty=$dirty result=$(if ($ok) { 'pass' } else { 'fail' }) passed=$passed total=$total$(if ($Info.Selected) { ' selected=true' })$(if ($Info.Release) { ' release=true' }) -->"
         "### Game tests: $(if ($ok) { 'passed' } else { 'FAILED' }), $passed of $total"
         ''
         if ($Info.Selected) { 'Selected tests only (`-Test`, `-Repeat`), not the whole suite.'; '' }
+        if ($Info.Release) { 'Release sessions (`-Release`): a save made without the mod, loaded with it. Not the game test suite.'; '' }
         "Commit ``$short`` on ``$($Info.Branch)``$(if ($Info.Dirty) { ' **plus uncommitted changes**' }), X4 $(if ($Run.GameVersion) { $Run.GameVersion } else { 'version unknown' }), ${minutes} min ${seconds} s, $($Info.StartedAt.ToString('yyyy-MM-dd HH:mm'))"
         ''
         '| Test | Result | Detail |'
@@ -569,10 +634,54 @@ function Watch-GameRun($Game, [string] $LogPath, [double] $PollSeconds, [int] $T
     }
 }
 
+# The release sessions (-Release), one game session each, in order: whether the mod is on (Mod; the
+# game tests' extension needs it, so it's on with it), what the release extension starts (New),
+# loads (Load) and saves (Save), and the harness's tests to run with the mod (Tests)
+$ReleaseSave = 'apirateslife_release_1'
+
+function Get-ReleaseSessions {
+    @(
+        [pscustomobject]@{ Number = 1; Name = 'a new game without the mod, saved'; Mod = $false
+                           New = 'apirateslife_release_test'; Load = ''; Save = $ReleaseSave; Tests = @() }
+        [pscustomobject]@{ Number = 2; Name = 'that save loaded with the mod, and capture tests run on it'; Mod = $true
+                           New = ''; Load = $ReleaseSave; Save = ''; Tests = @('ConfigAppliedOnStart', 'CaptureStartAndDestroyed') }
+    )
+}
+
+# A session's log checks, named for the session; the load order only where the mod was on
+function Get-SessionLogChecks($Run, $Session) {
+    foreach ($check in @(Get-LogChecks $Run)) {
+        if (-not $Session.Mod -and $check.Name -eq 'load_order_after_swi') { continue }
+        $check.Name = "$($check.Name) (session $($Session.Number))"
+        $check
+    }
+}
+
+# The release sessions' runs as one: started and done only if every session was, their results and
+# errors in session order
+function Join-SessionRuns($Runs) {
+    $Runs = @($Runs)
+    $all = { param($property) -not @($Runs | Where-Object { -not $_.$property }).Count }
+    [pscustomobject]@{
+        Started = & $all 'Started'
+        Expected = ($Runs | Measure-Object -Property Expected -Sum).Sum
+        Done = & $all 'Done'
+        Results = @($Runs | ForEach-Object { $_.Results })
+        Errors = @($Runs | ForEach-Object { $_.Errors })
+        GameVersion = @($Runs | Where-Object { $_.GameVersion } | ForEach-Object { $_.GameVersion }) | Select-Object -First 1
+        MenuReady = & $all 'MenuReady'
+        SetaDrops = ($Runs | Measure-Object -Property SetaDrops -Sum).Sum
+    }
+}
+
 # Dot-sourced by the tests for the functions above
 if ($MyInvocation.InvocationName -eq '.') { return }
 
 . (Join-Path $PSScriptRoot 'game-lock.ps1')
+
+if ($Release -and ($Test -or $Repeat -ne 1 -or $KeepExtension)) {
+    throw '-Release runs its own sessions, so it takes no -Test, -Repeat or -KeepExtension'
+}
 
 $root = Split-Path $PSScriptRoot -Parent
 if (-not $X4Path) { $X4Path = Resolve-Setting $root 'X4_PATH' '' }
@@ -621,12 +730,88 @@ if (-not $Commit) {
     if ($git.Dirty) { $Dirty = [switch] $true }
 }
 
-$extension = Join-Path $X4Path "extensions/$TestExtensionId"
+$extensionsDir = Join-Path $X4Path 'extensions'
 $arguments = Get-LaunchArguments $ProfileId
-$game = $null
-$installed = $false
-$ending = ''
 $seen = @{}
+
+# Writes an installed file back through $Transform (its text in, the new text out)
+function Edit-InstalledFile([string] $Path, [scriptblock] $Transform) {
+    [IO.File]::WriteAllText($Path, (& $Transform (Get-Content $Path -Raw)))
+}
+
+# One game session: switches the extensions it needs on and off in the test profile (a release
+# session), installs and rewrites the test extensions, starts the game and watches the log until
+# the session ends, then removes the extensions again. $Session is $null for a plain run. Returns
+# the session's Run (read from its log), how it ended and how long it took.
+function Invoke-GameSession($Session) {
+    # The game tests' extension needs the mod, so a release session without it runs without them
+    $harness = -not $Session -or $Session.Mod
+    $ids = @()
+    if ($harness) { $ids += $TestExtensionId }
+    $sessionSeen = $seen
+    if ($Session) {
+        $ids += $ReleaseExtensionId
+        $sessionSeen = @{}
+        Write-Host "Release session $($Session.Number): $($Session.Name)"
+        Enable-Extensions $contentXml @($ReleaseExtensionId)
+        if ($Session.Mod) { Enable-Extensions $contentXml @($ModId, $TestExtensionId) }
+        else { Disable-Extensions $contentXml @($ModId, $TestExtensionId) }
+    }
+    $sessionStart = Get-Date
+    $game = $null
+    $installed = @()
+    $ending = ''
+    try {
+        Update-GameLock $gameLock
+        foreach ($id in $ids) {
+            $dir = Join-Path $extensionsDir $id
+            if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
+            $installed += $dir
+            Copy-Item (Join-Path $root "tests/game/$id") $dir -Recurse
+        }
+        $tests = Join-Path $extensionsDir $TestExtensionId
+        if ($selection) {
+            Edit-InstalledFile (Join-Path $tests $harnessPath) { param($t) Set-GameTestList $t $selection }
+            Write-Host "Running $($selection.Count) selected tests: $(($selection | Select-Object -Unique) -join ', '), $Repeat times"
+        }
+        if ($Session) {
+            Edit-InstalledFile (Join-Path $extensionsDir "$ReleaseExtensionId/ui/$ReleaseExtensionId.lua") { param($t) Set-ReleaseSession $t $Session }
+            if ($harness) {
+                Edit-InstalledFile (Join-Path $tests $harnessPath) { param($t) Set-GameTestList $t $Session.Tests }
+                Edit-InstalledFile (Join-Path $tests 'ui/apirateslife_tests_autostart.lua') { param($t) Disable-TestAutostart $t }
+            }
+        }
+        # A stale log would report the previous run; keep it out of the way instead
+        if (Test-Path $LogPath) { Move-Item $LogPath (Join-Path $profileDir 'debuglog.previous.txt') -Force }
+
+        Write-Host "Starting $GameExe $arguments; results go to $LogPath"
+        $game = Start-Process -FilePath $GameExe -ArgumentList $arguments -WorkingDirectory $X4Path -PassThru
+        $ending = Watch-GameRun $game $LogPath $PollSeconds $TimeoutSeconds $LaunchTimeoutSeconds $ProfileId $gameLock $sessionStart $sessionSeen
+        # The tests quit the game themselves; give it a moment, then close it
+        if (-not $game.HasExited -and ($ending -ne 'finished' -or -not $game.WaitForExit(30000))) {
+            Write-Host "Closing the game"
+            Stop-Process -Id $game.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
+    finally {
+        if ($game -and -not $game.HasExited) { Stop-Process -Id $game.Id -Force -ErrorAction SilentlyContinue }
+        foreach ($dir in @($installed | Where-Object { -not $KeepExtension })) {
+            # The game may still hold files for a moment after exiting
+            for ($i = 0; $i -lt 10 -and (Test-Path $dir); $i++) {
+                Update-GameLock $gameLock
+                try { Remove-Item $dir -Recurse -Force } catch { Start-Sleep -Seconds 1 }
+            }
+        }
+    }
+    # Each release session's log is kept: the next session's start moves debuglog.txt away
+    if ($Session -and (Test-Path $LogPath)) { Copy-Item $LogPath (Join-Path $profileDir "debuglog.release-$($Session.Number).txt") -Force }
+    [pscustomobject]@{ Run = Read-GameTestLog (Read-SharedFile $LogPath); Ending = $ending; Seconds = ((Get-Date) - $sessionStart).TotalSeconds }
+}
+
+# A plain run is one session, $null (an if statement would unroll @($null) to nothing)
+$sessions = [object[]]::new(1)
+if ($Release) { $sessions = @(Get-ReleaseSessions) }
+$sessionResults = @()
 # Only one run uses the game at a time (tools/game-lock.ps1): wait for any other deploy or game
 # run, or use the lock make game-test hands down
 $gameLock = Enter-GameLock (Join-Path $X4Path 'game.lock') 'game-test' $root
@@ -646,56 +831,59 @@ try {
     Assert-ProfileReady $contentXml
     # Every run is SWI-only: other mods installed in the game folder start on in a profile that
     # doesn't list them, so switch them off in the test profile (the swi_only_run log check)
-    $others = @(Get-OtherExtensions (Join-Path $X4Path 'extensions'))
+    $others = @(Get-OtherExtensions $extensionsDir)
     if ($others.Count) {
         Disable-Extensions $contentXml $others
         Write-Host "Off in the test profile, so the run is SWI-only: $($others -join ', ')"
     }
+    # A save left by an earlier release run would let a session load it after its own save failed
+    if ($Release) { Remove-Item (Join-Path $profileDir "save/$ReleaseSave.*") -Force -ErrorAction SilentlyContinue }
 
-    Update-GameLock $gameLock
     $startedAt = Get-Date
-    if (Test-Path $extension) { Remove-Item $extension -Recurse -Force }
-    $installed = $true
-    Copy-Item (Join-Path $root "tests/game/$TestExtensionId") $extension -Recurse
-    if ($selection) {
-        $installedHarness = Join-Path $extension $harnessPath
-        [IO.File]::WriteAllText($installedHarness, (Set-GameTestList (Get-Content $installedHarness -Raw) $selection))
-        Write-Host "Running $($selection.Count) selected tests: $(($selection | Select-Object -Unique) -join ', '), $Repeat times"
-    }
-    # A stale log would report the previous run; keep it out of the way instead
-    if (Test-Path $LogPath) { Move-Item $LogPath (Join-Path $profileDir 'debuglog.previous.txt') -Force }
-
-    Write-Host "Starting $GameExe $arguments; results go to $LogPath"
-    $game = Start-Process -FilePath $GameExe -ArgumentList $arguments -WorkingDirectory $X4Path -PassThru
-    $ending = Watch-GameRun $game $LogPath $PollSeconds $TimeoutSeconds $LaunchTimeoutSeconds $ProfileId $gameLock $startedAt $seen
-    # The tests quit the game themselves; give it a moment, then close it
-    if (-not $game.HasExited -and ($ending -ne 'finished' -or -not $game.WaitForExit(30000))) {
-        Write-Host "Closing the game"
-        Stop-Process -Id $game.Id -Force -ErrorAction SilentlyContinue
+    foreach ($session in $sessions) {
+        $result = Invoke-GameSession $session
+        $sessionResults += $result
+        if ($session -and $session.Save -and -not $result.Run.Saved) {
+            Write-Host "Session $($session.Number) saved nothing, so the sessions after it can't run"
+            break
+        }
     }
 }
 finally {
-    if ($game -and -not $game.HasExited) { Stop-Process -Id $game.Id -Force -ErrorAction SilentlyContinue }
-    if ($installed -and -not $KeepExtension -and (Test-Path $extension)) {
-        # The game may still hold files for a moment after exiting
-        for ($i = 0; $i -lt 10 -and (Test-Path $extension); $i++) {
-            Update-GameLock $gameLock
-            try { Remove-Item $extension -Recurse -Force } catch { Start-Sleep -Seconds 1 }
-        }
+    # The test profile as a plain game test run needs it
+    if ($Release -and (Test-Path $contentXml)) {
+        Enable-Extensions $contentXml @($ModId, $TestExtensionId)
+        Disable-Extensions $contentXml @($ReleaseExtensionId)
     }
     Exit-GameLock $gameLock
 }
 
-$run = Read-GameTestLog (Read-SharedFile $LogPath)
-foreach ($c in (Add-LogChecks $run)) {
+$total = ((Get-Date) - $startedAt).TotalSeconds
+if ($Release) {
+    $runs = @($sessionResults | ForEach-Object { $_.Run })
+    $run = Join-SessionRuns $runs
+    $checks = @(for ($i = 0; $i -lt $runs.Count; $i++) { Get-SessionLogChecks $runs[$i] $sessions[$i] })
+    $checks += Get-ExistingSaveCheck $runs[0] $(if ($runs.Count -gt 1) { $runs[1] } else { Read-GameTestLog @() })
+    $run.Results = @($run.Results) + $checks
+    $run.Expected += $checks.Count
+    $ending = @(for ($i = 0; $i -lt $sessionResults.Count; $i++) { "session $($i + 1): $($sessionResults[$i].Ending)" }) -join ', '
+    $phases = @(for ($i = 0; $i -lt $sessionResults.Count; $i++) {
+        [pscustomobject]@{ Name = "Session $($i + 1): $($sessions[$i].Name)"; Seconds = $sessionResults[$i].Seconds }
+    }) + @([pscustomobject]@{ Name = '**Total**'; Seconds = $total })
+}
+else {
+    $run = $sessionResults[0].Run
+    $ending = $sessionResults[0].Ending
+    $checks = @(Add-LogChecks $run)
+    $phases = if ($seen.Count) { @(Get-RunPhases $seen $total) } else { @() }
+}
+foreach ($c in $checks) {
     Write-Host ("  {0} {1}: {2}" -f $(if ($c.Passed) { 'PASS' } else { 'FAIL' }), $c.Name, $c.Detail)
 }
 $problems = @(Get-RunProblems $run $ending)
 New-Item -ItemType Directory -Force -Path (Split-Path $ReportPath -Parent) | Out-Null
 [IO.File]::WriteAllText($ReportPath, (ConvertTo-JUnitXml $run $problems))
-$total = ((Get-Date) - $startedAt).TotalSeconds
-$phases = if ($seen.Count) { @(Get-RunPhases $seen $total) } else { @() }
-$info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = $total; Phases = $phases; Selected = [bool] $selection }
+$info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = $total; Phases = $phases; Selected = [bool] $selection; Release = [bool] $Release }
 New-Item -ItemType Directory -Force -Path (Split-Path $MarkdownPath -Parent) | Out-Null
 [IO.File]::WriteAllText($MarkdownPath, (ConvertTo-MarkdownReport $run $problems $info) + "`n")
 
