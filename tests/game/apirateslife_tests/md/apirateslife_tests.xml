@@ -17,9 +17,14 @@
 <mdscript name="APiratesLife_Tests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
     <cue name="Run">
+      <!-- A new game on the test gamestart, or a release session's save loaded with the mod
+           (tools/run-game-tests.ps1 -Release), which sets $Tests in the installed copy -->
       <conditions>
-        <event_cue_signalled cue="md.Setup.GameStart"/>
-        <check_value value="player.module == 'apirateslife_test'"/>
+        <check_any>
+          <event_cue_signalled cue="md.Setup.GameStart"/>
+          <event_game_loaded/>
+        </check_any>
+        <check_value value="if event.name == 'event_game_loaded' then player.module == 'apirateslife_release_test' else player.module == 'apirateslife_test'"/>
       </conditions>
       <!-- No delay here: X4 activates sub-cues as soon as these conditions are met, before a
            delay would end, so Begin could run before these variables exist -->

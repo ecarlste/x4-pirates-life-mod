@@ -4,6 +4,7 @@
 # branch's PR: as a comment, plus a "game-tests" commit status on the tested commit, so the
 # result shows in the PR's checks. Refuses unless the report is for exactly the PR's latest
 # commit, with no uncommitted changes in the run, and of the whole suite (no -Test or -Repeat).
+# A run of the release sessions (-Release) posts its status as "game-tests-release" instead.
 #
 # Usage: tools/post-game-test-report.sh [--dry-run] [--report <file>]
 #   --dry-run  check everything and print what would be posted, without posting
@@ -50,10 +51,12 @@ read -r number pr_head state <<<"$pr"
 [ "$pr_head" = "$commit" ] || die "PR #$number's latest commit is ${pr_head:0:7}, not the tested ${commit:0:7}. Push your branch, or test the PR's commit"
 
 if [ "$result" = pass ]; then status=success; else status=failure; fi
+context=game-tests
+[ "$(field release)" != true ] || context=game-tests-release
 description="$passed of $total passed (local run)"
 
 if [ "$DRY_RUN" = 1 ]; then
-    echo "Would comment on PR #$number and set game-tests=$status ($description) on ${commit:0:7}:"
+    echo "Would comment on PR #$number and set $context=$status ($description) on ${commit:0:7}:"
     echo
     cat "$REPORT"
     exit 0
@@ -61,5 +64,5 @@ fi
 
 gh pr comment "$number" --body-file "$REPORT"
 gh api --silent "repos/{owner}/{repo}/statuses/$commit" \
-    -f state="$status" -f context=game-tests -f description="$description"
-echo "Posted to PR #$number: game-tests $status ($description) on ${commit:0:7}"
+    -f state="$status" -f context="$context" -f description="$description"
+echo "Posted to PR #$number: $context $status ($description) on ${commit:0:7}"

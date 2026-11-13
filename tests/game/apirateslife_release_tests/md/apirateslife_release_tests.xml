@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The release sessions' game side (tools/run-game-tests.ps1 -Release; docs/testing.md, Release
+     sessions). The runner reads these "[apirateslife-test]" lines from debuglog.txt:
+       RUN START 0 tests, DONE passed=0 failed=0   around a session this extension runs on its own
+       SAVED <file>                                a save written, read back by a later session
+       SAVE FAILED: <why>
+       LOADED <module>                             a game loaded, not started
+
+     A new game on the release gamestart is saved at once and the game quits: session 1, made
+     without A Pirate's Life. A loaded game is only logged here; the game tests' harness runs its
+     tests on it (its Run cue). -->
+<mdscript name="APiratesLife_ReleaseTests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
+  <cues>
+    <cue name="NewGame">
+      <conditions>
+        <event_cue_signalled cue="md.Setup.GameStart"/>
+        <check_value value="player.module == 'apirateslife_release_test'"/>
+      </conditions>
+      <actions>
+        <debug_text text="'[apirateslife-test] RUN START 0 tests'" filter="general"/>
+      </actions>
+      <cues>
+        <!-- Let the game settle after starting, as the harness does -->
+        <cue name="Save">
+          <delay exact="2s"/>
+          <actions>
+            <raise_lua_event name="'apirateslife_release_tests.save'"/>
+          </actions>
+          <cues>
+            <cue name="SaveAsked">
+              <conditions>
+                <event_ui_triggered screen="'apirateslife_release_tests'" control="'save'"/>
+              </conditions>
+              <actions>
+                <set_value name="$File" exact="event.param3"/>
+                <do_if value="$File == ''">
+                  <signal_cue_instantly cue="Finish" param="'SAVE FAILED: the session has no save to write'"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="Saved">
+              <conditions>
+                <event_game_saved/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="SaveTimeout"/>
+                <signal_cue_instantly cue="Finish" param="if event.param then 'SAVED %s'.[@$File] else 'SAVE FAILED: the game reported a failed save'"/>
+              </actions>
+            </cue>
+            <cue name="SaveTimeout">
+              <delay exact="60s"/>
+              <actions>
+                <cancel_cue cue="Saved"/>
+                <signal_cue_instantly cue="Finish" param="'SAVE FAILED: no save within 60s'"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+        <cue name="Finish">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <debug_text text="'[apirateslife-test] %s'.[event.param]" filter="general"/>
+            <debug_text text="'[apirateslife-test] DONE passed=0 failed=0'" filter="general"/>
+          </actions>
+          <cues>
+            <!-- Give the log a moment to flush -->
+            <cue name="Quit">
+              <delay exact="2s"/>
+              <actions>
+                <quit_to_desktop/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- The save holds NewGame's cues as they were while it saved; a loaded game must not finish
+         and quit when it saves again -->
+    <cue name="Loaded" instantiate="true">
+      <conditions>
+        <event_game_loaded/>
+        <check_value value="player.module == 'apirateslife_release_test'"/>
+      </conditions>
+      <actions>
+        <cancel_cue cue="NewGame"/>
+        <debug_text text="'[apirateslife-test] LOADED %s'.[player.module]" filter="general"/>
+      </actions>
+    </cue>
+  </cues>
+</mdscript>

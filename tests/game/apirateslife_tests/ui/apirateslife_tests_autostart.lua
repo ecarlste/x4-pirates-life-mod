@@ -50,6 +50,8 @@ ffi.cdef[[
 	MissionDetails GetMissionIDDetails(uint64_t missionid);
 ]]
 
+-- One line the runner rewrites to nil for a release session, which loads a save instead
+-- (tests/game/apirateslife_release_tests)
 local gamestart = "apirateslife_test"
 local delay = 1 -- seconds in the main menu before starting, so it has finished loading
 local startat
@@ -165,6 +167,10 @@ local function init()
 	local module = ffi.string(C.GetGameStartName())
 	if module ~= "startmenu" then
 		log("module is '" .. module .. "', only serving the tests' events")
+		return
+	end
+	if not gamestart then
+		log("no gamestart to start: the release tests load a save")
 		return
 	end
 	startat = getElapsedTime() + delay
