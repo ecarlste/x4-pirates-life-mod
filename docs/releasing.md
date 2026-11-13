@@ -14,8 +14,9 @@ How a version of the mod gets from `main` to players. The spec is the SWI build'
 2. **After it merges,** tag that commit: `git fetch origin && git tag v<version> origin/main && git push origin v<version>`.
 3. **Build the zip:** `make release TAG=v<version>`. It runs every test suite in a clean checkout of the tag first, and writes `dist/apirateslife-<version>.zip` and `dist/apirateslife-<version>-checklist.md`.
 4. **Check the checklist** in game: every `@manual` and `@pending` scenario, including installing from the zip itself.
-5. **Publish it** as a GitHub Release: `gh release create v<version> dist/apirateslife-<version>.zip --notes-file <the version's changelog section>`.
-6. **Upload the same zip to Nexus** by hand. Before the first upload, ask the SWI team (Shuulo and Mik, in `#modding-and-patches` on the SWI Discord) as a courtesy; don't block on silence, and drop the build if they say no ([SWI team's terms](https://github.com/ecarlste/x4-pirates-life-mod/issues/93)).
+5. **Publish it** as a GitHub Release: `gh release create v<version> dist/apirateslife-<version>.zip --notes-file <notes>`. The notes are the version's changelog section, under a line saying it's a release for testers and asking for feedback in [GitHub Issues](https://github.com/ecarlste/x4-pirates-life-mod/issues).
+
+GitHub Releases are for testers only, and series viewers who install one count as testers. The **public release** on Nexus or Steam Workshop comes once testers' feedback is in and the issues it found are fixed ([#179](https://github.com/ecarlste/x4-pirates-life-mod/issues/179)). Before it, ask the SWI team (Shuulo and Mik, in `#modding-and-patches` on the SWI Discord) as a courtesy; don't block on silence, and drop the build if they say no ([SWI team's terms](https://github.com/ecarlste/x4-pirates-life-mod/issues/93)).
 
 `make release` with no `TAG` builds the latest `origin/main` the same way, to try the zip before tagging; it doesn't need the changelog section yet.
 
