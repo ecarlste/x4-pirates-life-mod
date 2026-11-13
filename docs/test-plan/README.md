@@ -9,8 +9,8 @@ What the mod should do, feature by feature, and how each scenario is verified. P
 | [Bail hook](bail-hook.md) | 4 | 0 | 3 | 0 | 1 | **1** |
 | [Bail pressure](bail-pressure.md) | 11 | 0 | 10 | 0 | 1 | **1** |
 | [Capture metrics](capture-metrics.md) | 6 | 0 | 5 | 1 | 0 | **1** |
-| [Capture operations](capture-operation.md) | 16 | 0 | 13 | 1 | 2 | **3** |
+| [Capture operations](capture-operation.md) | 18 | 0 | 15 | 1 | 2 | **3** |
 | [Captured ships arrive intact](intact-captures.md) | 3 | 0 | 3 | 0 | 0 | **0** |
 | [Pirated ships](pirated-ships.md) | 4 | 0 | 3 | 1 | 0 | **1** |
 | [Release](release.md) | 2 | 0 | 2 | 0 | 0 | **0** |
-| **Total** | 46 | 0 | 39 | 3 | 4 | **7** |
+| **Total** | 48 | 0 | 41 | 3 | 4 | **7** |

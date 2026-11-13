@@ -115,6 +115,8 @@ Scenarios: [`tests/game/features/capture-operation.feature`](../../tests/game/fe
   - `capture_abort_calls_wing_off`: in an SWI game, aborting the mission with the engine call the mission menus make ends the op as called off, and the wingman drops the capture order for its default one.
   - Neither clicks a menu, so a manual scenario covers SWI's own comm and mission menus.
   - `capture_wing_holds_fire`: a real wingman (a fixed pulse-laser loadout from the test extension) breaks a capturable fighter (80% hull, shields held down until then) to under 75% and keeps it there for 30 s, with the hull never more than 20 points under the gate (nor below the floor), and the wingman never still (under 10 m/s) for 5 s in a row. The target is made uncapturable after the start, so no bail ends the fight.
+  - `capture_wing_holds_fire_held_still`: the same checks with the wingman held still: no engines, 2 km from the target and facing it, pilot skill 15. Its shots take longest to land, so the most are in flight at the gate ([#172](https://github.com/ecarlste/x4-pirates-life-mod/issues/172)). No movement check, as it can't move.
+  - `capture_wing_holds_fire_three_held_still`: three such wingmen, 2 km out and 120° apart. The same checks, and only one wingman (the finisher) fires until the hull is under 75%.
   - `no_missiles_in_sight` and `no_missiles_out_of_sight`: a flagged torpedo X-wing and an unflagged one each attack a TIE Advanced held at 50% hull, 1-6 km from the player and 150 km away. Within 60 s the unflagged wingman fires a missile, as vanilla does, and the flagged one fires none.
 - **In game:**
   - With 3 S ships, a comm choice on a neutral or SCA fighter starts the op.

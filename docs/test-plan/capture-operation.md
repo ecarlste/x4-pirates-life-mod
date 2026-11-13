@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 13 | 1 | 2 | **3** |
+| 0 | 15 | 1 | 2 | **3** |
 
 ## Scenarios
 
@@ -67,6 +67,31 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   And for 30 seconds the hull stays below 75% and above 55%
   And the hull never drops below the 35% floor
   And the wingman keeps moving while it holds fire, never sitting still for 5 seconds
+```
+
+### A wingman that can't close in still stops the hull near the bail gate
+
+**Automated:** in game `capture_wing_holds_fire_held_still`
+
+```gherkin
+  Given a capture operation on a capturable fighter with 80% hull and its shields kept down until the hull is below 75%
+  And my wingman flies an X-wing with four lasers and no engines, held 2 km from the fighter and facing it
+  When the wingman breaks the fighter's hull below 75%
+  Then for 30 seconds the hull stays below 75% and above 55%
+  And the hull never drops below the 35% floor
+```
+
+### Only one wingman of a wing finishes the break
+
+**Automated:** in game `capture_wing_holds_fire_three_held_still`
+
+```gherkin
+  Given a capture operation on a capturable fighter with 80% hull and its shields kept down until the hull is below 75%
+  And three wingmen fly X-wings with four lasers and no engines, held 2 km from the fighter around it
+  When the wing breaks the fighter's hull below 75%
+  Then only one wingman fires until the hull is below 75%
+  And for 30 seconds the hull stays below 75% and above 55%
+  And the hull never drops below the 35% floor
 ```
 
 ### My wingmen fire no missiles or torpedoes at the target in my sight
