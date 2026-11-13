@@ -1648,18 +1648,11 @@
         <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
         <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
+        <!-- [DEBUG-172] Wingman's fixed distance from the target, in metres -->
+        <set_value name="$DebugRange" exact="2000"/>
         <!-- A fixed loadout from this extension's libraries/loadouts.xml: an X-wing's four lasers
              and no missile launcher. A random loadout made the test a lottery: slow guns barely
              landed a shot and torpedoes one-shot the target. -->
-        <create_ship name="$Wingman" macro="t65b_xwing_macro" sector="player.sector">
-          <owner exact="faction.player" overridenpc="true"/>
-          <loadout ref="apirateslife_test_xwing_lasers"/>
-          <pilot>
-            <select faction="faction.galempire" tags="tag.aipilot"/>
-          </pilot>
-          <safepos object="player.occupiedship" x="-1km" allowyaxis="true"/>
-        </create_ship>
-        <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
         <create_ship name="$Target" macro="tie_advanced_macro" sector="player.sector" capturable="true">
           <owner exact="faction.galempire" overridenpc="true"/>
           <loadout>
@@ -1667,9 +1660,31 @@
           </loadout>
           <pilot>
             <select faction="faction.galempire" tags="tag.aipilot"/>
+            <!-- [DEBUG-172] Max skills for the fixed-range probe -->
+            <skills>
+              <skill type="piloting" exact="15"/>
+              <skill type="morale" exact="15"/>
+            </skills>
           </pilot>
           <safepos object="player.occupiedship" z="3km" allowyaxis="true"/>
         </create_ship>
+        <create_ship name="$Wingman" macro="t65b_xwing_macro" sector="player.sector">
+          <owner exact="faction.player" overridenpc="true"/>
+          <!-- [DEBUG-172] No engines: it turns and fires but cannot close in -->
+          <loadout ref="apirateslife_test_xwing_noengine_1laser"/>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+            <!-- [DEBUG-172] Max skills for the fixed-range probe -->
+            <skills>
+              <skill type="piloting" exact="15"/>
+              <skill type="morale" exact="15"/>
+            </skills>
+          </pilot>
+          <!-- [DEBUG-172] Fixed range from the target, facing it -->
+          <orientation orientation="look_at" refobject="$Target"/>
+          <position object="$Target" x="$DebugRange"/>
+        </create_ship>
+        <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
         <create_order id="'Wait'" object="$Target" default="true">
           <param name="noattackresponse" value="true"/>
         </create_order>
@@ -1761,7 +1776,8 @@
                 <do_if value="$Problems == '' and $MinHull lt 72">
                   <set_value name="$Problems" exact="' lowest hull %s%%, [DEBUG-172 margin 3] more than 3 points under the 75%% gate;'.[$MinHull]"/>
                 </do_if>
-                <do_if value="$MaxParked ge 5">
+                <!-- [DEBUG-172] Parked check off: the engine-less wingman cannot move -->
+                <do_if value="false and $MaxParked ge 5">
                   <set_value name="$Problems" exact="$Problems + ' the wingman sat still for %s s in a row while holding;'.[$MaxParked]"/>
                 </do_if>
                 <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'held %s s under 75%%, lowest hull %s%%, longest still %s s'.[$HeldFor, $MinHull, $MaxParked] else $Problems)]"/>
