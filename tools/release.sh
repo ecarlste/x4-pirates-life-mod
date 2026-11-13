@@ -10,7 +10,7 @@
 #   - unless every test suite passes, run in a clean checkout of that commit (RELEASE_TEST, default
 #     tests/run.sh --all, is the command run there);
 #   - if the tag v<version> exists on a different commit, or a given tag holds another version;
-#   - if CHANGELOG.md has no "## <version>" section, or a release file is missing.
+#   - if a release file is missing, or a tag's CHANGELOG.md has no "## <version>" section.
 #
 # Usage: tools/release.sh [--tag v<version>]
 
@@ -65,9 +65,9 @@ SHORT=$(git rev-parse --short "$COMMIT")
 
 # The version and id, from content.xml
 CONTENT=$(git show "$COMMIT:content.xml" 2>/dev/null) || die "$NAME has no content.xml"
-RAW=$(sed -n 's/.*<content[^>]* version="\([0-9]*\)".*/\1/p' <<< "$CONTENT" | head -n 1)
-[ -n "$RAW" ] || die "couldn't read a version from content.xml at $NAME"
-VERSION="$((10#$RAW / 100)).$(printf '%02d' $((10#$RAW % 100)))"
+CONTENT_VERSION=$(sed -n 's/.*<content[^>]* version="\([0-9]*\)".*/\1/p' <<< "$CONTENT" | head -n 1)
+[ -n "$CONTENT_VERSION" ] || die "couldn't read a version from content.xml at $NAME"
+VERSION="$((10#$CONTENT_VERSION / 100)).$(printf '%02d' $((10#$CONTENT_VERSION % 100)))"
 MOD_ID=$(sed -n 's/.*<content[^>]* id="\([^"]*\)".*/\1/p' <<< "$CONTENT" | head -n 1)
 [[ "$MOD_ID" =~ ^[A-Za-z0-9_-][A-Za-z0-9_.-]*$ ]] || die "couldn't read a valid extension id from content.xml at $NAME"
 VERSION_TAG=v$VERSION
@@ -80,7 +80,10 @@ fi
 for f in "${RELEASE_FILES[@]}"; do
     git cat-file -e "$COMMIT:$f" 2>/dev/null || die "$f is missing at $NAME"
 done
-git show "$COMMIT:CHANGELOG.md" | grep -Eq "^## ${VERSION//./\\.}( |$)" || die "CHANGELOG.md has no '## $VERSION' section at $NAME"
+# A tag must have its changelog section; a trial build of origin/main may still say "## Unreleased"
+if [ -n "$TAG" ]; then
+    git show "$COMMIT:CHANGELOG.md" | grep -Eq "^## ${VERSION//./\\.}( |$)" || die "CHANGELOG.md has no '## $VERSION' section at $NAME"
+fi
 
 echo -e "${GREEN}Releasing $MOD_ID $VERSION from $NAME ($SHORT $(git log -1 --format=%s "$COMMIT"))${NC}"
 

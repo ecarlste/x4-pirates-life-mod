@@ -5,7 +5,7 @@ Take ships instead of destroying them. Hail a small or medium ship and
 choose "Heave to. We're taking your ship.": your wingmen break the target
 down to the hold line, then only keep its shields down, while the pilot's
 nerve drains. Sooner or later the crew bails, and you claim the ship by
-spacesuit or with marines. It arrives intact.
+spacesuit or with marines; marines leave it intact.
 
 This is the SWI build: made for Star Wars Interworlds on X4 8.00.
 An unofficial add-on: it isn't made or endorsed by the Star Wars
@@ -26,10 +26,8 @@ What it does
   a while (fear), and a new operation on them starts from there.
 - A mission readout shows whether the target is inside the bail gates,
   the pilot's nerve, and the crew left aboard.
-- Intact claims: a ship you claim by spacesuit or with marines keeps its
-  hull and equipment.
-- Ships taken by boarding or by a bail in combat with your ships are
-  marked as pirated.
+- Intact claims: claiming an abandoned ship with marines doesn't damage
+  its hull or destroy its equipment.
 - To call a capture off, abort its mission.
 
 

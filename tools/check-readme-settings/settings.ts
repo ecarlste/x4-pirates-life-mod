@@ -2,7 +2,7 @@
 // (md/apirateslife_config.xml) sets them, each by setting name -> its group (Settings or Tuning)
 // and default value, and the differences between the two.
 import * as xpath from "xpath";
-import { configDefaults } from "../check-settings-defaults/defaults.ts";
+import { configDefaults, GLOBAL, same } from "../check-settings-defaults/defaults.ts";
 import { parseXml } from "../diff-patches/patch.ts";
 
 export type Setting = { group: string; value: string };
@@ -29,7 +29,6 @@ export const readmeSettings = (text: string): Map<string, Setting> => {
 // The config file's banner comments ("===== Settings: … =====") each start a group, running to
 // the next banner; a setting above every banner has group ""
 const BANNER = /^\s*=+\s*(Settings|Tuning):/;
-const GLOBAL = /^global\.\$APiratesLife_(\w+)$/;
 
 export const configSettings = (xml: string): Map<string, Setting> => {
   const groups = new Map<string, string>();
@@ -42,8 +41,6 @@ export const configSettings = (xml: string): Map<string, Setting> => {
   }
   return new Map([...configDefaults(xml)].map(([name, value]) => [name, { group: groups.get(name) ?? "", value }]));
 };
-
-const same = (a: string, b: string) => a === b || (a.trim() !== "" && Number(a) === Number(b));
 
 // One line per difference: a setting only one side has, in another group, or with another default
 export const compareSettings = (readme: Map<string, Setting>, fromConfig: Map<string, Setting>): string[] => [

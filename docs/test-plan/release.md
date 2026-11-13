@@ -33,7 +33,7 @@ Source: [`tests/game/features/release.feature`](../../tests/game/features/releas
   Then debuglog.txt has no error or warning about our files or scripts
 ```
 
-### The release zip installs and loads
+### make release builds a zip that installs and loads
 
 - [ ] **Manual:** checked by hand for now
 

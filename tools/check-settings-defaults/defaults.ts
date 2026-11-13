@@ -8,7 +8,7 @@ import { parseXml } from "../diff-patches/patch.ts";
 const select = (sel: string, xml: string) =>
   xpath.select(sel, parseXml(xml) as unknown as globalThis.Node) as unknown as Element[];
 
-const GLOBAL = /^global\.\$APiratesLife_(\w+)$/;
+export const GLOBAL = /^global\.\$APiratesLife_(\w+)$/;
 
 // Each global the config file's Defaults library sets, by setting name
 export const configDefaults = (xml: string): Map<string, string> => {
@@ -37,7 +37,8 @@ export const loaderDefaults = (xml: string): Map<string, string> => {
   );
 };
 
-const same = (a: string, b: string) => a === b || (a.trim() !== "" && Number(a) === Number(b));
+// Two values agree when equal as text or, both being numbers, as numbers
+export const same = (a: string, b: string) => a === b || (a.trim() !== "" && Number(a) === Number(b));
 
 // One line per difference: a value that differs, or a setting only one copy has
 export const compareDefaults = (fromConfig: Map<string, string>, fromLoader: Map<string, string>): string[] => [

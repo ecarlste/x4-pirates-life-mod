@@ -159,15 +159,26 @@ tag_main() {
     [[ "$output" == *"no tag v9.99"* ]]
 }
 
-@test "refuses when CHANGELOG.md has no section for the version" {
+@test "refuses a tag whose CHANGELOG.md has no section for the version" {
+    printf '# Changelog\n\n## Unreleased\n' > "$REPO/CHANGELOG.md"
+    commit_all "no section"
+    git -C "$REPO" push -q
+    tag_main v1.00
+
+    release --tag v1.00
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"CHANGELOG.md has no '## 1.00' section"* ]]
+    [ ! -e "$ZIP" ]
+}
+
+@test "a trial build of origin/main needs no changelog section yet" {
     printf '# Changelog\n\n## Unreleased\n' > "$REPO/CHANGELOG.md"
     commit_all "no section"
     git -C "$REPO" push -q
 
     release
-    [ "$status" -ne 0 ]
-    [[ "$output" == *"CHANGELOG.md has no '## 1.00' section"* ]]
-    [ ! -e "$ZIP" ]
+    [ "$status" -eq 0 ]
+    [ -f "$ZIP" ]
 }
 
 @test "refuses when a release file is missing" {

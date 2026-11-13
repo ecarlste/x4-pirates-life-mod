@@ -17,7 +17,7 @@ How a version of the mod gets from `main` to players. The spec is the SWI build'
 5. **Publish it** as a GitHub Release: `gh release create v<version> dist/apirateslife-<version>.zip --notes-file <the version's changelog section>`.
 6. **Upload the same zip to Nexus** by hand. Before the first upload, ask the SWI team (Shuulo and Mik, in `#modding-and-patches` on the SWI Discord) as a courtesy; don't block on silence, and drop the build if they say no ([SWI team's terms](https://github.com/ecarlste/x4-pirates-life-mod/issues/93)).
 
-`make release` with no `TAG` builds the latest `origin/main` the same way, to try the zip before tagging.
+`make release` with no `TAG` builds the latest `origin/main` the same way, to try the zip before tagging; it doesn't need the changelog section yet.
 
 ## What `make release` checks
 
@@ -26,7 +26,7 @@ How a version of the mod gets from `main` to players. The spec is the SWI build'
 - any test suite fails on that commit (`tests/run.sh --all`);
 - `v<version>` already exists on a different commit (bump the version, or build the tag);
 - a given tag's `content.xml` holds another version;
-- `CHANGELOG.md` has no `## <version>` section, or `LICENSE`, `CHANGELOG.md`, `release/README.txt` or `release/CREDITS.txt` is missing.
+- a given tag's `CHANGELOG.md` has no `## <version>` section, or `LICENSE`, `CHANGELOG.md`, `release/README.txt` or `release/CREDITS.txt` is missing.
 
 ## What the zip holds
 

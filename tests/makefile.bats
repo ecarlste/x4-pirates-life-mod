@@ -254,7 +254,7 @@ SCRIPT
     grep -q '^# Alpha$' "$REPO/docs/test-plan/alpha.md"
 }
 
-@test "make release builds the tag TAG names" {
+@test "make release passes TAG to the release script as --tag" {
     cp "$REPO_ROOT/tools/release.sh" "$REPO/tools/"
     run make -C "$REPO" release TAG=v9.99
     [ "$status" -ne 0 ]
