@@ -2016,9 +2016,10 @@
                   <set_value name="$Shots" exact="$Shots + ' %s'.[$Count]"/>
                 </do_for_each>
                 <do_if value="$ShotsAbove.keys.count gt 1">
-                  <set_value name="$Problems" exact="$Problems + ' %s wingmen fired above 75%% hull (shots:%s), only the finisher may;'.[$ShotsAbove.keys.count, $Shots]"/>
+                  <set_value name="$Problems" exact="$Problems + ' %s wingmen fired above 75%% hull, only the finisher may;'.[$ShotsAbove.keys.count]"/>
                 </do_if>
-                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire_three_held_still', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'held %s s under 75%%, lowest hull %s%%, shots above 75%%:%s'.[$Wing.$heldfor, $Wing.$minhull, $Shots] else $Problems)]"/>
+                <set_value name="$Detail" exact="if $Problems == '' then 'held %s s under 75%%, lowest hull %s%%;'.[$Wing.$heldfor, $Wing.$minhull] else $Problems"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire_three_held_still', $ok = ($Problems == ''), $detail = $Detail + ' shots above 75%% by wingman:%s'.[if $Shots == '' then ' none' else $Shots]]"/>
                 <do_for_each name="$Ship" in="$Wing.$wingmen">
                   <do_if value="$Ship.exists">
                     <destroy_object object="$Ship"/>
