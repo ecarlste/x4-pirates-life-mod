@@ -109,3 +109,17 @@ Feature: Bail pressure
     When I fly another ship, or am more than 10 km from the target
     Then the operation asks for no bail checks
     But the pressure keeps building with time
+
+  @manual
+  Scenario: How often hit events fire
+    Given a capture operation on an SWI fighter inside the bail gates, with only my SWI wingmen firing
+    When they fire on it for a minute
+    Then the capture metrics' hit counts give the hits per second that reach the game's bail check
+    And I note the rate next to SWI's 5 s cooldown and the pressure tick's 5 s
+
+  @manual
+  Scenario: The knock-down cycle with SWI wingmen
+    Given a capture operation on an SWI fighter, with only my SWI wingmen firing
+    When they knock its shields down, hold fire and let them regrow, several times over
+    Then each knock-down comes about every 20-40 s, as the bail pressure was tuned for
+    And the pressure tick still asks for a check every 5 s in between

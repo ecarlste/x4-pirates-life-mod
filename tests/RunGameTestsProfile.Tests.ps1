@@ -57,6 +57,17 @@ Describe 'run-game-tests.ps1 before the game starts' {
         Get-TestFile "$profiles/content.xml" | Should -Be $rootContent
     }
 
+    It 'switches off every installed extension but the Egosoft DLCs, SWI and ours, so the run is SWI-only' {
+        Write-LfFile "$x4/extensions/ego_dlc_pirate/content.xml" '<content id="ego_dlc_pirate"/>'
+        Write-LfFile "$x4/extensions/starwars_rsp/content.xml" '<content id="starwars_rsp_id" enabled="1"/>'
+        Set-Content $env:FAKE_SOURCE_LOG $script:PassingLog
+        $r = Invoke-Script $script:Runner $runArgs
+        $r.ExitCode | Should -Be 0
+        $r.Output | Should -BeLike '*Off in the test profile, so the run is SWI-only: starwars_rsp_id*'
+        @(([xml] (Get-Content $contentXml -Raw)).content.extension | ForEach-Object { "$($_.id)=$($_.enabled)" }) |
+            Should -Be @('SW Interworlds=true', 'apirateslife=true', 'starwars_rsp_id=false')
+    }
+
     It 'refuses to run when SWI is not installed' {
         Remove-Item "$x4/extensions/starwarsmod_m1" -Recurse
         $r = Invoke-Script $script:Runner $runArgs

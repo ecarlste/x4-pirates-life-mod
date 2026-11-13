@@ -157,6 +157,28 @@ Describe 'Get-LogChecks' {
         $check.Passed | Should -BeFalse
         $check.Detail | Should -Be '2 errors or warnings from our files in debuglog.txt'
     }
+
+    It 'passes the SWI-only run when only Egosoft DLCs, SWI and our extensions were read' {
+        $check = Get-Check ($script:SwiFirst + "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file '.\extensions\ego_dlc_pirate\md\x.xml' (error: 14)") 'swi_only_run'
+        $check.Passed | Should -BeTrue
+        $check.Detail | Should -Be 'files read only from Egosoft DLCs and apirateslife, apirateslife_tests, starwarsmod_m1'
+    }
+
+    It 'fails the SWI-only run, naming any other extension whose files were read' {
+        $check = Get-Check ($script:SwiFirst + @(
+            "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file '.\extensions\starwars_rsp\t\0001.xml' (error: 14)"
+            "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file '.\extensions\Mycu_Equipment_Tooltips\t\0001.xml' (error: 14)"
+        "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file '.\extensions\My Mod\t\0001.xml' (error: 14)"
+        )) 'swi_only_run'
+        $check.Passed | Should -BeFalse
+        $check.Detail | Should -Be 'files read from other extensions: my mod, mycu_equipment_tooltips, starwars_rsp'
+    }
+
+    It 'fails the SWI-only run when no SWI file was read' {
+        $check = Get-Check $script:PassingLog 'swi_only_run'
+        $check.Passed | Should -BeFalse
+        $check.Detail | Should -Be 'no file read from SWI (starwarsmod_m1)'
+    }
 }
 
 Describe 'Get-RunProblems' {
@@ -182,13 +204,13 @@ Describe 'Get-RunProblems' {
     It 'reports errors from the mod as the failed clean_log check' {
         $run = Read-GameTestLog ($script:PassingLog + @('[=ERROR=] 9.00 Error in MD cue md.APiratesLife_Bail.Bailed'))
         Add-LogChecks $run | Out-Null
-        Get-RunProblems $run 'finished' | Should -Contain '2 failed: load_order_after_swi, clean_log'
+        Get-RunProblems $run 'finished' | Should -Contain '3 failed: load_order_after_swi, clean_log, swi_only_run'
     }
 
     It 'counts the log checks among the results a run expects' {
         $run = Read-GameTestLog $script:PassingLog[0..7]
         Add-LogChecks $run | Out-Null
-        Get-RunProblems $run 'the game exited early' | Should -Contain '3 of 4 tests reported'
+        Get-RunProblems $run 'the game exited early' | Should -Contain '4 of 5 tests reported'
     }
 }
 
@@ -422,6 +444,46 @@ Describe 'Enable-Extensions' {
     It 'makes the file when the profile has none' {
         Enable-Extensions $xml @('apirateslife')
         Get-EnabledExtensions $xml | Should -Be @('apirateslife')
+    }
+}
+
+Describe 'Get-OtherExtensions' {
+    BeforeEach { $dir = New-TestDir }
+    AfterEach { Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'lists the ids of installed extensions other than the Egosoft DLCs, SWI and ours' {
+        Write-LfFile "$dir/ego_dlc_pirate/content.xml" '<content id="ego_dlc_pirate"/>'
+        Write-LfFile "$dir/starwarsmod_m1/content.xml" '<content id="SW Interworlds" enabled="0"/>'
+        Write-LfFile "$dir/apirateslife/content.xml" '<content id="apirateslife"/>'
+        Write-LfFile "$dir/apirateslife_tests/content.xml" '<content id="apirateslife_tests"/>'
+        Write-LfFile "$dir/starwars_rsp/content.xml" '<?xml version="1.0" encoding="utf-8"?><content id="Reaper''s Ship Pack (SWI)" enabled="1"/>'
+        Write-LfFile "$dir/mycu_equipment_tooltips/content.xml" '<content id="EquipmentTooltips"/>'
+        New-Item -ItemType Directory -Path "$dir/no_content_xml" | Out-Null
+        Get-OtherExtensions $dir | Sort-Object | Should -Be @('EquipmentTooltips', "Reaper's Ship Pack (SWI)")
+    }
+
+    It 'skips, with a warning, an extension whose content.xml is broken or has no id' {
+        Write-LfFile "$dir/broken/content.xml" '<content id="broken"'
+        Write-LfFile "$dir/no_id/content.xml" '<content name="no id"/>'
+        Write-LfFile "$dir/good/content.xml" '<content id="good"/>'
+        $out = @(Get-OtherExtensions $dir 3>&1)
+        @($out | Where-Object { $_ -is [string] }) | Should -Be @('good')
+        @($out | Where-Object { $_ -is [Management.Automation.WarningRecord] }).Count | Should -Be 2
+    }
+}
+
+Describe 'Disable-Extensions' {
+    BeforeEach {
+        $dir = New-TestDir
+        $xml = Join-Path $dir 'content.xml'
+    }
+    AfterEach { Remove-Item $dir -Recurse -Force -ErrorAction SilentlyContinue }
+
+    It 'switches listed extensions off, adds missing ones, and keeps the rest' {
+        Write-LfFile $xml '<content><extension id="SW Interworlds" enabled="true"/><extension id="other" enabled="true"/></content>'
+        Disable-Extensions $xml @('other', 'new one')
+        $doc = [xml] (Get-Content $xml -Raw)
+        @($doc.content.extension | ForEach-Object { "$($_.id)=$($_.enabled)" }) | Should -Be @('SW Interworlds=true', 'other=false', 'new one=false')
     }
 }
 

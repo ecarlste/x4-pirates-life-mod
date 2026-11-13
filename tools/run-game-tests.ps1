@@ -7,7 +7,9 @@
     1. Checks the test profile (<X4_PROFILE_ROOT>\<X4_PROFILE_ID>\) has SWI, A Pirate's Life and
        the test extension switched on in its content.xml (SWI's own content.xml says enabled="0",
        so a new profile starts with it off). -PrepareProfile makes the profile from the root
-       profile's content.xml and config.xml and switches all three on.
+       profile's content.xml and config.xml and switches all three on. Every run then switches
+       off, in the test profile, every other extension installed in the game folder apart from
+       Egosoft's DLCs, so each run is SWI-only.
     2. Installs the dev-only test extension (tests/game/apirateslife_tests) next to the deployed mod.
     3. Starts <X4_PATH>\<X4_EXE> directly (X4_nonsteam.exe, no Steam involved) with
        -skipintro -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid <id>.
@@ -24,7 +26,8 @@
     down the lock it took for its deploy and run. Refuses to start while X4 or X4_nonsteam is
     running. -PreflightOnly runs the setup checks alone, before the deploy. Exits 1 if any test
     failed, the run didn't finish, or a log check failed: the runner checks that the mod loaded
-    after SWI and that the log has no errors or warnings from our files.
+    after SWI, that the log has no errors or warnings from our files, and that no files were read
+    from extensions other than Egosoft's DLCs, SWI and ours.
 
     Settings come from the parameters, else environment variables of the same name, else
     deploy.config, the main checkout's for a worktree (tools/deploy-config.ps1, see
@@ -128,9 +131,11 @@ $SwiFolder = 'starwarsmod_m1'
 # Parses debuglog.txt lines into the run's results. Errors are lines that mention the mod and an
 # error or a warning, apart from our own markers and the harmless "unsigned file" warnings every
 # mod gets. FirstRead holds the line each file of SWI's and the mod's was first read on
-# ("<folder>|<path>"): X4 checks a file's signature as it reads it, in load order.
+# ("<folder>|<path>"): X4 checks a file's signature as it reads it, in load order. Extensions holds
+# the extension folders any file was read from, lowercased.
 function Read-GameTestLog([string[]] $Lines) {
-    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0; FirstRead = @{} }
+    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0; FirstRead = @{}; Extensions = @() }
+    $extensions = @{}
     $results = New-Object System.Collections.ArrayList
     $errors = New-Object System.Collections.ArrayList
     $lineNumber = 0
@@ -139,6 +144,7 @@ function Read-GameTestLog([string[]] $Lines) {
         # X4 follows each script error with "* Expression: ..." and "* Action: ..." lines, which
         # can quote our markers; only the error's own line counts
         if ($line -like '`* *') { continue }
+        if ($line -match "(?i)extensions\\([^\\'`"]+)\\") { $extensions[$Matches[1].ToLower()] = $true }
         if ($line -match "(?i)extensions\\($ModId|$SwiFolder)\\([^'\s]+)") {
             $key = "$($Matches[1].ToLower())|$($Matches[2].ToLower() -replace '\.sig$', '')"
             if (-not $run.FirstRead.ContainsKey($key)) { $run.FirstRead[$key] = $lineNumber }
@@ -169,6 +175,7 @@ function Read-GameTestLog([string[]] $Lines) {
     }
     $run.Results = @($results)
     $run.Errors = @($errors)
+    $run.Extensions = @($extensions.Keys | Sort-Object)
     $run
 }
 
@@ -231,8 +238,9 @@ function Get-RepeatTally($Results) {
 }
 
 # The runner's own checks on the log, reported like game tests (tools/check_test_plan.py reads
-# their names from the New-LogCheck calls): the mod loads after SWI, and nothing in the log is an
-# error or warning from our files
+# their names from the New-LogCheck calls): the mod loads after SWI, nothing in the log is an
+# error or warning from our files, and no extension's files were read but the Egosoft DLCs', SWI's
+# and ours (the runner switches the others off)
 function New-LogCheck([string] $Name, [bool] $Passed, [string] $Detail, [string[]] $Lines = @()) {
     [pscustomobject]@{ Name = $Name; Passed = $Passed; Detail = $Detail; Lines = $Lines }
 }
@@ -247,6 +255,30 @@ function Get-LogChecks($Run) {
     New-LogCheck 'load_order_after_swi' ($shared.Count -and -not $early.Count) $order
     $count = if ($Run.Errors.Count) { $Run.Errors.Count } else { 'no' }
     New-LogCheck 'clean_log' (-not $Run.Errors.Count) "$count errors or warnings from our files in debuglog.txt" $Run.Errors
+    $others = @($Run.Extensions | Where-Object { -not (Test-AllowedInSwiOnlyRun $_) })
+    $swiRead = $Run.Extensions -contains $SwiFolder
+    $detail = if ($others.Count) { "files read from other extensions: $($others -join ', ')" }
+              elseif (-not $swiRead) { "no file read from SWI ($SwiFolder)" }
+              else { "files read only from Egosoft DLCs and $(@($Run.Extensions | Where-Object { $_ -notlike 'ego_dlc_*' }) -join ', ')" }
+    New-LogCheck 'swi_only_run' ($swiRead -and -not $others.Count) $detail
+}
+
+# Whether an extension folder belongs in an SWI-only run: an Egosoft DLC, SWI, the mod or the test
+# extension
+function Test-AllowedInSwiOnlyRun([string] $Folder) {
+    $Folder -like 'ego_dlc_*' -or @($SwiFolder, $ModId, $TestExtensionId) -contains $Folder.ToLower()
+}
+
+# The ids of the extensions installed in an extensions folder that don't belong in an SWI-only run
+# (each one's id is in its content.xml, and the profile's content.xml switches them by id). One
+# whose content.xml can't be read is skipped with a warning; if X4 loads it anyway, swi_only_run fails
+function Get-OtherExtensions([string] $ExtensionsDir) {
+    foreach ($dir in @(Get-ChildItem $ExtensionsDir -Directory | Where-Object { -not (Test-AllowedInSwiOnlyRun $_.Name) })) {
+        $file = Join-Path $dir.FullName 'content.xml'
+        if (-not (Test-Path $file)) { continue }
+        $id = try { ([xml] (Get-Content $file -Raw)).content.id } catch { $null }
+        if ($id) { $id } else { Write-Warning "Can't read the extension id in $file; leaving it as the profile has it" }
+    }
 }
 
 # Adds the log checks to a run read from the finished log, as results it expects; returns them
@@ -471,6 +503,16 @@ function Assert-ProfileReady([string] $ContentXml) {
 
 # Switches these extensions on in a profile's content.xml (made if missing), keeping other entries
 function Enable-Extensions([string] $ContentXml, [string[]] $Ids) {
+    Set-ExtensionsEnabled $ContentXml $Ids 'true'
+}
+
+# Switches these extensions off in a profile's content.xml (made if missing), keeping other entries
+function Disable-Extensions([string] $ContentXml, [string[]] $Ids) {
+    Set-ExtensionsEnabled $ContentXml $Ids 'false'
+}
+
+# Sets enabled="<$Enabled>" on these extensions' entries in a profile's content.xml, adding any missing
+function Set-ExtensionsEnabled([string] $ContentXml, [string[]] $Ids, [string] $Enabled) {
     $doc = New-Object System.Xml.XmlDocument
     if (Test-Path $ContentXml) { $doc.Load($ContentXml) }
     else { $doc.LoadXml("<?xml version=`"1.0`" encoding=`"utf-8`"?>`n<content>`n</content>") }
@@ -481,7 +523,7 @@ function Enable-Extensions([string] $ContentXml, [string[]] $Ids) {
             $entry.SetAttribute('id', $id)
             [void] $doc.DocumentElement.AppendChild($entry)
         }
-        $entry.SetAttribute('enabled', 'true')
+        $entry.SetAttribute('enabled', $Enabled)
     }
     $doc.Save($ContentXml)
 }
@@ -602,6 +644,13 @@ try {
         Write-Host "Test profile $profileDir ready: $((Get-EnabledExtensions $contentXml) -join ', ') on"
     }
     Assert-ProfileReady $contentXml
+    # Every run is SWI-only: other mods installed in the game folder start on in a profile that
+    # doesn't list them, so switch them off in the test profile (the swi_only_run log check)
+    $others = @(Get-OtherExtensions (Join-Path $X4Path 'extensions'))
+    if ($others.Count) {
+        Disable-Extensions $contentXml $others
+        Write-Host "Off in the test profile, so the run is SWI-only: $($others -join ', ')"
+    }
 
     Update-GameLock $gameLock
     $startedAt = Get-Date
