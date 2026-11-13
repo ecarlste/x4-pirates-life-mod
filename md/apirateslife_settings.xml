@@ -47,9 +47,12 @@
           <debug_text text="'[apirateslife] settings warning: config file not loaded, using defaults'"/>
         </do_if>
         <do_for_each name="$Bad" in="$Checked.$bad">
-          <do_if value="(typeof $Bad.$given).isnumeric">
-            <debug_text text="'[apirateslife] settings warning: %s = %s is out of range, using %s'.[$Bad.$setting, $Bad.$given, $Bad.$used]"/>
+          <do_if value="$Bad.$given == null">
+            <debug_text text="'[apirateslife] settings warning: %s is missing, using %s'.[$Bad.$setting, $Bad.$used]"/>
           </do_if>
+          <do_elseif value="(typeof $Bad.$given).isnumeric">
+            <debug_text text="'[apirateslife] settings warning: %s = %s is out of range, using %s'.[$Bad.$setting, $Bad.$given, $Bad.$used]"/>
+          </do_elseif>
           <do_else>
             <debug_text text="'[apirateslife] settings warning: %s = %s is not a number, using %s'.[$Bad.$setting, $Bad.$given, $Bad.$used]"/>
           </do_else>
