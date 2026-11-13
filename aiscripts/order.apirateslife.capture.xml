@@ -53,7 +53,6 @@
       </conditions>
       <actions>
         <debug_text text="'[apirateslife] capture order: %s holds on %s: hull %s%%, shields %s%% (%s, stop at %s)'.[this.assignedcontrolled.knownname, event.name, @$target.hullpercentage, @$target.shieldpercentage, @$target.shield, $wingburst]" chance="$debugchance"/>
-        <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s stops on %s: hull %s%%, shield %s, margin %s, wing burst %s (own %s), distance %sm, finisher %s'.[this.assignedcontrolled.knownname, event.name, @$target.hullpercentage, @$target.shield, @$target.shield + @$target.hull - @$target.maxhull * $holdhull / 100.0, $wingburst, $burst, this.assignedcontrolled.distanceto.{$target}, $finishgun != null]"/>
         <set_value name="$firing" exact="false"/>
         <abort_called_scripts resume="decide"/>
       </actions>
@@ -144,8 +143,7 @@
         <set_value name="$fire" exact="$target.maxshield and $target.shield ge $wingburst + $target.maxshield * $shieldresume / 100.0"/>
       </do_else>
 
-      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, $wingburst, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire then $debugchance else 0"/>
-      <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s %s: hull %s%%, shield %s, margin %s, wing burst %s (own %s), dps now %s'.[this.assignedcontrolled.knownname, if $fire then 'fires' else if $finishing then 'finishes' else 'holds', $target.hullpercentage, $target.shield, $margin, $wingburst, $burst, this.assignedcontrolled.dps.lasers.all]" chance="if $fire != @$lastfire or $finishing != @$lastfinishing then 100 else 0"/>
+      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $finishing then 'finishes' else if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, $wingburst, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire or $finishing != @$lastfinishing then $debugchance else 0"/>
       <set_value name="$lastfire" exact="$fire"/>
       <set_value name="$lastfinishing" exact="$finishing"/>
 
@@ -156,7 +154,6 @@
             <add_weapon_to_weapongroup weapon="$gun" weapongroup="$weapongroup" primary="true"/>
           </do_if>
         </do_for_each>
-        <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s puts %s guns back in group %s: %s in it, dps now %s'.[this.assignedcontrolled.knownname, $removedguns.count, $weapongroup, this.assignedcontrolled.primaryweapons.{$weapongroup}.count, this.assignedcontrolled.dps.lasers.all]"/>
         <set_value name="$removedguns" exact="[]"/>
         <set_value name="$finishgun" exact="null"/>
         <remove_value name="this.$APiratesLife_Dps"/>
@@ -178,7 +175,7 @@
             <append_to_list name="$removedguns" exact="$gun"/>
           </do_else>
         </do_for_each>
-        <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s starts finishing: keeps %s in group %s, took %s out (%s left in it), dps before %s, now %s, distance %sm'.[this.assignedcontrolled.knownname, $finishgun, $weapongroup, $removedguns.count, this.assignedcontrolled.primaryweapons.{$weapongroup}.count, this.$APiratesLife_Dps, this.assignedcontrolled.dps.lasers.all, this.assignedcontrolled.distanceto.{$target}]"/>
+        <debug_text text="'[apirateslife] capture order: %s finishes with one gun: keeps %s, took %s out of group %s'.[this.assignedcontrolled.knownname, $finishgun, $removedguns.count, $weapongroup]" chance="$debugchance"/>
       </do_if>
 
       <do_if value="$fire">
@@ -236,7 +233,6 @@
           <add_weapon_to_weapongroup weapon="$gun" weapongroup="$weapongroup" primary="true"/>
         </do_if>
       </do_for_each>
-      <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s ends, puts %s guns back in group %s'.[this.assignedcontrolled.knownname, $removedguns.count, $weapongroup]" chance="if $removedguns.count then 100 else 0"/>
       <set_value name="$removedguns" exact="[]"/>
       <remove_value name="this.$APiratesLife_Dps"/>
       <stop_shooting object="this.assignedcontrolled"/>

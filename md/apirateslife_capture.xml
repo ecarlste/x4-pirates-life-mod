@@ -302,7 +302,7 @@
                 <param name="Members" value="$Members"/>
                 <param name="Current" value="$Op.$finisher"/>
               </run_actions>
-              <debug_text text="'[apirateslife] [DEBUG-172] capture: finisher on %s is now %s (was %s)'.[$Target.knownname, @$Finisher.knownname, @$Op.$finisher.knownname]" chance="if $Finisher != $Op.$finisher then 100 else 0"/>
+              <debug_text text="'[apirateslife] capture: finisher on %s is now %s (was %s)'.[$Target.knownname, @$Finisher.knownname, @$Op.$finisher.knownname]" chance="if $Finisher != $Op.$finisher and global.$APiratesLife_CaptureDebug? then global.$APiratesLife_CaptureDebug else 0"/>
               <set_value name="$Op.$finisher" exact="$Finisher"/>
               <!-- Bail pressure: count the time inside the bail gates -->
               <run_actions ref="InGates" result="$InGates">
