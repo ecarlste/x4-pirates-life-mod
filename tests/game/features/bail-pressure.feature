@@ -57,6 +57,13 @@ Feature: Bail pressure
     Then the pressure tick waits for the cooldown instead of clearing it
     And the target's checks stay about 5 s apart
 
+  @bail_pressure_tick_same_frame
+  Scenario: The pressure tick doesn't roll again in the frame of a hit's check
+    Given a hit's check has just set SWI's 5 s cooldown on the target's pilot
+    When the pressure tick runs in that same frame
+    Then it waits for the cooldown and asks for no check
+    And it waits even when the cooldown left works out a hair over 5 s
+
   @bail_pressure_through_partial_bail
   Scenario: Pressure keeps building through a partial crew bail
     Given a capture operation on a crewed ship inside the bail gates

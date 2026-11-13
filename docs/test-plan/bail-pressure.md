@@ -8,7 +8,7 @@ Source: [`tests/game/features/bail-pressure.feature`](../../tests/game/features/
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 10 | 2 | 1 | **3** |
+| 0 | 11 | 2 | 1 | **3** |
 
 ## Scenarios
 
@@ -80,6 +80,17 @@ Source: [`tests/game/features/bail-pressure.feature`](../../tests/game/features/
   When I start a capture operation on it
   Then the pressure tick waits for the cooldown instead of clearing it
   And the target's checks stay about 5 s apart
+```
+
+### The pressure tick doesn't roll again in the frame of a hit's check
+
+**Automated:** in game `bail_pressure_tick_same_frame`
+
+```gherkin
+  Given a hit's check has just set SWI's 5 s cooldown on the target's pilot
+  When the pressure tick runs in that same frame
+  Then it waits for the cooldown and asks for no check
+  And it waits even when the cooldown left works out a hair over 5 s
 ```
 
 ### Pressure keeps building through a partial crew bail
