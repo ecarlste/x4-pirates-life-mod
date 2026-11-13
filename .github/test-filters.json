@@ -18,7 +18,9 @@
     ".gitignore",
     ".github/workflows/pr-title.yml",
     ".github/workflows/pr-body.yml",
-    ".github/workflows/test-plan.yml"
+    ".github/workflows/test-plan.yml",
+    "LICENSE",
+    "CHANGELOG.md"
   ],
 
   "shellcheck": ["**/*.sh", "**/*.bash", "**/*.bats", ".githooks/**"],
@@ -38,11 +40,13 @@
     "libraries/**",
     "maps/**",
     "md/**",
-    "t/**"
+    "t/**",
+    "release/**"
   ],
 
   "tests/deploy.bats": ["deploy.sh", "deploy.include", "deploy.config.example", "tools/game-lock.sh", "tools/deploy-config.sh", "tests/helpers.bash", "tests/deploy.bats"],
-  "tests/makefile.bats": ["Makefile", "deploy.sh", "deploy.include", "deploy.config.example", "tools/game-lock.sh", "tools/deploy-config.sh", "tests/helpers.bash", "tests/makefile.bats"],
+  "tests/makefile.bats": ["Makefile", "tools/release.sh", "deploy.sh", "deploy.include", "deploy.config.example", "tools/game-lock.sh", "tools/deploy-config.sh", "tests/helpers.bash", "tests/makefile.bats"],
+  "tests/release.bats": ["tools/release.sh", "tools/test_plan_docs.py", "tools/check_test_plan.py", "tests/helpers.bash", "tests/release.bats"],
   "tests/githooks.bats": [".githooks/**", "tests/helpers.bash", "tests/githooks.bats"],
   "tests/game-test-report.bats": ["tools/post-game-test-report.sh", "tests/helpers.bash", "tests/game-test-report.bats"],
   "tests/lua-checks.bats": ["tests/lua/run.sh", "tests/lua-checks.bats"],

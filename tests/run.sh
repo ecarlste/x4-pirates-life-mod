@@ -9,8 +9,8 @@
 #   - the Python unit tests for tools/ (tests/python/, with the standard library's unittest)
 #   - the TypeScript tools (tools/*.ts, under Node): node_modules matches the lock (make setup
 #     installs it), the types check, their unit tests pass, the lowercase-paths check (every
-#     shipped path is lowercase), the doc-size check (docs/PROJECT.md within its budget) and the
-#     diff-patch check (it skips with a note without the unpacked game files, as in CI)
+#     shipped path is lowercase), the doc-size check (docs/PROJECT.md within its budget), the
+#     settings checks (defaults, README) and the diff-patch check (it skips with a note without the unpacked game files, as in CI)
 #   - the doc-paths check (tools/check-doc-paths.ts): the docs name only repo paths that exist
 #   - the doc-names check (tools/check-doc-names.ts): the docs and tools name no removed mod global
 #     or game test
@@ -35,7 +35,8 @@ cd "$(dirname "$0")/.."
 
 # The TypeScript tools: node_modules matches package-lock.json (first, so a missing package is named),
 # the types check, the unit tests pass, every shipped path is lowercase, docs/PROJECT.md is within its
-# size budget, the settings loader's defaults match the config file's, then the diff-patch check on
+# size budget, the settings loader's defaults match the config file's, the player README names every
+# setting the config file has, then the diff-patch check on
 # the unpacked 8.00 and SWI files
 run_typescript() {
     echo "== TypeScript"
@@ -49,6 +50,7 @@ run_typescript() {
     node tools/check-lowercase-paths.ts || return 1
     node tools/check-doc-size.ts || return 1
     node tools/check-settings-defaults.ts || return 1
+    node tools/check-readme-settings.ts || return 1
     node tools/check-diff-patches.ts
 }
 
@@ -185,7 +187,7 @@ echo "== shellcheck"
 if ! wanted shellcheck; then
     echo "No shell scripts changed"
 elif command -v shellcheck >/dev/null; then
-    shellcheck deploy.sh tests/run.sh tests/lua/run.sh tools/game-lock.sh tools/deploy-config.sh tools/post-game-test-report.sh .githooks/pre-commit && shellcheck -s bash tests/*.bash tests/*.bats || FAILED=1
+    shellcheck deploy.sh tests/run.sh tests/lua/run.sh tools/game-lock.sh tools/deploy-config.sh tools/post-game-test-report.sh tools/release.sh .githooks/pre-commit && shellcheck -s bash tests/*.bash tests/*.bats || FAILED=1
 else
     echo "shellcheck not installed; skipping (CI runs it)"
 fi

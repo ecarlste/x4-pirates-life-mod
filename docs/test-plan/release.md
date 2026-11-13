@@ -2,13 +2,13 @@
 
 # Release
 
-The SWI build installs and loads cleanly next to Star Wars Interworlds on X4 8.00. These are its release gates (spec: the SWI build, issue 109, Testing Decisions). The game test runner checks them on the log of every game test run, which starts a fresh game on the SWI test gamestart.
+The SWI build installs and loads cleanly next to Star Wars Interworlds on X4 8.00. These are its release gates (spec: the SWI build, issue 109, Testing Decisions). The game test runner checks the first two on the log of every game test run, which starts a fresh game on the SWI test gamestart; the zip make release builds is checked by hand (docs/releasing.md).
 
 Source: [`tests/game/features/release.feature`](../../tests/game/features/release.feature)
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 2 | 0 | 0 | **0** |
+| 0 | 2 | 1 | 0 | **1** |
 
 ## Scenarios
 
@@ -31,4 +31,16 @@ Source: [`tests/game/features/release.feature`](../../tests/game/features/releas
   Given SWI, Tides of Avarice and A Pirate's Life are switched on
   When I start a new game on SWI and play
   Then debuglog.txt has no error or warning about our files or scripts
+```
+
+### The release zip installs and loads
+
+- [ ] **Manual:** checked by hand for now
+
+```gherkin
+  Given make release built dist/apirateslife-<version>.zip from the version's tag
+  When I unzip it into the extensions folder of a clean X4 8.00 install with SWI and Tides of Avarice
+  Then extensions/apirateslife/ holds content.xml, README.txt, CREDITS.txt, LICENSE and CHANGELOG.md
+  And X4 lists A Pirate's Life with that version under Extensions, switched on
+  And a fresh SWI start logs no errors or warnings from our files
 ```
