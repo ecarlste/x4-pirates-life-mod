@@ -7,8 +7,9 @@
                  $burstseconds of the whole wing's laser damage: fire, so shots still in flight
                  from every wingman land above the line. Inside that margin only the finisher
                  (the operation picks it, the closest wingman) fires: with every gun but one out of
-                 its weapon group, one shot at a time, waiting for each to land, so it overshoots
-                 the line by one bolt at most. The rest of the wing holds.
+                 its weapon group, and that one on hold fire between shots, while vanilla's attack
+                 keeps aiming. One shot at a time, each let off once the last has landed, so it
+                 overshoots the line by one bolt at most. The rest of the wing holds.
        suppress: hull below $holdhull: fire only while the target's shields hold more than
                  $burst, about 1.5 s of this wingman's laser damage, so shots still in flight land
                  on shields, not hull, whatever the weapon (heavy, slow guns get a bigger margin).
@@ -57,21 +58,51 @@
         <abort_called_scripts resume="decide"/>
       </actions>
     </handler>
-    <!-- Finisher: stop on the one shot. Also counts every shot fired during a fine-stage step. -->
+    <!-- Finisher: the one shot is out. Put the gun back on hold fire, and give the shot about 1 s
+         to land. Also counts every shot fired in the fine stage. -->
     <handler>
       <conditions>
         <event_weapon_fired group="$guns"/>
-        <check_value value="$step"/>
+        <check_value value="$fine"/>
       </conditions>
       <actions>
         <set_value name="$stepshots" exact="$stepshots + 1"/>
-        <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s shot %s of the step by %s (%s), %s into the step'.[this.assignedcontrolled.knownname, $stepshots, event.object, if event.object == $finishgun then 'finisher gun' else 'OTHER gun', player.age - $stepstart]"/>
+        <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s shot %s of the step by %s (%s), %s after letting off, attack running %s, %s'.[this.assignedcontrolled.knownname, $stepshots, event.object, if event.object == $finishgun then 'finisher gun' else 'OTHER gun', player.age - $stepstart, player.age - $finestart, if $shooting then 'let off' else 'ON HOLD']"/>
         <do_if value="$shooting">
+          <set_weapon_mode weapon="$finishgun" weaponmode="weaponmode.holdfire"/>
           <set_value name="$shooting" exact="false"/>
-          <stop_shooting object="this.assignedcontrolled"/>
-          <cease_fire object="this.assignedcontrolled"/>
-          <abort_called_scripts resume="fired"/>
+          <set_value name="$stepid" exact="$stepid + 1"/>
+          <signal_objects object="this.assignedcontrolled" param="'apirateslife_capture_shot'" param2="$stepid" delay="1s"/>
         </do_if>
+      </actions>
+    </handler>
+    <!-- Finisher: the shot landed (or 1 s passed, or the attack has had 1 s to aim): let off the
+         next one while the hull is still inside the margin, else decide again -->
+    <handler>
+      <conditions>
+        <check_any>
+          <event_object_hull_damaged object="$target"/>
+          <event_object_shield_damaged object="$target"/>
+          <check_all>
+            <event_object_signalled object="this.assignedcontrolled" param="'apirateslife_capture_shot'"/>
+            <check_value value="event.param2 == $stepid"/>
+          </check_all>
+        </check_any>
+        <check_value value="$fine and not $shooting"/>
+      </conditions>
+      <actions>
+        <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s step done on %s, %s after letting off: %s shots, hull %s%% to %s%%, shield %s to %s'.[this.assignedcontrolled.knownname, event.name, player.age - $stepstart, $stepshots, $stephull, @$target.hullpercentage, $stepshield, @$target.shield]" chance="if $stepstart then 100 else 0"/>
+        <do_if value="not $target.isoperational or $target.hullpercentage lt $holdhull or $target.shield + $target.hull - $target.maxhull * $holdhull / 100.0 gt $wingburst or @global.$APiratesLife_CaptureOps.{$target}.$finisher != this.assignedcontrolled">
+          <set_value name="$fine" exact="false"/>
+          <abort_called_scripts resume="decide"/>
+        </do_if>
+        <set_value name="$stepshots" exact="0"/>
+        <set_value name="$stepstart" exact="player.age"/>
+        <set_value name="$stephull" exact="$target.hullpercentage"/>
+        <set_value name="$stepshield" exact="$target.shield"/>
+        <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s lets off one shot: hull %s%% (%s), shield %s, attack running %s, distance %sm, dps %s'.[this.assignedcontrolled.knownname, $target.hullpercentage, $target.hull, $target.shield, player.age - $finestart, this.assignedcontrolled.distanceto.{$target}, this.assignedcontrolled.dps.lasers.all]"/>
+        <set_weapon_mode weapon="$finishgun"/>
+        <set_value name="$shooting" exact="true"/>
       </actions>
     </handler>
     <!-- The operation ended (abandoned, called off...): stop at once, even mid-attack -->
@@ -93,15 +124,19 @@
     <set_value name="$ended" exact="false"/>
     <set_value name="$burst" exact="0"/>
     <set_value name="$wingburst" exact="0"/>
-    <!-- Fine stage: the one gun the finisher fires, the guns it took out of $weapongroup, and
-         whether a step (one shot and its wait) or its shot is under way -->
+    <!-- Fine stage: the one gun the finisher fires and its mode before, the guns it took out of
+         $weapongroup, whether the fine stage's attack is running and its gun let off, and the
+         current step (one shot and its wait) -->
     <set_value name="$finishgun" exact="null"/>
     <set_value name="$removedguns" exact="[]"/>
     <set_value name="$weapongroup" exact="0"/>
-    <set_value name="$step" exact="false"/>
+    <set_value name="$oldmode" exact="null"/>
+    <set_value name="$fine" exact="false"/>
     <set_value name="$shooting" exact="false"/>
+    <set_value name="$stepid" exact="0"/>
     <set_value name="$stepshots" exact="0"/>
     <set_value name="$stepstart" exact="0s"/>
+    <set_value name="$finestart" exact="0s"/>
     <create_group groupname="$guns"/>
     <add_to_group groupname="$guns" list="this.assignedcontrolled.weapons.operational.list"/>
   </init>
@@ -172,6 +207,9 @@
 
       <!-- Out of the fine stage: put the guns back in the group -->
       <do_if value="$finishgun and not $finishing">
+        <do_if value="$finishgun.exists">
+          <set_weapon_mode weapon="$finishgun" weaponmode="$oldmode"/>
+        </do_if>
         <do_for_each name="$gun" in="$removedguns">
           <do_if value="$gun.exists">
             <add_weapon_to_weapongroup weapon="$gun" weapongroup="$weapongroup" primary="true"/>
@@ -200,10 +238,11 @@
         <resume label="decide"/>
       </do_if>
 
-      <!-- Fine stage, the finisher: take every gun but one out of the active weapon group, so
-           vanilla's attack script still aims but fires that one gun, and stop on its first shot
-           (the handler on event_weapon_fired resumes at "fired"). The wing's DPS is read before
-           (WingDps reads it from the pilot), as it may count only the guns left in the group. -->
+      <!-- Fine stage, the finisher: take every gun but one out of the active weapon group and put
+           that one on hold fire, then run vanilla's attack once, so it keeps aiming, and let the
+           handlers above let off one shot at a time. One gun stays in the group because the
+           attack gives up with no DPS (order.fight.attack.object.xml:550-568), and DPS counts
+           only grouped guns. The wing's DPS is read before (WingDps reads it from the pilot). -->
       <do_if value="$finishing">
         <do_if value="not $finishgun">
           <set_value name="this.$APiratesLife_Dps" exact="this.assignedcontrolled.dps.lasers.all"/>
@@ -217,17 +256,21 @@
               <append_to_list name="$removedguns" exact="$gun"/>
             </do_else>
           </do_for_each>
-          <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s starts finishing: keeps %s in group %s, took %s out (%s left in it), dps before %s, now %s'.[this.assignedcontrolled.knownname, $finishgun, $weapongroup, $removedguns.count, this.assignedcontrolled.primaryweapons.{$weapongroup}.count, this.$APiratesLife_Dps, this.assignedcontrolled.dps.lasers.all]"/>
+          <set_value name="$oldmode" exact="@$finishgun.mode"/>
+          <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s starts finishing: keeps %s (mode %s) in group %s, took %s out (%s left in it), dps before %s, now %s'.[this.assignedcontrolled.knownname, $finishgun, $oldmode, $weapongroup, $removedguns.count, this.assignedcontrolled.primaryweapons.{$weapongroup}.count, this.$APiratesLife_Dps, this.assignedcontrolled.dps.lasers.all]"/>
         </do_if>
         <do_if value="$finishgun">
           <remove_value name="$holding"/>
+          <set_weapon_mode weapon="$finishgun" weaponmode="weaponmode.holdfire"/>
+          <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s starts the attack, gun on hold fire: hull %s%%, shield %s, margin %s, dps %s, dps.all %s'.[this.assignedcontrolled.knownname, $target.hullpercentage, $target.shield, $margin, this.assignedcontrolled.dps.lasers.all, this.assignedcontrolled.dps.all]"/>
+          <set_value name="$stepstart" exact="0s"/>
           <set_value name="$stepshots" exact="0"/>
-          <set_value name="$stepstart" exact="player.age"/>
-          <set_value name="$stephull" exact="$target.hullpercentage"/>
-          <set_value name="$stepshield" exact="$target.shield"/>
-          <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s fires one shot: hull %s%% (%s), shield %s, margin %s, distance %sm'.[this.assignedcontrolled.knownname, $target.hullpercentage, $target.hull, $target.shield, $margin, this.assignedcontrolled.distanceto.{$target}]"/>
-          <set_value name="$step" exact="true"/>
-          <set_value name="$shooting" exact="true"/>
+          <set_value name="$finestart" exact="player.age"/>
+          <set_value name="$shooting" exact="false"/>
+          <set_value name="$fine" exact="true"/>
+          <!-- The first shot once the attack has had 1 s to aim -->
+          <set_value name="$stepid" exact="$stepid + 1"/>
+          <signal_objects object="this.assignedcontrolled" param="'apirateslife_capture_shot'" param2="$stepid" delay="1s"/>
           <run_script name="'order.fight.attack.object'">
             <param name="primarytarget" value="$target"/>
             <param name="allowothertargets" value="false"/>
@@ -236,9 +279,10 @@
             <param name="internalorder" value="true"/>
             <param name="debugchance" value="$debugchance"/>
           </run_script>
+          <set_value name="$fine" exact="false"/>
           <set_value name="$shooting" exact="false"/>
-          <set_value name="$step" exact="false"/>
-          <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s attack ended without a shot'.[this.assignedcontrolled.knownname]"/>
+          <set_weapon_mode weapon="$finishgun" weaponmode="weaponmode.holdfire"/>
+          <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s fine-stage attack ended on its own after %s'.[this.assignedcontrolled.knownname, player.age - $finestart]"/>
           <wait exact="1s"/>
           <resume label="decide"/>
         </do_if>
@@ -276,25 +320,11 @@
       </do_else>
       <resume label="decide"/>
 
-      <!-- Fine stage: the shot is out. Wait for it (or anything) to land, or about 1 s, and decide
-           again. -->
-      <label name="fired"/>
-      <wait exact="1s">
-        <interrupt>
-          <conditions>
-            <check_any>
-              <event_object_hull_damaged object="$target"/>
-              <event_object_shield_damaged object="$target"/>
-            </check_any>
-          </conditions>
-        </interrupt>
-      </wait>
-      <set_value name="$step" exact="false"/>
-      <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s step done in %s: %s shots, hull %s%% to %s%%, shield %s to %s'.[this.assignedcontrolled.knownname, player.age - $stepstart, $stepshots, $stephull, @$target.hullpercentage, $stepshield, @$target.shield]"/>
-      <resume label="decide"/>
-
       <label name="finish"/>
-      <set_value name="$step" exact="false"/>
+      <set_value name="$fine" exact="false"/>
+      <do_if value="@$finishgun.exists">
+        <set_weapon_mode weapon="$finishgun" weaponmode="$oldmode"/>
+      </do_if>
       <do_for_each name="$gun" in="$removedguns">
         <do_if value="$gun.exists">
           <add_weapon_to_weapongroup weapon="$gun" weapongroup="$weapongroup" primary="true"/>
@@ -316,6 +346,9 @@
        the group -->
   <on_abort>
     <remove_value name="this.$APiratesLife_NoMissiles"/>
+    <do_if value="@$finishgun.exists">
+      <set_weapon_mode weapon="$finishgun" weaponmode="$oldmode"/>
+    </do_if>
     <do_for_each name="$gun" in="$removedguns">
       <do_if value="$gun.exists">
         <add_weapon_to_weapongroup weapon="$gun" weapongroup="$weapongroup" primary="true"/>
