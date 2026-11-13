@@ -38,6 +38,7 @@
           BailPressureCapped,
           BailPressureTick,
           BailPressureTickKeepsCooldown,
+          BailPressureTickSameFrame,
           BailPressureThroughPartialBail,
           FearCarriesOver,
           FearDecays,
@@ -1012,6 +1013,90 @@
             </do_if>
             <signal_cue_instantly cue="Report" param="table[$name = 'bail_pressure_tick_keeps_cooldown', $ok = ($Problems == ''), $detail = (if $Problems == '' then '%s checks in 21 s, gaps %s'.[$Checks.count, $Gaps] else $Problems)]"/>
             <destroy_object object="$Pair.$attacker"/>
+            <run_actions ref="EndPressureTest">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A hit's check and the pressure tick in the same frame (#173): SWI's check leaves the pilot's
+         cooldown at player.age + 5s, and the tick runs in that frame. It must wait, not take
+         the cooldown for a long one and roll again. (a + 5) - a comes out a hair over 5 s only
+         when a + 5 crosses a power of two, so the test waits for an age in [2^k - 5, 2^k) and
+         tries every 0.05 s there (about every frame); it fails if no try rounded over, since then
+         it proved nothing.
+         No operation: at 12 km nothing else asks for checks. -->
+    <cue name="BailPressureTickSameFrame">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="global.$APiratesLife_CapturePressureStep" exact="0"/>
+        <set_value name="global.$APiratesLifeTest_BailCrew" exact="0"/>
+        <run_actions ref="SpawnGatedTarget" result="$Target">
+          <param name="Macro" value="macro.gauntlet_macro"/>
+          <param name="Distance" value="12km"/>
+          <param name="Crew" value="100"/>
+        </run_actions>
+        <set_value name="$Tries" exact="0"/>
+        <set_value name="$Over" exact="0"/>
+        <set_value name="$Asked" exact="0"/>
+        <set_value name="$Checks" exact="0"/>
+        <!-- The next window that starts at least 1 s from now -->
+        <set_value name="$WindowEnd" exact="64s"/>
+        <do_while value="$WindowEnd - 4s le player.age">
+          <set_value name="$WindowEnd" exact="$WindowEnd * 2"/>
+        </do_while>
+      </actions>
+      <cues>
+        <cue name="BailPressureTickSameFrame_Checked" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Metrics.BailChecked"/>
+            <check_value value="event.param.$target == $Target"/>
+          </conditions>
+          <actions>
+            <set_value name="$Checks" operation="add"/>
+          </actions>
+        </cue>
+        <cue name="BailPressureTickSameFrame_Try" instantiate="true" checkinterval="0.05s">
+          <conditions>
+            <check_value value="$WindowEnd? and player.age ge $WindowEnd - 5s and player.age lt $WindowEnd"/>
+          </conditions>
+          <actions>
+            <set_value name="$Tries" operation="add"/>
+            <!-- As SWI's check leaves it (ext02/md/notifications.xml) -->
+            <set_value name="$Target.pilot.$nextcapturechance" exact="player.age + 5s"/>
+            <do_if value="$Target.pilot.$nextcapturechance - player.age gt 5s">
+              <set_value name="$Over" operation="add"/>
+            </do_if>
+            <run_actions ref="md.APiratesLife_Capture.PressureTickCheck" result="$TickAsked">
+              <param name="Target" value="$Target"/>
+              <param name="Leader" value="player.occupiedship"/>
+            </run_actions>
+            <do_if value="$TickAsked">
+              <set_value name="$Asked" operation="add"/>
+            </do_if>
+          </actions>
+        </cue>
+        <!-- After the window, plus 1 s for a check the tick asked for to roll -->
+        <cue name="BailPressureTickSameFrame_Done" checkinterval="1s">
+          <conditions>
+            <check_value value="$WindowEnd? and player.age ge $WindowEnd + 1s"/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="BailPressureTickSameFrame_Try"/>
+            <cancel_cue cue="BailPressureTickSameFrame_Checked"/>
+            <set_value name="$Problems" exact="''"/>
+            <do_if value="not $Over">
+              <set_value name="$Problems" exact="$Problems + ' race not forced: none of %s tries before %s rounded the cooldown over 5 s;'.[$Tries, $WindowEnd]"/>
+            </do_if>
+            <do_if value="$Asked or $Checks">
+              <set_value name="$Problems" exact="$Problems + ' the tick asked for %s checks and %s rolled, in %s tries (%s rounded over 5 s);'.[$Asked, $Checks, $Tries, $Over]"/>
+            </do_if>
+            <signal_cue_instantly cue="Report" param="table[$name = 'bail_pressure_tick_same_frame', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'the tick waited in all %s tries before %s, %s with the cooldown rounded over 5 s'.[$Tries, $WindowEnd, $Over] else $Problems)]"/>
             <run_actions ref="EndPressureTest">
               <param name="Target" value="$Target"/>
             </run_actions>

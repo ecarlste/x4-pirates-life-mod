@@ -100,6 +100,41 @@
       </actions>
     </library>
 
+    <!-- How often the pressure tick asks for a bail check, CapturePressureInterval, as a time -->
+    <library name="PressureInterval" purpose="run_actions">
+      <actions>
+        <return value="(if global.$APiratesLife_CapturePressureInterval? then global.$APiratesLife_CapturePressureInterval else 5) * 1s"/>
+      </actions>
+    </library>
+
+    <!-- The pressure tick's step: asks the game for a bail check on Target with Leader as the
+         attacker, unless the pilot's cooldown ($nextcapturechance) is a short one. Returns whether
+         it asked. A cooldown longer than CapturePressureInterval (vanilla's 30 s) is cut short, so
+         the game evaluates the check; a shorter one (SWI's 5 s after a recent check) is left alone,
+         and the tick waits for it, so hits and ticks together never roll more often than once per
+         interval. "Shorter" has 1 s of slack: SWI sets the cooldown to player.age + 5s, and in the
+         frame of that check (a + 5s) - a can come out a hair over 5 s, whenever a + 5 crosses a
+         power of two. Without the slack the tick took it for a long cooldown and rolled again
+         (#173). -->
+    <library name="PressureTickCheck" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+        <param name="Leader"/>
+      </params>
+      <actions>
+        <run_actions ref="PressureInterval" result="$Interval"/>
+        <set_value name="$Cooldown" exact="if $Target.pilot.$nextcapturechance? then $Target.pilot.$nextcapturechance - player.age else 0s"/>
+        <do_if value="$Cooldown gt 0s and $Cooldown le $Interval + 1s">
+          <return value="false"/>
+        </do_if>
+        <do_if value="$Cooldown gt 0s">
+          <set_value name="$Target.pilot.$nextcapturechance" exact="player.age - 1s"/>
+        </do_if>
+        <signal_objects object="player.galaxy" param="$Leader" param2="$Target" param3="'shouldwebail'"/>
+        <return value="true"/>
+      </actions>
+    </library>
+
     <!-- Starts an operation on Target, led by the ship the player is flying. Returns whether it
          started. Every entry point (comm choice, interact menu, hotkeys) goes through here. -->
     <library name="Start" purpose="run_actions">
@@ -268,19 +303,15 @@
                    CapturePressureInterval, so checks don't wait for hits (a wing holding the
                    shields down barely hits). It goes through the game's own bail path, as an
                    attacked ship's AI asks for one (aiscripts/interrupt.attacked.xml).
-                   The pilot's cooldown ($nextcapturechance): a cooldown longer than the interval
-                   (vanilla's 30 s) is cut short, so the game evaluates the check; a shorter one
-                   (SWI's 5 s after a recent check) is left alone, and the tick waits for it, so
-                   hits and ticks together never roll more often than once per interval. -->
+                   PressureTickCheck says how it treats the pilot's cooldown. -->
               <do_if value="$InGates and @$Target.pilot.exists and player.occupiedship == $Leader and $Leader.sector == $Target.sector and $Leader.distanceto.{$Target} lt 10km and (not $NextPressureTick? or player.age ge $NextPressureTick)">
-                <set_value name="$Interval" exact="(if global.$APiratesLife_CapturePressureInterval? then global.$APiratesLife_CapturePressureInterval else 5) * 1s"/>
-                <set_value name="$Cooldown" exact="if $Target.pilot.$nextcapturechance? then $Target.pilot.$nextcapturechance - player.age else 0s"/>
-                <do_if value="$Cooldown le 0s or $Cooldown gt $Interval">
+                <run_actions ref="PressureTickCheck" result="$Asked">
+                  <param name="Target" value="$Target"/>
+                  <param name="Leader" value="$Leader"/>
+                </run_actions>
+                <do_if value="$Asked">
+                  <run_actions ref="PressureInterval" result="$Interval"/>
                   <set_value name="$NextPressureTick" exact="player.age + $Interval"/>
-                  <do_if value="$Cooldown gt 0s">
-                    <set_value name="$Target.pilot.$nextcapturechance" exact="player.age - 1s"/>
-                  </do_if>
-                  <signal_objects object="player.galaxy" param="$Leader" param2="$Target" param3="'shouldwebail'"/>
                 </do_if>
               </do_if>
 
