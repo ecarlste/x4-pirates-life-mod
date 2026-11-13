@@ -34,6 +34,7 @@ Describe 'Read-GameTestLog in a release session' {
             '[Scripts] 30.00 *** Context:md.APiratesLife_ReleaseTests.Loaded: [apirateslife-test] LOADED apirateslife_release_test'
         )
         $run.Loaded | Should -Be 'apirateslife_release_test'
+        $run.LoadingSave | Should -Be 'apirateslife_release_1'
         $run.MenuReady | Should -BeTrue
     }
 
@@ -56,6 +57,7 @@ Describe 'Get-ExistingSaveCheck' {
             '[Scripts] 43.01 *** Context:x: [apirateslife-test] DONE passed=0 failed=0'
         )
         $script:WithMod = @(
+            '[=ERROR=] 2.50 [apirateslife-test] release: loading save apirateslife_release_1'
             "[FileIO ] 3.13 File I/O: Failed to verify the file signature for file '.\extensions\apirateslife\libraries\icons.xml' (error: 14)"
             '[Scripts] 30.00 *** Context:x: [apirateslife-test] LOADED apirateslife_release_test'
             '[Scripts] 40.01 *** Context:x: [apirateslife-test] RUN START 2 tests'
@@ -86,8 +88,15 @@ Describe 'Get-ExistingSaveCheck' {
         $check.Detail | Should -Be 'session 1 read files from apirateslife, so the mod was on;'
     }
 
+    It 'fails when session 2 loaded another save than session 1 wrote' {
+        $with = $script:WithMod -replace 'loading save apirateslife_release_1', 'loading save save_001'
+        $check = Get-ExistingSaveCheck (Read-GameTestLog $script:WithoutMod) (Read-GameTestLog $with)
+        $check.Passed | Should -BeFalse
+        $check.Detail | Should -Be 'session 2 loaded save_001, not apirateslife_release_1;'
+    }
+
     It 'fails when session 2 started a game instead of loading one, and read nothing from the mod' {
-        $with = @($script:WithMod | Where-Object { $_ -notmatch 'LOADED|extensions' })
+        $with = @($script:WithMod | Where-Object { $_ -notmatch 'LOADED|loading save|extensions' })
         $check = Get-ExistingSaveCheck (Read-GameTestLog $script:WithoutMod) (Read-GameTestLog $with)
         $check.Passed | Should -BeFalse
         $check.Detail | Should -Be 'session 2 loaded no save; session 2 read no files from apirateslife, so the mod was off;'

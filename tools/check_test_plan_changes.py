@@ -52,7 +52,7 @@ def find_problems(changed, read):
                 linked = ", ".join(sorted(links)) or "its feature file"
                 problems.append(f"{path} changed, but {linked} didn't")
     if any(path.startswith((GAME_TESTS, RELEASE_TESTS)) for path in changed) and not features_changed:
-        problems.append(f"the game tests ({GAME_TESTS}) changed, but no feature file in {FEATURES} did")
+        problems.append(f"the game tests ({GAME_TESTS} or {RELEASE_TESTS}) changed, but no feature file in {FEATURES} did")
     return problems
 
 

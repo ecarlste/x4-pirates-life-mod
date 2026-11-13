@@ -33,13 +33,13 @@ class FindProblems(unittest.TestCase):
     def test_game_tests_need_some_feature_file_to_change(self):
         game = "tests/game/apirateslife_tests/md/apirateslife_tests.xml"
         self.assertEqual(changes.find_problems({game}, reader({})),
-                         ["the game tests (tests/game/apirateslife_tests/) changed, but no feature file in tests/game/features/ did"])
+                         ["the game tests (tests/game/apirateslife_tests/ or tests/game/apirateslife_release_tests/) changed, but no feature file in tests/game/features/ did"])
         self.assertEqual(changes.find_problems({game, "tests/game/features/z.feature"}, reader({})), [])
 
     def test_the_release_tests_are_game_tests_too(self):
         release = "tests/game/apirateslife_release_tests/md/apirateslife_release_tests.xml"
         self.assertEqual(changes.find_problems({release}, reader({})),
-                         ["the game tests (tests/game/apirateslife_tests/) changed, but no feature file in tests/game/features/ did"])
+                         ["the game tests (tests/game/apirateslife_tests/ or tests/game/apirateslife_release_tests/) changed, but no feature file in tests/game/features/ did"])
 
     def test_the_opt_out_phrase_is_found_however_its_written(self):
         for body in ("Test plan: no change", "test plan:no change", "## Test plan\n\nTEST PLAN:   No Change."):

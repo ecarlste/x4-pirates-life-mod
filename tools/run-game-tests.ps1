@@ -148,9 +148,10 @@ $SwiFolder = 'starwarsmod_m1'
 # mod gets. FirstRead holds the line each file of SWI's and the mod's was first read on
 # ("<folder>|<path>"): X4 checks a file's signature as it reads it, in load order. Extensions holds
 # the extension folders any file was read from, lowercased. A release session (-Release) logs the
-# save it wrote (Saved, or SaveFailed with why) and the module of a game it loaded (Loaded).
+# save it wrote (Saved, or SaveFailed with why), the save it asked to load (LoadingSave) and the
+# module of the game it loaded (Loaded).
 function Read-GameTestLog([string[]] $Lines) {
-    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0; FirstRead = @{}; Extensions = @(); Saved = ''; SaveFailed = ''; Loaded = '' }
+    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0; FirstRead = @{}; Extensions = @(); Saved = ''; SaveFailed = ''; LoadingSave = ''; Loaded = '' }
     $extensions = @{}
     $results = New-Object System.Collections.ArrayList
     $errors = New-Object System.Collections.ArrayList
@@ -167,6 +168,7 @@ function Read-GameTestLog([string[]] $Lines) {
         }
         if ($line -match 'Game initialisation time until start menu|\[apirateslife-test\] (autostart: starting gamestart|release: (starting gamestart|loading save))') {
             $run.MenuReady = $true
+            if ($line -match 'release: loading save (\S+)') { $run.LoadingSave = $Matches[1] }
         }
         elseif ($line -match '\[apirateslife-test\] SAVED (\S+)') {
             $run.Saved = $Matches[1]
@@ -314,6 +316,7 @@ function Get-ExistingSaveCheck($Without, $With) {
     if (-not $Without.Saved) { $problems += "session 1 saved nothing ($(if ($Without.SaveFailed) { $Without.SaveFailed } else { 'no SAVED line' }))" }
     if ($Without.Extensions -contains $ModId) { $problems += "session 1 read files from $ModId, so the mod was on" }
     if (-not $With.Loaded) { $problems += 'session 2 loaded no save' }
+    elseif ($Without.Saved -and $With.LoadingSave -ne $Without.Saved) { $problems += "session 2 loaded $($With.LoadingSave), not $($Without.Saved)" }
     if ($With.Extensions -notcontains $ModId) { $problems += "session 2 read no files from $ModId, so the mod was off" }
     if (-not $With.Done) { $problems += "session 2's tests didn't finish" }
     $failed = @($With.Results | Where-Object { -not $_.Passed })
@@ -631,16 +634,16 @@ function Watch-GameRun($Game, [string] $LogPath, [double] $PollSeconds, [int] $T
     }
 }
 
-# The release sessions (-Release), one game session each, in order: whether the mod and the game
-# tests' extension are on, what the release extension starts (New), loads (Load) and saves (Save),
-# and the harness's tests to run (Tests, with the game tests' extension on)
+# The release sessions (-Release), one game session each, in order: whether the mod is on (Mod; the
+# game tests' extension needs it, so it's on with it), what the release extension starts (New),
+# loads (Load) and saves (Save), and the harness's tests to run with the mod (Tests)
 $ReleaseSave = 'apirateslife_release_1'
 
 function Get-ReleaseSessions {
     @(
-        [pscustomobject]@{ Number = 1; Name = 'a new game without the mod, saved'; Mod = $false; Harness = $false
+        [pscustomobject]@{ Number = 1; Name = 'a new game without the mod, saved'; Mod = $false
                            New = 'apirateslife_release_test'; Load = ''; Save = $ReleaseSave; Tests = @() }
-        [pscustomobject]@{ Number = 2; Name = 'that save loaded with the mod, and capture tests run on it'; Mod = $true; Harness = $true
+        [pscustomobject]@{ Number = 2; Name = 'that save loaded with the mod, and capture tests run on it'; Mod = $true
                            New = ''; Load = $ReleaseSave; Save = ''; Tests = @('ConfigAppliedOnStart', 'CaptureStartAndDestroyed') }
     )
 }
@@ -658,14 +661,15 @@ function Get-SessionLogChecks($Run, $Session) {
 # errors in session order
 function Join-SessionRuns($Runs) {
     $Runs = @($Runs)
+    $all = { param($property) -not @($Runs | Where-Object { -not $_.$property }).Count }
     [pscustomobject]@{
-        Started = -not @($Runs | Where-Object { -not $_.Started }).Count
+        Started = & $all 'Started'
         Expected = ($Runs | Measure-Object -Property Expected -Sum).Sum
-        Done = -not @($Runs | Where-Object { -not $_.Done }).Count
+        Done = & $all 'Done'
         Results = @($Runs | ForEach-Object { $_.Results })
         Errors = @($Runs | ForEach-Object { $_.Errors })
         GameVersion = @($Runs | Where-Object { $_.GameVersion } | ForEach-Object { $_.GameVersion }) | Select-Object -First 1
-        MenuReady = -not @($Runs | Where-Object { -not $_.MenuReady }).Count
+        MenuReady = & $all 'MenuReady'
         SetaDrops = ($Runs | Measure-Object -Property SetaDrops -Sum).Sum
     }
 }
@@ -740,15 +744,18 @@ function Edit-InstalledFile([string] $Path, [scriptblock] $Transform) {
 # the session ends, then removes the extensions again. $Session is $null for a plain run. Returns
 # the session's Run (read from its log), how it ended and how long it took.
 function Invoke-GameSession($Session) {
-    $harness = -not $Session -or $Session.Harness
-    $ids = @(@($TestExtensionId | Where-Object { $harness }) + @($ReleaseExtensionId | Where-Object { $Session }))
+    # The game tests' extension needs the mod, so a release session without it runs without them
+    $harness = -not $Session -or $Session.Mod
+    $ids = @()
+    if ($harness) { $ids += $TestExtensionId }
     $sessionSeen = $seen
     if ($Session) {
+        $ids += $ReleaseExtensionId
         $sessionSeen = @{}
         Write-Host "Release session $($Session.Number): $($Session.Name)"
-        Enable-Extensions $contentXml @(@($ReleaseExtensionId) + @($ModId | Where-Object { $Session.Mod }) + @($TestExtensionId | Where-Object { $harness }))
-        $off = @(@($ModId | Where-Object { -not $Session.Mod }) + @($TestExtensionId | Where-Object { -not $harness }))
-        if ($off.Count) { Disable-Extensions $contentXml $off }
+        Enable-Extensions $contentXml @($ReleaseExtensionId)
+        if ($Session.Mod) { Enable-Extensions $contentXml @($ModId, $TestExtensionId) }
+        else { Disable-Extensions $contentXml @($ModId, $TestExtensionId) }
     }
     $sessionStart = Get-Date
     $game = $null
