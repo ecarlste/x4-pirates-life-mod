@@ -50,6 +50,8 @@
           CaptureEscapeWaitsForEngagement,
           CaptureEscaped,
           CaptureWingHoldsFire,
+          CaptureWingHoldsFireFrom2km,
+          CaptureWingHoldsFireThreeWingmen,
           NoMissilesInSight,
           NoMissilesOutOfSight,
           CaptureMarkedAsHostile,
@@ -1978,6 +1980,262 @@
                 <destroy_object object="$Wingman"/>
                 <do_if value="$Target.exists">
                   <destroy_object object="$Target"/>
+                </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- For the 2 km tests below (#172): a capturable TIE Advanced 3 km ahead of the player, worn
+         down to 80% hull with no shields as in CaptureWingHoldsFire, and Count (1 to 3) of the
+         player's wingmen 2 km from it, 120 degrees apart (so none starts in another's line of
+         fire), facing it. Each flies an X-wing with its four lasers (apirateslife_test_xwing_lasers)
+         and flies freely from there. Every run starts from the same place, pilots at skill 15, so
+         runs differ less than in CaptureWingHoldsFire, where the wingman starts beside the player.
+         Returns table[$target, $wingmen, $gunowner, $minhull, $heldfor]: $gunowner maps each
+         wingman's lasers to the wingman, and CheckWingHold keeps the last two. -->
+    <library name="SpawnWingAt2km" purpose="run_actions">
+      <params>
+        <param name="Count"/>
+      </params>
+      <actions>
+        <create_ship name="$Target" macro="tie_advanced_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.galempire" overridenpc="true"/>
+          <loadout>
+            <level exact="1.0"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" z="3km" allowyaxis="true"/>
+        </create_ship>
+        <create_order id="'Wait'" object="$Target" default="true">
+          <param name="noattackresponse" value="true"/>
+        </create_order>
+        <set_object_shield object="$Target" exact="0"/>
+        <set_object_hull object="$Target" exact="80"/>
+        <set_value name="$X" exact="[2km, -1km, -1km]"/>
+        <set_value name="$Z" exact="[0m, 1.732km, -1.732km]"/>
+        <set_value name="$Wingmen" exact="[]"/>
+        <set_value name="$GunOwner" exact="table[]"/>
+        <do_all exact="$Count" counter="$i">
+          <create_ship name="$Wingman" macro="t65b_xwing_macro" sector="player.sector">
+            <owner exact="faction.player" overridenpc="true"/>
+            <loadout ref="apirateslife_test_xwing_lasers"/>
+            <pilot>
+              <select faction="faction.galempire" tags="tag.aipilot"/>
+              <skills>
+                <skill type="piloting" exact="15"/>
+                <skill type="morale" exact="15"/>
+              </skills>
+            </pilot>
+            <position object="$Target" x="$X.{$i}" z="$Z.{$i}"/>
+            <orientation orientation="look_at" refobject="$Target"/>
+          </create_ship>
+          <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
+          <append_to_list name="$Wingmen" exact="$Wingman"/>
+          <do_for_each name="$Gun" in="$Wingman.weapons.operational.list">
+            <set_value name="$GunOwner.{$Gun}" exact="$Wingman"/>
+          </do_for_each>
+        </do_all>
+        <return value="table[$target = $Target, $wingmen = $Wingmen, $gunowner = $GunOwner, $minhull = 100, $heldfor = 0]"/>
+      </actions>
+    </library>
+
+    <!-- One check of a SpawnWingAt2km, run every second, as CaptureWingHoldsFire's watch does it:
+         keeps the target's shields down until its hull is under 75%, then counts the seconds under
+         75%. Done after 30 s under 75%, or at the first problem. Returns table[$done, $problems]. -->
+    <library name="CheckWingHold" purpose="run_actions">
+      <params>
+        <param name="Wing"/>
+      </params>
+      <actions>
+        <set_value name="$Target" exact="$Wing.$target"/>
+        <do_if value="not $Target.exists or not $Target.isoperational">
+          <return value="table[$done = true, $problems = ' target destroyed (lowest hull seen %s%%);'.[$Wing.$minhull]]"/>
+        </do_if>
+        <set_value name="$Wing.$minhull" exact="[$Wing.$minhull, $Target.hullpercentage].min"/>
+        <set_value name="$Finisher" exact="@global.$APiratesLife_CaptureOps.{$Target}.$finisher"/>
+        <debug_text text="'[apirateslife-test] trace: hull %s%%, shields %s%%, wingman %sm away at %s m/s, finisher %s, wing dps %s'.[$Target.hullpercentage, $Target.shieldpercentage, $Wing.$wingmen.{1}.distanceto.{$Target}, $Wing.$wingmen.{1}.speed, @$Finisher.knownname, @global.$APiratesLife_CaptureOps.{$Target}.$wingdps]" filter="general"/>
+        <do_if value="$Target.hullpercentage lt 35">
+          <return value="table[$done = true, $problems = ' hull %s%%, below the 35%% floor;'.[$Target.hullpercentage]]"/>
+        </do_if>
+        <do_if value="$Target.hullpercentage lt 75">
+          <set_value name="$Wing.$heldfor" exact="$Wing.$heldfor + 1"/>
+        </do_if>
+        <!-- Above the gate, keep the shields down, as CaptureWingHoldsFire does -->
+        <do_elseif value="$Target.shield gt 0">
+          <set_object_shield object="$Target" exact="0"/>
+        </do_elseif>
+        <return value="table[$done = ($Wing.$heldfor ge 30), $problems = '']"/>
+      </actions>
+    </library>
+
+    <!-- The hold with one wingman starting 2 km from the target, facing it: it breaks the hull to
+         under 75% and keeps it there 30 s, never more than 20 points under the gate or below the
+         35% floor. -->
+    <cue name="CaptureWingHoldsFireFrom2km">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
+        <run_actions ref="SpawnWingAt2km" result="$Wing">
+          <param name="Count" value="1"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="CaptureWingHoldsFireFrom2km_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+            <set_object_capturable object="$Wing.$target" capturable="false"/>
+          </actions>
+          <cues>
+            <cue name="CaptureWingHoldsFireFrom2km_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="CheckWingHold" result="$Check">
+                  <param name="Wing" value="$Wing"/>
+                </run_actions>
+                <do_if value="$Check.$done">
+                  <cancel_cue cue="CaptureWingHoldsFireFrom2km_Timeout"/>
+                  <signal_cue_instantly cue="CaptureWingHoldsFireFrom2km_Done" param="$Check.$problems"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="CaptureWingHoldsFireFrom2km_Timeout">
+              <delay exact="180s"/>
+              <actions>
+                <signal_cue_instantly cue="CaptureWingHoldsFireFrom2km_Done" param="' hull only got to %s%% in 180s, %s s under 75%%;'.[$Wing.$minhull, $Wing.$heldfor]"/>
+              </actions>
+            </cue>
+            <cue name="CaptureWingHoldsFireFrom2km_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureWingHoldsFireFrom2km_Watch"/>
+                <remove_value name="global.$APiratesLife_CaptureDebug"/>
+                <set_value name="$Problems" exact="event.param"/>
+                <do_if value="not $Started">
+                  <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
+                </do_if>
+                <do_if value="$Problems == '' and $Wing.$minhull lt 55">
+                  <set_value name="$Problems" exact="' lowest hull %s%%, more than 20 points under the 75%% gate;'.[$Wing.$minhull]"/>
+                </do_if>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire_from_2km', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'held %s s under 75%%, lowest hull %s%%'.[$Wing.$heldfor, $Wing.$minhull] else $Problems)]"/>
+                <do_for_each name="$Ship" in="$Wing.$wingmen">
+                  <do_if value="$Ship.exists">
+                    <destroy_object object="$Ship"/>
+                  </do_if>
+                </do_for_each>
+                <do_if value="$Wing.$target.exists">
+                  <destroy_object object="$Wing.$target"/>
+                </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Three wingmen starting around the target, 2 km out (SpawnWingAt2km): the same checks as
+         CaptureWingHoldsFireFrom2km, with three times the guns. The wing's burst covers all their
+         shots in flight, so from 80% hull and no shields the whole break is inside its margin,
+         and until the hull is under 75% only one wingman (the finisher) may fire. -->
+    <cue name="CaptureWingHoldsFireThreeWingmen">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
+        <run_actions ref="SpawnWingAt2km" result="$Wing">
+          <param name="Count" value="3"/>
+        </run_actions>
+        <create_group groupname="$Guns"/>
+        <add_to_group groupname="$Guns" list="$Wing.$gunowner.keys.list"/>
+        <!-- Shots fired while the hull is at or above 75%, by wingman -->
+        <set_value name="$ShotsAbove" exact="table[]"/>
+      </actions>
+      <cues>
+        <cue name="CaptureWingHoldsFireThreeWingmen_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+            <set_object_capturable object="$Wing.$target" capturable="false"/>
+          </actions>
+          <cues>
+            <cue name="CaptureWingHoldsFireThreeWingmen_Fired" instantiate="true">
+              <conditions>
+                <event_weapon_fired group="$Guns"/>
+              </conditions>
+              <actions>
+                <do_if value="$Wing.$target.isoperational and $Wing.$target.hullpercentage ge 75">
+                  <set_value name="$Shooter" exact="@$Wing.$gunowner.{event.object}"/>
+                  <do_if value="$Shooter">
+                    <set_value name="$ShotsAbove.{$Shooter}" exact="@$ShotsAbove.{$Shooter} + 1"/>
+                  </do_if>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="CaptureWingHoldsFireThreeWingmen_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="CheckWingHold" result="$Check">
+                  <param name="Wing" value="$Wing"/>
+                </run_actions>
+                <do_if value="$Check.$done">
+                  <cancel_cue cue="CaptureWingHoldsFireThreeWingmen_Timeout"/>
+                  <signal_cue_instantly cue="CaptureWingHoldsFireThreeWingmen_Done" param="$Check.$problems"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="CaptureWingHoldsFireThreeWingmen_Timeout">
+              <delay exact="180s"/>
+              <actions>
+                <signal_cue_instantly cue="CaptureWingHoldsFireThreeWingmen_Done" param="' hull only got to %s%% in 180s, %s s under 75%%;'.[$Wing.$minhull, $Wing.$heldfor]"/>
+              </actions>
+            </cue>
+            <cue name="CaptureWingHoldsFireThreeWingmen_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureWingHoldsFireThreeWingmen_Fired"/>
+                <cancel_cue cue="CaptureWingHoldsFireThreeWingmen_Watch"/>
+                <remove_value name="global.$APiratesLife_CaptureDebug"/>
+                <set_value name="$Problems" exact="event.param"/>
+                <do_if value="not $Started">
+                  <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
+                </do_if>
+                <do_if value="$Problems == '' and $Wing.$minhull lt 55">
+                  <set_value name="$Problems" exact="' lowest hull %s%%, more than 20 points under the 75%% gate;'.[$Wing.$minhull]"/>
+                </do_if>
+                <set_value name="$Shots" exact="''"/>
+                <do_for_each name="$Ship" valuename="$Count" in="$ShotsAbove">
+                  <set_value name="$Shots" exact="$Shots + ' %s'.[$Count]"/>
+                </do_for_each>
+                <do_if value="$ShotsAbove.keys.count gt 1">
+                  <set_value name="$Problems" exact="$Problems + ' %s wingmen fired above 75%% hull, only the finisher may;'.[$ShotsAbove.keys.count]"/>
+                </do_if>
+                <set_value name="$Detail" exact="if $Problems == '' then 'held %s s under 75%%, lowest hull %s%%;'.[$Wing.$heldfor, $Wing.$minhull] else $Problems"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire_three_wingmen', $ok = ($Problems == ''), $detail = $Detail + ' shots above 75%% by wingman:%s'.[if $Shots == '' then ' none' else $Shots]]"/>
+                <do_for_each name="$Ship" in="$Wing.$wingmen">
+                  <do_if value="$Ship.exists">
+                    <destroy_object object="$Ship"/>
+                  </do_if>
+                </do_for_each>
+                <do_if value="$Wing.$target.exists">
+                  <destroy_object object="$Wing.$target"/>
                 </do_if>
               </actions>
             </cue>
