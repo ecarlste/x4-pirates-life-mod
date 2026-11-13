@@ -9,7 +9,10 @@
                  (the operation picks it, the closest wingman) fires: with every gun but one out of
                  its weapon group (never none: vanilla's attack fails the order with no DPS), firing
                  on until the line, so only that one gun's bolts in flight overshoot it. The rest
-                 of the wing holds.
+                 of the wing holds. One gun can miss for good (a wingtip gun at 2 km on a target
+                 seen edge-on), so after $missseconds of firing without a hit on the target, the
+                 finisher puts one more gun back in the group, and again after each such window,
+                 until a hit lands or every gun is back. A hit starts a new window.
        suppress: hull below $holdhull: the whole wing fires only while the target's shields
                  hold more than the wing's burst, so shots still in flight from every wingman land
                  on shields, not hull, whatever the weapon (heavy, slow guns get a bigger margin).
@@ -31,6 +34,7 @@
       <param name="holdhull" default="75" type="internal" comment="Below this hull percentage, fire only at shields (75 is vanilla's bail gate)"/>
       <param name="floorhull" default="35" type="internal" comment="Hull percentage at or below which nobody fires"/>
       <param name="burstseconds" default="1.5" type="internal" comment="While suppressing, stop firing while the target's shields still hold this many seconds of the wing's laser damage"/>
+      <param name="missseconds" default="10" type="internal" comment="Break, fine stage: after the finisher has fired this many seconds without a hit on the target, it puts one more gun back in its weapon group"/>
       <param name="shieldresume" default="10" type="internal" comment="While suppressing, fire again once shields are this many percent above the stop point"/>
       <param name="debugchance" type="internal" default="0" comment="Print debug output: 0 or 100"/>
     </params>
@@ -52,9 +56,51 @@
         <check_value value="not $target.isoperational or ($target.hullpercentage ge $holdhull and $target.shield + $target.hull - $target.maxhull * $holdhull / 100.0 le $wingburst and @global.$APiratesLife_CaptureOps.{$target}.$finisher != this.assignedcontrolled) or ($target.hullpercentage lt $holdhull and (($target.hullpercentage le $floorhull) or (not $target.maxshield) or ($target.shield le $wingburst)))"/>
       </conditions>
       <actions>
-        <debug_text text="'[apirateslife] capture order: %s holds on %s: hull %s%%, shields %s%% (%s, stop at %s)'.[this.assignedcontrolled.knownname, event.name, @$target.hullpercentage, @$target.shieldpercentage, @$target.shield, $wingburst]" chance="$debugchance"/>
+        <debug_text text="'[apirateslife] capture order: %s holds on %s: hull %s%%, shields %s%% (%s, stop at %s), guns %s'.[this.assignedcontrolled.knownname, event.name, @$target.hullpercentage, @$target.shieldpercentage, @$target.shield, $wingburst, if $finishgun then this.assignedcontrolled.primaryweapons.{$weapongroup}.list.count else 'all']" chance="$debugchance"/>
         <set_value name="$firing" exact="false"/>
         <abort_called_scripts resume="decide"/>
+      </actions>
+    </handler>
+    <!-- Finisher: a hit on the target (hull or shields) starts a new $missseconds window. Any hit
+         counts: in the fine stage the rest of the wing holds. After the handler above, which
+         ends the fine stage on the hit that crosses the line. -->
+    <handler>
+      <conditions>
+        <check_any>
+          <event_object_hull_damaged object="$target"/>
+          <event_object_shield_damaged object="$target"/>
+        </check_any>
+        <check_value value="$firing and $finishgun"/>
+      </conditions>
+      <actions>
+        <set_value name="$missstart" exact="null"/>
+      </actions>
+    </handler>
+    <!-- Finisher: one of our guns fired. The first shot after a hit starts the window; once it has
+         run $missseconds with no hit, one more gun goes back in the group (never taken out
+         again in this fine stage) and a new window starts. -->
+    <handler>
+      <conditions>
+        <event_weapon_fired group="$guns"/>
+        <check_value value="$firing and $finishgun"/>
+      </conditions>
+      <actions>
+        <do_if value="not $missstart">
+          <set_value name="$missstart" exact="player.age"/>
+        </do_if>
+        <do_elseif value="player.age - $missstart ge $missseconds and $removedguns.count">
+          <set_value name="$missstart" exact="player.age"/>
+          <set_value name="$addedgun" exact="null"/>
+          <do_while value="not $addedgun and $removedguns.count">
+            <set_value name="$gun" exact="$removedguns.{1}"/>
+            <remove_from_list name="$removedguns" exact="$gun"/>
+            <do_if value="$gun.exists">
+              <add_weapon_to_weapongroup weapon="$gun" weapongroup="$weapongroup" primary="true"/>
+              <set_value name="$addedgun" exact="$gun"/>
+            </do_if>
+          </do_while>
+          <debug_text text="'[apirateslife] capture order: %s missed for %ss, adds a gun: %s, %s still out of group %s, hull %s%%'.[this.assignedcontrolled.knownname, $missseconds, $addedgun, $removedguns.count, $weapongroup, @$target.hullpercentage]" chance="$debugchance"/>
+        </do_elseif>
       </actions>
     </handler>
     <!-- The operation ended (abandoned, called off...): stop at once, even mid-attack -->
@@ -80,6 +126,11 @@
     <set_value name="$finishgun" exact="null"/>
     <set_value name="$removedguns" exact="[]"/>
     <set_value name="$weapongroup" exact="0"/>
+    <!-- When the finisher's current window of firing without a hit began (null: no shot yet) -->
+    <set_value name="$missstart" exact="null"/>
+    <!-- Every gun, for the finisher's shot handler -->
+    <create_group groupname="$guns"/>
+    <add_to_group groupname="$guns" list="this.assignedcontrolled.weapons.operational.list"/>
   </init>
   <attention min="unknown">
     <actions>
@@ -164,6 +215,7 @@
            (order.fight.attack.object.xml:550-568), and DPS counts only grouped guns. The wing's
            DPS is read before (WingDps reads it from the pilot). -->
       <do_if value="$finishing and not $finishgun">
+        <set_value name="$missstart" exact="null"/>
         <set_value name="this.$APiratesLife_Dps" exact="this.assignedcontrolled.dps.lasers.all"/>
         <set_value name="$weapongroup" exact="this.assignedcontrolled.activeweapongroup.primary"/>
         <do_for_each name="$gun" in="this.assignedcontrolled.primaryweapons.{$weapongroup}.list">
