@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<content id="apirateslife" name="A Pirate's Life" description="Take ships instead of destroying them: your wing presses small and medium ships until their crews bail, and the prizes arrive intact. The SWI build, made for Star Wars Interworlds 0.91 on X4 8.00." author="Erik S. Carlsten" version="100" date="2025-10-31" save="false" enabled="true">
+<content id="apirateslife" name="A Pirate's Life" description="Take ships instead of destroying them: your wing presses small and medium ships until their crews bail, and the prizes arrive intact. The SWI build, made for Star Wars Interworlds 0.91 on X4 8.00." author="Erik S. Carlsten" version="100" date="2026-11-13" save="false" enabled="true">
   <text language="44" name="A Pirate's Life" description="Take ships instead of destroying them: your wing presses small and medium ships until their crews bail, and the prizes arrive intact. The SWI build, made for Star Wars Interworlds 0.91 on X4 8.00." author="Erik S. Carlsten"/>
   <!-- Required DLC (docs/PROJECT.md, Key decisions); also makes our libraries/ patches load after its wares -->
   <dependency id="ego_dlc_pirate" name="Tides of Avarice"/>

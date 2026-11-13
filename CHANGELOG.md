@@ -2,7 +2,7 @@
 
 Player-facing changes to A Pirate's Life, newest first. Each release lists any setting whose default changed: updates replace `md/apirateslife_config.xml`, so redo your edits after updating.
 
-## Unreleased
+## 1.00 - 2026-11-13
 
 The SWI build's first release, 1.00: S/M capture for X4 8.00, made for Star Wars Interworlds 0.91 HF1.
 
