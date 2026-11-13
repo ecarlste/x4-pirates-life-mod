@@ -168,9 +168,10 @@ Describe 'Get-LogChecks' {
         $check = Get-Check ($script:SwiFirst + @(
             "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file '.\extensions\starwars_rsp\t\0001.xml' (error: 14)"
             "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file '.\extensions\Mycu_Equipment_Tooltips\t\0001.xml' (error: 14)"
+        "[FileIO ] 0.00 File I/O: Failed to verify the file signature for file '.\extensions\My Mod\t\0001.xml' (error: 14)"
         )) 'swi_only_run'
         $check.Passed | Should -BeFalse
-        $check.Detail | Should -Be 'files read from other extensions: mycu_equipment_tooltips, starwars_rsp'
+        $check.Detail | Should -Be 'files read from other extensions: my mod, mycu_equipment_tooltips, starwars_rsp'
     }
 
     It 'fails the SWI-only run when no SWI file was read' {
@@ -459,6 +460,15 @@ Describe 'Get-OtherExtensions' {
         Write-LfFile "$dir/mycu_equipment_tooltips/content.xml" '<content id="EquipmentTooltips"/>'
         New-Item -ItemType Directory -Path "$dir/no_content_xml" | Out-Null
         Get-OtherExtensions $dir | Sort-Object | Should -Be @('EquipmentTooltips', "Reaper's Ship Pack (SWI)")
+    }
+
+    It 'skips, with a warning, an extension whose content.xml is broken or has no id' {
+        Write-LfFile "$dir/broken/content.xml" '<content id="broken"'
+        Write-LfFile "$dir/no_id/content.xml" '<content name="no id"/>'
+        Write-LfFile "$dir/good/content.xml" '<content id="good"/>'
+        $out = @(Get-OtherExtensions $dir 3>&1)
+        @($out | Where-Object { $_ -is [string] }) | Should -Be @('good')
+        @($out | Where-Object { $_ -is [Management.Automation.WarningRecord] }).Count | Should -Be 2
     }
 }
 

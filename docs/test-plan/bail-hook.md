@@ -68,7 +68,7 @@ Source: [`tests/game/features/bail-hook.feature`](../../tests/game/features/bail
 - [ ] **Manual:** checked by hand for now
 
 ```gherkin
-  Given a target whose pilot the game has worked out a 0.5% bail chance for, in SWI's Enhanced Bailing
-  When it gets a few hundred bail checks
-  Then about 1 in 200 succeed, so X4 doesn't round 0.5% down to 0
+  Given every bail check rolls at 0.5%, SWI's floor
+  When 1,000 checks roll
+  Then at least one succeeds, about 5 in all, so X4 doesn't round 0.5% down to 0
 ```

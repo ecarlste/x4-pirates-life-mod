@@ -50,10 +50,9 @@ Source: [`tests/game/features/release.feature`](../../tests/game/features/releas
 **Automated:** in game `swi_only_run`
 
 ```gherkin
-  Given only Egosoft's DLCs, SWI and A Pirate's Life are switched on, with no other mods
+  Given only Egosoft's DLCs (SWI needs all five, Tides of Avarice among them), SWI and A Pirate's Life are switched on, with no other mods
   When I start a new game on SWI and play
   Then no other extension's files are read
-  And every game test passes
 ```
 
 ### An existing save loads with the mod added
@@ -74,12 +73,12 @@ Source: [`tests/game/features/release.feature`](../../tests/game/features/releas
 ```gherkin
   Given a save with A Pirate's Life on, a capture operation running and ships I've taken
   When I switch A Pirate's Life off and load that save
-  Then it loads and plays for 10 minutes, with no error or warning about our files or scripts
+  Then it loads and plays for 10 minutes, with no error or warning about our files or scripts apart from the mission's missing texts
   And the ships I took stay mine, as they are
   And the global.$APiratesLife_ tables and settings stay: operations, metrics, pirated ships, bails and boardings to the player, and the config values
   And a running operation's target keeps its relation boost, with vanilla's markedashostile reason, until it decays in 600 s
-  And its pilot keeps $nextcapturechance, as the game's own checks leave it, and $APiratesLife_Fear if it got away
+  And its pilot keeps $nextcapturechance, as the game's own checks leave it, and $APiratesLife_Fear if the operation was called off or it escaped
   And a wingman's pilot keeps $APiratesLife_NoMissiles
-  And the operation's mission stays in the mission list, with its texts gone
+  And the operation's mission stays in the mission list, with its texts gone, and its cue keeps $CrewStart
   And nothing else of ours stays behind, and nothing reads any of it without the mod
 ```

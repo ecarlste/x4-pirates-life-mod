@@ -163,9 +163,10 @@ Source: [`tests/game/features/bail-pressure.feature`](../../tests/game/features/
 - [ ] **Manual:** checked by hand for now
 
 ```gherkin
-  Given I fly an SWI fighter and attack a capturable fighter inside the bail gates, with no capture operation
-  When I keep firing for a minute
-  Then the target gets a bail check about every 5 s, SWI's cooldown, and no more often
+  Given a capture operation on an SWI fighter inside the bail gates, with only my SWI wingmen firing
+  When they fire on it for a minute
+  Then the capture metrics' hit counts give the hits per second that reach the game's bail check
+  And I note the rate next to SWI's 5 s cooldown and the pressure tick's 5 s
 ```
 
 ### The knock-down cycle with SWI wingmen

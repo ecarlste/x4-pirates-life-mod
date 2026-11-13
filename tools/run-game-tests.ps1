@@ -144,7 +144,7 @@ function Read-GameTestLog([string[]] $Lines) {
         # X4 follows each script error with "* Expression: ..." and "* Action: ..." lines, which
         # can quote our markers; only the error's own line counts
         if ($line -like '`* *') { continue }
-        if ($line -match "(?i)extensions\\([^\\'\s]+)\\") { $extensions[$Matches[1].ToLower()] = $true }
+        if ($line -match "(?i)extensions\\([^\\'`"]+)\\") { $extensions[$Matches[1].ToLower()] = $true }
         if ($line -match "(?i)extensions\\($ModId|$SwiFolder)\\([^'\s]+)") {
             $key = "$($Matches[1].ToLower())|$($Matches[2].ToLower() -replace '\.sig$', '')"
             if (-not $run.FirstRead.ContainsKey($key)) { $run.FirstRead[$key] = $lineNumber }
@@ -255,26 +255,29 @@ function Get-LogChecks($Run) {
     New-LogCheck 'load_order_after_swi' ($shared.Count -and -not $early.Count) $order
     $count = if ($Run.Errors.Count) { $Run.Errors.Count } else { 'no' }
     New-LogCheck 'clean_log' (-not $Run.Errors.Count) "$count errors or warnings from our files in debuglog.txt" $Run.Errors
-    $others = @($Run.Extensions | Where-Object { -not (Test-SwiOnlyExtension $_) })
-    $ours = @($Run.Extensions | Where-Object { $_ -notlike 'ego_dlc_*' -and (Test-SwiOnlyExtension $_) })
-    $only = if ($others.Count) { "files read from other extensions: $($others -join ', ')" }
-            elseif ($Run.Extensions -notcontains $SwiFolder) { "no file read from SWI ($SwiFolder)" }
-            else { "files read only from Egosoft DLCs and $($ours -join ', ')" }
-    New-LogCheck 'swi_only_run' (-not $others.Count -and $Run.Extensions -contains $SwiFolder) $only
+    $others = @($Run.Extensions | Where-Object { -not (Test-AllowedInSwiOnlyRun $_) })
+    $swiRead = $Run.Extensions -contains $SwiFolder
+    $detail = if ($others.Count) { "files read from other extensions: $($others -join ', ')" }
+              elseif (-not $swiRead) { "no file read from SWI ($SwiFolder)" }
+              else { "files read only from Egosoft DLCs and $(@($Run.Extensions | Where-Object { $_ -notlike 'ego_dlc_*' }) -join ', ')" }
+    New-LogCheck 'swi_only_run' ($swiRead -and -not $others.Count) $detail
 }
 
 # Whether an extension folder belongs in an SWI-only run: an Egosoft DLC, SWI, the mod or the test
 # extension
-function Test-SwiOnlyExtension([string] $Folder) {
+function Test-AllowedInSwiOnlyRun([string] $Folder) {
     $Folder -like 'ego_dlc_*' -or @($SwiFolder, $ModId, $TestExtensionId) -contains $Folder.ToLower()
 }
 
 # The ids of the extensions installed in an extensions folder that don't belong in an SWI-only run
-# (each one's id is in its content.xml, and the profile's content.xml switches them by id)
+# (each one's id is in its content.xml, and the profile's content.xml switches them by id). One
+# whose content.xml can't be read is skipped with a warning; if X4 loads it anyway, swi_only_run fails
 function Get-OtherExtensions([string] $ExtensionsDir) {
-    foreach ($dir in @(Get-ChildItem $ExtensionsDir -Directory | Where-Object { -not (Test-SwiOnlyExtension $_.Name) })) {
+    foreach ($dir in @(Get-ChildItem $ExtensionsDir -Directory | Where-Object { -not (Test-AllowedInSwiOnlyRun $_.Name) })) {
         $file = Join-Path $dir.FullName 'content.xml'
-        if (Test-Path $file) { ([xml] (Get-Content $file -Raw)).content.id }
+        if (-not (Test-Path $file)) { continue }
+        $id = try { ([xml] (Get-Content $file -Raw)).content.id } catch { $null }
+        if ($id) { $id } else { Write-Warning "Can't read the extension id in $file; leaving it as the profile has it" }
     }
 }
 
@@ -503,11 +506,12 @@ function Enable-Extensions([string] $ContentXml, [string[]] $Ids) {
     Set-ExtensionsEnabled $ContentXml $Ids 'true'
 }
 
-# Switches these extensions off in a profile's content.xml, keeping other entries
+# Switches these extensions off in a profile's content.xml (made if missing), keeping other entries
 function Disable-Extensions([string] $ContentXml, [string[]] $Ids) {
     Set-ExtensionsEnabled $ContentXml $Ids 'false'
 }
 
+# Sets enabled="<$Enabled>" on these extensions' entries in a profile's content.xml, adding any missing
 function Set-ExtensionsEnabled([string] $ContentXml, [string[]] $Ids, [string] $Enabled) {
     $doc = New-Object System.Xml.XmlDocument
     if (Test-Path $ContentXml) { $doc.Load($ContentXml) }
