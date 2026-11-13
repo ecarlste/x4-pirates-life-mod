@@ -112,7 +112,7 @@
          it asked. A cooldown longer than CapturePressureInterval (vanilla's 30 s) is cut short, so
          the game evaluates the check; a shorter one (SWI's 5 s after a recent check) is left alone,
          and the tick waits for it, so hits and ticks together never roll more often than once per
-         interval. "Shorter" has 1 s of slack: SWI sets the cooldown to player.age + 5s, and in the
+         interval. "Shorter" has 0.1 s of slack: SWI sets the cooldown to player.age + 5s, and in the
          frame of that check (a + 5s) - a can come out a hair over 5 s, whenever a + 5 crosses a
          power of two. Without the slack the tick took it for a long cooldown and rolled again
          (#173). -->
@@ -124,7 +124,7 @@
       <actions>
         <run_actions ref="PressureInterval" result="$Interval"/>
         <set_value name="$Cooldown" exact="if $Target.pilot.$nextcapturechance? then $Target.pilot.$nextcapturechance - player.age else 0s"/>
-        <do_if value="$Cooldown gt 0s and $Cooldown le $Interval + 1s">
+        <do_if value="$Cooldown gt 0s and $Cooldown le $Interval + 0.1s">
           <return value="false"/>
         </do_if>
         <do_if value="$Cooldown gt 0s">
