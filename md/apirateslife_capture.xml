@@ -7,13 +7,16 @@
 
      While an operation runs, it is listed by target in
        global.$APiratesLife_CaptureOps.{$target}
-         = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince, $fear, $wingdps]
+         = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince, $fear, $wingdps,
+                 $finisher]
      which the wingman order and the bail hook (md/apirateslife_bail.xml) read. $gatestime is the
      time the target has spent inside the bail gates so far, not counting the stretch since
      $gatessince (null while it is outside them); $fear is the pilot's fear when the operation
      started. Pressure turns them into bail pressure. $wingdps is the summed laser damage per
      second of the wingmen still attacking the target (WingDps), kept current by Tick; each
      wingman's order turns it into the wing's burst, what may still land after the wing stops.
+     $finisher is the one wingman that fires single shots inside that burst's margin (Finisher),
+     also kept by Tick.
      A global table, because X4 can't store script variables on a ship (only on NPCs), and AI
      scripts can read globals.
 
@@ -107,10 +110,38 @@
         <set_value name="$Dps" exact="0"/>
         <do_for_each name="$Ship" in="$Members">
           <do_if value="@$Ship.isoperational and @$Ship.order.id == 'APiratesLife_Capture' and $Ship.order.$target == $Target">
-            <set_value name="$Dps" exact="$Dps + $Ship.dps.lasers.all"/>
+            <!-- The finisher's DPS from before it took guns out of its weapon group (its order sets it) -->
+            <set_value name="$Dps" exact="$Dps + (if @$Ship.pilot.$APiratesLife_Dps then $Ship.pilot.$APiratesLife_Dps else $Ship.dps.lasers.all)"/>
           </do_if>
         </do_for_each>
         <return value="$Dps"/>
+      </actions>
+    </library>
+
+    <!-- The wingman that finishes the break inside the wing's burst margin, one shot at a time:
+         Current while it is still running a capture order on Target, else the closest Member that
+         is. Null if there is none. -->
+    <library name="Finisher" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+        <param name="Members"/>
+        <param name="Current"/>
+      </params>
+      <actions>
+        <set_value name="$Finisher" exact="null"/>
+        <do_if value="@$Current.isoperational and @$Current.order.id == 'APiratesLife_Capture' and $Current.order.$target == $Target">
+          <set_value name="$Finisher" exact="$Current"/>
+        </do_if>
+        <do_else>
+          <do_for_each name="$Ship" in="$Members">
+            <do_if value="@$Ship.isoperational and @$Ship.order.id == 'APiratesLife_Capture' and $Ship.order.$target == $Target and $Ship.sector == $Target.sector">
+              <do_if value="not $Finisher or $Ship.distanceto.{$Target} lt $Finisher.distanceto.{$Target}">
+                <set_value name="$Finisher" exact="$Ship"/>
+              </do_if>
+            </do_if>
+          </do_for_each>
+        </do_else>
+        <return value="$Finisher"/>
       </actions>
     </library>
 
@@ -180,7 +211,7 @@
           <param name="Target" value="$Target"/>
           <param name="Members" value="$Members"/>
         </run_actions>
-        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null, $gatestime = 0s, $gatessince = (if $InGates then player.age else null), $fear = $Fear, $wingdps = $WingDps]"/>
+        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null, $gatestime = 0s, $gatessince = (if $InGates then player.age else null), $fear = $Fear, $wingdps = $WingDps, $finisher = null]"/>
         <set_value name="global.$APiratesLife_CaptureOps.{$Target}" exact="$Op"/>
 
         <!-- Starting a capture is the act of piracy: this one ship turns hostile to the player, as
@@ -266,6 +297,13 @@
                 <param name="Members" value="$Members"/>
               </run_actions>
               <set_value name="$Op.$wingdps" exact="$WingDps"/>
+              <run_actions ref="Finisher" result="$Finisher">
+                <param name="Target" value="$Target"/>
+                <param name="Members" value="$Members"/>
+                <param name="Current" value="$Op.$finisher"/>
+              </run_actions>
+              <debug_text text="'[apirateslife] [DEBUG-172] capture: finisher on %s is now %s (was %s)'.[$Target.knownname, @$Finisher.knownname, @$Op.$finisher.knownname]" chance="if $Finisher != $Op.$finisher then 100 else 0"/>
+              <set_value name="$Op.$finisher" exact="$Finisher"/>
               <!-- Bail pressure: count the time inside the bail gates -->
               <run_actions ref="InGates" result="$InGates">
                 <param name="Target" value="$Target"/>
