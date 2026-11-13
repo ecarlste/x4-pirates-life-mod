@@ -7,12 +7,15 @@
 
      While an operation runs, it is listed by target in
        global.$APiratesLife_CaptureOps.{$target}
-         = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince, $fear]
+         = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince, $fear, $wingdps]
      which the wingman order and the bail hook (md/apirateslife_bail.xml) read. $gatestime is the
      time the target has spent inside the bail gates so far, not counting the stretch since
      $gatessince (null while it is outside them); $fear is the pilot's fear when the operation
-     started. Pressure turns them into bail pressure. A global table, because X4 can't store
-     script variables on a ship (only on NPCs), and AI scripts can read globals.
+     started. Pressure turns them into bail pressure. $wingdps is the summed laser damage per
+     second of the wingmen still attacking the target (WingDps), kept current by Tick; each
+     wingman's order turns it into the wing's burst, what may still land after the wing stops.
+     A global table, because X4 can't store script variables on a ship (only on NPCs), and AI
+     scripts can read globals.
 
      Fear, the pressure an operation leaves when it ends without a capture (called off or
      escaped), is kept on the target's pilot, an NPC, as
@@ -93,6 +96,24 @@
       </actions>
     </library>
 
+    <!-- The summed laser damage per second (dps.lasers.all) of the Members still running a capture
+         order on Target: what the whole wing may still land after it stops firing -->
+    <library name="WingDps" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+        <param name="Members"/>
+      </params>
+      <actions>
+        <set_value name="$Dps" exact="0"/>
+        <do_for_each name="$Ship" in="$Members">
+          <do_if value="@$Ship.isoperational and @$Ship.order.id == 'APiratesLife_Capture' and $Ship.order.$target == $Target">
+            <set_value name="$Dps" exact="$Dps + $Ship.dps.lasers.all"/>
+          </do_if>
+        </do_for_each>
+        <return value="$Dps"/>
+      </actions>
+    </library>
+
     <!-- Starts an operation on Target, led by the ship the player is flying. Returns whether it
          started. Every entry point (comm choice, interact menu, hotkeys) goes through here. -->
     <library name="Start" purpose="run_actions">
@@ -155,7 +176,11 @@
           <param name="Pilot" value="$Target.pilot"/>
         </run_actions>
         <remove_value name="$Target.pilot.$APiratesLife_Fear"/>
-        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null, $gatestime = 0s, $gatessince = (if $InGates then player.age else null), $fear = $Fear]"/>
+        <run_actions ref="WingDps" result="$WingDps">
+          <param name="Target" value="$Target"/>
+          <param name="Members" value="$Members"/>
+        </run_actions>
+        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null, $gatestime = 0s, $gatessince = (if $InGates then player.age else null), $fear = $Fear, $wingdps = $WingDps]"/>
         <set_value name="global.$APiratesLife_CaptureOps.{$Target}" exact="$Op"/>
 
         <!-- Starting a capture is the act of piracy: this one ship turns hostile to the player, as
@@ -235,6 +260,12 @@
               <signal_cue_instantly cue="End" param="$Outcome"/>
             </do_if>
             <do_else>
+              <!-- The wing's laser damage, as wingmen die or leave the operation -->
+              <run_actions ref="WingDps" result="$WingDps">
+                <param name="Target" value="$Target"/>
+                <param name="Members" value="$Members"/>
+              </run_actions>
+              <set_value name="$Op.$wingdps" exact="$WingDps"/>
               <!-- Bail pressure: count the time inside the bail gates -->
               <run_actions ref="InGates" result="$InGates">
                 <param name="Target" value="$Target"/>

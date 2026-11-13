@@ -2,7 +2,9 @@
 <!-- Capture order for wingmen in a capture operation (md/apirateslife_capture.xml gives it).
      Fights the target with vanilla's attack script, but decides itself when to fire, so the target
      stays inside vanilla's bail gates instead of dying:
-       break:    hull at or above $holdhull (default 75, vanilla's bail gate): fire
+       break:    hull above $holdhull (default 75, vanilla's bail gate) by more than the wing's
+                 burst, about $burstseconds of the whole wing's laser damage: fire, so shots
+                 still in flight from every wingman land above the line. Inside that margin: hold.
        suppress: hull below $holdhull: fire only while the target's shields hold more than
                  $burst, about 1.5 s of this wingman's laser damage, so shots still in flight land
                  on shields, not hull, whatever the weapon (heavy, slow guns get a bigger margin).
@@ -42,10 +44,11 @@
           <event_object_shield_damaged object="$target"/>
         </check_any>
         <check_value value="$firing"/>
-        <check_value value="not $target.isoperational or ($target.hullpercentage lt $holdhull and (($target.hullpercentage le $floorhull) or (not $target.maxshield) or ($target.shield le $burst)))"/>
+        <check_value value="not $target.isoperational or ($target.hullpercentage ge $holdhull and $target.hullpercentage le $breakhull) or ($target.hullpercentage lt $holdhull and (($target.hullpercentage le $floorhull) or (not $target.maxshield) or ($target.shield le $burst)))"/>
       </conditions>
       <actions>
         <debug_text text="'[apirateslife] capture order: %s holds on %s: hull %s%%, shields %s%% (%s, stop at %s)'.[this.assignedcontrolled.knownname, event.name, @$target.hullpercentage, @$target.shieldpercentage, @$target.shield, $burst]" chance="$debugchance"/>
+        <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s stops: hull %s%%, break line %s%%, wing burst %s (own %s)'.[this.assignedcontrolled.knownname, @$target.hullpercentage, $breakhull, $wingburst, this.assignedcontrolled.dps.lasers.all * $burstseconds]" chance="$debugchance"/>
         <set_value name="$firing" exact="false"/>
         <abort_called_scripts resume="decide"/>
       </actions>
@@ -68,6 +71,8 @@
     <set_value name="$firing" exact="false"/>
     <set_value name="$ended" exact="false"/>
     <set_value name="$burst" exact="0"/>
+    <set_value name="$wingburst" exact="0"/>
+    <set_value name="$breakhull" exact="$holdhull"/>
   </init>
   <attention min="unknown">
     <actions>
@@ -102,11 +107,19 @@
       <!-- What may still land after we stop: about $burstseconds of our laser fire, in hitpoints.
            Recomputed each time, as weapons can be lost in the fight. -->
       <set_value name="$burst" exact="this.assignedcontrolled.dps.lasers.all * $burstseconds"/>
+      <!-- The same for the whole wing attacking this target, as the operation keeps it, and the
+           hull percentage above which that burst still lands above the hold line -->
+      <set_value name="$wingdps" exact="@global.$APiratesLife_CaptureOps.{$target}.$wingdps"/>
+      <set_value name="$wingburst" exact="if $wingdps then [$wingdps * $burstseconds, $burst].max else $burst"/>
+      <set_value name="$breakhull" exact="$holdhull + (if $target.maxhull then $wingburst * 100.0 / $target.maxhull else 0)"/>
 
-      <!-- Break: fire until the hull is below the hold line -->
-      <do_if value="$target.hullpercentage ge $holdhull">
+      <!-- Break: fire while the wing's burst still lands above the hold line, then hold -->
+      <do_if value="$target.hullpercentage gt $breakhull">
         <set_value name="$fire" exact="true"/>
       </do_if>
+      <do_elseif value="$target.hullpercentage ge $holdhull">
+        <set_value name="$fire" exact="false"/>
+      </do_elseif>
       <!-- Floor: never below it -->
       <do_elseif value="$target.hullpercentage le $floorhull">
         <set_value name="$fire" exact="false"/>
@@ -119,6 +132,7 @@
       </do_else>
 
       <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, $burst, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire then $debugchance else 0"/>
+      <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s %s: hull %s%%, break line %s%%, wing burst %s (own %s), maxhull %s'.[this.assignedcontrolled.knownname, if $fire then 'fires' else 'holds', $target.hullpercentage, $breakhull, $wingburst, $burst, $target.maxhull]" chance="if $fire != @$lastfire then $debugchance else 0"/>
       <set_value name="$lastfire" exact="$fire"/>
 
       <do_if value="$fire">

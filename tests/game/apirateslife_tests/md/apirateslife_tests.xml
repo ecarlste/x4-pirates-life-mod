@@ -1671,7 +1671,7 @@
         <create_ship name="$Wingman" macro="t65b_xwing_macro" sector="player.sector">
           <owner exact="faction.player" overridenpc="true"/>
           <!-- [DEBUG-172] No engines: it turns and fires but cannot close in -->
-          <loadout ref="apirateslife_test_xwing_noengine_1laser"/>
+          <loadout ref="apirateslife_test_xwing_noengine"/>
           <pilot>
             <select faction="faction.galempire" tags="tag.aipilot"/>
             <!-- [DEBUG-172] Max skills for the fixed-range probe -->
