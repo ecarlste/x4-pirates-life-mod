@@ -35,7 +35,8 @@ cd "$(dirname "$0")/.."
 
 # The TypeScript tools: node_modules matches package-lock.json (first, so a missing package is named),
 # the types check, the unit tests pass, every shipped path is lowercase, docs/PROJECT.md is within its
-# size budget, then the diff-patch check on the unpacked 8.00 and SWI files
+# size budget, the settings loader's defaults match the config file's, then the diff-patch check on
+# the unpacked 8.00 and SWI files
 run_typescript() {
     echo "== TypeScript"
     if ! command -v node >/dev/null; then
@@ -47,6 +48,7 @@ run_typescript() {
     node --test --test-reporter=dot 'tools/**/*.test.ts' || return 1
     node tools/check-lowercase-paths.ts || return 1
     node tools/check-doc-size.ts || return 1
+    node tools/check-settings-defaults.ts || return 1
     node tools/check-diff-patches.ts
 }
 

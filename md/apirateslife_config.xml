@@ -1,14 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  A Pirate's Life: default settings
-  =================================
+  A Pirate's Life: settings
+  =========================
 
-  Edit the values below to change the mod's behavior (1 = on, 0 = off). Changes apply the next
-  time you start or load a game. Note: updating the mod replaces this file, so edits are lost on
-  update.
+  Edit the values below to change the mod's behavior. Changes apply the next time you start or load
+  a game; saves don't keep them, so this file wins on every load. Note: updating the mod replaces
+  this file, so edits are lost on update.
+
+  A value outside its range is brought into it, and one that isn't a number gets its default; each
+  writes a warning to debuglog.txt naming the setting and the value used. If the game can't read
+  this file at all (a typo can do that), every setting gets its default, with one warning.
 
   Developers: md/apirateslife_settings.xml (its OnLoad cue) applies this file on every start and
-  load, and is its only caller; the config_applied_on_start game test covers it. Keep that script.
+  load, checking each value's range, and is its only caller; it keeps its own copy of these
+  defaults, which tools/check-settings-defaults.ts keeps the same. The config_applied_on_start
+  game test covers it. Keep that script.
 
   Developers: deploy.sh and deploy.ps1 can override these values in the deployed copy without
   editing this file; see "Everyday commands" in the README. (No double hyphens in this comment:
@@ -18,46 +24,47 @@
   <cues>
     <library name="Defaults" purpose="run_actions">
       <actions>
-        <!-- ===== Captures ===== -->
+        <!-- ===== Settings: how hard a capture is ===== -->
 
         <!-- Intact when marines claim: claiming an abandoned ship with marines doesn't damage the
-             hull or destroy equipment. 0 = vanilla behavior. -->
+             hull or destroy equipment. 0 = vanilla behavior. 0 or 1. -->
         <set_value name="global.$APiratesLife_IntactOnClaim" exact="1"/>
-
-        <!-- ===== Tuning ===== -->
-
-        <!-- Capture operations: wingmen attack the target at full strength until its hull is below
-             this percentage, then only knock its shields down and stop once they're gone. 75 is
-             vanilla's bail gate (a bail check needs hull below 75%); higher values make no sense. -->
-        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
-
-        <!-- Capture operations: nobody in the operation fires once the target's hull is at or below
-             this percentage. -->
-        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
 
         <!-- Bail pressure in capture operations: points added to the game's bail chance for every
              10 seconds the target spends inside the bail gates (shields under 20% or none, hull
              under 75%). Time counts, not checks: 8 means +4 between two checks 5 seconds apart.
-             0 = the game's own chance. -->
+             0 = the game's own chance. 0 or more. -->
         <set_value name="global.$APiratesLife_CapturePressureStep" exact="8"/>
 
         <!-- Bail pressure never lifts the chance above this percentage (a higher game chance is
-             left as it is). -->
+             left as it is). 0 to 100. -->
         <set_value name="global.$APiratesLife_CapturePressureCap" exact="80"/>
+
+        <!-- ===== Tuning: change these only if you know why ===== -->
+
+        <!-- Capture operations: wingmen attack the target at full strength until its hull is below
+             this percentage, then only knock its shields down and stop once they're gone. 75 is
+             vanilla's bail gate (a bail check needs hull below 75%); higher values make no sense. 0 to
+             75. -->
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
+
+        <!-- Capture operations: nobody in the operation fires once the target's hull is at or below
+             this percentage. 0 up to CaptureHoldHull. -->
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
 
         <!-- Seconds between the bail checks a capture operation asks for while the player leads it
              within about 10 km and the target is inside the bail gates, so checks don't wait for
-             hits. -->
+             hits. 5 or more: SWI checks for a bail at most every 5 seconds. -->
         <set_value name="global.$APiratesLife_CapturePressureInterval" exact="5"/>
 
         <!-- Fear: when a capture operation is called off or its target escapes, the pilot keeps the
              bail pressure left, and a new operation on that pilot starts from it. It is multiplied
              by this factor for every CaptureFearDecayInterval seconds that pass (0.5 = halves).
-             1 = never fades; 0 = no fear. -->
+             1 = never fades; 0 = no fear. 0 to 1. -->
         <set_value name="global.$APiratesLife_CaptureFearDecayFactor" exact="0.5"/>
 
         <!-- Fear: seconds over which it is multiplied by CaptureFearDecayFactor once (300 = 5
-             minutes). It fades smoothly, not in steps. -->
+             minutes). It fades smoothly, not in steps. 1 or more. -->
         <set_value name="global.$APiratesLife_CaptureFearDecayInterval" exact="300"/>
       </actions>
     </library>

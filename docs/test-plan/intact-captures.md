@@ -8,19 +8,9 @@ Source: [`tests/game/features/intact-captures.feature`](../../tests/game/feature
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 3 | 0 | 0 | **0** |
+| 0 | 2 | 0 | 0 | **0** |
 
 ## Scenarios
-
-### The config file's values apply when a game starts
-
-**Automated:** in game `config_applied_on_start`
-
-```gherkin
-  Given the config file, with any values set at deploy time
-  When a game starts
-  Then every setting has the value the config file gives it
-```
 
 ### The claiming marine leaves the ship intact
 

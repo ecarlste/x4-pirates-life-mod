@@ -2,6 +2,12 @@
 <!-- Settings: applies the config file (md/apirateslife_config.xml) on every game start and load, so
      the patches can read global.$APiratesLife_<Name>. See docs/specs/capture-settings.md.
 
+     Each value is checked against its range first (the Validate library): a number outside it is
+     clamped, and anything else gets the default, with one warning in debuglog.txt per bad value.
+     If X4 skipped the config file (a typo in it makes X4 do that), every value is unset: the loader
+     then uses its own copy of the defaults, with one warning. tools/check-settings-defaults.ts
+     keeps that copy the same as the config file's.
+
      The 9.x line's in-game settings page and settings profiles kept their state here too
      (global.$APiratesLife_Profile, _Modified, _InUse, _Baseline). The SWI build doesn't have them:
      those values may still be in a save, and are left alone; the config file alone decides. -->
@@ -15,9 +21,91 @@
         </check_any>
       </conditions>
       <actions>
+        <!-- Unset first: the save holds the last load's values, which would hide a config file X4
+             skipped -->
+        <remove_value name="global.$APiratesLife_IntactOnClaim"/>
+        <remove_value name="global.$APiratesLife_CaptureHoldHull"/>
+        <remove_value name="global.$APiratesLife_CaptureFloorHull"/>
+        <remove_value name="global.$APiratesLife_CapturePressureStep"/>
+        <remove_value name="global.$APiratesLife_CapturePressureCap"/>
+        <remove_value name="global.$APiratesLife_CapturePressureInterval"/>
+        <remove_value name="global.$APiratesLife_CaptureFearDecayFactor"/>
+        <remove_value name="global.$APiratesLife_CaptureFearDecayInterval"/>
         <run_actions ref="md.APiratesLife_Config.Defaults"/>
+        <run_actions ref="Validate" result="$Checked">
+          <param name="Raw" value="table[$IntactOnClaim = @global.$APiratesLife_IntactOnClaim, $CaptureHoldHull = @global.$APiratesLife_CaptureHoldHull, $CaptureFloorHull = @global.$APiratesLife_CaptureFloorHull, $CapturePressureStep = @global.$APiratesLife_CapturePressureStep, $CapturePressureCap = @global.$APiratesLife_CapturePressureCap, $CapturePressureInterval = @global.$APiratesLife_CapturePressureInterval, $CaptureFearDecayFactor = @global.$APiratesLife_CaptureFearDecayFactor, $CaptureFearDecayInterval = @global.$APiratesLife_CaptureFearDecayInterval]"/>
+        </run_actions>
+        <set_value name="global.$APiratesLife_IntactOnClaim" exact="$Checked.$values.$IntactOnClaim"/>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="$Checked.$values.$CaptureHoldHull"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="$Checked.$values.$CaptureFloorHull"/>
+        <set_value name="global.$APiratesLife_CapturePressureStep" exact="$Checked.$values.$CapturePressureStep"/>
+        <set_value name="global.$APiratesLife_CapturePressureCap" exact="$Checked.$values.$CapturePressureCap"/>
+        <set_value name="global.$APiratesLife_CapturePressureInterval" exact="$Checked.$values.$CapturePressureInterval"/>
+        <set_value name="global.$APiratesLife_CaptureFearDecayFactor" exact="$Checked.$values.$CaptureFearDecayFactor"/>
+        <set_value name="global.$APiratesLife_CaptureFearDecayInterval" exact="$Checked.$values.$CaptureFearDecayInterval"/>
+        <do_if value="not $Checked.$loaded">
+          <debug_text text="'[apirateslife] settings warning: config file not loaded, using defaults'"/>
+        </do_if>
+        <do_for_each name="$Bad" in="$Checked.$bad">
+          <do_if value="(typeof $Bad.$given).isnumeric">
+            <debug_text text="'[apirateslife] settings warning: %s = %s is out of range, using %s'.[$Bad.$setting, $Bad.$given, $Bad.$used]"/>
+          </do_if>
+          <do_else>
+            <debug_text text="'[apirateslife] settings warning: %s = %s is not a number, using %s'.[$Bad.$setting, $Bad.$given, $Bad.$used]"/>
+          </do_else>
+        </do_for_each>
         <debug_text text="'[apirateslife] settings: config applied (intact on claim %s, capture hold hull %s, floor hull %s, pressure step %s, cap %s, interval %s, fear decay x%s per %s s)'.[global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull, global.$APiratesLife_CapturePressureStep, global.$APiratesLife_CapturePressureCap, global.$APiratesLife_CapturePressureInterval, global.$APiratesLife_CaptureFearDecayFactor, global.$APiratesLife_CaptureFearDecayInterval]"/>
       </actions>
     </cue>
+
+    <!-- Checks the config file's values against their ranges. Raw: the values by setting
+         (table[$IntactOnClaim = ...]), null or missing when unset. Returns table[$values, $bad,
+         $loaded]: $values, the values to use, by setting; $bad, one table[$setting, $given, $used]
+         per bad value; $loaded, false when no value was set at all (X4 skipped the config file),
+         and $values then holds the defaults with nothing in $bad. Writes nothing to the log: the
+         game tests call it (settings_clamped). -->
+    <library name="Validate" purpose="run_actions">
+      <params>
+        <param name="Raw"/>
+      </params>
+      <actions>
+        <!-- The defaults, the same as the config file's (tools/check-settings-defaults.ts checks) -->
+        <set_value name="$Defaults" exact="table[$IntactOnClaim = 1, $CaptureHoldHull = 75, $CaptureFloorHull = 35, $CapturePressureStep = 8, $CapturePressureCap = 80, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0.5, $CaptureFearDecayInterval = 300]"/>
+        <!-- [setting, lowest, highest], null for no highest. The hold line comes before the floor,
+             whose highest is the hold line in use. IntactOnClaim takes 0 or 1 only. -->
+        <set_value name="$Ranges" exact="[['IntactOnClaim', 0, 1], ['CaptureHoldHull', 0, 75], ['CaptureFloorHull', 0, null], ['CapturePressureStep', 0, null], ['CapturePressureCap', 0, 100], ['CapturePressureInterval', 5, null], ['CaptureFearDecayFactor', 0, 1], ['CaptureFearDecayInterval', 1, null]]"/>
+        <set_value name="$Loaded" exact="false"/>
+        <do_for_each name="$Range" in="$Ranges">
+          <do_if value="$Raw.{'$' + $Range.{1}}? and $Raw.{'$' + $Range.{1}} != null">
+            <set_value name="$Loaded" exact="true"/>
+          </do_if>
+        </do_for_each>
+        <set_value name="$Values" exact="table[]"/>
+        <set_value name="$Bad" exact="[]"/>
+        <do_for_each name="$Range" in="$Ranges">
+          <set_value name="$Key" exact="'$' + $Range.{1}"/>
+          <set_value name="$High" exact="if $Key == '$CaptureFloorHull' then $Values.$CaptureHoldHull else $Range.{3}"/>
+          <set_value name="$Default" exact="if $High == null then $Defaults.{$Key} else [$Defaults.{$Key}, $High].min"/>
+          <set_value name="$Given" exact="if $Raw.{$Key}? then $Raw.{$Key} else null"/>
+          <do_if value="not $Loaded or not (typeof $Given).isnumeric">
+            <set_value name="$Used" exact="$Default"/>
+          </do_if>
+          <do_elseif value="$Key == '$IntactOnClaim'">
+            <set_value name="$Used" exact="if $Given == 0 or $Given == 1 then $Given else $Default"/>
+          </do_elseif>
+          <do_else>
+            <set_value name="$Used" exact="[$Given, $Range.{2}].max"/>
+            <do_if value="$High != null">
+              <set_value name="$Used" exact="[$Used, $High].min"/>
+            </do_if>
+          </do_else>
+          <set_value name="$Values.{$Key}" exact="$Used"/>
+          <do_if value="$Loaded and (not (typeof $Given).isnumeric or $Used != $Given)">
+            <append_to_list name="$Bad" exact="table[$setting = $Range.{1}, $given = $Given, $used = $Used]"/>
+          </do_if>
+        </do_for_each>
+        <return value="table[$values = $Values, $bad = $Bad, $loaded = $Loaded]"/>
+      </actions>
+    </library>
   </cues>
 </mdscript>
