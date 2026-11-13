@@ -10,8 +10,8 @@
                  its weapon group (never none: vanilla's attack fails the order with no DPS), firing
                  on until the line, so only that one gun's bolts in flight overshoot it. The rest
                  of the wing holds.
-       suppress: hull below $holdhull: fire only while the target's shields hold more than
-                 $burst, about 1.5 s of this wingman's laser damage, so shots still in flight land
+       suppress: hull below $holdhull: the whole wing fires only while the target's shields
+                 hold more than the wing's burst, so shots still in flight from every wingman land
                  on shields, not hull, whatever the weapon (heavy, slow guns get a bigger margin).
                  Fire again once shields are $shieldresume percent above that.
        floor:    hull at or below $floorhull: no fire at all
@@ -30,7 +30,7 @@
       </param>
       <param name="holdhull" default="75" type="internal" comment="Below this hull percentage, fire only at shields (75 is vanilla's bail gate)"/>
       <param name="floorhull" default="35" type="internal" comment="Hull percentage at or below which nobody fires"/>
-      <param name="burstseconds" default="1.5" type="internal" comment="While suppressing, stop firing while the target's shields still hold this many seconds of our laser damage"/>
+      <param name="burstseconds" default="1.5" type="internal" comment="While suppressing, stop firing while the target's shields still hold this many seconds of the wing's laser damage"/>
       <param name="shieldresume" default="10" type="internal" comment="While suppressing, fire again once shields are this many percent above the stop point"/>
       <param name="debugchance" type="internal" default="0" comment="Print debug output: 0 or 100"/>
     </params>
@@ -49,10 +49,10 @@
           <event_object_shield_damaged object="$target"/>
         </check_any>
         <check_value value="$firing"/>
-        <check_value value="not $target.isoperational or ($target.hullpercentage ge $holdhull and $target.shield + $target.hull - $target.maxhull * $holdhull / 100.0 le $wingburst and @global.$APiratesLife_CaptureOps.{$target}.$finisher != this.assignedcontrolled) or ($target.hullpercentage lt $holdhull and (($target.hullpercentage le $floorhull) or (not $target.maxshield) or ($target.shield le $burst)))"/>
+        <check_value value="not $target.isoperational or ($target.hullpercentage ge $holdhull and $target.shield + $target.hull - $target.maxhull * $holdhull / 100.0 le $wingburst and @global.$APiratesLife_CaptureOps.{$target}.$finisher != this.assignedcontrolled) or ($target.hullpercentage lt $holdhull and (($target.hullpercentage le $floorhull) or (not $target.maxshield) or ($target.shield le $wingburst)))"/>
       </conditions>
       <actions>
-        <debug_text text="'[apirateslife] capture order: %s holds on %s: hull %s%%, shields %s%% (%s, stop at %s)'.[this.assignedcontrolled.knownname, event.name, @$target.hullpercentage, @$target.shieldpercentage, @$target.shield, $burst]" chance="$debugchance"/>
+        <debug_text text="'[apirateslife] capture order: %s holds on %s: hull %s%%, shields %s%% (%s, stop at %s)'.[this.assignedcontrolled.knownname, event.name, @$target.hullpercentage, @$target.shieldpercentage, @$target.shield, $wingburst]" chance="$debugchance"/>
         <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s stops on %s: hull %s%%, shield %s, margin %s, wing burst %s (own %s), distance %sm, finisher %s'.[this.assignedcontrolled.knownname, event.name, @$target.hullpercentage, @$target.shield, @$target.shield + @$target.hull - @$target.maxhull * $holdhull / 100.0, $wingburst, $burst, this.assignedcontrolled.distanceto.{$target}, $finishgun != null]"/>
         <set_value name="$firing" exact="false"/>
         <abort_called_scripts resume="decide"/>
@@ -136,13 +136,15 @@
         <set_value name="$fire" exact="false"/>
       </do_elseif>
       <!-- Suppress: knock shields down once they've regenerated enough, stopping (in the hit
-           handler) while they still hold our burst. A heavily armed wingman may leave shields above
-           the 20% gate; the player or a lighter wingman takes them the rest of the way. -->
+           handler) while they still hold the wing's burst. The whole wing fires, not just the
+           finisher: every wingman stops at the same line, and the wing's burst covers all their
+           shots in flight. A heavily armed wing may leave shields above the 20% gate; the player
+           takes them the rest of the way. -->
       <do_else>
-        <set_value name="$fire" exact="$target.maxshield and $target.shield ge $burst + $target.maxshield * $shieldresume / 100.0"/>
+        <set_value name="$fire" exact="$target.maxshield and $target.shield ge $wingburst + $target.maxshield * $shieldresume / 100.0"/>
       </do_else>
 
-      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, $burst, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire then $debugchance else 0"/>
+      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, $wingburst, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire then $debugchance else 0"/>
       <debug_text text="'[apirateslife] [DEBUG-172] capture order: %s %s: hull %s%%, shield %s, margin %s, wing burst %s (own %s), dps now %s'.[this.assignedcontrolled.knownname, if $fire then 'fires' else if $finishing then 'finishes' else 'holds', $target.hullpercentage, $target.shield, $margin, $wingburst, $burst, this.assignedcontrolled.dps.lasers.all]" chance="if $fire != @$lastfire or $finishing != @$lastfinishing then 100 else 0"/>
       <set_value name="$lastfire" exact="$fire"/>
       <set_value name="$lastfinishing" exact="$finishing"/>
