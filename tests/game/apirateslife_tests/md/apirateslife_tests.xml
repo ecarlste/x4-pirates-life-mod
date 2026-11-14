@@ -2092,8 +2092,8 @@
     </library>
 
     <!-- Three wingmen starting around the target, 2 km out (SpawnWingAt2km): the hull checks of
-         CaptureWingHoldsFire (CheckWingHold), with three times the guns. The wing's burst covers all their
-         shots in flight, so from 80% hull and no shields the whole break is inside its margin,
+         CaptureWingHoldsFire (CheckWingHold), with three times the guns. The wing's burst covers
+         all their shots in flight, so from 80% hull and no shields the whole break is inside its margin,
          and until the hull is under 75% only one wingman (the finisher) may fire. -->
     <cue name="CaptureWingHoldsFireThreeWingmen">
       <conditions>
@@ -2188,8 +2188,8 @@
     </cue>
 
     <!-- #184, turreted wingmen: one wingman 2 km out (SpawnWingAt2km), the hull checks of
-         CaptureWingHoldsFire (CheckWingHold), and every shot of its guns and turrets counted by what the
-         wing should be doing when it's fired (TurretShotStage). Turrets hold fire from the fine
+         CaptureWingHoldsFire (CheckWingHold), and every shot of its guns and turrets counted by what
+         the wing should be doing when it's fired (TurretShotStage). Turrets hold fire from the fine
          stage on, so a turret shot more than 1 s after the wing left the break fails it (the
          shots on the frame it leaves are already on their way). Once the order ends, each turret
          must be back in the mode it started in (TurretTestDone). The setup also reports the
