@@ -2,7 +2,7 @@
 
 What we've learned about how vanilla X4 works, for designing and building against it. Notes can be WIP; say so in the status. Ideas in a note stay ideas: list design proposals in the PR description, and they go into [`DESIGN.md`](../DESIGN.md) only once Erik signs off (see [PROJECT.md, Workflow rules](../PROJECT.md#workflow-rules)).
 
-To look up an MD property or action, use `libraries/scriptproperties.xml` and `libraries/md.xsd` in the unpacked files ([environment.md, Paths](../environment.md#paths-eriks-machine)).
+To look up an MD property or action, use `libraries/scriptproperties.xml` and `libraries/md.xsd` in the unpacked files (the 8.00 tree for the SWI build; [environment.md, Paths](../environment.md#paths-eriks-machine)).
 
 | Note | Covers | Status |
 | --- | --- | --- |

@@ -4,9 +4,9 @@ Judgement calls a reviewer checks in a diff (`/mattpocock-skills:code-review` re
 
 ## MD scripts
 
-- **Every property an MD expression uses exists for its datatype** in the unpacked `libraries/scriptproperties.xml` ([docs/environment.md, Paths](docs/environment.md#paths-eriks-machine)). X4 reads an unknown property as null and gives no error, so `indexof` on a string (only lists and groups have it) silently checks nothing. Found in the release tests ([#187](https://github.com/ecarlste/x4-pirates-life-mod/pull/187)).
-- **A check in a game test has been seen failing at least once**, or the PR says its failing side is untested. A check that can't fail passes in X4 while proving nothing.
-- **MD reads 0 as null**: compare values that can be 0 as `'%s'` text, or with `?`. Otherwise a stored 0 and a missing value look the same, as `ReleaseLeftovers` found ([#176](https://github.com/ecarlste/x4-pirates-life-mod/issues/176)).
+- **Every property an MD expression uses exists for its datatype** in the unpacked 8.00 `libraries/scriptproperties.xml` ([docs/environment.md, Paths](docs/environment.md#paths-eriks-machine)). X4 reads an unknown property as null and gives no error, so `indexof` on a string (only lists and groups have it) silently checks nothing. Found in the release tests ([#187](https://github.com/ecarlste/x4-pirates-life-mod/pull/187)).
+- **A check in a game test has been seen failing at least once**, or the PR says its failing side is untested. A check that can't fail passes in X4 while proving nothing, as the `indexof` check above did ([#187](https://github.com/ecarlste/x4-pirates-life-mod/pull/187)).
+- **MD reads 0 as null**: compare values that can be 0 as `'%s'` text, or with `?`. Otherwise a stored 0 and a missing value look the same, as `ReleaseLeftovers` found ([#187](https://github.com/ecarlste/x4-pirates-life-mod/pull/187)).
 
 ## Scripts and tools (PowerShell, shell, TypeScript)
 
