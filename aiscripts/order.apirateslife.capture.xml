@@ -180,7 +180,8 @@
     <set_value name="$ended" exact="false"/>
     <set_value name="$burst" exact="0"/>
     <set_value name="$wingburst" exact="0"/>
-    <!-- Finisher: the guns it keeps in $weapongroup (longest-kept first), and the guns it took out -->
+    <!-- Finisher: the guns it keeps in $weapongroup (longest-kept first; not empty only in the fine
+         stage), and the guns it took out -->
     <set_value name="$keptguns" exact="[]"/>
     <set_value name="$removedguns" exact="[]"/>
     <set_value name="$weapongroup" exact="0"/>
@@ -228,7 +229,7 @@
 
       <!-- What may still land after we stop: about $burstseconds of our laser fire, in hitpoints.
            Recomputed each time, as weapons can be lost in the fight, but not while the finisher
-           has guns out of the group, as the DPS may then count only the one left. -->
+           has guns out of the group, as the DPS may then count only the guns left. -->
       <do_if value="not $keptguns.count">
         <set_value name="$burst" exact="this.assignedcontrolled.dps.lasers.all * $burstseconds"/>
       </do_if>
