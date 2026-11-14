@@ -50,6 +50,7 @@
   "tests/githooks.bats": [".githooks/**", "tests/helpers.bash", "tests/githooks.bats"],
   "tests/game-test-report.bats": ["tools/post-game-test-report.sh", "tests/helpers.bash", "tests/game-test-report.bats"],
   "tests/lua-checks.bats": ["tests/lua/run.sh", "tests/lua-checks.bats"],
+  "tests/run.bats": ["tests/run.sh", "tests/run.bats"],
   "tests/mod-xml.bats": ["content.xml", "md/**/*.xml", "aiscripts/**/*.xml", "libraries/**/*.xml", "t/**/*.xml", "tests/game/**/*.xml", "tests/mod-xml.bats"],
   "tests/test-plan.bats": [
     "tools/check_test_plan.py",
