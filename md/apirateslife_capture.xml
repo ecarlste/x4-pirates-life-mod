@@ -12,11 +12,12 @@
      which the wingman order and the bail hook (md/apirateslife_bail.xml) read. $gatestime is the
      time the target has spent inside the bail gates so far, not counting the stretch since
      $gatessince (null while it is outside them); $fear is the pilot's fear when the operation
-     started. Pressure turns them into bail pressure. $wingdps is the summed laser damage per
-     second of the wingmen still attacking the target (WingDps), kept current by Tick; each
-     wingman's order turns it into the wing's burst, what may still land after the wing stops.
+     started. Pressure turns them into bail pressure. $wingdps is the summed laser and turret
+     damage per second of the wingmen still attacking the target (WingDps: $full, and $now without
+     turrets holding fire), kept current by Tick; each wingman's order turns it into the wing's
+     burst, what may still land after the wing stops.
      $finisher is the one wingman that fires single shots inside that burst's margin (Finisher),
-     also kept by Tick.
+     also kept by Tick; null when no wingman has a forward gun.
      A global table, because X4 can't store script variables on a ship (only on NPCs), and AI
      scripts can read globals.
 
@@ -141,28 +142,34 @@
       </actions>
     </library>
 
-    <!-- The summed laser damage per second (dps.lasers.all) of the Members still running a capture
-         order on Target: what the whole wing may still land after it stops firing -->
+    <!-- The summed laser and turret damage per second (dps.lasers.all + dps.turrets.all) of the
+         Members still running a capture order on Target, as table[$full, $now]: $now leaves out
+         turrets their order holds, so it's what the whole wing may still land after it stops
+         firing. Not dps.all, which adds missiles: the order blocks them. -->
     <library name="WingDps" purpose="run_actions">
       <params>
         <param name="Target"/>
         <param name="Members"/>
       </params>
       <actions>
-        <set_value name="$Dps" exact="0"/>
+        <set_value name="$Full" exact="0"/>
+        <set_value name="$Held" exact="0"/>
         <do_for_each name="$Ship" in="$Members">
           <do_if value="@$Ship.isoperational and @$Ship.order.id == 'APiratesLife_Capture' and $Ship.order.$target == $Target">
-            <!-- The finisher's DPS from before it took guns out of its weapon group (its order sets it) -->
-            <set_value name="$Dps" exact="$Dps + (if @$Ship.pilot.$APiratesLife_Dps then $Ship.pilot.$APiratesLife_Dps else $Ship.dps.lasers.all)"/>
+            <!-- The order keeps it on the pilot, from before it took guns out of the weapon group
+                 or held its turrets' fire, with the part held; until it has, the ship's own -->
+            <set_value name="$Full" exact="$Full + (if @$Ship.pilot.$APiratesLife_Dps then $Ship.pilot.$APiratesLife_Dps else $Ship.dps.lasers.all + $Ship.dps.turrets.all)"/>
+            <set_value name="$Held" exact="$Held + @$Ship.pilot.$APiratesLife_HeldDps"/>
           </do_if>
         </do_for_each>
-        <return value="$Dps"/>
+        <return value="table[$full = $Full, $now = [$Full - $Held, 0].max]"/>
       </actions>
     </library>
 
     <!-- The wingman that finishes the break inside the wing's burst margin, one shot at a time:
          Current while it is still running a capture order on Target, else the closest Member that
-         is. Null if there is none. -->
+         is and has a forward gun (dps.lasers.all counts no turrets). Null if there is none: a wing
+         of turrets only stops at the margin, and the player finishes. -->
     <library name="Finisher" purpose="run_actions">
       <params>
         <param name="Target"/>
@@ -171,12 +178,12 @@
       </params>
       <actions>
         <set_value name="$Finisher" exact="null"/>
-        <do_if value="@$Current.isoperational and @$Current.order.id == 'APiratesLife_Capture' and $Current.order.$target == $Target">
+        <do_if value="@$Current.isoperational and @$Current.order.id == 'APiratesLife_Capture' and $Current.order.$target == $Target and $Current.dps.lasers.all gt 0">
           <set_value name="$Finisher" exact="$Current"/>
         </do_if>
         <do_else>
           <do_for_each name="$Ship" in="$Members">
-            <do_if value="@$Ship.isoperational and @$Ship.order.id == 'APiratesLife_Capture' and $Ship.order.$target == $Target and $Ship.sector == $Target.sector">
+            <do_if value="@$Ship.isoperational and @$Ship.order.id == 'APiratesLife_Capture' and $Ship.order.$target == $Target and $Ship.sector == $Target.sector and $Ship.dps.lasers.all gt 0">
               <do_if value="not $Finisher or $Ship.distanceto.{$Target} lt $Finisher.distanceto.{$Target}">
                 <set_value name="$Finisher" exact="$Ship"/>
               </do_if>
@@ -342,7 +349,7 @@
               <signal_cue_instantly cue="End" param="$Outcome"/>
             </do_if>
             <do_else>
-              <!-- The wing's laser damage, as wingmen die or leave the operation -->
+              <!-- The wing's damage, as wingmen die, leave the operation or hold their turrets -->
               <run_actions ref="WingDps" result="$WingDps">
                 <param name="Target" value="$Target"/>
                 <param name="Members" value="$Members"/>

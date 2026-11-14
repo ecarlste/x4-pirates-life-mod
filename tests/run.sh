@@ -24,6 +24,7 @@
 #   --windows-powershell  run the Pester suites in Windows PowerShell 5.1 (WSL; slower, serial)
 #   .bats files  run just those bats files (and the other suites as picked)
 # bats runs its test files in parallel when GNU parallel is installed (sudo apt install parallel).
+# The last line is the result: "All suites passed", or "FAILED: " and the failed suites in run order.
 
 set -eo pipefail
 
@@ -94,7 +95,9 @@ if [ ! -x "$BATS" ]; then
         https://github.com/bats-core/bats-core.git ".tools/bats-core-$BATS_VERSION"
 fi
 
-FAILED=0
+# The suites that failed, in the order they ran; the run's last line names them
+FAILED=
+fail() { FAILED="${FAILED:+$FAILED, }$1"; }
 
 # Prints the PowerShell 7 to use: pwsh from PATH, or Microsoft's Linux x64 build fetched into .tools/
 find_pwsh() {
@@ -178,7 +181,7 @@ if command -v parallel >/dev/null; then
     JOBS=(--jobs "$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)" --no-parallelize-within-files)
 fi
 if [ "$EXPLICIT" = 1 ] || [ ${#SUITES[@]} -gt 0 ]; then
-    "$BATS" "${JOBS[@]}" "$@" "${SUITES[@]}" || FAILED=1
+    "$BATS" "${JOBS[@]}" "$@" "${SUITES[@]}" || fail bats
 else
     echo "No bats suites needed"
 fi
@@ -187,20 +190,20 @@ echo "== shellcheck"
 if ! wanted shellcheck; then
     echo "No shell scripts changed"
 elif command -v shellcheck >/dev/null; then
-    shellcheck deploy.sh tests/run.sh tests/lua/run.sh tools/game-lock.sh tools/deploy-config.sh tools/post-game-test-report.sh tools/release.sh .githooks/pre-commit && shellcheck -s bash tests/*.bash tests/*.bats || FAILED=1
+    { shellcheck deploy.sh tests/run.sh tests/lua/run.sh tools/game-lock.sh tools/deploy-config.sh tools/post-game-test-report.sh tools/release.sh .githooks/pre-commit && shellcheck -s bash tests/*.bash tests/*.bats; } || fail shellcheck
 else
     echo "shellcheck not installed; skipping (CI runs it)"
 fi
 
-if wanted lua; then tests/lua/run.sh || FAILED=1; else echo "== Lua"; echo "No Lua checks needed"; fi
+if wanted lua; then tests/lua/run.sh || fail Lua; else echo "== Lua"; echo "No Lua checks needed"; fi
 
-if wanted typescript; then run_typescript || FAILED=1; else echo "== TypeScript"; echo "No TypeScript checks needed"; fi
+if wanted typescript; then run_typescript || fail TypeScript; else echo "== TypeScript"; echo "No TypeScript checks needed"; fi
 
 echo "== Doc paths"
 if ! wanted doc-paths; then
     echo "Nothing changed"
 elif command -v node >/dev/null; then
-    node tools/check-doc-paths.ts || FAILED=1
+    node tools/check-doc-paths.ts || fail "Doc paths"
 else
     echo "node not installed; skipping (CI runs it)"
 fi
@@ -209,7 +212,7 @@ echo "== Doc names"
 if ! wanted doc-names; then
     echo "Nothing changed"
 elif command -v node >/dev/null; then
-    node tools/check-doc-names.ts || FAILED=1
+    node tools/check-doc-names.ts || fail "Doc names"
 else
     echo "node not installed; skipping (CI runs it)"
 fi
@@ -218,9 +221,9 @@ echo "== Python unit tests"
 if [ ${#PYTHON_TESTS[@]} = 0 ]; then
     echo "No Python unit tests needed"
 elif [ "$ALL" = 1 ] && command -v python3 >/dev/null; then
-    PYTHONPATH=tools python3 -m unittest discover -s tests/python || FAILED=1
+    PYTHONPATH=tools python3 -m unittest discover -s tests/python || fail Python
 elif command -v python3 >/dev/null; then
-    PYTHONPATH=tools:tests/python python3 -m unittest "${PYTHON_TESTS[@]}" || FAILED=1
+    PYTHONPATH=tools:tests/python python3 -m unittest "${PYTHON_TESTS[@]}" || fail Python
 else
     echo "python3 not installed; skipping (CI runs them)"
 fi
@@ -228,15 +231,21 @@ fi
 if [ "$BASH_ONLY" = 0 ]; then
     # Started at the top, in the background; its output comes last
     echo "== Pester"
-    wait "$PESTER_PID" || FAILED=1
+    wait "$PESTER_PID" || fail Pester
     cat "$PESTER_LOG"
     rm -f "$PESTER_LOG"
 fi
 
-# Last, so it's the line people see: the generated test plan doesn't fail a local run, CI checks it
+# Just before the result: the generated test plan doesn't fail a local run, CI checks it
 if command -v python3 >/dev/null && ! python3 tools/test_plan_docs.py --check >/dev/null 2>&1; then
     echo
     echo "WARNING: the test-plan docs (docs/test-plan/) are out of date. Run make test-plan and commit the result; CI fails on this."
 fi
 
-exit "$FAILED"
+# Last, so a run read through tail still shows the result
+if [ -z "$FAILED" ]; then
+    echo "All suites passed"
+else
+    echo "FAILED: $FAILED"
+    exit 1
+fi
