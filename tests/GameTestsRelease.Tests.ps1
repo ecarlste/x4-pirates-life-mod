@@ -1,6 +1,6 @@
 # Tests for tools/run-game-tests.ps1's release sessions (-Release): reading their logs, the
-# existing_save_loads check, and the rewrites of the installed test extensions. Whole -Release runs
-# against a fake game are in RunGameTestsRelease.Tests.ps1.
+# existing_save_loads and save_plays_without_mod checks, and the rewrites of the installed test
+# extensions. Whole -Release runs against a fake game are in RunGameTestsRelease.Tests.ps1.
 
 BeforeAll {
     . (Join-Path $PSScriptRoot 'TestHelpers.ps1')
@@ -100,6 +100,13 @@ Describe 'Get-ExistingSaveCheck' {
         $check = Get-ExistingSaveCheck (Read-GameTestLog $script:WithoutMod) (Read-GameTestLog $with)
         $check.Passed | Should -BeFalse
         $check.Detail | Should -Be 'session 2 loaded no save; session 2 read no files from apirateslife, so the mod was off;'
+    }
+
+    It 'fails when session 2 ran no tests' {
+        $with = @($script:WithMod | Where-Object { $_ -cnotmatch 'PASS' }) -replace 'RUN START 2', 'RUN START 0' -replace 'passed=2', 'passed=0'
+        $check = Get-ExistingSaveCheck (Read-GameTestLog $script:WithoutMod) (Read-GameTestLog $with)
+        $check.Passed | Should -BeFalse
+        $check.Detail | Should -Be 'session 2 ran no tests;'
     }
 
     It 'fails when session 2''s tests failed or didn''t finish, or its log has errors from our files' {

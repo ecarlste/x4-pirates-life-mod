@@ -3652,22 +3652,16 @@
                 <set_value name="$Problems" exact="$Problems + ' %s is not mine and pirated;'.[$Ship.knownname]"/>
               </do_if>
             </do_for_each>
-            <!-- The mod's tables, by how many entries they have, and its settings, by value, as text
-                 since MD reads 0 as null (the release extension reads the same ones) -->
-            <set_value name="$Globals" exact="table[
-              $CaptureOps = '%s'.[@global.$APiratesLife_CaptureOps.keys.count],
-              $CaptureMetrics = '%s'.[@global.$APiratesLife_CaptureMetrics.count],
-              $PiratedShips = '%s'.[@global.$APiratesLife_PiratedShips.keys.count],
-              $BailedToPlayer = '%s'.[@global.$APiratesLife_BailedToPlayer.keys.count],
-              $BoardedByPlayer = '%s'.[@global.$APiratesLife_BoardedByPlayer.keys.count],
-              $IntactOnClaim = '%s'.[@global.$APiratesLife_IntactOnClaim],
-              $CaptureHoldHull = '%s'.[@global.$APiratesLife_CaptureHoldHull],
-              $CaptureFloorHull = '%s'.[@global.$APiratesLife_CaptureFloorHull],
-              $CapturePressureStep = '%s'.[@global.$APiratesLife_CapturePressureStep],
-              $CapturePressureCap = '%s'.[@global.$APiratesLife_CapturePressureCap],
-              $CapturePressureInterval = '%s'.[@global.$APiratesLife_CapturePressureInterval],
-              $CaptureFearDecayFactor = '%s'.[@global.$APiratesLife_CaptureFearDecayFactor],
-              $CaptureFearDecayInterval = '%s'.[@global.$APiratesLife_CaptureFearDecayInterval]]"/>
+            <!-- The mod's globals, the one list of them: each read as text (MD reads 0 as null), a
+                 table by how many keys it has, a list by how many entries, anything else by value.
+                 They're kept by their full names, so the release extension reads the same globals
+                 back by name in session 3, the same way. -->
+            <set_value name="$Globals" exact="table[]"/>
+            <do_for_each name="$Name" in="['CaptureOps', 'CaptureMetrics', 'PiratedShips', 'BailedToPlayer', 'BoardedByPlayer', 'IntactOnClaim', 'CaptureHoldHull', 'CaptureFloorHull', 'CapturePressureStep', 'CapturePressureCap', 'CapturePressureInterval', 'CaptureFearDecayFactor', 'CaptureFearDecayInterval']">
+              <set_value name="$Key" exact="'$APiratesLife_' + $Name"/>
+              <set_value name="$Value" exact="@global.{$Key}"/>
+              <set_value name="$Globals.{$Key}" exact="'%s'.[if typeof $Value == datatype.table then $Value.keys.count else if typeof $Value == datatype.list then $Value.count else $Value]"/>
+            </do_for_each>
             <set_value name="$Op" exact="@global.$APiratesLife_CaptureOps.{@$Running}"/>
             <set_value name="global.$APiratesLifeTest_Leftovers" exact="table[
               $taken = $Taken,
