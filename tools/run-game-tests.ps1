@@ -96,8 +96,10 @@
     mod switched on or off in the test profile, and the release test extension
     (tests/game/apirateslife_release_tests) starts or loads the game. Session 1 starts a new game
     without the mod and saves it (<profile>\save\apirateslife_release_1); session 2 loads that save
-    with the mod and runs ConfigAppliedOnStart and CaptureStartAndDestroyed on it. The
-    existing_save_loads check reads both logs, kept as debuglog.release-<n>.txt, and each session
+    with the mod, runs ConfigAppliedOnStart, CaptureStartAndDestroyed and ReleaseLeftovers on it
+    and saves it again (apirateslife_release_2); session 3 loads that save without the mod, plays
+    10 minutes and checks what the mod left in it. The existing_save_loads and
+    save_plays_without_mod checks read the logs, kept as debuglog.release-<n>.txt, and each session
     gets the log checks. A session that saves nothing stops the run. The profile is left with the
     mod and the game tests on. Takes no -Test, -Repeat or -KeepExtension.
 
@@ -151,7 +153,7 @@ $SwiFolder = 'starwarsmod_m1'
 # save it wrote (Saved, or SaveFailed with why), the save it asked to load (LoadingSave) and the
 # module of the game it loaded (Loaded).
 function Read-GameTestLog([string[]] $Lines) {
-    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0; FirstRead = @{}; Extensions = @(); Saved = ''; SaveFailed = ''; LoadingSave = ''; Loaded = '' }
+    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0; FirstRead = @{}; Extensions = @(); Saved = ''; SaveFailed = ''; LoadingSave = ''; Loaded = ''; Allowed = @() }
     $extensions = @{}
     $results = New-Object System.Collections.ArrayList
     $errors = New-Object System.Collections.ArrayList
@@ -299,7 +301,8 @@ function Get-LogChecks($Run) {
              else { "SWI read first for all $($shared.Count) files both patch" }
     New-LogCheck 'load_order_after_swi' ($shared.Count -and -not $early.Count) $order
     $count = if ($Run.Errors.Count) { $Run.Errors.Count } else { 'no' }
-    New-LogCheck 'clean_log' (-not $Run.Errors.Count) "$count errors or warnings from our files in debuglog.txt" $Run.Errors
+    $allowed = if ($Run.Allowed.Count) { " ($($Run.Allowed.Count) allowed in this session)" } else { '' }
+    New-LogCheck 'clean_log' (-not $Run.Errors.Count) "$count errors or warnings from our files in debuglog.txt$allowed" $Run.Errors
     $others = @($Run.Extensions | Where-Object { -not (Test-AllowedInSwiOnlyRun $_) })
     $swiRead = $Run.Extensions -contains $SwiFolder
     $detail = if ($others.Count) { "files read from other extensions: $($others -join ', ')" }
@@ -325,6 +328,26 @@ function Get-ExistingSaveCheck($Without, $With) {
     $detail = if ($problems.Count) { ($problems -join '; ') + ';' }
               else { "saved $($Without.Saved) without the mod, loaded it with the mod: $($With.Results.Count) tests passed, no errors or warnings from our files" }
     New-LogCheck 'existing_save_loads' (-not $problems.Count) $detail
+}
+
+# The release check for an uninstall (-Release): session 2 saved a game with the mod, and session
+# 3 loaded that save without it and ran the release extension's checks on it, all passing, with no
+# errors or warnings from our files in its log
+function Get-UninstallCheck($With, $Without) {
+    $problems = @()
+    if (-not $With.Saved) { $problems += "session 2 saved nothing ($(if ($With.SaveFailed) { $With.SaveFailed } else { 'no SAVED line' }))" }
+    if ($With.Extensions -notcontains $ModId) { $problems += "session 2 read no files from $ModId, so the mod was off" }
+    if (-not $Without.Loaded) { $problems += 'session 3 loaded no save' }
+    elseif ($With.Saved -and $Without.LoadingSave -ne $With.Saved) { $problems += "session 3 loaded $($Without.LoadingSave), not $($With.Saved)" }
+    if ($Without.Extensions -contains $ModId) { $problems += "session 3 read files from $ModId, so the mod was on" }
+    if (-not $Without.Done) { $problems += "session 3's checks didn't finish" }
+    if (-not $Without.Results.Count) { $problems += 'session 3 ran no checks' }
+    $failed = @($Without.Results | Where-Object { -not $_.Passed })
+    if ($failed.Count) { $problems += "$($failed.Count) of session 3's checks failed: $(($failed | ForEach-Object { $_.Name }) -join ', ')" }
+    if ($Without.Errors.Count) { $problems += "$($Without.Errors.Count) errors or warnings from our files in session 3's log" }
+    $detail = if ($problems.Count) { ($problems -join '; ') + ';' }
+              else { "saved $($With.Saved) with the mod, loaded it without: $($Without.Results.Count) checks passed, no errors or warnings from our files" }
+    New-LogCheck 'save_plays_without_mod' (-not $problems.Count) $detail
 }
 
 # Whether an extension folder belongs in an SWI-only run: an Egosoft DLC, SWI, the mod or a test
@@ -413,7 +436,7 @@ function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
         "### Game tests: $(if ($ok) { 'passed' } else { 'FAILED' }), $passed of $total"
         ''
         if ($Info.Selected) { 'Selected tests only (`-Test`, `-Repeat`), not the whole suite.'; '' }
-        if ($Info.Release) { 'Release sessions (`-Release`): a save made without the mod, loaded with it. Not the game test suite.'; '' }
+        if ($Info.Release) { 'Release sessions (`-Release`): a save made without the mod, loaded with it, then saved and loaded without it. Not the game test suite.'; '' }
         "Commit ``$short`` on ``$($Info.Branch)``$(if ($Info.Dirty) { ' **plus uncommitted changes**' }), X4 $(if ($Run.GameVersion) { $Run.GameVersion } else { 'version unknown' }), ${minutes} min ${seconds} s, $($Info.StartedAt.ToString('yyyy-MM-dd HH:mm'))"
         ''
         '| Test | Result | Detail |'
@@ -636,16 +659,34 @@ function Watch-GameRun($Game, [string] $LogPath, [double] $PollSeconds, [int] $T
 
 # The release sessions (-Release), one game session each, in order: whether the mod is on (Mod; the
 # game tests' extension needs it, so it's on with it), what the release extension starts (New),
-# loads (Load) and saves (Save), and the harness's tests to run with the mod (Tests)
-$ReleaseSave = 'apirateslife_release_1'
-
+# loads (Load) and saves (Save), the harness's tests to run with the mod (Tests), and the errors
+# from our files its log may hold (AllowedErrors, as X4 logs them after the channel and time).
+# Without the mod, the release extension runs its own checks on a loaded save that holds the
+# harness's leftovers (ReleaseLeftovers); X4 logs that it can't import the running operation's
+# wingman's capture order. Every save is named apirateslife_release_<n>.
 function Get-ReleaseSessions {
     @(
         [pscustomobject]@{ Number = 1; Name = 'a new game without the mod, saved'; Mod = $false
-                           New = 'apirateslife_release_test'; Load = ''; Save = $ReleaseSave; Tests = @() }
-        [pscustomobject]@{ Number = 2; Name = 'that save loaded with the mod, and capture tests run on it'; Mod = $true
-                           New = ''; Load = $ReleaseSave; Save = ''; Tests = @('ConfigAppliedOnStart', 'CaptureStartAndDestroyed') }
+                           New = 'apirateslife_release_test'; Load = ''; Save = 'apirateslife_release_1'; Tests = @(); AllowedErrors = @() }
+        [pscustomobject]@{ Number = 2; Name = 'that save loaded with the mod, capture tests run on it, saved again'; Mod = $true
+                           New = ''; Load = 'apirateslife_release_1'; Save = 'apirateslife_release_2'
+                           Tests = @('ConfigAppliedOnStart', 'CaptureStartAndDestroyed', 'ReleaseLeftovers'); AllowedErrors = @() }
+        [pscustomobject]@{ Number = 3; Name = 'the second save loaded without the mod, and played'; Mod = $false
+                           New = ''; Load = 'apirateslife_release_2'; Save = ''; Tests = @()
+                           AllowedErrors = @(
+                               "Error importing AI order [0xc]: Order definition 'APiratesLife_Capture' not found"
+                               "Error on AI director import: AI script name 'order.apirateslife.capture' not found") }
     )
+}
+
+# The run with the errors its session allows moved out of Errors, into Allowed: lines whose text
+# after the log channel and time is exactly one of the session's AllowedErrors
+function Remove-AllowedErrors($Run, $Session) {
+    $allowed = @($Session.AllowedErrors)
+    $isAllowed = { param($line) $allowed -ccontains ($line -replace '^\[[^\]]*\]\s+[\d.]+\s+', '') }
+    $Run.Allowed = @($Run.Errors | Where-Object { & $isAllowed $_ })
+    $Run.Errors = @($Run.Errors | Where-Object { -not (& $isAllowed $_) })
+    $Run
 }
 
 # A session's log checks, named for the session; the load order only where the mod was on
@@ -837,7 +878,7 @@ try {
         Write-Host "Off in the test profile, so the run is SWI-only: $($others -join ', ')"
     }
     # A save left by an earlier release run would let a session load it after its own save failed
-    if ($Release) { Remove-Item (Join-Path $profileDir "save/$ReleaseSave.*") -Force -ErrorAction SilentlyContinue }
+    if ($Release) { Remove-Item (Join-Path $profileDir 'save/apirateslife_release_*') -Force -ErrorAction SilentlyContinue }
 
     $startedAt = Get-Date
     foreach ($session in $sessions) {
@@ -860,10 +901,13 @@ finally {
 
 $total = ((Get-Date) - $startedAt).TotalSeconds
 if ($Release) {
-    $runs = @($sessionResults | ForEach-Object { $_.Run })
+    $runs = @(for ($i = 0; $i -lt $sessionResults.Count; $i++) { Remove-AllowedErrors $sessionResults[$i].Run $sessions[$i] })
     $run = Join-SessionRuns $runs
     $checks = @(for ($i = 0; $i -lt $runs.Count; $i++) { Get-SessionLogChecks $runs[$i] $sessions[$i] })
-    $checks += Get-ExistingSaveCheck $runs[0] $(if ($runs.Count -gt 1) { $runs[1] } else { Read-GameTestLog @() })
+    # A session that didn't run (the one before it saved nothing) reads as an empty log
+    $runOrEmpty = { param($i) if ($runs.Count -gt $i) { $runs[$i] } else { Read-GameTestLog @() } }
+    $checks += Get-ExistingSaveCheck $runs[0] (& $runOrEmpty 1)
+    $checks += Get-UninstallCheck (& $runOrEmpty 1) (& $runOrEmpty 2)
     $run.Results = @($run.Results) + $checks
     $run.Expected += $checks.Count
     $ending = @(for ($i = 0; $i -lt $sessionResults.Count; $i++) { "session $($i + 1): $($sessionResults[$i].Ending)" }) -join ', '

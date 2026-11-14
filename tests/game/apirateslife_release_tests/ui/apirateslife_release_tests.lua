@@ -1,7 +1,7 @@
 -- Starts or loads the release session's game straight from the main menu, and saves it when MD
 -- asks (md/apirateslife_release_tests.xml). The UI is rebuilt for every module (main menu, game), so
 -- this runs once per module: in the main menu it starts or loads, in the game it serves
--- "apirateslife_release_tests.save".
+-- "apirateslife_release_tests.save" and "apirateslife_release_tests.missions".
 
 local ffi = require("ffi")
 local C = ffi.C
@@ -50,8 +50,28 @@ local function save()
 	AddUITriggeredEvent("apirateslife_release_tests", "save", file)
 end
 
+-- Answers MD with the player's missions, as the mission menus list them: "<id> <name>", joined by
+-- " | ", or "none". The control is "missions_with_operation" if one of them is a capture
+-- operation's, else "missions": its name came from page 1774100 ("Capture: <target>"), so it holds
+-- the target's name (MD's param; MD strings can't be searched) or, with its texts gone, the page
+local function missions(_, target)
+	local list = {}
+	local operation = false
+	for i = 1, GetNumMissions() do
+		local missionid, name = GetMissionDetails(i)
+		name = tostring(name)
+		if string.find(name, "1774100", 1, true) or (target and target ~= "" and string.find(name, target, 1, true)) then
+			operation = true
+		end
+		table.insert(list, tostring(missionid) .. " " .. name)
+	end
+	local control = operation and "missions_with_operation" or "missions"
+	AddUITriggeredEvent("apirateslife_release_tests", control, #list > 0 and table.concat(list, " | ") or "none")
+end
+
 local function init()
 	RegisterEvent("apirateslife_release_tests.save", save)
+	RegisterEvent("apirateslife_release_tests.missions", missions)
 	local module = ffi.string(C.GetGameStartName())
 	if module ~= "startmenu" then
 		return
