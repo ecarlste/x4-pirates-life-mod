@@ -75,7 +75,18 @@
           PiratedBailThenClaim,
           PiratedBoarding,
           PiratedClaimWithoutBail,
-          ReleaseLeftovers
+          ReleaseLeftovers,
+          ChkFractionalRoll,
+          ChkWingBailsLN,
+          ChkWingBailsX1,
+          ChkWingBailsGauntlet,
+          ChkSwiDespawn,
+          ChkDockedBoarding,
+          ChkNpcBailHook,
+          ChkTickWaitsAway,
+          ChkTurretOnlyWing,
+          ChkTurretsAtZero,
+          ChkFollowerNoMissiles
         ]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$Passed" exact="0"/>
@@ -3924,5 +3935,1091 @@
         </cue>
       </cues>
     </cue>
+
+    <!-- ===== One-off release checks for 1.00 (spike/release-1.00-checks, not for main) ===== -->
+
+    <!-- X4 rolls a fractional chance as it is: 10,000 rolls each at 0.5, 1.5 and 0, the way SWI
+         rolls ($chance in a do_if's chance attribute) -->
+    <cue name="ChkFractionalRoll">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="$Results" exact="[]"/>
+        <do_for_each name="$C" in="[0.5, 1.5, 0]">
+          <set_value name="$Hits" exact="0"/>
+          <do_all exact="10000">
+            <do_if value="true" chance="$C">
+              <set_value name="$Hits" operation="add"/>
+            </do_if>
+          </do_all>
+          <append_to_list name="$Results" exact="$Hits"/>
+        </do_for_each>
+        <set_value name="$Ok" exact="$Results.{1} gt 0 and $Results.{3} == 0"/>
+        <signal_cue_instantly cue="Report" param="table[$name = 'chk_fractional_roll', $ok = $Ok, $detail = 'successes in 10000 rolls: at 0.5%% %s (expect ~50), at 1.5%% %s (expect ~150), at 0%% %s'.[$Results.{1}, $Results.{2}, $Results.{3}]]"/>
+      </actions>
+    </cue>
+
+    <!-- A real capture: one X-wing wingman, the player nearby, a full-health target, no forced
+         bail. Measures time to the gates, hit events, checks and shield knock-downs. -->
+    <library name="ChkWingBailSetup" purpose="run_actions">
+      <params>
+        <param name="Macro"/>
+        <param name="Wingmen" default="1"/>
+      </params>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
+        <set_value name="$List" exact="[]"/>
+        <do_all exact="$Wingmen" counter="$i">
+          <create_ship name="$Wingman" macro="t65b_xwing_macro" sector="player.sector">
+            <owner exact="faction.player" overridenpc="true"/>
+            <loadout ref="apirateslife_test_xwing_lasers"/>
+            <pilot>
+              <select faction="faction.galempire" tags="tag.aipilot"/>
+            </pilot>
+            <safepos object="player.occupiedship" x="-1km * $i" allowyaxis="true"/>
+          </create_ship>
+          <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
+          <append_to_list name="$List" exact="$Wingman"/>
+        </do_all>
+        <create_ship name="$Target" macro="$Macro" sector="player.sector" capturable="true">
+          <owner exact="faction.galempire" overridenpc="true"/>
+          <loadout>
+            <level exact="1.0"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" z="3km" allowyaxis="true"/>
+        </create_ship>
+        <create_order id="'Wait'" object="$Target" default="true">
+          <param name="noattackresponse" value="true"/>
+        </create_order>
+        <return value="table[$wingmen = $List, $target = $Target, $start = null, $gatesat = null, $gatessecs = 0, $hits = 0, $gatehits = 0, $checks = [], $knock = [], $up = true, $bailat = null, $minhull = 100]"/>
+      </actions>
+    </library>
+
+    <library name="ChkWingBailWatch" purpose="run_actions">
+      <params>
+        <param name="R"/>
+      </params>
+      <actions>
+        <set_value name="$T" exact="$R.$target"/>
+        <do_if value="not $T.isoperational">
+          <return value="false"/>
+        </do_if>
+        <run_actions ref="md.APiratesLife_Capture.InGates" result="$In">
+          <param name="Target" value="$T"/>
+        </run_actions>
+        <set_value name="$R.$minhull" exact="[$R.$minhull, $T.hullpercentage].min"/>
+        <do_if value="$In">
+          <do_if value="$R.$gatesat == null">
+            <set_value name="$R.$gatesat" exact="player.age - $R.$start"/>
+          </do_if>
+          <set_value name="$R.$gatessecs" operation="add"/>
+        </do_if>
+        <!-- A knock-down: shields from 20% or more to under 20% -->
+        <do_if value="$T.maxshield">
+          <do_if value="$R.$up and $T.shieldpercentage lt 20">
+            <append_to_list name="$R.$knock" exact="(player.age - $R.$start)i"/>
+            <set_value name="$R.$up" exact="false"/>
+          </do_if>
+          <do_elseif value="not $R.$up and $T.shieldpercentage ge 20">
+            <set_value name="$R.$up" exact="true"/>
+          </do_elseif>
+        </do_if>
+        <debug_text text="'[apirateslife-test] chk trace: t %s, hull %s%%, shields %s%%, in gates %s, hits %s; wingman %s m away, %s m/s, order %s, may attack %s, enemy %s, stage %s'.[(player.age - $R.$start)i, $T.hullpercentage, $T.shieldpercentage, $In, $R.$hits, $R.$wingmen.{1}.distanceto.{$T}, $R.$wingmen.{1}.speed, @$R.$wingmen.{1}.order.id, $R.$wingmen.{1}.mayattack.{$T}, $R.$wingmen.{1}.hasrelation.enemy.{$T}, @global.$APiratesLife_CaptureOps.{$T}.$stage]" filter="general"/>
+        <return value="$In"/>
+      </actions>
+    </library>
+
+    <library name="ChkWingBailDetail" purpose="run_actions">
+      <params>
+        <param name="R"/>
+        <param name="Outcome"/>
+        <param name="Hull"/>
+      </params>
+      <actions>
+        <set_value name="$Gaps" exact="[]"/>
+        <do_all exact="$R.$knock.count - 1" counter="$i">
+          <append_to_list name="$Gaps" exact="$R.$knock.{$i + 1} - $R.$knock.{$i}"/>
+        </do_all>
+        <set_value name="$Rate" exact="if $R.$gatessecs gt 0 then ($R.$gatehits)f / $R.$gatessecs else 0"/>
+        <return value="'%s %s: outcome %s, hull %s%% (lowest %s%%), gates at %s s, %s s in gates, hits %s (%s in gates, %s/s), checks %s at %s, knock-downs at %s, gaps %s'.[$R.$target.macro.id, $R.$target.idcode, $Outcome, $Hull, $R.$minhull, $R.$gatesat, $R.$gatessecs, $R.$hits, $R.$gatehits, $Rate, $R.$checks.count, $R.$checks, $R.$knock, $Gaps]"/>
+      </actions>
+    </library>
+
+    <!-- The cue for one hull; copies below for the other hulls -->
+    <cue name="ChkWingBailsLN">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="ChkWingBailSetup" result="$R">
+          <param name="Macro" value="macro.tie_fighter_macro"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="ChkWingBailsLN_Start">
+          <delay exact="2s"/>
+          <actions>
+            <set_value name="$R.$start" exact="player.age"/>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$R.$target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="ChkWingBailsLN_Hit" instantiate="true">
+              <conditions>
+                <check_any>
+                  <event_player_owned_attacked_object/>
+                  <event_object_signalled object="player.galaxy" param3="'shouldwebail'"/>
+                </check_any>
+                <check_value value="event.param2 == $R.$target"/>
+              </conditions>
+              <actions>
+                <set_value name="$R.$hits" operation="add"/>
+                <run_actions ref="md.APiratesLife_Capture.InGates" result="$In">
+                  <param name="Target" value="$R.$target"/>
+                </run_actions>
+                <do_if value="$In">
+                  <set_value name="$R.$gatehits" operation="add"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsLN_Checked" instantiate="true">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Metrics.BailChecked"/>
+                <check_value value="event.param.$target == $R.$target"/>
+              </conditions>
+              <actions>
+                <append_to_list name="$R.$checks" exact="(player.age - $R.$start)i"/>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsLN_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="ChkWingBailWatch">
+                  <param name="R" value="$R"/>
+                </run_actions>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsLN_Ended">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+                <check_value value="event.param.$target == $R.$target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="ChkWingBailsLN_Timeout"/>
+                <signal_cue_instantly cue="ChkWingBailsLN_Done" param="event.param.$outcome"/>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsLN_Timeout">
+              <delay exact="300s"/>
+              <actions>
+                <signal_cue_instantly cue="ChkWingBailsLN_Done" param="'timeout'"/>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsLN_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="ChkWingBailsLN_Watch"/>
+                <cancel_cue cue="ChkWingBailsLN_Ended"/>
+                <remove_value name="global.$APiratesLife_CaptureDebug"/>
+                <cancel_cue cue="ChkWingBailsLN_Hit"/>
+                <cancel_cue cue="ChkWingBailsLN_Checked"/>
+                <set_value name="$Hull" exact="if $R.$target.isoperational then $R.$target.hullpercentage else 0"/>
+                <run_actions ref="ChkWingBailDetail" result="$Detail">
+                  <param name="R" value="$R"/>
+                  <param name="Outcome" value="event.param"/>
+                  <param name="Hull" value="$Hull"/>
+                </run_actions>
+                <signal_cue_instantly cue="Report" param="table[$name = 'chk_wing_bails_ln', $ok = (event.param == 'abandoned' and $Hull ge 35 and $Started), $detail = $Detail]"/>
+                <do_for_each name="$Ship" in="$R.$wingmen">
+                  <do_if value="$Ship.exists">
+                    <destroy_object object="$Ship"/>
+                  </do_if>
+                </do_for_each>
+                <do_if value="$R.$target.exists">
+                  <destroy_object object="$R.$target"/>
+                </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- TIE Advanced -->
+    <cue name="ChkWingBailsX1">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="ChkWingBailSetup" result="$R">
+          <param name="Macro" value="macro.tie_advanced_macro"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="ChkWingBailsX1_Start">
+          <delay exact="2s"/>
+          <actions>
+            <set_value name="$R.$start" exact="player.age"/>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$R.$target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="ChkWingBailsX1_Hit" instantiate="true">
+              <conditions>
+                <check_any>
+                  <event_player_owned_attacked_object/>
+                  <event_object_signalled object="player.galaxy" param3="'shouldwebail'"/>
+                </check_any>
+                <check_value value="event.param2 == $R.$target"/>
+              </conditions>
+              <actions>
+                <set_value name="$R.$hits" operation="add"/>
+                <run_actions ref="md.APiratesLife_Capture.InGates" result="$In">
+                  <param name="Target" value="$R.$target"/>
+                </run_actions>
+                <do_if value="$In">
+                  <set_value name="$R.$gatehits" operation="add"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsX1_Checked" instantiate="true">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Metrics.BailChecked"/>
+                <check_value value="event.param.$target == $R.$target"/>
+              </conditions>
+              <actions>
+                <append_to_list name="$R.$checks" exact="(player.age - $R.$start)i"/>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsX1_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="ChkWingBailWatch">
+                  <param name="R" value="$R"/>
+                </run_actions>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsX1_Ended">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+                <check_value value="event.param.$target == $R.$target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="ChkWingBailsX1_Timeout"/>
+                <signal_cue_instantly cue="ChkWingBailsX1_Done" param="event.param.$outcome"/>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsX1_Timeout">
+              <delay exact="300s"/>
+              <actions>
+                <signal_cue_instantly cue="ChkWingBailsX1_Done" param="'timeout'"/>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsX1_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="ChkWingBailsX1_Watch"/>
+                <cancel_cue cue="ChkWingBailsX1_Ended"/>
+                <remove_value name="global.$APiratesLife_CaptureDebug"/>
+                <cancel_cue cue="ChkWingBailsX1_Hit"/>
+                <cancel_cue cue="ChkWingBailsX1_Checked"/>
+                <set_value name="$Hull" exact="if $R.$target.isoperational then $R.$target.hullpercentage else 0"/>
+                <run_actions ref="ChkWingBailDetail" result="$Detail">
+                  <param name="R" value="$R"/>
+                  <param name="Outcome" value="event.param"/>
+                  <param name="Hull" value="$Hull"/>
+                </run_actions>
+                <signal_cue_instantly cue="Report" param="table[$name = 'chk_wing_bails_x1', $ok = (event.param == 'abandoned' and $Hull ge 35 and $Started), $detail = $Detail]"/>
+                <do_for_each name="$Ship" in="$R.$wingmen">
+                  <do_if value="$Ship.exists">
+                    <destroy_object object="$Ship"/>
+                  </do_if>
+                </do_for_each>
+                <do_if value="$R.$target.exists">
+                  <destroy_object object="$R.$target"/>
+                </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Gauntlet (M), two wingmen -->
+    <cue name="ChkWingBailsGauntlet">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="ChkWingBailSetup" result="$R">
+          <param name="Macro" value="macro.gauntlet_macro"/>
+          <param name="Wingmen" value="2"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="ChkWingBailsGauntlet_Start">
+          <delay exact="2s"/>
+          <actions>
+            <set_value name="$R.$start" exact="player.age"/>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$R.$target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="ChkWingBailsGauntlet_Hit" instantiate="true">
+              <conditions>
+                <check_any>
+                  <event_player_owned_attacked_object/>
+                  <event_object_signalled object="player.galaxy" param3="'shouldwebail'"/>
+                </check_any>
+                <check_value value="event.param2 == $R.$target"/>
+              </conditions>
+              <actions>
+                <set_value name="$R.$hits" operation="add"/>
+                <run_actions ref="md.APiratesLife_Capture.InGates" result="$In">
+                  <param name="Target" value="$R.$target"/>
+                </run_actions>
+                <do_if value="$In">
+                  <set_value name="$R.$gatehits" operation="add"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsGauntlet_Checked" instantiate="true">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Metrics.BailChecked"/>
+                <check_value value="event.param.$target == $R.$target"/>
+              </conditions>
+              <actions>
+                <append_to_list name="$R.$checks" exact="(player.age - $R.$start)i"/>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsGauntlet_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="ChkWingBailWatch">
+                  <param name="R" value="$R"/>
+                </run_actions>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsGauntlet_Ended">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+                <check_value value="event.param.$target == $R.$target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="ChkWingBailsGauntlet_Timeout"/>
+                <signal_cue_instantly cue="ChkWingBailsGauntlet_Done" param="event.param.$outcome"/>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsGauntlet_Timeout">
+              <delay exact="300s"/>
+              <actions>
+                <signal_cue_instantly cue="ChkWingBailsGauntlet_Done" param="'timeout'"/>
+              </actions>
+            </cue>
+            <cue name="ChkWingBailsGauntlet_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="ChkWingBailsGauntlet_Watch"/>
+                <cancel_cue cue="ChkWingBailsGauntlet_Ended"/>
+                <remove_value name="global.$APiratesLife_CaptureDebug"/>
+                <cancel_cue cue="ChkWingBailsGauntlet_Hit"/>
+                <cancel_cue cue="ChkWingBailsGauntlet_Checked"/>
+                <set_value name="$Hull" exact="if $R.$target.isoperational then $R.$target.hullpercentage else 0"/>
+                <run_actions ref="ChkWingBailDetail" result="$Detail">
+                  <param name="R" value="$R"/>
+                  <param name="Outcome" value="event.param"/>
+                  <param name="Hull" value="$Hull"/>
+                </run_actions>
+                <signal_cue_instantly cue="Report" param="table[$name = 'chk_wing_bails_gauntlet', $ok = (event.param == 'abandoned' and $Hull ge 35 and $Started), $detail = $Detail]"/>
+                <do_for_each name="$Ship" in="$R.$wingmen">
+                  <do_if value="$Ship.exists">
+                    <destroy_object object="$Ship"/>
+                  </do_if>
+                </do_for_each>
+                <do_if value="$R.$target.exists">
+                  <destroy_object object="$R.$target"/>
+                </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- SWI destroys an unclaimed bailed ship 30-70 min after its bail and keeps a claimed one.
+         SWI sweeps its list only when another bail happens, so a third and fourth bail at 29 and
+         71 min do the sweeps. -->
+    <cue name="ChkSwiDespawn">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="SpawnBailPair" result="$A"/>
+        <run_actions ref="SpawnBailPair" result="$B"/>
+        <set_value name="$Problems" exact="''"/>
+        <set_value name="$Notes" exact="''"/>
+      </actions>
+      <cues>
+        <cue name="ChkSwiDespawn_BailA">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="ForceBail">
+              <param name="Attacker" value="$A.$attacker"/>
+              <param name="Target" value="$A.$target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="ChkSwiDespawn_BailedA">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+                <check_value value="event.param.$target == $A.$target"/>
+              </conditions>
+              <delay exact="1s"/>
+              <actions>
+                <set_value name="$T0" exact="player.age"/>
+                <run_actions ref="ForceBail">
+                  <param name="Attacker" value="$B.$attacker"/>
+                  <param name="Target" value="$B.$target"/>
+                </run_actions>
+              </actions>
+              <cues>
+                <cue name="ChkSwiDespawn_BailedB">
+                  <conditions>
+                    <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+                    <check_value value="event.param.$target == $B.$target"/>
+                  </conditions>
+                  <delay exact="1s"/>
+                  <actions>
+                    <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                    <set_owner object="$B.$target" faction="faction.player"/>
+                    <destroy_object object="$A.$attacker"/>
+                    <destroy_object object="$B.$attacker"/>
+                    <signal_cue cue="ChkSwiDespawn_Sweep29"/>
+                    <signal_cue cue="ChkSwiDespawn_Sweep71"/>
+                    <debug_text text="'[apirateslife-test] chk despawn: A %s owner %s, B %s owner %s at %s'.[$A.$target.idcode, $A.$target.trueowner, $B.$target.idcode, $B.$target.trueowner, player.age]" filter="general"/>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+            <!-- Sweep at 29 min: A must still be there -->
+            <cue name="ChkSwiDespawn_Sweep29">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <delay exact="29min"/>
+              <actions>
+                <run_actions ref="SpawnBailPair" result="$C"/>
+              </actions>
+              <cues>
+                <cue name="ChkSwiDespawn_BailC">
+                  <delay exact="2s"/>
+                  <actions>
+                    <run_actions ref="ForceBail">
+                      <param name="Attacker" value="$C.$attacker"/>
+                      <param name="Target" value="$C.$target"/>
+                    </run_actions>
+                  </actions>
+                </cue>
+                <cue name="ChkSwiDespawn_BailedC">
+                  <conditions>
+                    <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+                    <check_value value="event.param.$target == $C.$target"/>
+                  </conditions>
+                  <delay exact="2s"/>
+                  <actions>
+                    <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                    <set_value name="$Notes" exact="$Notes + ' at %s min: A exists %s, B exists %s;'.[((player.age - $T0) / 60)i, $A.$target.exists, $B.$target.exists]"/>
+                    <do_if value="not $A.$target.exists">
+                      <set_value name="$Problems" exact="$Problems + ' A gone before 30 min;'"/>
+                    </do_if>
+                    <destroy_object object="$C.$attacker"/>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+            <!-- Sweep at 71 min: A must be gone, B still mine -->
+            <cue name="ChkSwiDespawn_Sweep71">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <delay exact="71min"/>
+              <actions>
+                <run_actions ref="SpawnBailPair" result="$D"/>
+              </actions>
+              <cues>
+                <cue name="ChkSwiDespawn_BailD">
+                  <delay exact="2s"/>
+                  <actions>
+                    <run_actions ref="ForceBail">
+                      <param name="Attacker" value="$D.$attacker"/>
+                      <param name="Target" value="$D.$target"/>
+                    </run_actions>
+                  </actions>
+                </cue>
+                <cue name="ChkSwiDespawn_BailedD">
+                  <conditions>
+                    <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+                    <check_value value="event.param.$target == $D.$target"/>
+                  </conditions>
+                  <delay exact="2s"/>
+                  <actions>
+                    <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                    <set_value name="$Notes" exact="$Notes + ' at %s min: A exists %s, B exists %s and mine %s;'.[((player.age - $T0) / 60)i, $A.$target.exists, $B.$target.exists, @$B.$target.isplayerowned]"/>
+                    <do_if value="$A.$target.exists">
+                      <set_value name="$Problems" exact="$Problems + ' A still there after 70 min;'"/>
+                    </do_if>
+                    <do_if value="not $B.$target.exists or not $B.$target.isplayerowned">
+                      <set_value name="$Problems" exact="$Problems + ' claimed B lost;'"/>
+                    </do_if>
+                    <cancel_cue cue="ChkSwiDespawn_Timeout"/>
+                    <signal_cue_instantly cue="Report" param="table[$name = 'chk_swi_despawn', $ok = ($Problems == ''), $detail = (if $Problems == '' then $Notes else $Problems + $Notes)]"/>
+                    <destroy_object object="$D.$attacker"/>
+                    <do_for_each name="$Ship" in="[$A.$target, $B.$target, $C.$target, $D.$target]">
+                      <do_if value="$Ship.exists">
+                        <destroy_object object="$Ship"/>
+                      </do_if>
+                    </do_for_each>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+          </cues>
+        </cue>
+        <cue name="ChkSwiDespawn_Timeout">
+          <delay exact="80min"/>
+          <actions>
+            <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'chk_swi_despawn', $ok = false, $detail = 'did not finish in 80 min:' + $Problems + $Notes]"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A capturable fighter docked at a Gozanti I board: vanilla's own Transfer_Ownership (the
+         end of a boarding) hands both over; the fighter must be marked pirated by boarding -->
+    <cue name="ChkDockedBoarding">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <create_ship name="$Carrier" macro="impgozanti_cr_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.galempire" overridenpc="true"/>
+          <loadout>
+            <level exact="0.5"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" z="4km" allowyaxis="true"/>
+        </create_ship>
+        <create_order id="'Wait'" object="$Carrier" default="true">
+          <param name="noattackresponse" value="true"/>
+        </create_order>
+        <create_ship name="$Fighter" macro="tie_fighter_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.galempire" overridenpc="true"/>
+          <loadout>
+            <level exact="0.5"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" z="-6km" allowyaxis="true"/>
+        </create_ship>
+        <find_dockingbay name="$Bays" object="$Carrier" multiple="true"/>
+        <debug_text text="'[apirateslife-test] chk docked: %s bays on the carrier'.[$Bays.count]" filter="general"/>
+        <do_for_each name="$Bay" in="$Bays">
+          <do_if value="not $Fighter.hascontext.{$Carrier}">
+            <spawn_docked ship="$Fighter" dock="$Bay"/>
+          </do_if>
+        </do_for_each>
+        <set_value name="$Docked" exact="$Fighter.container == $Carrier or $Fighter.hascontext.{$Carrier}"/>
+        <debug_text text="'[apirateslife-test] chk docked: fighter docked %s (container %s)'.[$Docked, @$Fighter.container.knownname]" filter="general"/>
+        <create_boarding_operation faction="faction.player" target="$Carrier" result="$Op" approach="70" insertion="30"/>
+      </actions>
+      <cues>
+        <cue name="ChkDockedBoarding_Act">
+          <delay exact="2s"/>
+          <actions>
+            <signal_cue_instantly cue="md.Boarding.Transfer_Ownership" param="table[$target = $Carrier, $faction = faction.player]"/>
+          </actions>
+          <cues>
+            <cue name="ChkDockedBoarding_Decided">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Pirated.Decided"/>
+                <check_value value="event.param.$ship == $Fighter"/>
+              </conditions>
+              <delay exact="1s"/>
+              <actions>
+                <cancel_cue cue="ChkDockedBoarding_Timeout"/>
+                <run_actions ref="md.APiratesLife_Pirated.IsPirated" result="$Mark">
+                  <param name="Ship" value="$Fighter"/>
+                </run_actions>
+                <run_actions ref="md.APiratesLife_Pirated.IsPirated" result="$CarrierMark">
+                  <param name="Ship" value="$Carrier"/>
+                </run_actions>
+                <set_value name="$Ok" exact="$Docked and $Mark and $Mark.$how == 'boarding'"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'chk_docked_boarding', $ok = $Ok, $detail = 'docked %s; fighter owner %s, mark %s; carrier owner %s, mark %s'.[$Docked, $Fighter.trueowner, (if $Mark then $Mark.$how else 'none'), $Carrier.trueowner, (if $CarrierMark then $CarrierMark.$how else 'none')]]"/>
+                <destroy_object object="$Fighter"/>
+                <destroy_object object="$Carrier"/>
+              </actions>
+            </cue>
+            <cue name="ChkDockedBoarding_Timeout">
+              <delay exact="15s"/>
+              <actions>
+                <cancel_cue cue="ChkDockedBoarding_Decided"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'chk_docked_boarding', $ok = false, $detail = 'nothing decided for the fighter in 15 s (docked %s, fighter owner %s, carrier owner %s, op %s)'.[$Docked, @$Fighter.trueowner, @$Carrier.trueowner, $Op != null]]"/>
+                <do_if value="$Fighter.exists">
+                  <destroy_object object="$Fighter"/>
+                </do_if>
+                <do_if value="$Carrier.exists">
+                  <destroy_object object="$Carrier"/>
+                </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Pending: a bail check between two NPC ships of different factions runs through the hook -->
+    <cue name="ChkNpcBailHook">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <create_ship name="$Attacker" macro="t65b_xwing_macro" sector="player.sector">
+          <owner exact="faction.rebelalliance" overridenpc="true"/>
+          <loadout ref="apirateslife_test_xwing_lasers"/>
+          <pilot>
+            <select faction="faction.rebelalliance" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" z="20km" allowyaxis="true"/>
+        </create_ship>
+        <create_order id="'Wait'" object="$Attacker" default="true">
+          <param name="noattackresponse" value="true"/>
+        </create_order>
+        <create_ship name="$Target" macro="tie_advanced_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.galempire" overridenpc="true"/>
+          <loadout>
+            <level exact="1.0"/>
+          </loadout>
+          <people>
+            <fillpercent exact="0"/>
+          </people>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" z="21km" allowyaxis="true"/>
+        </create_ship>
+        <create_order id="'Wait'" object="$Target" default="true">
+          <param name="noattackresponse" value="true"/>
+        </create_order>
+        <set_value name="$Checked" exact="null"/>
+      </actions>
+      <cues>
+        <cue name="ChkNpcBailHook_Act">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="ForceBail">
+              <param name="Attacker" value="$Attacker"/>
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="ChkNpcBailHook_Checked">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Metrics.BailChecked"/>
+                <check_value value="event.param.$target == $Target"/>
+              </conditions>
+              <actions>
+                <set_value name="$Checked" exact="event.param"/>
+              </actions>
+            </cue>
+            <cue name="ChkNpcBailHook_Report">
+              <delay exact="5s"/>
+              <actions>
+                <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+                <set_value name="$Roll" exact="@global.$APiratesLifeTest_Roll"/>
+                <set_value name="$Ok" exact="$Roll and $Roll.$target == $Target and $Roll.$after? and $Checked != null"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'chk_npc_bail_hook', $ok = $Ok, $detail = 'roll %s (before %s, after %s, swi %s); hook signalled a check %s (attacker %s, chance %s); target owner now %s'.[$Roll != null, @$Roll.$before, @$Roll.$after, @$Roll.$swi, $Checked != null, @$Checked.$attacker.owner, @$Checked.$chance, @$Target.trueowner]]"/>
+                <destroy_object object="$Attacker"/>
+                <do_if value="$Target.exists">
+                  <destroy_object object="$Target"/>
+                </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Pending: the pressure tick waits while the player is more than 10 km away, and pressure
+         keeps building -->
+    <cue name="ChkTickWaitsAway">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="$Checks" exact="0"/>
+        <run_actions ref="SpawnGatedTarget" result="$Target">
+          <param name="Macro" value="macro.tie_fighter_macro"/>
+          <param name="Distance" value="15km"/>
+          <param name="Crew" value="0"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$Target"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="ChkTickWaitsAway_Checked" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Metrics.BailChecked"/>
+            <check_value value="event.param.$target == $Target"/>
+          </conditions>
+          <actions>
+            <set_value name="$Checks" operation="add"/>
+          </actions>
+        </cue>
+        <cue name="ChkTickWaitsAway_P1">
+          <delay exact="5s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Pressure" result="$P1">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+        </cue>
+        <cue name="ChkTickWaitsAway_Done">
+          <delay exact="30s"/>
+          <actions>
+            <cancel_cue cue="ChkTickWaitsAway_Checked"/>
+            <run_actions ref="md.APiratesLife_Capture.Pressure" result="$P2">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <set_value name="$Dist" exact="$Target.distanceto.{player.occupiedship}"/>
+            <set_value name="$Ok" exact="$Started and $Checks == 0 and $P2 gt $P1 and $Dist gt 10km"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'chk_tick_waits_away', $ok = $Ok, $detail = '%s m away: %s checks in 30 s; pressure %s at 5 s, %s at 30 s'.[$Dist, $Checks, $P1, $P2]]"/>
+            <run_actions ref="EndPressureTest">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Pending: a turret-only wingman (a Y-wing with no forward guns) stops at the margin: from the
+         fine stage on, while the hull is still over 75%, nothing of the wing fires. Runs 60 s past
+         the first fine-stage second. -->
+    <cue name="ChkTurretOnlyWing">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="TurretTestSetup" result="$Wing">
+          <param name="Macro" value="macro.ywing_btla4_macro"/>
+          <param name="Loadout" value="'apirateslife_test_ywing_turretonly'"/>
+          <param name="BareLoadout" value="'apirateslife_test_ywing_noturret'"/>
+        </run_actions>
+        <create_group groupname="$Guns"/>
+        <add_to_group groupname="$Guns" list="$Wing.$gunowner.keys.list"/>
+        <set_value name="$FineSince" exact="null"/>
+        <set_value name="$FineShots" exact="0"/>
+      </actions>
+      <cues>
+        <cue name="ChkTurretOnlyWing_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+            <set_object_capturable object="$Wing.$target" capturable="false"/>
+          </actions>
+          <cues>
+            <cue name="ChkTurretOnlyWing_Fired" instantiate="true">
+              <conditions>
+                <event_weapon_fired group="$Guns"/>
+              </conditions>
+              <actions>
+                <run_actions ref="TurretShotStage">
+                  <param name="Wing" value="$Wing"/>
+                  <param name="Weapon" value="event.object"/>
+                </run_actions>
+                <do_if value="$FineSince != null and player.age - $FineSince gt 1s and $Wing.$target.hullpercentage ge 75">
+                  <set_value name="$FineShots" operation="add"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="ChkTurretOnlyWing_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="TurretShotStage">
+                  <param name="Wing" value="$Wing"/>
+                </run_actions>
+                <do_if value="$Wing.$target.isoperational">
+                  <do_if value="$Wing.$target.hullpercentage ge 75 and $Wing.$target.shield gt 0">
+                    <set_object_shield object="$Wing.$target" exact="0"/>
+                  </do_if>
+                  <set_value name="$Wing.$minhull" exact="[$Wing.$minhull, $Wing.$target.hullpercentage].min"/>
+                </do_if>
+                <do_if value="$FineSince == null and $Wing.$stage == '$fine'">
+                  <set_value name="$FineSince" exact="player.age"/>
+                </do_if>
+                <do_if value="$FineSince != null and player.age - $FineSince ge 60s">
+                  <cancel_cue cue="ChkTurretOnlyWing_Timeout"/>
+                  <signal_cue_instantly cue="ChkTurretOnlyWing_Done" param="''"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="ChkTurretOnlyWing_Timeout">
+              <delay exact="240s"/>
+              <actions>
+                <signal_cue_instantly cue="ChkTurretOnlyWing_Done" param="' never reached the fine stage in 240 s (lowest hull %s%%);'.[$Wing.$minhull]"/>
+              </actions>
+            </cue>
+            <cue name="ChkTurretOnlyWing_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="ChkTurretOnlyWing_Fired"/>
+                <cancel_cue cue="ChkTurretOnlyWing_Watch"/>
+                <set_value name="$Problems" exact="event.param"/>
+                <do_if value="$FineShots gt 0">
+                  <set_value name="$Problems" exact="$Problems + ' %s shots more than 1 s into the fine stage with hull over 75%%;'.[$FineShots]"/>
+                </do_if>
+                <set_value name="$EndHull" exact="if $Wing.$target.isoperational then $Wing.$target.hullpercentage else 0"/>
+                <do_for_each name="$Ship" in="$Wing.$wingmen">
+                  <do_if value="$Ship.isoperational">
+                    <cancel_all_orders object="$Ship"/>
+                  </do_if>
+                </do_for_each>
+              </actions>
+              <cues>
+                <cue name="ChkTurretOnlyWing_Report">
+                  <delay exact="2s"/>
+                  <actions>
+                    <run_actions ref="TurretTestDone" result="$Result">
+                      <param name="Wing" value="$Wing"/>
+                      <param name="Problems" value="$Problems"/>
+                      <param name="Started" value="$Started"/>
+                    </run_actions>
+                    <signal_cue_instantly cue="Report" param="table[$name = 'chk_turret_only_wing', $ok = $Result.$ok, $detail = 'hull at end %s%%; '.[$EndHull] + $Result.$detail]"/>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Pending: with CaptureWingmenTurrets at 0, a turreted wingman's turrets keep their own modes
+         the whole operation (checked every second) -->
+    <cue name="ChkTurretsAtZero">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="TurretTestSetup" result="$Wing">
+          <param name="Macro" value="macro.ywing_btla4_macro"/>
+          <param name="Loadout" value="'apirateslife_test_ywing_turret'"/>
+          <param name="BareLoadout" value="'apirateslife_test_ywing_noturret'"/>
+        </run_actions>
+        <set_value name="global.$APiratesLife_CaptureWingmenTurrets" exact="0"/>
+        <create_group groupname="$Guns"/>
+        <add_to_group groupname="$Guns" list="$Wing.$gunowner.keys.list"/>
+        <set_value name="$ModeChanges" exact="0"/>
+      </actions>
+      <cues>
+        <cue name="ChkTurretsAtZero_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+            <set_object_capturable object="$Wing.$target" capturable="false"/>
+          </actions>
+          <cues>
+            <cue name="ChkTurretsAtZero_Fired" instantiate="true">
+              <conditions>
+                <event_weapon_fired group="$Guns"/>
+              </conditions>
+              <actions>
+                <run_actions ref="TurretShotStage">
+                  <param name="Wing" value="$Wing"/>
+                  <param name="Weapon" value="event.object"/>
+                </run_actions>
+              </actions>
+            </cue>
+            <cue name="ChkTurretsAtZero_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="TurretShotStage">
+                  <param name="Wing" value="$Wing"/>
+                </run_actions>
+                <do_for_each name="$Turret" valuename="$Mode" in="$Wing.$turretmodes">
+                  <do_if value="$Turret.exists and $Turret.mode != $Mode">
+                    <set_value name="$ModeChanges" operation="add"/>
+                  </do_if>
+                </do_for_each>
+                <run_actions ref="CheckWingHold" result="$Check">
+                  <param name="Wing" value="$Wing"/>
+                </run_actions>
+                <do_if value="$Check.$done">
+                  <cancel_cue cue="ChkTurretsAtZero_Timeout"/>
+                  <signal_cue_instantly cue="ChkTurretsAtZero_Done" param="$Check.$problems"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="ChkTurretsAtZero_Timeout">
+              <delay exact="180s"/>
+              <actions>
+                <signal_cue_instantly cue="ChkTurretsAtZero_Done" param="' (timed out: hull only got to %s%% in 180 s);'.[$Wing.$minhull]"/>
+              </actions>
+            </cue>
+            <cue name="ChkTurretsAtZero_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="ChkTurretsAtZero_Fired"/>
+                <cancel_cue cue="ChkTurretsAtZero_Watch"/>
+                <set_value name="global.$APiratesLife_CaptureWingmenTurrets" exact="1"/>
+                <!-- Only the modes matter here; the wing's hull hold is the other tests' job -->
+                <set_value name="$Note" exact="event.param"/>
+                <set_value name="$Wing.$lateturret" exact="0"/>
+                <set_value name="$Problems" exact="if $ModeChanges gt 0 then ' a turret left its mode in %s turret-seconds;'.[$ModeChanges] else ''"/>
+                <do_for_each name="$Ship" in="$Wing.$wingmen">
+                  <do_if value="$Ship.isoperational">
+                    <cancel_all_orders object="$Ship"/>
+                  </do_if>
+                </do_for_each>
+              </actions>
+              <cues>
+                <cue name="ChkTurretsAtZero_Report">
+                  <delay exact="2s"/>
+                  <actions>
+                    <run_actions ref="TurretTestDone" result="$Result">
+                      <param name="Wing" value="$Wing"/>
+                      <param name="Problems" value="$Problems"/>
+                      <param name="Started" value="$Started"/>
+                    </run_actions>
+                    <signal_cue_instantly cue="Report" param="table[$name = 'chk_turrets_at_zero', $ok = $Result.$ok, $detail = 'mode changes %s%s; '.[$ModeChanges, $Note] + $Result.$detail]"/>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Pending: my wingman, 150 km from me, leads a formation of its own; its follower joins the
+         attack on the target and spends no missiles -->
+    <cue name="ChkFollowerNoMissiles">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <create_ship name="$Target" macro="tie_advanced_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.galempire" overridenpc="true"/>
+          <loadout>
+            <level exact="1.0"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" x="150km" allowyaxis="true"/>
+        </create_ship>
+        <create_order id="'Wait'" object="$Target" default="true">
+          <param name="noattackresponse" value="true"/>
+        </create_order>
+        <set_object_min_hull object="$Target" exact="50"/>
+        <create_ship name="$Wingman" macro="t65b_xwing_macro" sector="player.sector">
+          <owner exact="faction.player" overridenpc="true"/>
+          <loadout ref="apirateslife_test_xwing_lasers"/>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="$Target" z="2km" allowyaxis="true"/>
+        </create_ship>
+        <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
+        <create_ship name="$Follower" macro="t65b_xwing_macro" sector="player.sector">
+          <owner exact="faction.player" overridenpc="true"/>
+          <loadout ref="apirateslife_test_xwing_torpedoes"/>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+            <skills>
+              <skill type="piloting" exact="15"/>
+            </skills>
+          </pilot>
+          <safepos object="$Target" z="2.5km" allowyaxis="true"/>
+        </create_ship>
+        <set_object_commander object="$Follower" commander="$Wingman" assignment="assignment.defence"/>
+        <set_value name="$Ammo" exact="$Follower.ammostorage.missile.count"/>
+        <set_value name="$Orders" exact="[]"/>
+        <set_value name="$Engaged" exact="0"/>
+        <set_value name="$Since" exact="null"/>
+        <set_value name="$Started" exact="false"/>
+      </actions>
+      <cues>
+        <cue name="ChkFollowerNoMissiles_Start">
+          <delay exact="2s"/>
+          <actions>
+            <set_value name="$Since" exact="player.age"/>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <set_object_capturable object="$Target" capturable="false"/>
+          </actions>
+          <cues>
+            <cue name="ChkFollowerNoMissiles_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <do_if value="$Follower.isoperational">
+                  <set_value name="$Id" exact="@$Follower.order.id"/>
+                  <do_if value="$Id and not $Orders.indexof.{$Id}">
+                    <append_to_list name="$Orders" exact="$Id"/>
+                  </do_if>
+                  <do_if value="$Target.isoperational and $Follower.distanceto.{$Target} lt 3km">
+                    <set_value name="$Engaged" operation="add"/>
+                  </do_if>
+                </do_if>
+                <do_if value="$Since != null and player.age - $Since ge 90s">
+                  <signal_cue_instantly cue="ChkFollowerNoMissiles_Done"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="ChkFollowerNoMissiles_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="ChkFollowerNoMissiles_Watch"/>
+                <set_value name="$Spent" exact="$Ammo - @$Follower.ammostorage.missile.count"/>
+                <set_value name="$Ok" exact="$Started and $Spent == 0 and $Follower.isoperational"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'chk_follower_no_missiles', $ok = $Ok, $detail = 'follower spent %s of %s missiles in 90 s; orders seen %s; %s s within 3 km of the target; attention %s; flag %s; target hull %s%%'.[$Spent, $Ammo, $Orders, $Engaged, @$Follower.attention, @$Follower.pilot.$APiratesLife_NoMissiles, @$Target.hullpercentage]]"/>
+                <do_for_each name="$Ship" in="[$Target, $Wingman, $Follower]">
+                  <do_if value="$Ship.exists">
+                    <destroy_object object="$Ship"/>
+                  </do_if>
+                </do_for_each>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
   </cues>
 </mdscript>
