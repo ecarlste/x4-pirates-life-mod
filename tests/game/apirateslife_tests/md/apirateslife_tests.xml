@@ -2077,7 +2077,7 @@
         </do_if>
         <set_value name="$Wing.$minhull" exact="[$Wing.$minhull, $Target.hullpercentage].min"/>
         <set_value name="$Finisher" exact="@global.$APiratesLife_CaptureOps.{$Target}.$finisher"/>
-        <debug_text text="'[apirateslife-test] trace: hull %s%%, shields %s%%, wingman %sm away at %s m/s, finisher %s, wing dps %s'.[$Target.hullpercentage, $Target.shieldpercentage, $Wing.$wingmen.{1}.distanceto.{$Target}, $Wing.$wingmen.{1}.speed, @$Finisher.knownname, @global.$APiratesLife_CaptureOps.{$Target}.$wingdps]" filter="general"/>
+        <debug_text text="'[apirateslife-test] trace: hull %s%%, shields %s%%, wingman %sm away at %s m/s, finisher %s, wing dps %s'.[$Target.hullpercentage, $Target.shieldpercentage, $Wing.$wingmen.{1}.distanceto.{$Target}, $Wing.$wingmen.{1}.speed, @$Finisher.knownname, @global.$APiratesLife_CaptureOps.{$Target}.$wingdps.$now]" filter="general"/>
         <do_if value="$Target.hullpercentage lt 35">
           <return value="table[$done = true, $problems = ' hull %s%%, below the 35%% floor;'.[$Target.hullpercentage]]"/>
         </do_if>
@@ -2318,7 +2318,7 @@
         <do_if value="not $T.isoperational">
           <return value="false"/>
         </do_if>
-        <set_value name="$WingBurst" exact="@global.$APiratesLife_CaptureOps.{$T}.$wingdps * 1.5"/>
+        <set_value name="$WingBurst" exact="@global.$APiratesLife_CaptureOps.{$T}.$wingdps.$full * 1.5"/>
         <do_if value="$T.hullpercentage ge 75">
           <set_value name="$Stage" exact="if $T.shield + $T.hull - $T.maxhull * 0.75 gt $WingBurst then '$break' else '$fine'"/>
         </do_if>

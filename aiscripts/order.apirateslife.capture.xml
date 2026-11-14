@@ -4,7 +4,8 @@
      stays inside vanilla's bail gates instead of dying:
        break:    hull at or above $holdhull (default 75, vanilla's bail gate). While the shields
                  plus the hull above the line hold more than the wing's burst, about
-                 $burstseconds of the whole wing's laser and turret damage: fire, so shots still in flight
+                 $burstseconds of the whole wing's laser and turret damage (lasers only while
+                 the turrets hold, below): fire, so shots still in flight
                  from every wingman land above the line. Inside that margin only the finisher
                  (the operation picks it, the closest wingman with a forward gun; a wing of
                  turrets only stops here, and the player takes the hull the rest of the way)
@@ -186,7 +187,9 @@
     <set_value name="$firing" exact="false"/>
     <set_value name="$ended" exact="false"/>
     <set_value name="$burst" exact="0"/>
+    <set_value name="$fullburst" exact="0"/>
     <set_value name="$wingburst" exact="0"/>
+    <set_value name="$wingfullburst" exact="0"/>
     <!-- Finisher: the guns it keeps in $weapongroup (longest-kept first; not empty only in the fine
          stage), and the guns it took out -->
     <set_value name="$keptguns" exact="[]"/>
@@ -237,16 +240,22 @@
       </do_if>
 
       <!-- What may still land after we stop: about $burstseconds of our laser and turret fire, in
-           hitpoints. Recomputed each time, as weapons can be lost in the fight, but not while the
-           finisher has guns out of the group or our turrets hold fire, as the DPS may then count
-           only what's left. Kept on the pilot for the wing's DPS (WingDps). -->
+           hitpoints ($fullburst). Recomputed each time, as weapons can be lost in the fight, but not
+           while the finisher has guns out of the group or our turrets hold fire, as the DPS may then
+           count only what's left. While our turrets hold, they land nothing, so $burst leaves
+           them out. Both kept on the pilot for the wing's DPS (WingDps): $APiratesLife_Dps, and
+           $APiratesLife_HeldDps, the part of it held back. -->
       <do_if value="not $keptguns.count and $turretmodes == null">
         <set_value name="this.$APiratesLife_Dps" exact="this.assignedcontrolled.dps.lasers.all + this.assignedcontrolled.dps.turrets.all"/>
-        <set_value name="$burst" exact="this.$APiratesLife_Dps * $burstseconds"/>
       </do_if>
-      <!-- The same for the whole wing attacking this target, as the operation keeps it -->
+      <set_value name="$fullburst" exact="this.$APiratesLife_Dps * $burstseconds"/>
+      <set_value name="$burst" exact="[this.$APiratesLife_Dps - @this.$APiratesLife_HeldDps, 0].max * $burstseconds"/>
+      <!-- The same for the whole wing attacking this target, as the operation keeps them. The wing
+           holds its turrets once the margin is inside the full burst, and releases them only once
+           it's back outside it, so turrets don't switch on and off as the burst drops. -->
       <set_value name="$wingdps" exact="@global.$APiratesLife_CaptureOps.{$target}.$wingdps"/>
-      <set_value name="$wingburst" exact="if $wingdps then [$wingdps * $burstseconds, $burst].max else $burst"/>
+      <set_value name="$wingfullburst" exact="if $wingdps then [$wingdps.$full * $burstseconds, $fullburst].max else $fullburst"/>
+      <set_value name="$wingburst" exact="if $wingdps then [$wingdps.$now * $burstseconds, $burst].max else $burst"/>
       <!-- What the wing may still take off before the hull reaches the hold line, shields first -->
       <set_value name="$margin" exact="$target.shield + $target.hull - $target.maxhull * $holdhull / 100.0"/>
       <set_value name="$finishing" exact="false"/>
@@ -274,9 +283,10 @@
 
       <!-- Turrets hold fire from the fine stage on (see the top of this file), unless the
            CaptureWingmenTurrets setting is 0 -->
-      <set_value name="$holdturrets" exact="(if global.$APiratesLife_CaptureWingmenTurrets? then global.$APiratesLife_CaptureWingmenTurrets else 1) != 0 and not ($target.hullpercentage ge $holdhull and $margin gt $wingburst)"/>
+      <set_value name="$holdturrets" exact="(if global.$APiratesLife_CaptureWingmenTurrets? then global.$APiratesLife_CaptureWingmenTurrets else 1) != 0 and not ($target.hullpercentage ge $holdhull and $margin gt $wingfullburst)"/>
       <do_if value="$holdturrets and $turretmodes == null">
         <set_value name="$turretmodes" exact="table[]"/>
+        <set_value name="this.$APiratesLife_HeldDps" exact="this.assignedcontrolled.dps.turrets.all"/>
         <do_for_each name="$turret" in="this.assignedcontrolled.turrets.operational.list">
           <set_value name="$turretmodes.{$turret}" exact="$turret.mode"/>
           <set_weapon_mode weapon="$turret" weaponmode="weaponmode.holdfire"/>
@@ -290,6 +300,7 @@
           </do_if>
         </do_for_each>
         <set_value name="$turretmodes" exact="null"/>
+        <remove_value name="this.$APiratesLife_HeldDps"/>
       </do_elseif>
       <!-- With its turrets holding and no forward gun left, a wingman can't fire: vanilla's attack
            would fail the order with no DPS -->
@@ -421,6 +432,7 @@
       </do_if>
       <set_value name="$turretmodes" exact="null"/>
       <remove_value name="this.$APiratesLife_Dps"/>
+      <remove_value name="this.$APiratesLife_HeldDps"/>
       <stop_shooting object="this.assignedcontrolled"/>
       <cease_fire object="this.assignedcontrolled"/>
       <do_if value="this.assignedcontrolled.defencenpc.exists">
@@ -447,5 +459,6 @@
       </do_for_each>
     </do_if>
     <remove_value name="this.$APiratesLife_Dps"/>
+    <remove_value name="this.$APiratesLife_HeldDps"/>
   </on_abort>
 </aiscript>
