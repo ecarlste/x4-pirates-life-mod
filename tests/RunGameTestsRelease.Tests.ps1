@@ -30,8 +30,9 @@ BeforeAll {
         '[Scripts] 60.01 *** Context:x: [apirateslife-test] DONE passed=3 failed=0'
         '[Scripts] 63.00 *** Context:x: [apirateslife-test] SAVED apirateslife_release_2'
     )
-    # Session 3: the second save loaded without the mod, played, and the release extension's checks. X4
-    # logs that it can't import the running operation's wingman's capture order, which session 3 allows
+    # Session 3: the second save loaded without the mod and played, and the release extension's
+    # checks run on it. X4 logs that it can't import the running operation's wingman's capture
+    # order, which session 3 allows
     $script:UnloadLog = @(
         '[=ERROR=] 2.50 [apirateslife-test] release: loading save apirateslife_release_2'
         "[FileIO ] 3.12 File I/O: Failed to verify the file signature for file '.\extensions\starwarsmod_m1\libraries\icons.xml' (error: 14)"

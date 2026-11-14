@@ -905,9 +905,9 @@ if ($Release) {
     $run = Join-SessionRuns $runs
     $checks = @(for ($i = 0; $i -lt $runs.Count; $i++) { Get-SessionLogChecks $runs[$i] $sessions[$i] })
     # A session that didn't run (the one before it saved nothing) reads as an empty log
-    $session = { param($i) if ($runs.Count -gt $i) { $runs[$i] } else { Read-GameTestLog @() } }
-    $checks += Get-ExistingSaveCheck $runs[0] (& $session 1)
-    $checks += Get-UninstallCheck (& $session 1) (& $session 2)
+    $runOrEmpty = { param($i) if ($runs.Count -gt $i) { $runs[$i] } else { Read-GameTestLog @() } }
+    $checks += Get-ExistingSaveCheck $runs[0] (& $runOrEmpty 1)
+    $checks += Get-UninstallCheck (& $runOrEmpty 1) (& $runOrEmpty 2)
     $run.Results = @($run.Results) + $checks
     $run.Expected += $checks.Count
     $ending = @(for ($i = 0; $i -lt $sessionResults.Count; $i++) { "session $($i + 1): $($sessionResults[$i].Ending)" }) -join ', '

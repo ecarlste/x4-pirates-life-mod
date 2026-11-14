@@ -112,8 +112,9 @@
          (release.feature, "A save loads and plays with the mod removed"). Once loaded, everything
          it left is as it was: the ships taken, the mod's tables and settings, the running
          operation's target with its hostility boost, the wingman's and the pilots' variables. The
-         operation's cue and its mission are gone: X4 drops a cue whose script isn't loaded. Then the game plays for 10 minutes, and until the boost has run out (600 s
-         from when the operation began, then it decays). -->
+         operation's cue and its mission are gone: X4 drops a cue whose script isn't loaded. Then
+         the game plays for 10 minutes, and until the boost has run out (600 s from when the
+         operation began, then it decays). -->
     <cue name="Uninstalled">
       <conditions>
         <event_cue_signalled/>
