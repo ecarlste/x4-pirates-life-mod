@@ -188,14 +188,14 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <set_value name="$Found" exact="[@global.$APiratesLife_IntactOnClaim, @global.$APiratesLife_CaptureHoldHull, @global.$APiratesLife_CaptureFloorHull, @global.$APiratesLife_CapturePressureStep, @global.$APiratesLife_CapturePressureCap, @global.$APiratesLife_CapturePressureInterval, @global.$APiratesLife_CaptureFearDecayFactor, @global.$APiratesLife_CaptureFearDecayInterval]"/>
+        <set_value name="$Found" exact="[@global.$APiratesLife_IntactOnClaim, @global.$APiratesLife_CaptureHoldHull, @global.$APiratesLife_CaptureFloorHull, @global.$APiratesLife_CapturePressureStep, @global.$APiratesLife_CapturePressureCap, @global.$APiratesLife_CapturePressureInterval, @global.$APiratesLife_CaptureFearDecayFactor, @global.$APiratesLife_CaptureFearDecayInterval, @global.$APiratesLife_CaptureWingmenTurrets]"/>
         <run_actions ref="md.APiratesLife_Config.Defaults"/>
         <!-- The values the config gives, after the loader's range check (they're the same for the
              config as shipped) -->
         <run_actions ref="md.APiratesLife_Settings.Validate" result="$Checked">
-          <param name="Raw" value="table[$IntactOnClaim = global.$APiratesLife_IntactOnClaim, $CaptureHoldHull = global.$APiratesLife_CaptureHoldHull, $CaptureFloorHull = global.$APiratesLife_CaptureFloorHull, $CapturePressureStep = global.$APiratesLife_CapturePressureStep, $CapturePressureCap = global.$APiratesLife_CapturePressureCap, $CapturePressureInterval = global.$APiratesLife_CapturePressureInterval, $CaptureFearDecayFactor = global.$APiratesLife_CaptureFearDecayFactor, $CaptureFearDecayInterval = global.$APiratesLife_CaptureFearDecayInterval]"/>
+          <param name="Raw" value="table[$IntactOnClaim = global.$APiratesLife_IntactOnClaim, $CaptureHoldHull = global.$APiratesLife_CaptureHoldHull, $CaptureFloorHull = global.$APiratesLife_CaptureFloorHull, $CapturePressureStep = global.$APiratesLife_CapturePressureStep, $CapturePressureCap = global.$APiratesLife_CapturePressureCap, $CapturePressureInterval = global.$APiratesLife_CapturePressureInterval, $CaptureFearDecayFactor = global.$APiratesLife_CaptureFearDecayFactor, $CaptureFearDecayInterval = global.$APiratesLife_CaptureFearDecayInterval, $CaptureWingmenTurrets = global.$APiratesLife_CaptureWingmenTurrets]"/>
         </run_actions>
-        <set_value name="$Names" exact="['IntactOnClaim', 'CaptureHoldHull', 'CaptureFloorHull', 'CapturePressureStep', 'CapturePressureCap', 'CapturePressureInterval', 'CaptureFearDecayFactor', 'CaptureFearDecayInterval']"/>
+        <set_value name="$Names" exact="['IntactOnClaim', 'CaptureHoldHull', 'CaptureFloorHull', 'CapturePressureStep', 'CapturePressureCap', 'CapturePressureInterval', 'CaptureFearDecayFactor', 'CaptureFearDecayInterval', 'CaptureWingmenTurrets']"/>
         <set_value name="$Config" exact="[]"/>
         <do_for_each name="$Name" in="$Names">
           <append_to_list name="$Config" exact="$Checked.$values.{'$' + $Name}"/>
@@ -220,8 +220,8 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <set_value name="$Defaults" exact="table[$IntactOnClaim = 1, $CaptureHoldHull = 75, $CaptureFloorHull = 35, $CapturePressureStep = 8, $CapturePressureCap = 80, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0.5, $CaptureFearDecayInterval = 300]"/>
-        <set_value name="$Limits" exact="table[$IntactOnClaim = 0, $CaptureHoldHull = 0, $CaptureFloorHull = 0, $CapturePressureStep = 0, $CapturePressureCap = 100, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0, $CaptureFearDecayInterval = 1]"/>
+        <set_value name="$Defaults" exact="table[$IntactOnClaim = 1, $CaptureHoldHull = 75, $CaptureFloorHull = 35, $CapturePressureStep = 8, $CapturePressureCap = 80, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0.5, $CaptureFearDecayInterval = 300, $CaptureWingmenTurrets = 1]"/>
+        <set_value name="$Limits" exact="table[$IntactOnClaim = 0, $CaptureHoldHull = 0, $CaptureFloorHull = 0, $CapturePressureStep = 0, $CapturePressureCap = 100, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0, $CaptureFearDecayInterval = 1, $CaptureWingmenTurrets = 0]"/>
         <!-- [the values changed from the defaults, the bad setting, the value it gets] -->
         <set_value name="$Cases" exact="[
           [table[$CapturePressureCap = 150], 'CapturePressureCap', 100],
@@ -239,7 +239,8 @@
           [table[$CaptureFearDecayInterval = 0], 'CaptureFearDecayInterval', 1],
           [table[$IntactOnClaim = 2], 'IntactOnClaim', 1],
           [table[$IntactOnClaim = -1], 'IntactOnClaim', 1],
-          [table[$IntactOnClaim = 0.5], 'IntactOnClaim', 1]
+          [table[$IntactOnClaim = 0.5], 'IntactOnClaim', 1],
+          [table[$CaptureWingmenTurrets = 2], 'CaptureWingmenTurrets', 1]
         ]"/>
         <set_value name="$Problems" exact="''"/>
 
@@ -305,8 +306,8 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
-        <set_value name="$Defaults" exact="table[$IntactOnClaim = 1, $CaptureHoldHull = 75, $CaptureFloorHull = 35, $CapturePressureStep = 8, $CapturePressureCap = 80, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0.5, $CaptureFearDecayInterval = 300]"/>
-        <set_value name="$Unset" exact="table[$IntactOnClaim = null, $CaptureHoldHull = null, $CaptureFloorHull = null, $CapturePressureStep = null, $CapturePressureCap = null, $CapturePressureInterval = null, $CaptureFearDecayFactor = null, $CaptureFearDecayInterval = null]"/>
+        <set_value name="$Defaults" exact="table[$IntactOnClaim = 1, $CaptureHoldHull = 75, $CaptureFloorHull = 35, $CapturePressureStep = 8, $CapturePressureCap = 80, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0.5, $CaptureFearDecayInterval = 300, $CaptureWingmenTurrets = 1]"/>
+        <set_value name="$Unset" exact="table[$IntactOnClaim = null, $CaptureHoldHull = null, $CaptureFloorHull = null, $CapturePressureStep = null, $CapturePressureCap = null, $CapturePressureInterval = null, $CaptureFearDecayFactor = null, $CaptureFearDecayInterval = null, $CaptureWingmenTurrets = null]"/>
         <set_value name="$Problems" exact="''"/>
         <do_for_each name="$Raw" in="[table[], $Unset]">
           <run_actions ref="md.APiratesLife_Settings.Validate" result="$Got">
@@ -1982,11 +1983,6 @@
                 <do_if value="not $Started">
                   <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
                 </do_if>
-                <!-- Wingmen stop once the hull is under 75% and the shields are gone, so only shots
-                     already on their way should take it further. 20 points is a generous margin. -->
-                <do_if value="$Problems == '' and $MinHull lt 55">
-                  <set_value name="$Problems" exact="' lowest hull %s%%, more than 20 points under the 75%% gate;'.[$MinHull]"/>
-                </do_if>
                 <do_if value="$MaxParked ge 5">
                   <set_value name="$Problems" exact="$Problems + ' the wingman sat still for %s s in a row while holding;'.[$MaxParked]"/>
                 </do_if>
@@ -2097,8 +2093,8 @@
     </library>
 
     <!-- The hold with one wingman starting 2 km from the target, facing it: it breaks the hull to
-         under 75% and keeps it there 30 s, never more than 20 points under the gate or below the
-         35% floor. -->
+         under 75% and keeps it there 30 s, without killing it or taking it below the 35% floor. It
+         reports the lowest hull, as how deep a run goes varies (#184). -->
     <cue name="CaptureWingHoldsFireFrom2km">
       <conditions>
         <event_cue_signalled/>
@@ -2148,9 +2144,6 @@
                 <set_value name="$Problems" exact="event.param"/>
                 <do_if value="not $Started">
                   <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
-                </do_if>
-                <do_if value="$Problems == '' and $Wing.$minhull lt 55">
-                  <set_value name="$Problems" exact="' lowest hull %s%%, more than 20 points under the 75%% gate;'.[$Wing.$minhull]"/>
                 </do_if>
                 <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire_from_2km', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'held %s s under 75%%, lowest hull %s%%'.[$Wing.$heldfor, $Wing.$minhull] else $Problems)]"/>
                 <do_for_each name="$Ship" in="$Wing.$wingmen">
@@ -2240,9 +2233,6 @@
                 <do_if value="not $Started">
                   <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
                 </do_if>
-                <do_if value="$Problems == '' and $Wing.$minhull lt 55">
-                  <set_value name="$Problems" exact="' lowest hull %s%%, more than 20 points under the 75%% gate;'.[$Wing.$minhull]"/>
-                </do_if>
                 <set_value name="$Shots" exact="''"/>
                 <do_for_each name="$Ship" valuename="$Count" in="$ShotsAbove">
                   <set_value name="$Shots" exact="$Shots + ' %s'.[$Count]"/>
@@ -2269,10 +2259,11 @@
 
     <!-- #184, turreted wingmen: one wingman 2 km out (SpawnWingAt2km), the same checks as
          CaptureWingHoldsFireFrom2km, and every shot of its guns and turrets counted by what the
-         wing should be doing when it's fired (TurretShotStage). A turret shot more than 1 s into
-         a hold fails it: the shots on the frame the hold starts are already on their way. The
-         setup also reports the ship's DPS with and without its turrets (BareShip: the same ship
-         with no turrets), to see whether dps.lasers.all, the wing's burst, counts them. -->
+         wing should be doing when it's fired (TurretShotStage). Turrets hold fire from the fine
+         stage on, so a turret shot more than 1 s after the wing left the break fails it (the
+         shots on the frame it leaves are already on their way). Once the order ends, each turret
+         must be back in the mode it started in (TurretTestDone). The setup also reports the
+         ship's DPS with and without its turrets (BareLoadout: the same ship with no turrets). -->
     <library name="TurretTestSetup" purpose="run_actions">
       <params>
         <param name="Macro"/>
@@ -2298,9 +2289,14 @@
         <debug_text text="'[apirateslife-test] turrets: ' + $Wing.$dps" filter="general"/>
         <destroy_object object="$Bare"/>
         <set_value name="$Wing.$shots" exact="table[$gun = table[$break = 0, $fine = 0, $suppress = 0, $hold = 0], $turret = table[$break = 0, $fine = 0, $suppress = 0, $hold = 0]]"/>
-        <set_value name="$Wing.$latehold" exact="0"/>
+        <set_value name="$Wing.$lateturret" exact="0"/>
         <set_value name="$Wing.$stage" exact="'$break'"/>
-        <set_value name="$Wing.$stagesince" exact="player.age"/>
+        <set_value name="$Wing.$heldsince" exact="null"/>
+        <!-- The turrets' modes as the player left them, to check they come back -->
+        <set_value name="$Wing.$turretmodes" exact="table[]"/>
+        <do_for_each name="$Turret" in="$Wing.$turrets">
+          <set_value name="$Wing.$turretmodes.{$Turret}" exact="$Turret.mode"/>
+        </do_for_each>
         <return value="$Wing"/>
       </actions>
     </library>
@@ -2310,8 +2306,8 @@
            $fine:     hull at or above 75%, inside the burst: the finisher fires one gun
            $suppress: hull under 75%, shields over the wing's burst: fire at shields
            $hold:     hull under 75%, shields at or under the wing's burst: no fire
-         Keeps the stage and when it began in the wing. With Weapon (a shot fired), counts the
-         shot. Run on every shot and every second. -->
+         Keeps the stage in the wing, and when it last left $break ($heldsince, null in $break).
+         With Weapon (a shot fired), counts the shot. Run on every shot and every second. -->
     <library name="TurretShotStage" purpose="run_actions">
       <params>
         <param name="Wing"/>
@@ -2329,17 +2325,20 @@
         <do_else>
           <set_value name="$Stage" exact="if $T.shield gt $WingBurst then '$suppress' else '$hold'"/>
         </do_else>
-        <do_if value="$Stage != $Wing.$stage">
-          <set_value name="$Wing.$stage" exact="$Stage"/>
-          <set_value name="$Wing.$stagesince" exact="player.age"/>
+        <do_if value="$Stage == '$break'">
+          <set_value name="$Wing.$heldsince" exact="null"/>
         </do_if>
+        <do_elseif value="$Wing.$heldsince == null">
+          <set_value name="$Wing.$heldsince" exact="player.age"/>
+        </do_elseif>
+        <set_value name="$Wing.$stage" exact="$Stage"/>
         <do_if value="$Weapon">
           <set_value name="$Kind" exact="if $Wing.$turrets.indexof.{$Weapon} then '$turret' else '$gun'"/>
           <set_value name="$Wing.$shots.{$Kind}.{$Stage}" operation="add"/>
           <do_if value="$Kind == '$turret'">
-            <set_value name="$Late" exact="$Stage == '$hold' and player.age - $Wing.$stagesince gt 1s"/>
+            <set_value name="$Late" exact="$Wing.$heldsince != null and player.age - $Wing.$heldsince gt 1s"/>
             <do_if value="$Late">
-              <set_value name="$Wing.$latehold" operation="add"/>
+              <set_value name="$Wing.$lateturret" operation="add"/>
             </do_if>
             <debug_text text="'[apirateslife-test] turret fired (%s%s): hull %s%%, shields %s (wing burst %s), %sm away'.[$Stage, if $Late then ', late' else '', $T.hullpercentage, $T.shield, $WingBurst, $Wing.$wingmen.{1}.distanceto.{$T}]" filter="general"/>
           </do_if>
@@ -2347,8 +2346,9 @@
       </actions>
     </library>
 
-    <!-- The end of a TurretTestSetup test: its problems (Problems so far, from the watch), the
-         report under Name, and the ships gone -->
+    <!-- The end of a TurretTestSetup test, after its wingman's order was cancelled: its problems
+         (Problems so far, from the watch), the turrets' modes, the report under Name, and the
+         ships gone -->
     <library name="TurretTestDone" purpose="run_actions">
       <params>
         <param name="Wing"/>
@@ -2361,12 +2361,14 @@
         <do_if value="not $Started">
           <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
         </do_if>
-        <do_if value="$Problems == '' and $Wing.$minhull lt 55">
-          <set_value name="$Problems" exact="' lowest hull %s%%, more than 20 points under the 75%% gate;'.[$Wing.$minhull]"/>
+        <do_if value="$Wing.$lateturret gt 0">
+          <set_value name="$Problems" exact="$Problems + ' turrets fired %s shots more than 1 s after the break;'.[$Wing.$lateturret]"/>
         </do_if>
-        <do_if value="$Wing.$latehold gt 0">
-          <set_value name="$Problems" exact="$Problems + ' turrets fired %s shots more than 1 s into a hold;'.[$Wing.$latehold]"/>
-        </do_if>
+        <do_for_each name="$Turret" valuename="$Mode" in="$Wing.$turretmodes">
+          <do_if value="$Turret.exists and $Turret.mode != $Mode">
+            <set_value name="$Problems" exact="$Problems + ' a turret is in mode %s after the order, not %s;'.[$Turret.mode, $Mode]"/>
+          </do_if>
+        </do_for_each>
         <set_value name="$S" exact="$Wing.$shots"/>
         <set_value name="$Counts" exact="' shots break/fine/suppress/hold: guns %s/%s/%s/%s, turrets %s/%s/%s/%s; %s'.[$S.$gun.$break, $S.$gun.$fine, $S.$gun.$suppress, $S.$gun.$hold, $S.$turret.$break, $S.$turret.$fine, $S.$turret.$suppress, $S.$turret.$hold, $Wing.$dps]"/>
         <set_value name="$Detail" exact="if $Problems == '' then 'held %s s under 75%%, lowest hull %s%%;'.[$Wing.$heldfor, $Wing.$minhull] else $Problems + ' lowest hull %s%%;'.[$Wing.$minhull]"/>
@@ -2444,13 +2446,27 @@
               <actions>
                 <cancel_cue cue="CaptureWingTurretsHold_Fired"/>
                 <cancel_cue cue="CaptureWingTurretsHold_Watch"/>
-                <run_actions ref="TurretTestDone">
-                  <param name="Wing" value="$Wing"/>
-                  <param name="Name" value="'capture_wing_turrets_hold'"/>
-                  <param name="Problems" value="event.param"/>
-                  <param name="Started" value="$Started"/>
-                </run_actions>
+                <set_value name="$Problems" exact="event.param"/>
+                <!-- Cancelled, as the player would: its turrets go back to their own modes -->
+                <do_for_each name="$Ship" in="$Wing.$wingmen">
+                  <do_if value="$Ship.isoperational">
+                    <cancel_all_orders object="$Ship"/>
+                  </do_if>
+                </do_for_each>
               </actions>
+              <cues>
+                <cue name="CaptureWingTurretsHold_Report">
+                  <delay exact="2s"/>
+                  <actions>
+                    <run_actions ref="TurretTestDone">
+                      <param name="Wing" value="$Wing"/>
+                      <param name="Name" value="'capture_wing_turrets_hold'"/>
+                      <param name="Problems" value="$Problems"/>
+                      <param name="Started" value="$Started"/>
+                    </run_actions>
+                  </actions>
+                </cue>
+              </cues>
             </cue>
           </cues>
         </cue>
@@ -2481,15 +2497,6 @@
             <set_object_capturable object="$Wing.$target" capturable="false"/>
           </actions>
           <cues>
-            <!-- [DEBUG-t184] every hit on the target -->
-            <cue name="CaptureWingTurretsHoldM_DebugHit" instantiate="true">
-              <conditions>
-                <event_object_hull_damaged object="$Wing.$target"/>
-              </conditions>
-              <actions>
-                <debug_text text="'[DEBUG-t184] hit at %s: damage %s, hull now %s%%'.[player.age, event.param3, $Wing.$target.hullpercentage]" filter="general"/>
-              </actions>
-            </cue>
             <cue name="CaptureWingTurretsHoldM_Fired" instantiate="true">
               <conditions>
                 <event_weapon_fired group="$Guns"/>
@@ -2527,15 +2534,28 @@
               </conditions>
               <actions>
                 <cancel_cue cue="CaptureWingTurretsHoldM_Fired"/>
-                <cancel_cue cue="CaptureWingTurretsHoldM_DebugHit"/>
                 <cancel_cue cue="CaptureWingTurretsHoldM_Watch"/>
-                <run_actions ref="TurretTestDone">
-                  <param name="Wing" value="$Wing"/>
-                  <param name="Name" value="'capture_wing_turrets_hold_m'"/>
-                  <param name="Problems" value="event.param"/>
-                  <param name="Started" value="$Started"/>
-                </run_actions>
+                <set_value name="$Problems" exact="event.param"/>
+                <!-- Cancelled, as the player would: its turrets go back to their own modes -->
+                <do_for_each name="$Ship" in="$Wing.$wingmen">
+                  <do_if value="$Ship.isoperational">
+                    <cancel_all_orders object="$Ship"/>
+                  </do_if>
+                </do_for_each>
               </actions>
+              <cues>
+                <cue name="CaptureWingTurretsHoldM_Report">
+                  <delay exact="2s"/>
+                  <actions>
+                    <run_actions ref="TurretTestDone">
+                      <param name="Wing" value="$Wing"/>
+                      <param name="Name" value="'capture_wing_turrets_hold_m'"/>
+                      <param name="Problems" value="$Problems"/>
+                      <param name="Started" value="$Started"/>
+                    </run_actions>
+                  </actions>
+                </cue>
+              </cues>
             </cue>
           </cues>
         </cue>
@@ -3953,7 +3973,8 @@
               $CapturePressureCap = '%s'.[@global.$APiratesLife_CapturePressureCap],
               $CapturePressureInterval = '%s'.[@global.$APiratesLife_CapturePressureInterval],
               $CaptureFearDecayFactor = '%s'.[@global.$APiratesLife_CaptureFearDecayFactor],
-              $CaptureFearDecayInterval = '%s'.[@global.$APiratesLife_CaptureFearDecayInterval]]"/>
+              $CaptureFearDecayInterval = '%s'.[@global.$APiratesLife_CaptureFearDecayInterval],
+              $CaptureWingmenTurrets = '%s'.[@global.$APiratesLife_CaptureWingmenTurrets]]"/>
             <set_value name="$Op" exact="@global.$APiratesLife_CaptureOps.{@$Running}"/>
             <set_value name="global.$APiratesLifeTest_Leftovers" exact="table[
               $taken = $Taken,

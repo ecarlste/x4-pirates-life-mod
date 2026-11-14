@@ -31,9 +31,10 @@
         <remove_value name="global.$APiratesLife_CapturePressureInterval"/>
         <remove_value name="global.$APiratesLife_CaptureFearDecayFactor"/>
         <remove_value name="global.$APiratesLife_CaptureFearDecayInterval"/>
+        <remove_value name="global.$APiratesLife_CaptureWingmenTurrets"/>
         <run_actions ref="md.APiratesLife_Config.Defaults"/>
         <run_actions ref="Validate" result="$Checked">
-          <param name="Raw" value="table[$IntactOnClaim = @global.$APiratesLife_IntactOnClaim, $CaptureHoldHull = @global.$APiratesLife_CaptureHoldHull, $CaptureFloorHull = @global.$APiratesLife_CaptureFloorHull, $CapturePressureStep = @global.$APiratesLife_CapturePressureStep, $CapturePressureCap = @global.$APiratesLife_CapturePressureCap, $CapturePressureInterval = @global.$APiratesLife_CapturePressureInterval, $CaptureFearDecayFactor = @global.$APiratesLife_CaptureFearDecayFactor, $CaptureFearDecayInterval = @global.$APiratesLife_CaptureFearDecayInterval]"/>
+          <param name="Raw" value="table[$IntactOnClaim = @global.$APiratesLife_IntactOnClaim, $CaptureHoldHull = @global.$APiratesLife_CaptureHoldHull, $CaptureFloorHull = @global.$APiratesLife_CaptureFloorHull, $CapturePressureStep = @global.$APiratesLife_CapturePressureStep, $CapturePressureCap = @global.$APiratesLife_CapturePressureCap, $CapturePressureInterval = @global.$APiratesLife_CapturePressureInterval, $CaptureFearDecayFactor = @global.$APiratesLife_CaptureFearDecayFactor, $CaptureFearDecayInterval = @global.$APiratesLife_CaptureFearDecayInterval, $CaptureWingmenTurrets = @global.$APiratesLife_CaptureWingmenTurrets]"/>
         </run_actions>
         <set_value name="global.$APiratesLife_IntactOnClaim" exact="$Checked.$values.$IntactOnClaim"/>
         <set_value name="global.$APiratesLife_CaptureHoldHull" exact="$Checked.$values.$CaptureHoldHull"/>
@@ -43,6 +44,7 @@
         <set_value name="global.$APiratesLife_CapturePressureInterval" exact="$Checked.$values.$CapturePressureInterval"/>
         <set_value name="global.$APiratesLife_CaptureFearDecayFactor" exact="$Checked.$values.$CaptureFearDecayFactor"/>
         <set_value name="global.$APiratesLife_CaptureFearDecayInterval" exact="$Checked.$values.$CaptureFearDecayInterval"/>
+        <set_value name="global.$APiratesLife_CaptureWingmenTurrets" exact="$Checked.$values.$CaptureWingmenTurrets"/>
         <do_if value="not $Checked.$loaded">
           <debug_text text="'[apirateslife] settings warning: config file not loaded, using defaults'"/>
         </do_if>
@@ -57,7 +59,7 @@
             <debug_text text="'[apirateslife] settings warning: %s = %s is not a number, using %s'.[$Bad.$setting, $Bad.$given, $Bad.$used]"/>
           </do_else>
         </do_for_each>
-        <debug_text text="'[apirateslife] settings: config applied (intact on claim %s, capture hold hull %s, floor hull %s, pressure step %s, cap %s, interval %s, fear decay x%s per %s s)'.[global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull, global.$APiratesLife_CapturePressureStep, global.$APiratesLife_CapturePressureCap, global.$APiratesLife_CapturePressureInterval, global.$APiratesLife_CaptureFearDecayFactor, global.$APiratesLife_CaptureFearDecayInterval]"/>
+        <debug_text text="'[apirateslife] settings: config applied (intact on claim %s, capture hold hull %s, floor hull %s, pressure step %s, cap %s, interval %s, fear decay x%s per %s s, wingmen turrets %s)'.[global.$APiratesLife_IntactOnClaim, global.$APiratesLife_CaptureHoldHull, global.$APiratesLife_CaptureFloorHull, global.$APiratesLife_CapturePressureStep, global.$APiratesLife_CapturePressureCap, global.$APiratesLife_CapturePressureInterval, global.$APiratesLife_CaptureFearDecayFactor, global.$APiratesLife_CaptureFearDecayInterval, global.$APiratesLife_CaptureWingmenTurrets]"/>
       </actions>
     </cue>
 
@@ -73,10 +75,11 @@
       </params>
       <actions>
         <!-- The defaults, the same as the config file's (tools/check-settings-defaults.ts checks) -->
-        <set_value name="$Defaults" exact="table[$IntactOnClaim = 1, $CaptureHoldHull = 75, $CaptureFloorHull = 35, $CapturePressureStep = 8, $CapturePressureCap = 80, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0.5, $CaptureFearDecayInterval = 300]"/>
+        <set_value name="$Defaults" exact="table[$IntactOnClaim = 1, $CaptureHoldHull = 75, $CaptureFloorHull = 35, $CapturePressureStep = 8, $CapturePressureCap = 80, $CapturePressureInterval = 5, $CaptureFearDecayFactor = 0.5, $CaptureFearDecayInterval = 300, $CaptureWingmenTurrets = 1]"/>
         <!-- [setting, lowest, highest], null for no highest. The hold line comes before the floor,
-             whose highest is the hold line in use. IntactOnClaim takes 0 or 1 only. -->
-        <set_value name="$Ranges" exact="[['IntactOnClaim', 0, 1], ['CaptureHoldHull', 0, 75], ['CaptureFloorHull', 0, null], ['CapturePressureStep', 0, null], ['CapturePressureCap', 0, 100], ['CapturePressureInterval', 5, null], ['CaptureFearDecayFactor', 0, 1], ['CaptureFearDecayInterval', 1, null]]"/>
+             whose highest is the hold line in use. IntactOnClaim and CaptureWingmenTurrets take 0 or 1
+             only. -->
+        <set_value name="$Ranges" exact="[['IntactOnClaim', 0, 1], ['CaptureHoldHull', 0, 75], ['CaptureFloorHull', 0, null], ['CapturePressureStep', 0, null], ['CapturePressureCap', 0, 100], ['CapturePressureInterval', 5, null], ['CaptureFearDecayFactor', 0, 1], ['CaptureFearDecayInterval', 1, null], ['CaptureWingmenTurrets', 0, 1]]"/>
         <set_value name="$Loaded" exact="false"/>
         <do_for_each name="$Range" in="$Ranges">
           <do_if value="$Raw.{'$' + $Range.{1}}? and $Raw.{'$' + $Range.{1}} != null">
@@ -93,7 +96,7 @@
           <do_if value="not $Loaded or not (typeof $Given).isnumeric">
             <set_value name="$Used" exact="$Default"/>
           </do_if>
-          <do_elseif value="$Key == '$IntactOnClaim'">
+          <do_elseif value="$Key == '$IntactOnClaim' or $Key == '$CaptureWingmenTurrets'">
             <set_value name="$Used" exact="if $Given == 0 or $Given == 1 then $Given else $Default"/>
           </do_elseif>
           <do_else>

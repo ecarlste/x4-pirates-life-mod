@@ -4,9 +4,11 @@
      stays inside vanilla's bail gates instead of dying:
        break:    hull at or above $holdhull (default 75, vanilla's bail gate). While the shields
                  plus the hull above the line hold more than the wing's burst, about
-                 $burstseconds of the whole wing's laser damage: fire, so shots still in flight
+                 $burstseconds of the whole wing's laser and turret damage: fire, so shots still in flight
                  from every wingman land above the line. Inside that margin only the finisher
-                 (the operation picks it, the closest wingman) fires: with all but $finishguns guns
+                 (the operation picks it, the closest wingman with a forward gun; a wing of
+                 turrets only stops here, and the player takes the hull the rest of the way)
+                 fires: with all but $finishguns guns
                  out of its weapon group (never none: vanilla's attack fails the order with no DPS),
                  firing on until the line, so only those guns' bolts in flight overshoot it. The rest
                  of the wing holds. Fixed guns rarely land from far out, so the finisher fires
@@ -23,6 +25,11 @@
                  on shields, not hull, whatever the weapon (heavy, slow guns get a bigger margin).
                  Fire again once shields are $shieldresume percent above that.
        floor:    hull at or below $floorhull: no fire at all
+     Turrets: they fire as the player set them in the break, until the margin is reached. From
+     then on (the fine stage, closing in, suppress, hold and floor), each wingman's turrets are
+     set to hold fire, as they'd otherwise fire at full rate (from 2 km while the finisher closes
+     in, #184), and each goes back to its own mode once the wing is back in the break or the order
+     ends. The CaptureWingmenTurrets setting (0) leaves them to the player throughout.
      Missiles: vanilla's attack script fires them (torpedoes too) from the first pass, and one
      already in flight kills a fighter at the hold line, as the game tests showed. So the pilot
      carries $APiratesLife_NoMissiles while this order runs, which our patch on
@@ -38,7 +45,7 @@
       </param>
       <param name="holdhull" default="75" type="internal" comment="Below this hull percentage, fire only at shields (75 is vanilla's bail gate)"/>
       <param name="floorhull" default="35" type="internal" comment="Hull percentage at or below which nobody fires"/>
-      <param name="burstseconds" default="1.5" type="internal" comment="While suppressing, stop firing while the target's shields still hold this many seconds of the wing's laser damage"/>
+      <param name="burstseconds" default="1.5" type="internal" comment="While suppressing, stop firing while the target's shields still hold this many seconds of the wing's laser and turret damage"/>
       <param name="missseconds" default="10" type="internal" comment="Break, fine stage: after the finisher has fired this many seconds within finishrange without a hit on the target, it swaps the longest-kept of its guns for another"/>
       <param name="finishguns" default="2" type="internal" comment="Break, fine stage: how many guns the finisher keeps in its weapon group (at least 1). With one it landed a hit on about one pass in two, too few to finish in time (#182); each gun adds about a bolt of overshoot"/>
       <param name="finishrange" default="600m" type="internal" comment="Break, fine stage: the finisher fires only within this distance of the target, and closes in without firing from further out"/>
@@ -185,6 +192,8 @@
     <set_value name="$keptguns" exact="[]"/>
     <set_value name="$removedguns" exact="[]"/>
     <set_value name="$weapongroup" exact="0"/>
+    <!-- Our turrets' own modes while we hold their fire, by turret; null while we don't -->
+    <set_value name="$turretmodes" exact="null"/>
     <!-- The finisher's current window of firing within range without a hit: when its current stretch
          in range began (null: not firing in range), its last shot in range, and the seconds fired in
          range before that stretch -->
@@ -227,11 +236,13 @@
         <resume label="decide"/>
       </do_if>
 
-      <!-- What may still land after we stop: about $burstseconds of our laser fire, in hitpoints.
-           Recomputed each time, as weapons can be lost in the fight, but not while the finisher
-           has guns out of the group, as the DPS may then count only the guns left. -->
-      <do_if value="not $keptguns.count">
-        <set_value name="$burst" exact="this.assignedcontrolled.dps.lasers.all * $burstseconds"/>
+      <!-- What may still land after we stop: about $burstseconds of our laser and turret fire, in
+           hitpoints. Recomputed each time, as weapons can be lost in the fight, but not while the
+           finisher has guns out of the group or our turrets hold fire, as the DPS may then count
+           only what's left. Kept on the pilot for the wing's DPS (WingDps). -->
+      <do_if value="not $keptguns.count and $turretmodes == null">
+        <set_value name="this.$APiratesLife_Dps" exact="this.assignedcontrolled.dps.lasers.all + this.assignedcontrolled.dps.turrets.all"/>
+        <set_value name="$burst" exact="this.$APiratesLife_Dps * $burstseconds"/>
       </do_if>
       <!-- The same for the whole wing attacking this target, as the operation keeps it -->
       <set_value name="$wingdps" exact="@global.$APiratesLife_CaptureOps.{$target}.$wingdps"/>
@@ -261,6 +272,31 @@
         <set_value name="$fire" exact="$target.maxshield and $target.shield ge $wingburst + $target.maxshield * $shieldresume / 100.0"/>
       </do_else>
 
+      <!-- Turrets hold fire from the fine stage on (see the top of this file), unless the
+           CaptureWingmenTurrets setting is 0 -->
+      <set_value name="$holdturrets" exact="(if global.$APiratesLife_CaptureWingmenTurrets? then global.$APiratesLife_CaptureWingmenTurrets else 1) != 0 and not ($target.hullpercentage ge $holdhull and $margin gt $wingburst)"/>
+      <do_if value="$holdturrets and $turretmodes == null">
+        <set_value name="$turretmodes" exact="table[]"/>
+        <do_for_each name="$turret" in="this.assignedcontrolled.turrets.operational.list">
+          <set_value name="$turretmodes.{$turret}" exact="$turret.mode"/>
+          <set_weapon_mode weapon="$turret" weaponmode="weaponmode.holdfire"/>
+        </do_for_each>
+        <debug_text text="'[apirateslife] capture order: %s holds fire on %s turrets'.[this.assignedcontrolled.knownname, $turretmodes.keys.count]" chance="$debugchance"/>
+      </do_if>
+      <do_elseif value="not $holdturrets and $turretmodes != null">
+        <do_for_each name="$turret" valuename="$mode" in="$turretmodes">
+          <do_if value="$turret.exists">
+            <set_weapon_mode weapon="$turret" weaponmode="$mode"/>
+          </do_if>
+        </do_for_each>
+        <set_value name="$turretmodes" exact="null"/>
+      </do_elseif>
+      <!-- With its turrets holding and no forward gun left, a wingman can't fire: vanilla's attack
+           would fail the order with no DPS -->
+      <do_if value="$fire and $holdturrets and not $keptguns.count and this.assignedcontrolled.dps.lasers.all le 0">
+        <set_value name="$fire" exact="false"/>
+      </do_if>
+
       <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $closing then 'closes in' else if $finishing then 'finishes' else if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, $wingburst, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire or $finishing != @$lastfinishing or $closing != @$lastclosing then $debugchance else 0"/>
       <set_value name="$lastfire" exact="$fire"/>
       <set_value name="$lastfinishing" exact="$finishing"/>
@@ -275,17 +311,15 @@
         </do_for_each>
         <set_value name="$removedguns" exact="[]"/>
         <set_value name="$keptguns" exact="[]"/>
-        <remove_value name="this.$APiratesLife_Dps"/>
       </do_if>
 
       <!-- Into the fine stage, the finisher: take all but $finishguns guns out of the active weapon
            group. At least one stays because vanilla's attack fails the order with no DPS
            (order.fight.attack.object.xml:550-568), and DPS counts only grouped guns. The wing's
-           DPS is read before (WingDps reads it from the pilot). -->
+           DPS was kept on the pilot before (WingDps reads it there). -->
       <do_if value="$finishing and not $keptguns.count">
         <set_value name="$missstart" exact="null"/>
         <set_value name="$missbanked" exact="0"/>
-        <set_value name="this.$APiratesLife_Dps" exact="this.assignedcontrolled.dps.lasers.all"/>
         <set_value name="$weapongroup" exact="this.assignedcontrolled.activeweapongroup.primary"/>
         <do_for_each name="$gun" in="this.assignedcontrolled.primaryweapons.{$weapongroup}.list">
           <do_if value="$keptguns.count lt [$finishguns, 1].max and $gun.isoperational and not $gun.isclass.turret">
@@ -378,6 +412,14 @@
         </do_if>
       </do_for_each>
       <set_value name="$removedguns" exact="[]"/>
+      <do_if value="$turretmodes != null">
+        <do_for_each name="$turret" valuename="$mode" in="$turretmodes">
+          <do_if value="$turret.exists">
+            <set_weapon_mode weapon="$turret" weaponmode="$mode"/>
+          </do_if>
+        </do_for_each>
+      </do_if>
+      <set_value name="$turretmodes" exact="null"/>
       <remove_value name="this.$APiratesLife_Dps"/>
       <stop_shooting object="this.assignedcontrolled"/>
       <cease_fire object="this.assignedcontrolled"/>
@@ -388,8 +430,8 @@
       <debug_text text="'[apirateslife] capture order: %s ends on %s'.[this.assignedcontrolled.knownname, @$target.knownname]" chance="$debugchance"/>
     </actions>
   </attention>
-  <!-- Cancelled by the player: missiles are allowed again, and the finisher's guns go back in
-       the group -->
+  <!-- Cancelled by the player: missiles are allowed again, the finisher's guns go back in the
+       group, and the turrets to their own modes -->
   <on_abort>
     <remove_value name="this.$APiratesLife_NoMissiles"/>
     <do_for_each name="$gun" in="$removedguns">
@@ -397,6 +439,13 @@
         <add_weapon_to_weapongroup weapon="$gun" weapongroup="$weapongroup" primary="true"/>
       </do_if>
     </do_for_each>
+    <do_if value="$turretmodes != null">
+      <do_for_each name="$turret" valuename="$mode" in="$turretmodes">
+        <do_if value="$turret.exists">
+          <set_weapon_mode weapon="$turret" weaponmode="$mode"/>
+        </do_if>
+      </do_for_each>
+    </do_if>
     <remove_value name="this.$APiratesLife_Dps"/>
   </on_abort>
 </aiscript>

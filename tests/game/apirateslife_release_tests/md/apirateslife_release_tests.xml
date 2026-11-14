@@ -158,7 +158,8 @@
               $CapturePressureCap = '%s'.[@global.$APiratesLife_CapturePressureCap],
               $CapturePressureInterval = '%s'.[@global.$APiratesLife_CapturePressureInterval],
               $CaptureFearDecayFactor = '%s'.[@global.$APiratesLife_CaptureFearDecayFactor],
-              $CaptureFearDecayInterval = '%s'.[@global.$APiratesLife_CaptureFearDecayInterval]]"/>
+              $CaptureFearDecayInterval = '%s'.[@global.$APiratesLife_CaptureFearDecayInterval],
+              $CaptureWingmenTurrets = '%s'.[@global.$APiratesLife_CaptureWingmenTurrets]]"/>
             <do_for_each name="$Key" in="$Left.$globals.keys.list">
               <do_if value="$Globals.{$Key} != $Left.$globals.{$Key} or $Globals.{$Key} == 'null'">
                 <set_value name="$Problems" exact="$Problems + ' %s is %s, was %s;'.[$Key, $Globals.{$Key}, $Left.$globals.{$Key}]"/>

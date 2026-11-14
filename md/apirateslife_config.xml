@@ -52,6 +52,12 @@
              this percentage. 0 up to CaptureHoldHull. -->
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
 
+        <!-- Capture operations, your wingmen's turrets only (not your own ship's): 1 = once the
+             target's hull is close to CaptureHoldHull, their turrets hold fire until the
+             operation ends (at full rate, they can take the hull too far); 0 = they fire as you
+             set them throughout. 0 or 1. -->
+        <set_value name="global.$APiratesLife_CaptureWingmenTurrets" exact="1"/>
+
         <!-- Seconds between the bail checks a capture operation asks for while the player leads it
              within about 10 km and the target is inside the bail gates, so checks don't wait for
              hits. 5 or more: SWI checks for a bail at most every 5 seconds. -->

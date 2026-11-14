@@ -111,6 +111,12 @@ Tuning: change these only if you know why
     Nobody in the operation fires once the hull is at or below this
     percentage. 0 up to CaptureHoldHull.
 
+  CaptureWingmenTurrets (default 1)
+    Your wingmen's turrets only, not your own ship's. 1 = once the
+    target's hull is close to CaptureHoldHull, their turrets hold fire
+    until the operation ends; 0 = they fire as you set them throughout.
+    0 or 1.
+
   CapturePressureInterval (default 5)
     Seconds between the extra bail checks an operation asks for while
     you lead it within about 10 km and the target is inside the bail
