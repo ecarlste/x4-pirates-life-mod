@@ -1,7 +1,8 @@
 # Shared by the whole-run suites of tools/run-game-tests.ps1 (RunGameTests*.Tests.ps1): a fake game
 # that writes a prepared debuglog.txt instead of playing the tests, and a sandbox with a fake X4
-# install and test profile. In a release session the fake game writes $FAKE_SOURCE_LOG.new or .load
-# instead, by whether the installed release extension loads a save, and keeps copies of what that
+# install and test profile. In a release session the fake game writes $FAKE_SOURCE_LOG.new, .load or
+# .unload instead, by whether the installed release extension loads a save and whether the game
+# tests' extension is installed with it (only with the mod), and keeps copies of what that
 # session saw: the profile's content.xml ($FAKE_ARGS.<kind>.xml) and, when the game tests'
 # extension is installed, $FAKE_MARK.<kind> and its autostart and harness ($FAKE_ARGS.<kind>.autostart,
 # .harness). Dot-source it from BeforeAll, after TestHelpers.ps1.
@@ -37,6 +38,7 @@ set "REL=%FAKE_X4%\extensions\apirateslife_release_tests\ui\apirateslife_release
 if not exist "%REL%" goto play
 set KIND=new
 findstr /b /c:"local session = { load" "%REL%" >nul && set KIND=load
+if "%KIND%"=="load" if not exist "%FAKE_X4%\extensions\apirateslife_tests\content.xml" set KIND=unload
 set "LOG=%FAKE_SOURCE_LOG%.%KIND%"
 for %%F in ("%FAKE_LOGPATH%") do copy /y "%%~dpFcontent.xml" "%FAKE_ARGS%.%KIND%.xml" >nul
 if exist "%FAKE_X4%\extensions\apirateslife_tests\content.xml" echo installed>"%FAKE_MARK%.%KIND%"
@@ -61,10 +63,11 @@ log="$FAKE_SOURCE_LOG"
 rel="$FAKE_X4/extensions/apirateslife_release_tests/ui/apirateslife_release_tests.lua"
 if [ -f "$rel" ]; then
     kind=new
+    tests="$FAKE_X4/extensions/apirateslife_tests"
     grep -q '^local session = { load' "$rel" && kind=load
+    [ "$kind" = load ] && [ ! -f "$tests/content.xml" ] && kind=unload
     log="$FAKE_SOURCE_LOG.$kind"
     cp "$(dirname "$FAKE_LOGPATH")/content.xml" "$FAKE_ARGS.$kind.xml"
-    tests="$FAKE_X4/extensions/apirateslife_tests"
     if [ -f "$tests/content.xml" ]; then
         echo installed > "$FAKE_MARK.$kind"
         cp "$tests/ui/apirateslife_tests_autostart.lua" "$FAKE_ARGS.$kind.autostart"

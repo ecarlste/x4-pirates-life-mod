@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The release sessions' game side (tools/run-game-tests.ps1 -Release; docs/testing.md, Release
      sessions). The runner reads these "[apirateslife-test]" lines from debuglog.txt:
-       RUN START 0 tests, DONE passed=0 failed=0   around a session this extension runs on its own
+       RUN START <n> tests, PASS/FAIL <name>: <detail>, DONE passed=<n> failed=<n>
+                                                   around a session this extension runs on its own
        SAVED <file>                                a save written, read back by a later session
        SAVE FAILED: <why>
        LOADED <module>                             a game loaded, not started
 
      A new game on the release gamestart is saved at once and the game quits: session 1, made
-     without A Pirate's Life. A loaded game is only logged here; the game tests' harness runs its
-     tests on it (its Run cue). -->
+     without A Pirate's Life. On a loaded game with the mod, the game tests' harness runs its tests
+     (its Run cue) and then asks for the save, and the game quits once it's written: session 2. A
+     loaded game that holds what the harness's ReleaseLeftovers left is checked here, with the mod
+     gone, while it plays for 10 minutes: session 3 (Uninstalled). -->
 <mdscript name="APiratesLife_ReleaseTests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
     <cue name="NewGame">
@@ -26,59 +29,67 @@
           <actions>
             <raise_lua_event name="'apirateslife_release_tests.save'"/>
           </actions>
-          <cues>
-            <cue name="SaveAsked">
-              <conditions>
-                <event_ui_triggered screen="'apirateslife_release_tests'" control="'save'"/>
-              </conditions>
-              <actions>
-                <set_value name="$File" exact="event.param3"/>
-                <do_if value="$File == ''">
-                  <signal_cue_instantly cue="Finish" param="'SAVE FAILED: the session has no save to write'"/>
-                </do_if>
-              </actions>
-            </cue>
-            <cue name="Saved">
-              <conditions>
-                <event_game_saved/>
-              </conditions>
-              <actions>
-                <cancel_cue cue="SaveTimeout"/>
-                <signal_cue_instantly cue="Finish" param="if event.param then 'SAVED %s'.[@$File] else 'SAVE FAILED: the game reported a failed save'"/>
-              </actions>
-            </cue>
-            <cue name="SaveTimeout">
-              <delay exact="60s"/>
-              <actions>
-                <cancel_cue cue="Saved"/>
-                <signal_cue_instantly cue="Finish" param="'SAVE FAILED: no save within 60s'"/>
-              </actions>
-            </cue>
-          </cues>
-        </cue>
-        <cue name="Finish">
-          <conditions>
-            <event_cue_signalled/>
-          </conditions>
-          <actions>
-            <debug_text text="'[apirateslife-test] %s'.[event.param]" filter="general"/>
-            <debug_text text="'[apirateslife-test] DONE passed=0 failed=0'" filter="general"/>
-          </actions>
-          <cues>
-            <!-- Give the log a moment to flush -->
-            <cue name="Quit">
-              <delay exact="2s"/>
-              <actions>
-                <quit_to_desktop/>
-              </actions>
-            </cue>
-          </cues>
         </cue>
       </cues>
     </cue>
 
-    <!-- The save holds NewGame's cues as they were while it saved; a loaded game must not finish
-         and quit when it saves again -->
+    <!-- The Lua saving, asked by NewGame or by the harness's Run once its tests are done; it
+         answers with the file it saves to -->
+    <cue name="SaveAsked">
+      <conditions>
+        <event_ui_triggered screen="'apirateslife_release_tests'" control="'save'"/>
+      </conditions>
+      <actions>
+        <set_value name="$File" exact="event.param3"/>
+        <do_if value="$File == ''">
+          <signal_cue_instantly cue="Finish" param="'SAVE FAILED: the session has no save to write'"/>
+        </do_if>
+      </actions>
+      <cues>
+        <cue name="Saved">
+          <conditions>
+            <event_game_saved/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="SaveTimeout"/>
+            <signal_cue_instantly cue="Finish" param="if event.param then 'SAVED %s'.[@$File] else 'SAVE FAILED: the game reported a failed save'"/>
+          </actions>
+        </cue>
+        <cue name="SaveTimeout">
+          <delay exact="60s"/>
+          <actions>
+            <cancel_cue cue="Saved"/>
+            <signal_cue_instantly cue="Finish" param="'SAVE FAILED: no save within 60s'"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Logs how the save went and quits. On a new game this extension ran the session, so it ends
+         the run too; on a loaded one the harness already has. -->
+    <cue name="Finish">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <debug_text text="'[apirateslife-test] %s'.[event.param]" filter="general"/>
+        <do_if value="not global.$APiratesLifeTest_Loaded?">
+          <debug_text text="'[apirateslife-test] DONE passed=0 failed=0'" filter="general"/>
+        </do_if>
+      </actions>
+      <cues>
+        <!-- Give the log a moment to flush -->
+        <cue name="Quit">
+          <delay exact="2s"/>
+          <actions>
+            <quit_to_desktop/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- A save holds this script's cues as they were while it saved: put them back to waiting, so
+         a loaded game doesn't finish a save from before, or the checks -->
     <cue name="Loaded" instantiate="true">
       <conditions>
         <event_game_loaded/>
@@ -86,8 +97,162 @@
       </conditions>
       <actions>
         <cancel_cue cue="NewGame"/>
+        <reset_cue cue="SaveAsked"/>
+        <reset_cue cue="Finish"/>
+        <reset_cue cue="Uninstalled"/>
+        <set_value name="global.$APiratesLifeTest_Loaded" exact="true"/>
         <debug_text text="'[apirateslife-test] LOADED %s'.[player.module]" filter="general"/>
+        <do_if value="global.$APiratesLifeTest_Leftovers?">
+          <signal_cue cue="Uninstalled"/>
+        </do_if>
       </actions>
+    </cue>
+
+    <!-- Session 3: the save the harness's ReleaseLeftovers made with the mod, loaded without it
+         (release.feature, "A save loads and plays with the mod removed"). Once loaded, everything
+         it left is as it was: the ships taken, the mod's tables and settings, the running
+         operation's target with its hostility boost, the wingman's and the pilots' variables. The
+         operation's cue and its mission are gone: X4 drops a cue whose script isn't loaded. Then
+         the game plays for 10 minutes, and until the boost has run out (600 s from when the
+         operation began, then it decays). -->
+    <cue name="Uninstalled">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <debug_text text="'[apirateslife-test] RUN START 1 tests'" filter="general"/>
+        <set_value name="$Left" exact="global.$APiratesLifeTest_Leftovers"/>
+        <set_value name="$Problems" exact="''"/>
+        <!-- Here, not in Uninstalled_Check: X4 checks that cue's sub-cues during its delay -->
+        <set_value name="$LoadedAt" exact="player.age"/>
+      </actions>
+      <cues>
+        <!-- Let the game settle after loading, as the harness does -->
+        <cue name="Uninstalled_Check">
+          <delay exact="2s"/>
+          <actions>
+            <do_for_each name="$Taken" in="$Left.$taken">
+              <set_value name="$Ship" exact="$Taken.$ship"/>
+              <do_if value="not @$Ship.isoperational or not $Ship.isplayerowned">
+                <set_value name="$Problems" exact="$Problems + ' a taken ship is gone or not mine (exists %s);'.[@$Ship.exists]"/>
+              </do_if>
+              <do_else>
+                <set_value name="$Equipment" exact="$Ship.weapons.operational.count + $Ship.turrets.operational.count + $Ship.shields.operational.count"/>
+                <do_if value="$Ship.hullpercentage - $Taken.$hull gt 1 or $Taken.$hull - $Ship.hullpercentage gt 1 or $Equipment != $Taken.$equipment">
+                  <set_value name="$Problems" exact="$Problems + ' %s changed: hull %s%% (was %s%%), equipment %s (was %s);'.[$Ship.knownname, $Ship.hullpercentage, $Taken.$hull, $Equipment, $Taken.$equipment]"/>
+                </do_if>
+              </do_else>
+            </do_for_each>
+
+            <!-- As ReleaseLeftovers read them: as text, since MD reads 0 as null -->
+            <set_value name="$Globals" exact="table[
+              $CaptureOps = '%s'.[@global.$APiratesLife_CaptureOps.keys.count],
+              $CaptureMetrics = '%s'.[@global.$APiratesLife_CaptureMetrics.count],
+              $PiratedShips = '%s'.[@global.$APiratesLife_PiratedShips.keys.count],
+              $BailedToPlayer = '%s'.[@global.$APiratesLife_BailedToPlayer.keys.count],
+              $BoardedByPlayer = '%s'.[@global.$APiratesLife_BoardedByPlayer.keys.count],
+              $IntactOnClaim = '%s'.[@global.$APiratesLife_IntactOnClaim],
+              $CaptureHoldHull = '%s'.[@global.$APiratesLife_CaptureHoldHull],
+              $CaptureFloorHull = '%s'.[@global.$APiratesLife_CaptureFloorHull],
+              $CapturePressureStep = '%s'.[@global.$APiratesLife_CapturePressureStep],
+              $CapturePressureCap = '%s'.[@global.$APiratesLife_CapturePressureCap],
+              $CapturePressureInterval = '%s'.[@global.$APiratesLife_CapturePressureInterval],
+              $CaptureFearDecayFactor = '%s'.[@global.$APiratesLife_CaptureFearDecayFactor],
+              $CaptureFearDecayInterval = '%s'.[@global.$APiratesLife_CaptureFearDecayInterval]]"/>
+            <do_for_each name="$Key" in="$Left.$globals.keys.list">
+              <do_if value="$Globals.{$Key} != $Left.$globals.{$Key} or $Globals.{$Key} == 'null'">
+                <set_value name="$Problems" exact="$Problems + ' %s is %s, was %s;'.[$Key, $Globals.{$Key}, $Left.$globals.{$Key}]"/>
+              </do_if>
+            </do_for_each>
+
+            <set_value name="$Running" exact="$Left.$running"/>
+            <set_value name="$Target" exact="$Running.$target"/>
+            <!-- Which missions the player has, and whether the operation's is one: Uninstalled_Missions -->
+            <raise_lua_event name="'apirateslife_release_tests.missions'" param="'%s'.[if @$Target.isoperational then $Target.knownname else '']"/>
+            <do_if value="not @$Target.isoperational">
+              <set_value name="$Problems" exact="$Problems + ' the running target is gone;'"/>
+            </do_if>
+            <do_elseif value="$Target.relationto.{faction.player} ge $Target.trueowner.relationto.{faction.player}">
+              <set_value name="$Problems" exact="$Problems + ' the running target lost its hostility boost (%s, its faction %s);'.[$Target.relationto.{faction.player}, $Target.trueowner.relationto.{faction.player}]"/>
+            </do_elseif>
+            <do_if value="@$Target.pilot.$nextcapturechance != $Running.$nextcapturechance">
+              <set_value name="$Problems" exact="$Problems + ' its pilot has $nextcapturechance %s, was %s;'.[@$Target.pilot.$nextcapturechance, $Running.$nextcapturechance]"/>
+            </do_if>
+            <do_if value="not $Running.$crewstart">
+              <set_value name="$Problems" exact="$Problems + ' the operation left no $CrewStart, so it never ran its crew check;'"/>
+            </do_if>
+            <do_if value="@$Running.$op.exists">
+              <set_value name="$Problems" exact="$Problems + ' the operation cue is still there ($CrewStart %s);'.[@$Running.$op.$CrewStart]"/>
+            </do_if>
+            <do_if value="not @$Running.$wingman.pilot.$APiratesLife_NoMissiles">
+              <set_value name="$Problems" exact="$Problems + ' the wingman pilot lost $APiratesLife_NoMissiles;'"/>
+            </do_if>
+
+            <set_value name="$Fear" exact="@$Left.$calledoff.$target.pilot.$APiratesLife_Fear"/>
+            <set_value name="$FearWas" exact="$Left.$calledoff.$fear"/>
+            <do_if value="not $Fear or not $FearWas or $Fear.$points != $FearWas.$points or $Fear.$time != $FearWas.$time">
+              <set_value name="$Problems" exact="$Problems + ' the called-off pilot has fear %s, was %s;'.[$Fear, $FearWas]"/>
+            </do_if>
+
+            <!-- SETA, up to 6x, for the 10 minutes, as the harness does -->
+            <toggle_timewarp/>
+            <set_timewarp_factor factor="6s"/>
+          </actions>
+          <cues>
+            <cue name="Uninstalled_Missions">
+              <conditions>
+                <event_ui_triggered screen="'apirateslife_release_tests'"/>
+                <check_value value="event.param2 == 'missions' or event.param2 == 'missions_with_operation'"/>
+              </conditions>
+              <actions>
+                <debug_text text="'[apirateslife-test] trace: missions: %s'.[event.param3]" filter="general"/>
+                <set_value name="$MissionsListed" exact="true"/>
+                <do_if value="event.param2 == 'missions_with_operation'">
+                  <set_value name="$Problems" exact="$Problems + ' the operation mission is still listed (%s);'.[event.param3]"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="Uninstalled_KeepSeta" instantiate="true" checkinterval="2s">
+              <conditions>
+                <check_value value="not player.timewarp.active and player.timewarp.available"/>
+              </conditions>
+              <actions>
+                <toggle_timewarp/>
+                <set_timewarp_factor factor="6s"/>
+              </actions>
+            </cue>
+
+            <cue name="Uninstalled_Played" checkinterval="5s">
+              <conditions>
+                <check_value value="player.age ge $LoadedAt + 600s and player.age ge $Running.$boostedat + 630s"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="Uninstalled_KeepSeta"/>
+                <do_if value="not $MissionsListed?">
+                  <set_value name="$Problems" exact="$Problems + ' the mission list never came;'"/>
+                </do_if>
+                <do_if value="not @$Target.isoperational">
+                  <set_value name="$Problems" exact="$Problems + ' the running target was gone before its boost could run out;'"/>
+                </do_if>
+                <do_elseif value="$Target.relationto.{faction.player} lt $Target.trueowner.relationto.{faction.player}">
+                  <set_value name="$Problems" exact="$Problems + ' the running target still has its boost after %s s (%s, its faction %s);'.[(player.age - $Running.$boostedat)i, $Target.relationto.{faction.player}, $Target.trueowner.relationto.{faction.player}]"/>
+                </do_elseif>
+                <set_value name="$Ok" exact="$Problems == ''"/>
+                <debug_text text="'[apirateslife-test] %s uninstall_leftovers: %s'.[if $Ok then 'PASS' else 'FAIL', if $Ok then '%s taken ships, %s tables and settings, the running and the called-off operations as left; boost gone; played %s s'.[$Left.$taken.count, $Left.$globals.keys.count, (player.age - $LoadedAt)i] else $Problems]" filter="general"/>
+                <debug_text text="'[apirateslife-test] DONE passed=%s failed=%s'.[if $Ok then 1 else 0, if $Ok then 0 else 1]" filter="general"/>
+              </actions>
+              <cues>
+                <cue name="Uninstalled_Quit">
+                  <delay exact="2s"/>
+                  <actions>
+                    <quit_to_desktop/>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
     </cue>
   </cues>
 </mdscript>

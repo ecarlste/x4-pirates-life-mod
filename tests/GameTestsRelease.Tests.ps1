@@ -111,6 +111,133 @@ Describe 'Get-ExistingSaveCheck' {
     }
 }
 
+Describe 'Get-UninstallCheck' {
+    BeforeAll {
+        # Session 2: a save loaded with the mod, its tests run and the game saved again. Session 3:
+        # that save loaded without the mod, and the release extension's checks run on it
+        $script:WithMod = @(
+            '[=ERROR=] 2.50 [apirateslife-test] release: loading save apirateslife_release_1'
+            "[FileIO ] 3.13 File I/O: Failed to verify the file signature for file '.\extensions\apirateslife\libraries\icons.xml' (error: 14)"
+            '[Scripts] 30.00 *** Context:x: [apirateslife-test] LOADED apirateslife_release_test'
+            '[Scripts] 40.01 *** Context:x: [apirateslife-test] RUN START 1 tests'
+            '[Scripts] 44.00 *** Context:x: [apirateslife-test] PASS release_leftovers: left 2 taken ships, a called-off and a running operation'
+            '[Scripts] 44.01 *** Context:x: [apirateslife-test] DONE passed=1 failed=0'
+            '[Scripts] 47.00 *** Context:x: [apirateslife-test] SAVED apirateslife_release_2'
+        )
+        $script:WithoutMod = @(
+            '[=ERROR=] 2.50 [apirateslife-test] release: loading save apirateslife_release_2'
+            "[FileIO ] 3.12 File I/O: Failed to verify the file signature for file '.\extensions\starwarsmod_m1\libraries\icons.xml' (error: 14)"
+            '[Scripts] 30.00 *** Context:x: [apirateslife-test] LOADED apirateslife_release_test'
+            '[Scripts] 32.00 *** Context:x: [apirateslife-test] RUN START 1 tests'
+            '[Scripts] 900.00 *** Context:x: [apirateslife-test] PASS uninstall_leftovers: everything stayed, played 600 s'
+            '[Scripts] 900.01 *** Context:x: [apirateslife-test] DONE passed=1 failed=0'
+        )
+    }
+
+    It 'passes a save made with the mod that loads and plays without it, its checks passing and its log clean' {
+        $check = Get-UninstallCheck (Read-GameTestLog $script:WithMod) (Read-GameTestLog $script:WithoutMod)
+        $check.Name | Should -Be 'save_plays_without_mod'
+        $check.Passed | Should -BeTrue
+        $check.Detail | Should -Be 'saved apirateslife_release_2 with the mod, loaded it without: 1 checks passed, no errors or warnings from our files'
+    }
+
+    It 'fails when session 2 saved nothing, or ran without the mod' {
+        $with = @($script:WithMod -replace 'SAVED apirateslife_release_2', 'SAVE FAILED: no save within 60s' | Where-Object { $_ -notmatch 'extensions' })
+        $check = Get-UninstallCheck (Read-GameTestLog $with) (Read-GameTestLog $script:WithoutMod)
+        $check.Passed | Should -BeFalse
+        $check.Detail | Should -Be 'session 2 saved nothing (no save within 60s); session 2 read no files from apirateslife, so the mod was off;'
+    }
+
+    It 'fails when session 3 loaded another save, or read files from the mod' {
+        $without = @($script:WithoutMod -replace 'loading save apirateslife_release_2', 'loading save apirateslife_release_1') +
+            @("[FileIO ] 3.14 File I/O: Failed to verify the file signature for file '.\extensions\apirateslife\md\apirateslife_bail.xml' (error: 14)")
+        $check = Get-UninstallCheck (Read-GameTestLog $script:WithMod) (Read-GameTestLog $without)
+        $check.Passed | Should -BeFalse
+        $check.Detail | Should -Be 'session 3 loaded apirateslife_release_1, not apirateslife_release_2; session 3 read files from apirateslife, so the mod was on;'
+    }
+
+    It 'fails when session 3 loaded nothing and checked nothing' {
+        $check = Get-UninstallCheck (Read-GameTestLog $script:WithMod) (Read-GameTestLog @())
+        $check.Passed | Should -BeFalse
+        $check.Detail | Should -Be "session 3 loaded no save; session 3's checks didn't finish; session 3 ran no checks;"
+    }
+
+    It 'fails when session 3''s checks failed, or its log has errors from our files' {
+        $without = @($script:WithoutMod -replace 'PASS uninstall_leftovers', 'FAIL uninstall_leftovers') +
+            @("[=ERROR=] 50.00 Error in AI script order.apirateslife.capture: script not found")
+        $check = Get-UninstallCheck (Read-GameTestLog $script:WithMod) (Read-GameTestLog $without)
+        $check.Passed | Should -BeFalse
+        $check.Detail | Should -Be "1 of session 3's checks failed: uninstall_leftovers; 1 errors or warnings from our files in session 3's log;"
+    }
+}
+
+Describe 'Get-ReleaseSessions' {
+    It 'chains the saves: each session after the first loads the save the one before it wrote' {
+        $sessions = @(Get-ReleaseSessions)
+        $sessions.Count | Should -Be 3
+        $sessions[0].New | Should -Be 'apirateslife_release_test'
+        for ($i = 1; $i -lt $sessions.Count; $i++) {
+            $sessions[$i].Load | Should -Be $sessions[$i - 1].Save
+            $sessions[$i].Load | Should -Not -BeNullOrEmpty
+        }
+        @($sessions | ForEach-Object { $_.Mod }) | Should -Be @($false, $true, $false)
+    }
+
+    It 'leaves the leftovers last in session 2, so the game saves with its operation still running' {
+        (Get-ReleaseSessions)[1].Tests[-1] | Should -Be 'ReleaseLeftovers'
+    }
+
+    It 'allows only session 3 the two errors X4 logs for the wingman''s capture order without the mod' {
+        $sessions = @(Get-ReleaseSessions)
+        @($sessions[0].AllowedErrors).Count | Should -Be 0
+        @($sessions[1].AllowedErrors).Count | Should -Be 0
+        $sessions[2].AllowedErrors | Should -Be @(
+            "Error importing AI order [0xc]: Order definition 'APiratesLife_Capture' not found"
+            "Error on AI director import: AI script name 'order.apirateslife.capture' not found"
+        )
+    }
+}
+
+Describe 'Remove-AllowedErrors' {
+    BeforeAll {
+        # As session 3 logged them on 8.00, loading a save with a wingman on our capture order
+        $script:OrderErrors = @(
+            "[=ERROR=] 14.06 Error importing AI order [0xc]: Order definition 'APiratesLife_Capture' not found"
+            "[=ERROR=] 14.06 Error on AI director import: AI script name 'order.apirateslife.capture' not found"
+        )
+        $script:Uninstalled = (Get-ReleaseSessions)[2]
+    }
+
+    It 'moves the errors the session allows out of Errors, into Allowed' {
+        $run = Remove-AllowedErrors (Read-GameTestLog $script:OrderErrors) $script:Uninstalled
+        $run.Errors.Count | Should -Be 0
+        $run.Allowed | Should -Be $script:OrderErrors
+    }
+
+    It 'keeps every other error from our files, even one that only differs a little' {
+        $others = @(
+            "[=ERROR=] 14.06 Error importing AI order [0xc]: Order definition 'APiratesLife_CaptureEscort' not found"
+            "[=ERROR=] 50.00 Error in AI script order.apirateslife.capture: script not found"
+        )
+        $run = Remove-AllowedErrors (Read-GameTestLog ($script:OrderErrors + $others)) $script:Uninstalled
+        $run.Errors | Should -Be $others
+        $run.Allowed.Count | Should -Be 2
+    }
+
+    It 'allows nothing in a session that lists nothing' {
+        $run = Remove-AllowedErrors (Read-GameTestLog $script:OrderErrors) (Get-ReleaseSessions)[1]
+        $run.Errors | Should -Be $script:OrderErrors
+        $run.Allowed.Count | Should -Be 0
+    }
+
+    It 'passes clean_log with the allowed errors counted in its detail' {
+        $run = Remove-AllowedErrors (Read-GameTestLog $script:OrderErrors) $script:Uninstalled
+        $check = @(Get-SessionLogChecks $run $script:Uninstalled) | Where-Object { $_.Name -eq 'clean_log (session 3)' }
+        $check.Passed | Should -BeTrue
+        $check.Detail | Should -Be 'no errors or warnings from our files in debuglog.txt (2 allowed in this session)'
+    }
+}
+
 Describe 'Rewriting the installed test extensions for a release session' {
     BeforeAll {
         $script:ReleaseLua = Get-Content (Join-Path $script:RepoRoot 'tests/game/apirateslife_release_tests/ui/apirateslife_release_tests.lua') -Raw

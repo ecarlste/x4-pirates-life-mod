@@ -31,6 +31,9 @@
       <actions>
         <!-- Set to false to keep the game open after the run, e.g. to look around after a failure -->
         <set_value name="$QuitWhenDone" exact="true"/>
+        <!-- A release session's loaded game is saved once the tests are done, by the release
+             extension, which then quits -->
+        <set_value name="$Loaded" exact="event.name == 'event_game_loaded'"/>
         <set_value name="$Tests" exact="[
           ConfigAppliedOnStart,
           SettingsClamped,
@@ -70,7 +73,8 @@
           CaptureMetricsAttackBecomesOperation,
           PiratedBailThenClaim,
           PiratedBoarding,
-          PiratedClaimWithoutBail
+          PiratedClaimWithoutBail,
+          ReleaseLeftovers
         ]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$Passed" exact="0"/>
@@ -132,9 +136,12 @@
             </do_if>
             <do_else>
               <debug_text text="'[apirateslife-test] DONE passed=%s failed=%s'.[$Passed, $Failed]" filter="general"/>
-              <do_if value="$QuitWhenDone">
-                <signal_cue cue="Quit"/>
+              <do_if value="$Loaded">
+                <raise_lua_event name="'apirateslife_release_tests.save'"/>
               </do_if>
+              <do_elseif value="$QuitWhenDone">
+                <signal_cue cue="Quit"/>
+              </do_elseif>
             </do_else>
           </actions>
         </cue>
@@ -3447,6 +3454,237 @@
               </actions>
             </cue>
           </cues>
+        </cue>
+      </cues>
+    </cue>
+    <!-- What a save keeps of the mod, for the uninstall release scenario (tools/run-game-tests.ps1
+         -Release, session 2): leaves the mod's state in the game for the release extension to
+         check once the save is loaded without the mod (session 3,
+         tests/game/apirateslife_release_tests). Two ships taken (one by its crew bailing to me, one
+         by boarding), an operation called off with fear left on its pilot, and an operation still
+         running, with a wingman on it, which it reports last so the game saves with it running.
+         What it left is in global.$APiratesLifeTest_Leftovers = table[$taken, $globals, $running,
+         $calledoff] (see the end). Outside a release game it removes everything again. -->
+    <cue name="ReleaseLeftovers">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="$Problems" exact="''"/>
+        <run_actions ref="SpawnBailPair" result="$Bail"/>
+        <create_ship name="$Boarded" macro="impgozanti_cr_macro" sector="player.sector" capturable="true">
+          <owner exact="faction.galempire" overridenpc="true"/>
+          <loadout>
+            <level exact="0.5"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="player.occupiedship" z="4km" allowyaxis="true"/>
+        </create_ship>
+        <create_order id="'Wait'" object="$Boarded" default="true">
+          <param name="noattackresponse" value="true"/>
+        </create_order>
+        <create_boarding_operation faction="faction.player" target="$Boarded" result="$BoardingOp" approach="70" insertion="30"/>
+        <!-- Inside the bail gates from the start, so calling it off leaves fear -->
+        <run_actions ref="SpawnGatedTarget" result="$CalledOff">
+          <param name="Macro" value="macro.tie_fighter_macro"/>
+          <param name="Distance" value="12km"/>
+          <param name="Crew" value="0"/>
+        </run_actions>
+        <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+          <param name="Target" value="$CalledOff"/>
+        </run_actions>
+        <do_if value="not $Started">
+          <set_value name="$Problems" exact="$Problems + ' the operation to call off did not start;'"/>
+        </do_if>
+        <set_value name="$Decided" exact="[]"/>
+        <set_value name="$CalledOffEnded" exact="false"/>
+      </actions>
+      <cues>
+        <cue name="ReleaseLeftovers_Take">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="ForceBail">
+              <param name="Attacker" value="$Bail.$attacker"/>
+              <param name="Target" value="$Bail.$target"/>
+            </run_actions>
+            <!-- set_owner stands in for the boarding's end, as in PiratedBoarding -->
+            <set_owner object="$Boarded" faction="faction.player"/>
+          </actions>
+        </cue>
+        <cue name="ReleaseLeftovers_Bailed">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Bail.Bailed"/>
+            <check_value value="event.param.$target == $Bail.$target"/>
+          </conditions>
+          <delay exact="1s"/>
+          <actions>
+            <remove_value name="global.$APiratesLifeTest_ForceBail"/>
+            <set_owner object="$Bail.$target" faction="faction.player"/>
+          </actions>
+        </cue>
+        <cue name="ReleaseLeftovers_Decided" instantiate="true">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Pirated.Decided"/>
+            <check_value value="event.param.$ship == $Bail.$target or event.param.$ship == $Boarded"/>
+          </conditions>
+          <actions>
+            <append_to_list name="$Decided" exact="event.param.$ship"/>
+          </actions>
+        </cue>
+        <!-- 5 s inside the gates: 4 points of pressure, left as fear -->
+        <cue name="ReleaseLeftovers_CallOff">
+          <delay exact="5s"/>
+          <actions>
+            <raise_lua_event name="'apirateslife_tests.abortMission'" param="{1774100, 10}.[$CalledOff.knownname]"/>
+          </actions>
+        </cue>
+        <cue name="ReleaseLeftovers_Ended">
+          <conditions>
+            <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+            <check_value value="event.param.$target == $CalledOff"/>
+          </conditions>
+          <actions>
+            <do_if value="event.param.$outcome != 'calledoff'">
+              <set_value name="$Problems" exact="$Problems + ' the operation to call off ended as %s;'.[event.param.$outcome]"/>
+            </do_if>
+            <remove_from_list name="global.$APiratesLifeTest_ShieldsDown" exact="$CalledOff"/>
+            <set_value name="$CalledOffEnded" exact="true"/>
+          </actions>
+        </cue>
+
+        <!-- Both ships marked and the first operation over: start the one left running, with a
+             wingman. The target has crew, so the operation's $CrewStart isn't 0 (which MD can't
+             tell from null), and full shields and hull, so it's outside the gates and won't bail
+             before the save. -->
+        <cue name="ReleaseLeftovers_Running" checkinterval="1s">
+          <conditions>
+            <check_value value="$Decided.count ge 2 and $CalledOffEnded"/>
+          </conditions>
+          <actions>
+            <run_actions ref="SpawnBailPair" result="$Pair"/>
+            <destroy_object object="$Pair.$target"/>
+            <set_value name="$Wingman" exact="$Pair.$attacker"/>
+            <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
+            <create_ship name="$Running" macro="gauntlet_macro" sector="player.sector" capturable="true">
+              <owner exact="faction.galempire" overridenpc="true"/>
+              <loadout>
+                <level exact="0.0"/>
+              </loadout>
+              <people>
+                <fillpercent exact="100"/>
+                <person role="service" weight="100">
+                  <select faction="faction.galempire" tags="tag.service"/>
+                </person>
+              </people>
+              <pilot>
+                <select faction="faction.galempire" tags="tag.aipilot"/>
+              </pilot>
+              <safepos object="player.occupiedship" z="3km" allowyaxis="true"/>
+            </create_ship>
+            <create_order id="'Wait'" object="$Running" default="true">
+              <param name="noattackresponse" value="true"/>
+            </create_order>
+          </actions>
+          <cues>
+            <cue name="ReleaseLeftovers_Start">
+              <delay exact="2s"/>
+              <actions>
+                <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+                  <param name="Target" value="$Running"/>
+                </run_actions>
+                <do_if value="not $Started">
+                  <set_value name="$Problems" exact="$Problems + ' the operation left running did not start;'"/>
+                </do_if>
+              </actions>
+              <cues>
+                <!-- The wingman's capture order runs (it marks the pilot and boosts the target's
+                     hostility): send the target off 40 km, so the wingman can't take or destroy it
+                     once the save loads without the mod, and SETA isn't stopped by an enemy nearby.
+                     The operation would end as escaped after 30 s, long after the save. -->
+                <cue name="ReleaseLeftovers_Joined" checkinterval="1s">
+                  <conditions>
+                    <check_value value="@$Wingman.pilot.$APiratesLife_NoMissiles and $Running.relationto.{faction.player} lt $Running.trueowner.relationto.{faction.player}"/>
+                  </conditions>
+                  <actions>
+                    <cancel_cue cue="ReleaseLeftovers_Timeout"/>
+                    <warp object="$Running" zone="player.occupiedship.zone">
+                      <position x="player.occupiedship.position.x" y="player.occupiedship.position.y" z="player.occupiedship.position.z + 40km"/>
+                    </warp>
+                    <signal_cue_instantly cue="ReleaseLeftovers_Done"/>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+          </cues>
+        </cue>
+
+        <cue name="ReleaseLeftovers_Timeout">
+          <delay exact="90s"/>
+          <actions>
+            <set_value name="$Problems" exact="$Problems + ' timed out (ships marked %s of 2, called off %s, wingman joined %s, target relation %s, its faction %s);'.[$Decided.count, $CalledOffEnded, @$Wingman.pilot.$APiratesLife_NoMissiles == true, @$Running.relationto.{faction.player}, @$Running.trueowner.relationto.{faction.player}]"/>
+            <signal_cue_instantly cue="ReleaseLeftovers_Done"/>
+          </actions>
+        </cue>
+
+        <cue name="ReleaseLeftovers_Done">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="ReleaseLeftovers_Decided"/>
+            <cancel_cue cue="ReleaseLeftovers_Running"/>
+            <do_if value="not @$CalledOff.pilot.$APiratesLife_Fear">
+              <set_value name="$Problems" exact="$Problems + ' no fear on the called-off pilot;'"/>
+            </do_if>
+            <do_if value="not @global.$APiratesLife_CaptureOps.{@$Running}">
+              <set_value name="$Problems" exact="$Problems + ' no operation running;'"/>
+            </do_if>
+            <set_value name="$Taken" exact="[]"/>
+            <do_for_each name="$Ship" in="[$Bail.$target, $Boarded]">
+              <run_actions ref="EquipmentCount" result="$Equipment">
+                <param name="Ship" value="$Ship"/>
+              </run_actions>
+              <append_to_list name="$Taken" exact="table[$ship = $Ship, $hull = $Ship.hullpercentage, $equipment = $Equipment]"/>
+              <do_if value="not $Ship.isplayerowned or not @global.$APiratesLife_PiratedShips.{$Ship}">
+                <set_value name="$Problems" exact="$Problems + ' %s is not mine and pirated;'.[$Ship.knownname]"/>
+              </do_if>
+            </do_for_each>
+            <!-- The mod's tables, by how many entries they have, and its settings, by value, as text
+                 since MD reads 0 as null (the release extension reads the same ones) -->
+            <set_value name="$Globals" exact="table[
+              $CaptureOps = '%s'.[@global.$APiratesLife_CaptureOps.keys.count],
+              $CaptureMetrics = '%s'.[@global.$APiratesLife_CaptureMetrics.count],
+              $PiratedShips = '%s'.[@global.$APiratesLife_PiratedShips.keys.count],
+              $BailedToPlayer = '%s'.[@global.$APiratesLife_BailedToPlayer.keys.count],
+              $BoardedByPlayer = '%s'.[@global.$APiratesLife_BoardedByPlayer.keys.count],
+              $IntactOnClaim = '%s'.[@global.$APiratesLife_IntactOnClaim],
+              $CaptureHoldHull = '%s'.[@global.$APiratesLife_CaptureHoldHull],
+              $CaptureFloorHull = '%s'.[@global.$APiratesLife_CaptureFloorHull],
+              $CapturePressureStep = '%s'.[@global.$APiratesLife_CapturePressureStep],
+              $CapturePressureCap = '%s'.[@global.$APiratesLife_CapturePressureCap],
+              $CapturePressureInterval = '%s'.[@global.$APiratesLife_CapturePressureInterval],
+              $CaptureFearDecayFactor = '%s'.[@global.$APiratesLife_CaptureFearDecayFactor],
+              $CaptureFearDecayInterval = '%s'.[@global.$APiratesLife_CaptureFearDecayInterval]]"/>
+            <set_value name="$Op" exact="@global.$APiratesLife_CaptureOps.{@$Running}"/>
+            <set_value name="global.$APiratesLifeTest_Leftovers" exact="table[
+              $taken = $Taken,
+              $globals = $Globals,
+              $running = table[$target = $Running, $wingman = $Wingman, $op = @$Op.$op, $crewstart = @$Op.$op.$CrewStart, $nextcapturechance = @$Running.pilot.$nextcapturechance, $boostedat = player.age],
+              $calledoff = table[$target = $CalledOff, $fear = @$CalledOff.pilot.$APiratesLife_Fear.clone]]"/>
+            <signal_cue_instantly cue="Report" param="table[$name = 'release_leftovers', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'left %s taken ships, fear %s on a called-off pilot and an operation running with a wingman (crew %s)'.[$Taken.count, $CalledOff.pilot.$APiratesLife_Fear.$points, @$Op.$op.$CrewStart] else $Problems)]"/>
+            <!-- Only a release game keeps them, for the save -->
+            <do_if value="player.module != 'apirateslife_release_test'">
+              <remove_value name="global.$APiratesLifeTest_Leftovers"/>
+              <do_for_each name="$Ship" in="[$Bail.$target, $Bail.$attacker, $Boarded, $CalledOff, @$Running, @$Wingman]">
+                <do_if value="$Ship and $Ship.exists">
+                  <destroy_object object="$Ship"/>
+                </do_if>
+              </do_for_each>
+            </do_if>
+          </actions>
         </cue>
       </cues>
     </cue>
