@@ -144,25 +144,19 @@
               </do_else>
             </do_for_each>
 
-            <!-- As ReleaseLeftovers read them: as text, since MD reads 0 as null -->
-            <set_value name="$Globals" exact="table[
-              $CaptureOps = '%s'.[@global.$APiratesLife_CaptureOps.keys.count],
-              $CaptureMetrics = '%s'.[@global.$APiratesLife_CaptureMetrics.count],
-              $PiratedShips = '%s'.[@global.$APiratesLife_PiratedShips.keys.count],
-              $BailedToPlayer = '%s'.[@global.$APiratesLife_BailedToPlayer.keys.count],
-              $BoardedByPlayer = '%s'.[@global.$APiratesLife_BoardedByPlayer.keys.count],
-              $IntactOnClaim = '%s'.[@global.$APiratesLife_IntactOnClaim],
-              $CaptureHoldHull = '%s'.[@global.$APiratesLife_CaptureHoldHull],
-              $CaptureFloorHull = '%s'.[@global.$APiratesLife_CaptureFloorHull],
-              $CapturePressureStep = '%s'.[@global.$APiratesLife_CapturePressureStep],
-              $CapturePressureCap = '%s'.[@global.$APiratesLife_CapturePressureCap],
-              $CapturePressureInterval = '%s'.[@global.$APiratesLife_CapturePressureInterval],
-              $CaptureFearDecayFactor = '%s'.[@global.$APiratesLife_CaptureFearDecayFactor],
-              $CaptureFearDecayInterval = '%s'.[@global.$APiratesLife_CaptureFearDecayInterval],
-              $CaptureWingmenTurrets = '%s'.[@global.$APiratesLife_CaptureWingmenTurrets]]"/>
-            <do_for_each name="$Key" in="$Left.$globals.keys.list">
-              <do_if value="$Globals.{$Key} != $Left.$globals.{$Key} or $Globals.{$Key} == 'null'">
-                <set_value name="$Problems" exact="$Problems + ' %s is %s, was %s;'.[$Key, $Globals.{$Key}, $Left.$globals.{$Key}]"/>
+            <!-- The globals the harness's ReleaseLeftovers (apirateslife_tests.xml) kept, by their
+                 names, read as it read them: as text (MD reads 0 as null), a table by how many keys
+                 it has, a list by how many entries, anything else by value. None kept would check
+                 nothing, so that fails. -->
+            <do_if value="not $Left.$globals.keys.count">
+              <set_value name="$Problems" exact="$Problems + ' no globals were kept to check;'"/>
+            </do_if>
+
+            <do_for_each name="$Key" valuename="$Was" in="$Left.$globals">
+              <set_value name="$Value" exact="@global.{$Key}"/>
+              <set_value name="$Is" exact="'%s'.[if typeof $Value == datatype.table then $Value.keys.count else if typeof $Value == datatype.list then $Value.count else $Value]"/>
+              <do_if value="$Is != $Was or $Is == 'null'">
+                <set_value name="$Problems" exact="$Problems + ' %s is %s, was %s;'.[$Key, $Is, $Was]"/>
               </do_if>
             </do_for_each>
 

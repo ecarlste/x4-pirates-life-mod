@@ -311,43 +311,47 @@ function Get-LogChecks($Run) {
     New-LogCheck 'swi_only_run' ($swiRead -and -not $others.Count) $detail
 }
 
-# The release check for an existing save (-Release): session 1 started a game without the mod and
-# saved it, and session 2 loaded that save with the mod and ran the harness's tests on it, all
-# passing, with no errors or warnings from our files in its log
-function Get-ExistingSaveCheck($Without, $With) {
+# A release check of a save handed from one session to the next (-Release): the earlier session
+# saved, with the mod on or off; the later one loaded that save with it the other way, finished,
+# ran at least one of its $What ('tests' or 'checks'), all passing, with no errors or warnings
+# from our files in its log. Returns whether it passed and the check's detail; each caller names
+# its check in New-LogCheck, where tools/check_test_plan.py reads the name
+function Get-SaveHandoff($Saver, [int] $SaverSession, [bool] $ModInSaver, $Loader, [string] $What) {
+    $loaderSession = $SaverSession + 1
+    $modProblem = {
+        param($Run, $Session, $On)
+        if ($On -and $Run.Extensions -notcontains $ModId) { "session $Session read no files from $ModId, so the mod was off" }
+        elseif (-not $On -and $Run.Extensions -contains $ModId) { "session $Session read files from $ModId, so the mod was on" }
+    }
     $problems = @()
-    if (-not $Without.Saved) { $problems += "session 1 saved nothing ($(if ($Without.SaveFailed) { $Without.SaveFailed } else { 'no SAVED line' }))" }
-    if ($Without.Extensions -contains $ModId) { $problems += "session 1 read files from $ModId, so the mod was on" }
-    if (-not $With.Loaded) { $problems += 'session 2 loaded no save' }
-    elseif ($Without.Saved -and $With.LoadingSave -ne $Without.Saved) { $problems += "session 2 loaded $($With.LoadingSave), not $($Without.Saved)" }
-    if ($With.Extensions -notcontains $ModId) { $problems += "session 2 read no files from $ModId, so the mod was off" }
-    if (-not $With.Done) { $problems += "session 2's tests didn't finish" }
-    $failed = @($With.Results | Where-Object { -not $_.Passed })
-    if ($failed.Count) { $problems += "$($failed.Count) of session 2's tests failed: $(($failed | ForEach-Object { $_.Name }) -join ', ')" }
-    if ($With.Errors.Count) { $problems += "$($With.Errors.Count) errors or warnings from our files in session 2's log" }
+    if (-not $Saver.Saved) { $problems += "session $SaverSession saved nothing ($(if ($Saver.SaveFailed) { $Saver.SaveFailed } else { 'no SAVED line' }))" }
+    $problems += @(& $modProblem $Saver $SaverSession $ModInSaver)
+    if (-not $Loader.Loaded) { $problems += "session $loaderSession loaded no save" }
+    elseif ($Saver.Saved -and $Loader.LoadingSave -ne $Saver.Saved) { $problems += "session $loaderSession loaded $($Loader.LoadingSave), not $($Saver.Saved)" }
+    $problems += @(& $modProblem $Loader $loaderSession (-not $ModInSaver))
+    if (-not $Loader.Done) { $problems += "session $loaderSession's $What didn't finish" }
+    if (-not $Loader.Results.Count) { $problems += "session $loaderSession ran no $What" }
+    $failed = @($Loader.Results | Where-Object { -not $_.Passed })
+    if ($failed.Count) { $problems += "$($failed.Count) of session $loaderSession's $What failed: $(($failed | ForEach-Object { $_.Name }) -join ', ')" }
+    if ($Loader.Errors.Count) { $problems += "$($Loader.Errors.Count) errors or warnings from our files in session $loaderSession's log" }
+    $saved = if ($ModInSaver) { 'with the mod, loaded it without' } else { 'without the mod, loaded it with the mod' }
     $detail = if ($problems.Count) { ($problems -join '; ') + ';' }
-              else { "saved $($Without.Saved) without the mod, loaded it with the mod: $($With.Results.Count) tests passed, no errors or warnings from our files" }
-    New-LogCheck 'existing_save_loads' (-not $problems.Count) $detail
+              else { "saved $($Saver.Saved) $($saved): $($Loader.Results.Count) $What passed, no errors or warnings from our files" }
+    [pscustomobject]@{ Passed = -not $problems.Count; Detail = $detail }
+}
+
+# The release check for an existing save (-Release): session 1 started a game without the mod and
+# saved it, and session 2 loaded that save with the mod and ran the harness's tests on it
+function Get-ExistingSaveCheck($Without, $With) {
+    $handoff = Get-SaveHandoff -Saver $Without -SaverSession 1 -ModInSaver $false -Loader $With -What 'tests'
+    New-LogCheck 'existing_save_loads' $handoff.Passed $handoff.Detail
 }
 
 # The release check for an uninstall (-Release): session 2 saved a game with the mod, and session
-# 3 loaded that save without it and ran the release extension's checks on it, all passing, with no
-# errors or warnings from our files in its log
+# 3 loaded that save without it and ran the release extension's checks on it
 function Get-UninstallCheck($With, $Without) {
-    $problems = @()
-    if (-not $With.Saved) { $problems += "session 2 saved nothing ($(if ($With.SaveFailed) { $With.SaveFailed } else { 'no SAVED line' }))" }
-    if ($With.Extensions -notcontains $ModId) { $problems += "session 2 read no files from $ModId, so the mod was off" }
-    if (-not $Without.Loaded) { $problems += 'session 3 loaded no save' }
-    elseif ($With.Saved -and $Without.LoadingSave -ne $With.Saved) { $problems += "session 3 loaded $($Without.LoadingSave), not $($With.Saved)" }
-    if ($Without.Extensions -contains $ModId) { $problems += "session 3 read files from $ModId, so the mod was on" }
-    if (-not $Without.Done) { $problems += "session 3's checks didn't finish" }
-    if (-not $Without.Results.Count) { $problems += 'session 3 ran no checks' }
-    $failed = @($Without.Results | Where-Object { -not $_.Passed })
-    if ($failed.Count) { $problems += "$($failed.Count) of session 3's checks failed: $(($failed | ForEach-Object { $_.Name }) -join ', ')" }
-    if ($Without.Errors.Count) { $problems += "$($Without.Errors.Count) errors or warnings from our files in session 3's log" }
-    $detail = if ($problems.Count) { ($problems -join '; ') + ';' }
-              else { "saved $($With.Saved) with the mod, loaded it without: $($Without.Results.Count) checks passed, no errors or warnings from our files" }
-    New-LogCheck 'save_plays_without_mod' (-not $problems.Count) $detail
+    $handoff = Get-SaveHandoff -Saver $With -SaverSession 2 -ModInSaver $true -Loader $Without -What 'checks'
+    New-LogCheck 'save_plays_without_mod' $handoff.Passed $handoff.Detail
 }
 
 # Whether an extension folder belongs in an SWI-only run: an Egosoft DLC, SWI, the mod or a test
