@@ -40,6 +40,7 @@
       <param name="burstseconds" default="1.5" type="internal" comment="While suppressing, stop firing while the target's shields still hold this many seconds of the wing's laser damage"/>
       <param name="missseconds" default="10" type="internal" comment="Break, fine stage: after the finisher has fired this many seconds within finishrange without a hit on the target, it swaps its one gun for another"/>
       <param name="finishrange" default="600m" type="internal" comment="Break, fine stage: the finisher fires only within this distance of the target, and closes in without firing from further out"/>
+      <param name="runin" default="1km" type="internal" comment="Break, fine stage: a finisher within finishrange but slower than 3/4 of its top speed holds fire and flies out to this distance from the target, then closes in again, so it starts each attack fast"/>
       <param name="shieldresume" default="10" type="internal" comment="While suppressing, fire again once shields are this many percent above the stop point"/>
       <param name="debugchance" type="internal" default="0" comment="Print debug output: 0 or 100"/>
     </params>
@@ -78,6 +79,7 @@
         <check_value value="$firing and $finishgun"/>
       </conditions>
       <actions>
+        <debug_text text="'[apirateslife] [DEBUG-182] finisher %s hit at %sm, hull %s%%'.[this.assignedcontrolled.knownname, this.assignedcontrolled.distanceto.{$target}, $target.hullpercentage]" chance="$debugchance"/>
         <set_value name="$missstart" exact="null"/>
         <set_value name="$missbanked" exact="0"/>
       </actions>
@@ -98,6 +100,7 @@
         <check_value value="$firing and $finishgun"/>
       </conditions>
       <actions>
+        <debug_text text="'[apirateslife] [DEBUG-182] finisher %s shot %s at %sm'.[this.assignedcontrolled.knownname, event.param, this.assignedcontrolled.distanceto.{$target}]" chance="$debugchance"/>
         <do_if value="this.assignedcontrolled.distanceto.{$target} gt $finishrange">
           <do_if value="$missstart">
             <set_value name="$missbanked" exact="$missbanked + $misslast - $missstart"/>
@@ -188,6 +191,8 @@
     <set_value name="$missbanked" exact="0"/>
     <!-- The finisher's current attack, for its range check -->
     <set_value name="$rangecheck" exact="0"/>
+    <!-- The finisher is flying out to $runin, to come back in fast -->
+    <set_value name="$runningin" exact="false"/>
     <!-- Every gun, for the finisher's shot handler -->
     <create_group groupname="$guns"/>
     <add_to_group groupname="$guns" list="this.assignedcontrolled.weapons.operational.list"/>
@@ -241,7 +246,17 @@
       <do_if value="$target.hullpercentage ge $holdhull">
         <set_value name="$finishing" exact="$margin le $wingburst and @global.$APiratesLife_CaptureOps.{$target}.$finisher == this.assignedcontrolled"/>
         <set_value name="$fire" exact="$margin gt $wingburst or $finishing"/>
-        <set_value name="$closing" exact="$finishing and this.assignedcontrolled.distanceto.{$target} gt $finishrange"/>
+        <!-- The finisher starts vanilla's attack only within $finishrange and at 3/4 of its top
+             speed or more. Slower, it seldom fired and almost never hit (#182): it runs in from
+             $runin first. -->
+        <do_if value="$runningin">
+          <set_value name="$runningin" exact="this.assignedcontrolled.distanceto.{$target} lt $runin"/>
+        </do_if>
+        <do_else>
+          <set_value name="$runningin" exact="this.assignedcontrolled.distanceto.{$target} le $finishrange and this.assignedcontrolled.speed lt this.assignedcontrolled.maxspeed * 0.75"/>
+        </do_else>
+        <set_value name="$runningin" exact="$finishing and $runningin"/>
+        <set_value name="$closing" exact="$finishing and ($runningin or this.assignedcontrolled.distanceto.{$target} gt $finishrange)"/>
       </do_if>
       <!-- Floor: never below it -->
       <do_elseif value="$target.hullpercentage le $floorhull">
@@ -256,10 +271,16 @@
         <set_value name="$fire" exact="$target.maxshield and $target.shield ge $wingburst + $target.maxshield * $shieldresume / 100.0"/>
       </do_else>
 
-      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $closing then 'closes in' else if $finishing then 'finishes' else if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, $wingburst, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire or $finishing != @$lastfinishing or $closing != @$lastclosing then $debugchance else 0"/>
+      <!-- Running in only while finishing (the hull may have crossed the line meanwhile) -->
+      <do_if value="not $finishing">
+        <set_value name="$runningin" exact="false"/>
+      </do_if>
+
+      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $runningin then 'runs in' else if $closing then 'closes in' else if $finishing then 'finishes' else if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, $wingburst, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire or $finishing != @$lastfinishing or $closing != @$lastclosing or $runningin != @$lastrunningin then $debugchance else 0"/>
       <set_value name="$lastfire" exact="$fire"/>
       <set_value name="$lastfinishing" exact="$finishing"/>
       <set_value name="$lastclosing" exact="$closing"/>
+      <set_value name="$lastrunningin" exact="$runningin"/>
 
       <!-- Out of the fine stage: put the guns back in the group -->
       <do_if value="$finishgun and not $finishing">
@@ -297,7 +318,8 @@
       <!-- Finisher out of range: no fire, and fly straight at the target, checking every second.
            Not the hold below: its evasive moves keep a wingman where it is, so a finisher between
            $finishrange and 1.5 km would rarely get back in range. Vanilla's attack starts again
-           in range, and fires about 0.4 s in. -->
+           in range, and fires about 0.4 s in. Running in, it first flies out to $runin with
+           vanilla's own gain-distance move (as its attack does between runs). -->
       <do_if value="$closing">
         <!-- The miss window pauses, as for a shot out of range (an attack run can end on its own) -->
         <do_if value="$missstart">
@@ -307,9 +329,16 @@
         <remove_value name="$holding"/>
         <stop_shooting object="this.assignedcontrolled"/>
         <cease_fire object="this.assignedcontrolled"/>
-        <move_to object="this.assignedcontrolled" destination="$target" forcesteering="true">
-          <interrupt_after_time time="1s"/>
-        </move_to>
+        <do_if value="$runningin">
+          <move_to object="this.assignedcontrolled" destination="$target" flightbehaviour="flightbehaviour.gaindistance" forcesteering="true">
+            <interrupt_after_time time="1s"/>
+          </move_to>
+        </do_if>
+        <do_else>
+          <move_to object="this.assignedcontrolled" destination="$target" forcesteering="true">
+            <interrupt_after_time time="1s"/>
+          </move_to>
+        </do_else>
         <resume label="decide"/>
       </do_if>
 
