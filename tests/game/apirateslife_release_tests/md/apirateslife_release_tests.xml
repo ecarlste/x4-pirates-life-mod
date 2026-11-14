@@ -111,8 +111,8 @@
     <!-- Session 3: the save the harness's ReleaseLeftovers made with the mod, loaded without it
          (release.feature, "A save loads and plays with the mod removed"). Once loaded, everything
          it left is as it was: the ships taken, the mod's tables and settings, the running
-         operation's target with its hostility boost, mission and cue, the wingman's and the pilots'
-         variables. Then the game plays for 10 minutes, and until the boost has run out (600 s
+         operation's target with its hostility boost, the wingman's and the pilots' variables. The
+         operation's cue and its mission are gone: X4 drops a cue whose script isn't loaded. Then the game plays for 10 minutes, and until the boost has run out (600 s
          from when the operation began, then it decays). -->
     <cue name="Uninstalled">
       <conditions>
@@ -130,8 +130,6 @@
         <cue name="Uninstalled_Check">
           <delay exact="2s"/>
           <actions>
-            <!-- Which missions the player has, for the log -->
-            <raise_lua_event name="'apirateslife_release_tests.missions'"/>
             <do_for_each name="$Taken" in="$Left.$taken">
               <set_value name="$Ship" exact="$Taken.$ship"/>
               <do_if value="not @$Ship.isoperational or not $Ship.isplayerowned">
@@ -168,6 +166,8 @@
 
             <set_value name="$Running" exact="$Left.$running"/>
             <set_value name="$Target" exact="$Running.$target"/>
+            <!-- Which missions the player has, and whether the operation's is one: Uninstalled_Missions -->
+            <raise_lua_event name="'apirateslife_release_tests.missions'" param="'%s'.[if @$Target.isoperational then $Target.knownname else '']"/>
             <do_if value="not @$Target.isoperational">
               <set_value name="$Problems" exact="$Problems + ' the running target is gone;'"/>
             </do_if>
@@ -177,11 +177,11 @@
             <do_if value="@$Target.pilot.$nextcapturechance != $Running.$nextcapturechance">
               <set_value name="$Problems" exact="$Problems + ' its pilot has $nextcapturechance %s, was %s;'.[@$Target.pilot.$nextcapturechance, $Running.$nextcapturechance]"/>
             </do_if>
-            <do_if value="not @$Running.$op.exists or not $Running.$op.hasmission">
-              <set_value name="$Problems" exact="$Problems + ' the operation cue or mission is gone (cue %s);'.[@$Running.$op.exists]"/>
+            <do_if value="not $Running.$crewstart">
+              <set_value name="$Problems" exact="$Problems + ' the operation left no $CrewStart, so it never ran its crew check;'"/>
             </do_if>
-            <do_if value="@$Running.$op.$CrewStart != $Running.$crewstart or not $Running.$crewstart">
-              <set_value name="$Problems" exact="$Problems + ' the operation cue has $CrewStart %s, was %s;'.[@$Running.$op.$CrewStart, $Running.$crewstart]"/>
+            <do_if value="@$Running.$op.exists">
+              <set_value name="$Problems" exact="$Problems + ' the operation cue is still there ($CrewStart %s);'.[@$Running.$op.$CrewStart]"/>
             </do_if>
             <do_if value="not @$Running.$wingman.pilot.$APiratesLife_NoMissiles">
               <set_value name="$Problems" exact="$Problems + ' the wingman pilot lost $APiratesLife_NoMissiles;'"/>
@@ -200,10 +200,15 @@
           <cues>
             <cue name="Uninstalled_Missions">
               <conditions>
-                <event_ui_triggered screen="'apirateslife_release_tests'" control="'missions'"/>
+                <event_ui_triggered screen="'apirateslife_release_tests'"/>
+                <check_value value="event.param2 == 'missions' or event.param2 == 'missions_with_operation'"/>
               </conditions>
               <actions>
                 <debug_text text="'[apirateslife-test] trace: missions: %s'.[event.param3]" filter="general"/>
+                <set_value name="$MissionsListed" exact="true"/>
+                <do_if value="event.param2 == 'missions_with_operation'">
+                  <set_value name="$Problems" exact="$Problems + ' the operation mission is still listed (%s);'.[event.param3]"/>
+                </do_if>
               </actions>
             </cue>
             <cue name="Uninstalled_KeepSeta" instantiate="true" checkinterval="2s">
@@ -222,6 +227,9 @@
               </conditions>
               <actions>
                 <cancel_cue cue="Uninstalled_KeepSeta"/>
+                <do_if value="not $MissionsListed?">
+                  <set_value name="$Problems" exact="$Problems + ' the mission list never came;'"/>
+                </do_if>
                 <do_if value="not @$Target.isoperational">
                   <set_value name="$Problems" exact="$Problems + ' the running target was gone before its boost could run out;'"/>
                 </do_if>

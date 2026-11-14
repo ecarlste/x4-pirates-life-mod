@@ -153,7 +153,7 @@ $SwiFolder = 'starwarsmod_m1'
 # save it wrote (Saved, or SaveFailed with why), the save it asked to load (LoadingSave) and the
 # module of the game it loaded (Loaded).
 function Read-GameTestLog([string[]] $Lines) {
-    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0; FirstRead = @{}; Extensions = @(); Saved = ''; SaveFailed = ''; LoadingSave = ''; Loaded = '' }
+    $run = [pscustomobject]@{ Started = $false; Expected = 0; Done = $false; Results = @(); Errors = @(); GameVersion = ''; MenuReady = $false; SetaDrops = 0; FirstRead = @{}; Extensions = @(); Saved = ''; SaveFailed = ''; LoadingSave = ''; Loaded = ''; Allowed = @() }
     $extensions = @{}
     $results = New-Object System.Collections.ArrayList
     $errors = New-Object System.Collections.ArrayList
@@ -301,7 +301,8 @@ function Get-LogChecks($Run) {
              else { "SWI read first for all $($shared.Count) files both patch" }
     New-LogCheck 'load_order_after_swi' ($shared.Count -and -not $early.Count) $order
     $count = if ($Run.Errors.Count) { $Run.Errors.Count } else { 'no' }
-    New-LogCheck 'clean_log' (-not $Run.Errors.Count) "$count errors or warnings from our files in debuglog.txt" $Run.Errors
+    $allowed = if ($Run.Allowed.Count) { " ($($Run.Allowed.Count) allowed in this session)" } else { '' }
+    New-LogCheck 'clean_log' (-not $Run.Errors.Count) "$count errors or warnings from our files in debuglog.txt$allowed" $Run.Errors
     $others = @($Run.Extensions | Where-Object { -not (Test-AllowedInSwiOnlyRun $_) })
     $swiRead = $Run.Extensions -contains $SwiFolder
     $detail = if ($others.Count) { "files read from other extensions: $($others -join ', ')" }
@@ -658,19 +659,34 @@ function Watch-GameRun($Game, [string] $LogPath, [double] $PollSeconds, [int] $T
 
 # The release sessions (-Release), one game session each, in order: whether the mod is on (Mod; the
 # game tests' extension needs it, so it's on with it), what the release extension starts (New),
-# loads (Load) and saves (Save), and the harness's tests to run with the mod (Tests). Without the
-# mod, the release extension runs its own checks on a loaded save that holds the harness's
-# leftovers (ReleaseLeftovers). Every save is named apirateslife_release_<n>.
+# loads (Load) and saves (Save), the harness's tests to run with the mod (Tests), and the errors
+# from our files its log may hold (AllowedErrors, as X4 logs them after the channel and time).
+# Without the mod, the release extension runs its own checks on a loaded save that holds the
+# harness's leftovers (ReleaseLeftovers); X4 logs that it can't import the running operation's
+# wingman's capture order. Every save is named apirateslife_release_<n>.
 function Get-ReleaseSessions {
     @(
         [pscustomobject]@{ Number = 1; Name = 'a new game without the mod, saved'; Mod = $false
-                           New = 'apirateslife_release_test'; Load = ''; Save = 'apirateslife_release_1'; Tests = @() }
+                           New = 'apirateslife_release_test'; Load = ''; Save = 'apirateslife_release_1'; Tests = @(); AllowedErrors = @() }
         [pscustomobject]@{ Number = 2; Name = 'that save loaded with the mod, capture tests run on it, saved again'; Mod = $true
                            New = ''; Load = 'apirateslife_release_1'; Save = 'apirateslife_release_2'
-                           Tests = @('ConfigAppliedOnStart', 'CaptureStartAndDestroyed', 'ReleaseLeftovers') }
+                           Tests = @('ConfigAppliedOnStart', 'CaptureStartAndDestroyed', 'ReleaseLeftovers'); AllowedErrors = @() }
         [pscustomobject]@{ Number = 3; Name = 'the second save loaded without the mod, and played'; Mod = $false
-                           New = ''; Load = 'apirateslife_release_2'; Save = ''; Tests = @() }
+                           New = ''; Load = 'apirateslife_release_2'; Save = ''; Tests = @()
+                           AllowedErrors = @(
+                               "Error importing AI order [0xc]: Order definition 'APiratesLife_Capture' not found"
+                               "Error on AI director import: AI script name 'order.apirateslife.capture' not found") }
     )
+}
+
+# The run with the errors its session allows moved out of Errors, into Allowed: lines whose text
+# after the log channel and time is exactly one of the session's AllowedErrors
+function Remove-AllowedErrors($Run, $Session) {
+    $allowed = @($Session.AllowedErrors)
+    $isAllowed = { param($line) $allowed -ccontains ($line -replace '^\[[^\]]*\]\s+[\d.]+\s+', '') }
+    $Run.Allowed = @($Run.Errors | Where-Object { & $isAllowed $_ })
+    $Run.Errors = @($Run.Errors | Where-Object { -not (& $isAllowed $_) })
+    $Run
 }
 
 # A session's log checks, named for the session; the load order only where the mod was on
@@ -885,7 +901,7 @@ finally {
 
 $total = ((Get-Date) - $startedAt).TotalSeconds
 if ($Release) {
-    $runs = @($sessionResults | ForEach-Object { $_.Run })
+    $runs = @(for ($i = 0; $i -lt $sessionResults.Count; $i++) { Remove-AllowedErrors $sessionResults[$i].Run $sessions[$i] })
     $run = Join-SessionRuns $runs
     $checks = @(for ($i = 0; $i -lt $runs.Count; $i++) { Get-SessionLogChecks $runs[$i] $sessions[$i] })
     # A session that didn't run (the one before it saved nothing) reads as an empty log

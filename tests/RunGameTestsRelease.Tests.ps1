@@ -30,10 +30,13 @@ BeforeAll {
         '[Scripts] 60.01 *** Context:x: [apirateslife-test] DONE passed=3 failed=0'
         '[Scripts] 63.00 *** Context:x: [apirateslife-test] SAVED apirateslife_release_2'
     )
-    # Session 3: the second save loaded without the mod, played, and the release extension's checks
+    # Session 3: the second save loaded without the mod, played, and the release extension's checks. X4
+    # logs that it can't import the running operation's wingman's capture order, which session 3 allows
     $script:UnloadLog = @(
         '[=ERROR=] 2.50 [apirateslife-test] release: loading save apirateslife_release_2'
         "[FileIO ] 3.12 File I/O: Failed to verify the file signature for file '.\extensions\starwarsmod_m1\libraries\icons.xml' (error: 14)"
+        "[=ERROR=] 14.06 Error importing AI order [0xc]: Order definition 'APiratesLife_Capture' not found"
+        "[=ERROR=] 14.06 Error on AI director import: AI script name 'order.apirateslife.capture' not found"
         '[Scripts] 30.00 *** Context:x: [apirateslife-test] LOADED apirateslife_release_test'
         '[Scripts] 32.00 *** Context:x: [apirateslife-test] RUN START 1 tests'
         '[Scripts] 900.00 *** Context:x: [apirateslife-test] PASS uninstall_leftovers: everything stayed, played 600 s'
@@ -71,7 +74,7 @@ Describe 'run-game-tests.ps1 -Release' {
         $r.Output | Should -BeLike '*PASS save_plays_without_mod: saved apirateslife_release_2 with the mod, loaded it without: 1 checks passed*'
         $r.Output | Should -BeLike '*PASS clean_log (session 1):*'
         $r.Output | Should -BeLike '*PASS load_order_after_swi (session 2):*'
-        $r.Output | Should -BeLike '*PASS clean_log (session 3):*'
+        $r.Output | Should -BeLike '*PASS clean_log (session 3): no errors or warnings from our files in debuglog.txt (2 allowed in this session)*'
         $r.Output | Should -Not -BeLike '*load_order_after_swi (session 1)*'
         $r.Output | Should -Not -BeLike '*load_order_after_swi (session 3)*'
         # 4 tests, 7 log checks across the sessions and the 2 release checks

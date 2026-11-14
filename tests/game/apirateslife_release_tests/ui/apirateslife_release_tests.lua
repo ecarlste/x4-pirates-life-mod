@@ -51,14 +51,22 @@ local function save()
 end
 
 -- Answers MD with the player's missions, as the mission menus list them: "<id> <name>", joined by
--- " | ", or "none"
-local function missions()
+-- " | ", or "none". The control is "missions_with_operation" if one of them is a capture
+-- operation's, else "missions": its name came from page 1774100 ("Capture: <target>"), so it holds
+-- the target's name (MD's param; MD strings can't be searched) or, with its texts gone, the page
+local function missions(_, target)
 	local list = {}
+	local operation = false
 	for i = 1, GetNumMissions() do
 		local missionid, name = GetMissionDetails(i)
-		table.insert(list, tostring(missionid) .. " " .. tostring(name))
+		name = tostring(name)
+		if string.find(name, "1774100", 1, true) or (target and target ~= "" and string.find(name, target, 1, true)) then
+			operation = true
+		end
+		table.insert(list, tostring(missionid) .. " " .. name)
 	end
-	AddUITriggeredEvent("apirateslife_release_tests", "missions", #list > 0 and table.concat(list, " | ") or "none")
+	local control = operation and "missions_with_operation" or "missions"
+	AddUITriggeredEvent("apirateslife_release_tests", control, #list > 0 and table.concat(list, " | ") or "none")
 end
 
 local function init()

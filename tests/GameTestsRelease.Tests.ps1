@@ -186,6 +186,56 @@ Describe 'Get-ReleaseSessions' {
     It 'leaves the leftovers last in session 2, so the game saves with its operation still running' {
         (Get-ReleaseSessions)[1].Tests[-1] | Should -Be 'ReleaseLeftovers'
     }
+
+    It 'allows only session 3 the two errors X4 logs for the wingman''s capture order without the mod' {
+        $sessions = @(Get-ReleaseSessions)
+        @($sessions[0].AllowedErrors).Count | Should -Be 0
+        @($sessions[1].AllowedErrors).Count | Should -Be 0
+        $sessions[2].AllowedErrors | Should -Be @(
+            "Error importing AI order [0xc]: Order definition 'APiratesLife_Capture' not found"
+            "Error on AI director import: AI script name 'order.apirateslife.capture' not found"
+        )
+    }
+}
+
+Describe 'Remove-AllowedErrors' {
+    BeforeAll {
+        # As session 3 logged them on 8.00, loading a save with a wingman on our capture order
+        $script:OrderErrors = @(
+            "[=ERROR=] 14.06 Error importing AI order [0xc]: Order definition 'APiratesLife_Capture' not found"
+            "[=ERROR=] 14.06 Error on AI director import: AI script name 'order.apirateslife.capture' not found"
+        )
+        $script:Uninstalled = (Get-ReleaseSessions)[2]
+    }
+
+    It 'moves the errors the session allows out of Errors, into Allowed' {
+        $run = Remove-AllowedErrors (Read-GameTestLog $script:OrderErrors) $script:Uninstalled
+        $run.Errors.Count | Should -Be 0
+        $run.Allowed | Should -Be $script:OrderErrors
+    }
+
+    It 'keeps every other error from our files, even one that only differs a little' {
+        $others = @(
+            "[=ERROR=] 14.06 Error importing AI order [0xc]: Order definition 'APiratesLife_CaptureEscort' not found"
+            "[=ERROR=] 50.00 Error in AI script order.apirateslife.capture: script not found"
+        )
+        $run = Remove-AllowedErrors (Read-GameTestLog ($script:OrderErrors + $others)) $script:Uninstalled
+        $run.Errors | Should -Be $others
+        $run.Allowed.Count | Should -Be 2
+    }
+
+    It 'allows nothing in a session that lists nothing' {
+        $run = Remove-AllowedErrors (Read-GameTestLog $script:OrderErrors) (Get-ReleaseSessions)[1]
+        $run.Errors | Should -Be $script:OrderErrors
+        $run.Allowed.Count | Should -Be 0
+    }
+
+    It 'passes clean_log with the allowed errors counted in its detail' {
+        $run = Remove-AllowedErrors (Read-GameTestLog $script:OrderErrors) $script:Uninstalled
+        $check = @(Get-SessionLogChecks $run $script:Uninstalled) | Where-Object { $_.Name -eq 'clean_log (session 3)' }
+        $check.Passed | Should -BeTrue
+        $check.Detail | Should -Be 'no errors or warnings from our files in debuglog.txt (2 allowed in this session)'
+    }
 }
 
 Describe 'Rewriting the installed test extensions for a release session' {

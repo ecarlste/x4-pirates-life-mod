@@ -74,12 +74,12 @@ Source: [`tests/game/features/release.feature`](../../tests/game/features/releas
 ```gherkin
   Given a save with A Pirate's Life on, a capture operation running and ships I've taken
   When I switch A Pirate's Life off and load that save
-  Then it loads and plays for 10 minutes, with no error or warning about our files or scripts apart from the mission's missing texts
+  Then it loads and plays for 10 minutes, with no error or warning about our files or scripts apart from the two that the wingman's capture order can't be imported
   And the ships I took stay mine, as they are
   And the global.$APiratesLife_ tables and settings stay: operations, metrics, pirated ships, bails and boardings to the player, and the config values
   And a running operation's target keeps its relation boost, with vanilla's markedashostile reason, until it decays in 600 s
   And its pilot keeps $nextcapturechance, as the game's own checks leave it, and $APiratesLife_Fear if the operation was called off or it escaped
   And a wingman's pilot keeps $APiratesLife_NoMissiles
-  And the operation's mission stays in the mission list, with its texts gone, and its cue keeps $CrewStart
+  And the operation's cue is gone, and its mission with it
   And nothing else of ours stays behind, and nothing reads any of it without the mod
 ```
