@@ -4,7 +4,7 @@ How to run, add and wire up tests. The scripts say how they fetch and pin their 
 
 ## Before a PR: `make test`
 
-`make test` (or `tests/run.sh`) runs only the suites your changes need, counted since your branch left `origin/main`, uncommitted files included. It takes about 30 s. `make test ALL=1` (`tests/run.sh --all`) runs everything. Keep it fast: it's meant to run often.
+`make test` (or `tests/run.sh`) runs only the suites your changes need, counted since your branch left `origin/main`, uncommitted files included. It takes about 30 s. `make test ALL=1` (`tests/run.sh --all`) runs everything. Keep it fast: it's meant to run often. Its last line is the result (except with `--lua-only` or `--typescript-only`, which run one suite), `All suites passed` or `FAILED: <suites>`, so reading a run through `tail` is enough.
 
 - **One kind of suite:** `tests/run.sh --lua-only` or `--typescript-only`. `.\tests\run.ps1` runs only the Pester suites (`-Path <file>` for one file, `-Name <pattern>` for matching tests, `-Repeat <n>` for [flaky tests](#flaky-tests)). `tests/run.sh --windows-powershell` runs them in Windows PowerShell 5.1 from WSL (serial, about 4 minutes).
 - **One-time installs in WSL:** `sudo apt install parallel libicu78 luajit`. GNU parallel makes bats faster and LuaJIT runs the Lua tests. ICU is optional, since the tests pass without it. The rest gets fetched on the first run.
