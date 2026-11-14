@@ -58,7 +58,6 @@
           CaptureEscapeWaitsForEngagement,
           CaptureEscaped,
           CaptureWingHoldsFire,
-          CaptureWingHoldsFireFrom2km,
           CaptureWingHoldsFireThreeWingmen,
           CaptureWingTurretsHold,
           CaptureWingTurretsHoldM,
@@ -2092,77 +2091,8 @@
       </actions>
     </library>
 
-    <!-- The hold with one wingman starting 2 km from the target, facing it: it breaks the hull to
-         under 75% and keeps it there 30 s, without killing it or taking it below the 35% floor. It
-         reports the lowest hull, as how deep a run goes varies (#184). -->
-    <cue name="CaptureWingHoldsFireFrom2km">
-      <conditions>
-        <event_cue_signalled/>
-      </conditions>
-      <actions>
-        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
-        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
-        <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
-        <run_actions ref="SpawnWingAt2km" result="$Wing">
-          <param name="Count" value="1"/>
-        </run_actions>
-      </actions>
-      <cues>
-        <cue name="CaptureWingHoldsFireFrom2km_Start">
-          <delay exact="2s"/>
-          <actions>
-            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
-              <param name="Target" value="$Wing.$target"/>
-            </run_actions>
-            <set_object_capturable object="$Wing.$target" capturable="false"/>
-          </actions>
-          <cues>
-            <cue name="CaptureWingHoldsFireFrom2km_Watch" checkinterval="1s" instantiate="true">
-              <actions>
-                <run_actions ref="CheckWingHold" result="$Check">
-                  <param name="Wing" value="$Wing"/>
-                </run_actions>
-                <do_if value="$Check.$done">
-                  <cancel_cue cue="CaptureWingHoldsFireFrom2km_Timeout"/>
-                  <signal_cue_instantly cue="CaptureWingHoldsFireFrom2km_Done" param="$Check.$problems"/>
-                </do_if>
-              </actions>
-            </cue>
-            <cue name="CaptureWingHoldsFireFrom2km_Timeout">
-              <delay exact="180s"/>
-              <actions>
-                <signal_cue_instantly cue="CaptureWingHoldsFireFrom2km_Done" param="' hull only got to %s%% in 180s, %s s under 75%%;'.[$Wing.$minhull, $Wing.$heldfor]"/>
-              </actions>
-            </cue>
-            <cue name="CaptureWingHoldsFireFrom2km_Done">
-              <conditions>
-                <event_cue_signalled/>
-              </conditions>
-              <actions>
-                <cancel_cue cue="CaptureWingHoldsFireFrom2km_Watch"/>
-                <remove_value name="global.$APiratesLife_CaptureDebug"/>
-                <set_value name="$Problems" exact="event.param"/>
-                <do_if value="not $Started">
-                  <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
-                </do_if>
-                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_holds_fire_from_2km', $ok = ($Problems == ''), $detail = (if $Problems == '' then 'held %s s under 75%%, lowest hull %s%%'.[$Wing.$heldfor, $Wing.$minhull] else $Problems)]"/>
-                <do_for_each name="$Ship" in="$Wing.$wingmen">
-                  <do_if value="$Ship.exists">
-                    <destroy_object object="$Ship"/>
-                  </do_if>
-                </do_for_each>
-                <do_if value="$Wing.$target.exists">
-                  <destroy_object object="$Wing.$target"/>
-                </do_if>
-              </actions>
-            </cue>
-          </cues>
-        </cue>
-      </cues>
-    </cue>
-
-    <!-- Three wingmen starting around the target, 2 km out (SpawnWingAt2km): the same checks as
-         CaptureWingHoldsFireFrom2km, with three times the guns. The wing's burst covers all their
+    <!-- Three wingmen starting around the target, 2 km out (SpawnWingAt2km): the hull checks of
+         CaptureWingHoldsFire (CheckWingHold), with three times the guns. The wing's burst covers all their
          shots in flight, so from 80% hull and no shields the whole break is inside its margin,
          and until the hull is under 75% only one wingman (the finisher) may fire. -->
     <cue name="CaptureWingHoldsFireThreeWingmen">
@@ -2257,8 +2187,8 @@
       </cues>
     </cue>
 
-    <!-- #184, turreted wingmen: one wingman 2 km out (SpawnWingAt2km), the same checks as
-         CaptureWingHoldsFireFrom2km, and every shot of its guns and turrets counted by what the
+    <!-- #184, turreted wingmen: one wingman 2 km out (SpawnWingAt2km), the hull checks of
+         CaptureWingHoldsFire (CheckWingHold), and every shot of its guns and turrets counted by what the
          wing should be doing when it's fired (TurretShotStage). Turrets hold fire from the fine
          stage on, so a turret shot more than 1 s after the wing left the break fails it (the
          shots on the frame it leaves are already on their way). Once the order ends, each turret

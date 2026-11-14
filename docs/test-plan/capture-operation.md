@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 17 | 2 | 4 | **6** |
+| 0 | 16 | 2 | 4 | **6** |
 
 ## Scenarios
 
@@ -67,18 +67,6 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   And for 30 seconds the hull stays below 75%, and the fighter is never destroyed
   And the hull never drops below the 35% floor
   And the wingman keeps moving while it holds fire, never sitting still for 5 seconds
-```
-
-### A wingman starting 2 km out stops the hull near the bail gate
-
-**Automated:** in game `capture_wing_holds_fire_from_2km`
-
-```gherkin
-  Given a capture operation on a capturable fighter with 80% hull and its shields kept down until the hull is below 75%
-  And my wingman flies an X-wing with four lasers and no missiles, starting 2 km from the fighter and facing it
-  When the wingman breaks the fighter's hull below 75%
-  Then for 30 seconds the hull stays below 75%, and the fighter is never destroyed
-  And the hull never drops below the 35% floor
 ```
 
 ### Only one wingman of a wing finishes the break
