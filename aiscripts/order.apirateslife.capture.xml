@@ -6,17 +6,18 @@
                  plus the hull above the line hold more than the wing's burst, about
                  $burstseconds of the whole wing's laser damage: fire, so shots still in flight
                  from every wingman land above the line. Inside that margin only the finisher
-                 (the operation picks it, the closest wingman) fires: with every gun but one out of
-                 its weapon group (never none: vanilla's attack fails the order with no DPS), firing
-                 on until the line, so only that one gun's bolts in flight overshoot it. The rest
-                 of the wing holds. One fixed gun rarely lands from far out, so the finisher fires
+                 (the operation picks it, the closest wingman) fires: with all but $finishguns guns
+                 out of its weapon group (never none: vanilla's attack fails the order with no DPS),
+                 firing on until the line, so only those guns' bolts in flight overshoot it. The rest
+                 of the wing holds. Fixed guns rarely land from far out, so the finisher fires
                  only within $finishrange of the target: further out it holds fire and flies
                  straight at the target, and a shot it fires out there ends the attack run, as
-                 does flying more than 100 m past it (checked every 1 s). One
+                 does flying more than 100 m past it (checked every 1 s). A
                  fixed gun can also miss for good (a nose locked on the target's centre carries
                  that gun's bolts past), so after $missseconds of firing within range without a hit
-                 on the target, the finisher swaps it for the next gun it took out, round the guns
-                 in turn, and starts a new window. A hit starts a new window too.
+                 on the target, the finisher swaps the longest-kept of its guns for the next gun it
+                 took out, round the guns in turn, and starts a new window. A hit starts a new
+                 window too.
        suppress: hull below $holdhull: the whole wing fires only while the target's shields
                  hold more than the wing's burst, so shots still in flight from every wingman land
                  on shields, not hull, whatever the weapon (heavy, slow guns get a bigger margin).
@@ -38,7 +39,8 @@
       <param name="holdhull" default="75" type="internal" comment="Below this hull percentage, fire only at shields (75 is vanilla's bail gate)"/>
       <param name="floorhull" default="35" type="internal" comment="Hull percentage at or below which nobody fires"/>
       <param name="burstseconds" default="1.5" type="internal" comment="While suppressing, stop firing while the target's shields still hold this many seconds of the wing's laser damage"/>
-      <param name="missseconds" default="10" type="internal" comment="Break, fine stage: after the finisher has fired this many seconds within finishrange without a hit on the target, it swaps its one gun for another"/>
+      <param name="missseconds" default="10" type="internal" comment="Break, fine stage: after the finisher has fired this many seconds within finishrange without a hit on the target, it swaps the longest-kept of its guns for another"/>
+      <param name="finishguns" default="2" type="internal" comment="Break, fine stage: how many guns the finisher keeps in its weapon group (at least 1). With one it landed a hit on about one pass in two, too few to finish in time (#182); each gun adds about a bolt of overshoot"/>
       <param name="finishrange" default="600m" type="internal" comment="Break, fine stage: the finisher fires only within this distance of the target, and closes in without firing from further out"/>
       <param name="shieldresume" default="10" type="internal" comment="While suppressing, fire again once shields are this many percent above the stop point"/>
       <param name="debugchance" type="internal" default="0" comment="Print debug output: 0 or 100"/>
@@ -75,7 +77,7 @@
           <event_object_hull_damaged object="$target"/>
           <event_object_shield_damaged object="$target"/>
         </check_any>
-        <check_value value="$firing and $finishgun"/>
+        <check_value value="$firing and $keptguns.count"/>
       </conditions>
       <actions>
         <set_value name="$missstart" exact="null"/>
@@ -86,16 +88,17 @@
          first to the last shot in range is banked, not the flight out after it) and the attack run
          ends, so the finisher closes in again without firing. Within it, the first shot after a hit
          or a pause starts the clock; once the window
-         has run $missseconds in range with no hit, the one gun in the group goes out and the first
-         gun still out comes in (the old one goes to the back of the list, so they take turns), and
-         a new window starts. Out first, then in, so the group never holds two guns. Then vanilla's
+         has run $missseconds in range with no hit, the longest-kept gun in the group goes out and the
+         first gun still out comes in (the old one goes to the back of the list, so they take
+         turns), and a new window starts. Out first, then in, so the group never holds more than
+         $finishguns. Then vanilla's
          attack starts again: its shoot_at seems to keep to the guns grouped when it was given, as a
          game test's finisher fired about once in 45 s (one shot per new attack run) after a swap
          without it. -->
     <handler>
       <conditions>
         <event_weapon_fired group="$guns"/>
-        <check_value value="$firing and $finishgun"/>
+        <check_value value="$firing and $keptguns.count"/>
       </conditions>
       <actions>
         <do_if value="this.assignedcontrolled.distanceto.{$target} gt $finishrange">
@@ -120,14 +123,15 @@
             </do_if>
           </do_for_each>
           <do_if value="$nextgun">
-            <set_value name="$oldgun" exact="$finishgun"/>
+            <set_value name="$oldgun" exact="$keptguns.{1}"/>
+            <remove_from_list name="$keptguns" exact="$oldgun"/>
             <remove_from_list name="$removedguns" exact="$nextgun"/>
             <do_if value="$oldgun.exists">
               <remove_weapon_from_weapongroup weapon="$oldgun" weapongroup="$weapongroup" primary="true"/>
               <append_to_list name="$removedguns" exact="$oldgun"/>
             </do_if>
             <add_weapon_to_weapongroup weapon="$nextgun" weapongroup="$weapongroup" primary="true"/>
-            <set_value name="$finishgun" exact="$nextgun"/>
+            <append_to_list name="$keptguns" exact="$nextgun"/>
             <debug_text text="'[apirateslife] capture order: %s missed for %ss, swaps gun %s for %s, guns in group %s, hull %s%%'.[this.assignedcontrolled.knownname, $missseconds, $oldgun, $nextgun, this.assignedcontrolled.primaryweapons.{$weapongroup}.list.count, @$target.hullpercentage]" chance="$debugchance"/>
             <abort_called_scripts resume="decide"/>
           </do_if>
@@ -145,7 +149,7 @@
     <handler>
       <conditions>
         <event_object_signalled object="this.assignedcontrolled" param="'apirateslife_capture_rangecheck'"/>
-        <check_value value="event.param2 == $rangecheck and $firing and $finishgun"/>
+        <check_value value="event.param2 == $rangecheck and $firing and $keptguns.count"/>
       </conditions>
       <actions>
         <do_if value="this.assignedcontrolled.distanceto.{$target} gt $finishrange + 100m">
@@ -176,8 +180,9 @@
     <set_value name="$ended" exact="false"/>
     <set_value name="$burst" exact="0"/>
     <set_value name="$wingburst" exact="0"/>
-    <!-- Finisher: the one gun it keeps in $weapongroup, and the guns it took out -->
-    <set_value name="$finishgun" exact="null"/>
+    <!-- Finisher: the guns it keeps in $weapongroup (longest-kept first; not empty only in the fine
+         stage), and the guns it took out -->
+    <set_value name="$keptguns" exact="[]"/>
     <set_value name="$removedguns" exact="[]"/>
     <set_value name="$weapongroup" exact="0"/>
     <!-- The finisher's current window of firing within range without a hit: when its current stretch
@@ -224,8 +229,8 @@
 
       <!-- What may still land after we stop: about $burstseconds of our laser fire, in hitpoints.
            Recomputed each time, as weapons can be lost in the fight, but not while the finisher
-           has guns out of the group, as the DPS may then count only the one left. -->
-      <do_if value="not $finishgun">
+           has guns out of the group, as the DPS may then count only the guns left. -->
+      <do_if value="not $keptguns.count">
         <set_value name="$burst" exact="this.assignedcontrolled.dps.lasers.all * $burstseconds"/>
       </do_if>
       <!-- The same for the whole wing attacking this target, as the operation keeps it -->
@@ -237,7 +242,7 @@
       <set_value name="$closing" exact="false"/>
 
       <!-- Break: the whole wing fires while its burst still lands above the hold line. Inside that
-           margin only the finisher fires, with one gun. -->
+           margin only the finisher fires, with $finishguns guns. -->
       <do_if value="$target.hullpercentage ge $holdhull">
         <set_value name="$finishing" exact="$margin le $wingburst and @global.$APiratesLife_CaptureOps.{$target}.$finisher == this.assignedcontrolled"/>
         <set_value name="$fire" exact="$margin gt $wingburst or $finishing"/>
@@ -262,36 +267,36 @@
       <set_value name="$lastclosing" exact="$closing"/>
 
       <!-- Out of the fine stage: put the guns back in the group -->
-      <do_if value="$finishgun and not $finishing">
+      <do_if value="$keptguns.count and not $finishing">
         <do_for_each name="$gun" in="$removedguns">
           <do_if value="$gun.exists">
             <add_weapon_to_weapongroup weapon="$gun" weapongroup="$weapongroup" primary="true"/>
           </do_if>
         </do_for_each>
         <set_value name="$removedguns" exact="[]"/>
-        <set_value name="$finishgun" exact="null"/>
+        <set_value name="$keptguns" exact="[]"/>
         <remove_value name="this.$APiratesLife_Dps"/>
       </do_if>
 
-      <!-- Into the fine stage, the finisher: take every gun but one out of the active weapon group.
-           One stays because vanilla's attack fails the order with no DPS
+      <!-- Into the fine stage, the finisher: take all but $finishguns guns out of the active weapon
+           group. At least one stays because vanilla's attack fails the order with no DPS
            (order.fight.attack.object.xml:550-568), and DPS counts only grouped guns. The wing's
            DPS is read before (WingDps reads it from the pilot). -->
-      <do_if value="$finishing and not $finishgun">
+      <do_if value="$finishing and not $keptguns.count">
         <set_value name="$missstart" exact="null"/>
         <set_value name="$missbanked" exact="0"/>
         <set_value name="this.$APiratesLife_Dps" exact="this.assignedcontrolled.dps.lasers.all"/>
         <set_value name="$weapongroup" exact="this.assignedcontrolled.activeweapongroup.primary"/>
         <do_for_each name="$gun" in="this.assignedcontrolled.primaryweapons.{$weapongroup}.list">
-          <do_if value="not $finishgun and $gun.isoperational and not $gun.isclass.turret">
-            <set_value name="$finishgun" exact="$gun"/>
+          <do_if value="$keptguns.count lt [$finishguns, 1].max and $gun.isoperational and not $gun.isclass.turret">
+            <append_to_list name="$keptguns" exact="$gun"/>
           </do_if>
           <do_else>
             <remove_weapon_from_weapongroup weapon="$gun" weapongroup="$weapongroup" primary="true"/>
             <append_to_list name="$removedguns" exact="$gun"/>
           </do_else>
         </do_for_each>
-        <debug_text text="'[apirateslife] capture order: %s finishes with one gun: keeps %s, took %s out of group %s'.[this.assignedcontrolled.knownname, $finishgun, $removedguns.count, $weapongroup]" chance="$debugchance"/>
+        <debug_text text="'[apirateslife] capture order: %s finishes with %s guns: keeps %s, took %s out of group %s'.[this.assignedcontrolled.knownname, $keptguns.count, $keptguns, $removedguns.count, $weapongroup]" chance="$debugchance"/>
       </do_if>
 
       <!-- Finisher out of range: no fire, and fly straight at the target, checking every second.
