@@ -24,6 +24,7 @@
 #   --windows-powershell  run the Pester suites in Windows PowerShell 5.1 (WSL; slower, serial)
 #   .bats files  run just those bats files (and the other suites as picked)
 # bats runs its test files in parallel when GNU parallel is installed (sudo apt install parallel).
+# The last line is the result: "All suites passed", or "FAILED: " and the failed suites in run order.
 
 set -eo pipefail
 

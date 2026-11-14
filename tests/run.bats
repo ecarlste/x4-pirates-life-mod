@@ -48,6 +48,7 @@ run_picked() { run "$WORK/tests/run.sh" --bash-only --suites "tests/stub.bats lu
 }
 
 @test "the test-plan warning comes before the result line" {
+    command -v python3 >/dev/null || skip "python3 is not installed"
     printf 'import sys\nsys.exit(1)\n' > "$WORK/tools/test_plan_docs.py"
     run_picked
     echo "$output"
