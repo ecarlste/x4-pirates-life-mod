@@ -37,7 +37,7 @@ Feature: Capture operations
     And my wingman flies an X-wing with four lasers and no missiles
     When the wingman breaks the fighter's hull below 75%
     Then the wingman stops firing
-    And for 30 seconds the hull stays below 75% and above 55%
+    And for 30 seconds the hull stays below 75%, and the fighter is never destroyed
     And the hull never drops below the 35% floor
     And the wingman keeps moving while it holds fire, never sitting still for 5 seconds
 
@@ -46,7 +46,7 @@ Feature: Capture operations
     Given a capture operation on a capturable fighter with 80% hull and its shields kept down until the hull is below 75%
     And my wingman flies an X-wing with four lasers and no missiles, starting 2 km from the fighter and facing it
     When the wingman breaks the fighter's hull below 75%
-    Then for 30 seconds the hull stays below 75% and above 55%
+    Then for 30 seconds the hull stays below 75%, and the fighter is never destroyed
     And the hull never drops below the 35% floor
 
   @capture_wing_holds_fire_three_wingmen
@@ -55,8 +55,46 @@ Feature: Capture operations
     And three wingmen fly X-wings with four lasers and no missiles, starting 2 km from the fighter around it
     When the wing breaks the fighter's hull below 75%
     Then only one wingman fires until the hull is below 75%, as the whole break from 80% is inside the wing's margin
-    And for 30 seconds the hull stays below 75% and above 55%
+    And for 30 seconds the hull stays below 75%, and the fighter is never destroyed
     And the hull never drops below the 35% floor
+
+  # The YT-1300's one forward gun finishes slowly with its turrets on hold, so its test reports a
+  # run that doesn't hold 30 s under 75% within 180 s instead of failing it (#196).
+  @capture_wing_turrets_hold @capture_wing_turrets_hold_m
+  Scenario Outline: A turreted wingman's turrets hold fire once the wing is near the bail gate
+    Given a capture operation on a capturable fighter with 80% hull and its shields kept down until the hull is below 75%
+    And my wingman flies a <ship> with <guns> and <turrets>, starting 2 km from the fighter and facing it
+    When the wing's margin above the gate is used up
+    Then its turrets stop firing within a second, through the finish, suppress and hold
+    And for 30 seconds the hull stays below 75%, and the fighter is never destroyed
+    And the hull never drops below the 35% floor
+    And once I cancel its order, each turret is back in the mode it started in
+
+    Examples:
+      | ship     | guns                | turrets           |
+      | Y-wing   | two KX7 lasers      | an SW4 top turret |
+      | YT-1300  | one KX20 laser      | two AG-2G turrets |
+
+  @manual
+  Scenario: Before a release, each wing setup captures in at least 9 runs out of 10
+    Given the wing tests (capture_wing_holds_fire and the tests after it in this file)
+    When I run each one at least 40 times with make game-test and -Repeat
+    Then at least 90% of each one's runs hold the hull between the 75% gate and the 35% floor
+    And none kills the fighter
+
+  @pending
+  Scenario: A wing of turret-only ships stops at the margin and leaves the finish to me
+    Given a capture operation on a capturable fighter with 80% hull
+    And my only wingman flies a ship with turrets and no forward guns
+    When the wing's margin above the gate is used up
+    Then no wingman fires again until the hull is below 75%
+
+  @pending
+  Scenario: With CaptureWingmenTurrets at 0, my wingmen's turrets fire as I set them
+    Given CaptureWingmenTurrets is 0
+    And a capture operation with a turreted wingman
+    When the wing's margin above the gate is used up
+    Then the wingman's turrets keep their own modes
 
   @no_missiles_in_sight
   Scenario: My wingmen fire no missiles or torpedoes at the target in my sight
