@@ -144,9 +144,14 @@
               </do_else>
             </do_for_each>
 
-            <!-- The globals ReleaseLeftovers kept, by their names, read as it read them: as text
-                 (MD reads 0 as null), a table by how many keys it has, a list by how many entries,
-                 anything else by value -->
+            <!-- The globals the harness's ReleaseLeftovers (apirateslife_tests.xml) kept, by their
+                 names, read as it read them: as text (MD reads 0 as null), a table by how many keys
+                 it has, a list by how many entries, anything else by value. None kept would check
+                 nothing, so that fails. -->
+            <do_if value="not $Left.$globals.keys.count">
+              <set_value name="$Problems" exact="$Problems + ' no globals were kept to check;'"/>
+            </do_if>
+
             <do_for_each name="$Key" valuename="$Was" in="$Left.$globals">
               <set_value name="$Value" exact="@global.{$Key}"/>
               <set_value name="$Is" exact="'%s'.[if typeof $Value == datatype.table then $Value.keys.count else if typeof $Value == datatype.list then $Value.count else $Value]"/>
