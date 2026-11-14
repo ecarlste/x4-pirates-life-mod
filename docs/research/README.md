@@ -2,6 +2,8 @@
 
 What we've learned about how vanilla X4 works, for designing and building against it. Notes can be WIP; say so in the status. Ideas in a note stay ideas: list design proposals in the PR description, and they go into [`DESIGN.md`](../DESIGN.md) only once Erik signs off (see [PROJECT.md, Workflow rules](../PROJECT.md#workflow-rules)).
 
+To look up an MD property or action, use `libraries/scriptproperties.xml` and `libraries/md.xsd` in the unpacked files ([environment.md, Paths](../environment.md#paths-eriks-machine)).
+
 | Note | Covers | Status |
 | --- | --- | --- |
 | [third-party-ui-apis.md](third-party-ui-apis.md) | SirNukes vs. kuertee's UI Extensions on 9.0, how SWI builds its UI, the vanilla Lua ↔ MD bridge, approach for our settings page, how the 9.00 options hook works | Done |

@@ -41,7 +41,7 @@ In each file the last line naming a setting wins, and an empty value (`X4_PROFIL
 | X4 install | `E:\SteamLibrary\steamapps\common\X4 Foundations` → `/mnt/e/SteamLibrary/steamapps/common/X4 Foundations` |
 | Deployed mod | `.../X4 Foundations/extensions/apirateslife` |
 | Unpacked reference data (not in git) | `E:\x4-dev\reference\x4-9.xx\` → `/mnt/e/x4-dev/reference/x4-9.xx/`; other mods for study in `E:\x4-dev\reference\mods\` |
-| Unpacked 8.00 and SWI (the diff-patch check's `X4_UNPACKED`, `SWI_UNPACKED`) | `E:\x4-dev\reference\x4-8.00\base\` (DLC folders next to it) and `E:\x4-dev\reference\mods\swi-0.91hf1\` (`ext02\`, `ext\`) |
+| Unpacked 8.00 and SWI (the diff-patch check's `X4_UNPACKED`, `SWI_UNPACKED`) | `E:\x4-dev\reference\x4-8.00\base\` → `/mnt/e/x4-dev/reference/x4-8.00/base/` (DLC folders next to it) and `E:\x4-dev\reference\mods\swi-0.91hf1\` → `/mnt/e/x4-dev/reference/mods/swi-0.91hf1/` (`ext02\`, `ext\`). In the shell, type the WSL form: reading `X4_UNPACKED` from `deploy.config` strips its backslashes |
 | Steam Workshop mods | X4 installs them into the game's own `extensions\` folder, not Steam's workshop folder, and syncs them when the game starts |
 | X4 9.00 profile (saves, config, `debuglog.txt`) | Steam profile: `C:\Users\ecarl\OneDrive\Documents\Egosoft\X4\28456535\`, a folder named after the Steam account ID. The in-game menu shows save slots 1–10 |
 | X4 9.00 launch options (Steam) | `-skipintro -debug all -logfile debuglog.txt -scriptlogfiles` |
