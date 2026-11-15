@@ -8,9 +8,9 @@ import { fileURLToPath } from "node:url";
 
 const cli = fileURLToPath(new URL("../check-debug-tags.ts", import.meta.url));
 
-// A git repo in a temp folder with these files (md/capture.xml committed, the rest left
-// untracked), run from its md/ folder
-function run(files: Record<string, string>, ...args: string[]) {
+// A git repo in a temp folder with these files (those in md/ committed, the rest left untracked),
+// run from its md/ folder; `before` can change the repo after the commit, before the run
+function run(files: Record<string, string>, args: string[] = [], before?: (root: string) => void) {
   const root = mkdtempSync(join(tmpdir(), "debug-tags-"));
   for (const [path, content] of Object.entries(files)) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
@@ -19,6 +19,7 @@ function run(files: Record<string, string>, ...args: string[]) {
   mkdirSync(join(root, "md"), { recursive: true });
   spawnSync("git", ["init", "-q"], { cwd: root });
   spawnSync("git", ["add", "md"], { cwd: root });
+  before?.(root);
   return spawnSync(process.execPath, [cli, ...args], { cwd: join(root, "md"), encoding: "utf8" });
 }
 
@@ -58,20 +59,14 @@ test("the CLI says ok and exits 0 when no probe tag is left", () => {
 });
 
 test("the CLI exits 2 with a usage line on an unknown option", () => {
-  const result = run({}, "--bogus");
+  const result = run({}, ["--bogus"]);
 
   assert.equal(result.status, 2);
   assert.match(result.stderr, /Usage: node tools\/check-debug-tags.ts\n$/);
 });
 
 test("the CLI skips a tracked file deleted in the working tree", () => {
-  const root = mkdtempSync(join(tmpdir(), "debug-tags-"));
-  mkdirSync(join(root, "md"));
-  writeFileSync(join(root, "md/old.xml"), "ok\n");
-  spawnSync("git", ["init", "-q"], { cwd: root });
-  spawnSync("git", ["add", "md"], { cwd: root });
-  rmSync(join(root, "md/old.xml"));
-  const result = spawnSync(process.execPath, [cli], { cwd: root, encoding: "utf8" });
+  const result = run({ "md/old.xml": "ok\n" }, [], (root) => rmSync(join(root, "md/old.xml")));
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, "Debug tags: ok\n");
