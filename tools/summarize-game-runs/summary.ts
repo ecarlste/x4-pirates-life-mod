@@ -1,0 +1,141 @@
+// One game test run's trace (a file tools/run-game-tests.ps1 writes to tests/game/runs/) summed up.
+// It reads the lines the capture order and the finisher's pass log at debugchance 100 and the
+// tests' "[apirateslife-test] trace:" lines: every one with "hull N%" or "shields N%" is a sample
+// of the target's state at the log's time stamp. The test's own result line is left out, as its
+// detail can quote other figures (the lowest hull, an expected value).
+
+export type Result = "PASS" | "FAIL" | "unfinished";
+
+export interface Pass {
+  /** How far from the target the pass started, in m */
+  startDistance: number;
+  /** The target's shields when the pass started and when it broke off, in %; no break-off line
+   * (the order aborted the pass, as on the hit that takes the shields down) leaves it undefined */
+  shieldsBefore: number;
+  shieldsAfter: number | undefined;
+}
+
+export interface RunSummary {
+  result: Result;
+  /** "reached": the target was inside both bail gates (the hull under the operation's hold, the
+   * shields under 20%, each as last seen) gateSeconds after the operation started */
+  gate: "reached" | "not reached" | "no operation";
+  gateSeconds: number | undefined;
+  lowestHull: number | undefined;
+  /** Shields from 20% or more to under 20%, as the wing tests count them */
+  knockDowns: number;
+  /** The longest stretch with the shields at 99% or more, from the first full sample to the next
+   * one that isn't (or the run's last sample) */
+  longestFullShieldsSeconds: number;
+  passes: Pass[];
+}
+
+// The shields' bail gate, and where the wing tests count a knock-down
+const KNOCK_DOWN = 20;
+const FULL = 99;
+
+const num = (s: string) => Number.parseFloat(s);
+// Differences of two-decimal time stamps, without the float noise
+const seconds = (from: number, to: number) => Math.round((to - from) * 100) / 100;
+
+export function summarizeRun(lines: string[]): RunSummary {
+  let result: Result = "unfinished";
+  let start: number | undefined;
+  let hold: number | undefined;
+  let gateSeconds: number | undefined;
+  let lowestHull: number | undefined;
+  let lastHull: number | undefined;
+  let lastShields: number | undefined;
+  let knockDowns = 0;
+  let up = true;
+  let fullSince: number | undefined;
+  let longest = 0;
+  let last: number | undefined;
+  const passes: Pass[] = [];
+  let open: Pass | undefined;
+
+  for (const line of lines) {
+    const time = /^\[[^\]]*\]\s+([\d.]+)\s/.exec(line);
+    if (!time) continue;
+    const t = num(time[1]);
+    const outcome = /\[apirateslife-test\] (PASS|FAIL) /.exec(line);
+    if (outcome) {
+      result = outcome[1] as Result;
+      continue;
+    }
+    const started = /\[apirateslife\] capture: started on .*\(hold ([\d.]+)%/.exec(line);
+    if (started && start === undefined) {
+      start = t;
+      hold = num(started[1]);
+    }
+    const passStart = /\[apirateslife\] capture pass: starts at ([\d.]+)m, shields ([\d.]+)%/.exec(line);
+    if (passStart) {
+      open = { startDistance: num(passStart[1]), shieldsBefore: num(passStart[2]), shieldsAfter: undefined };
+      passes.push(open);
+    }
+    const breakOff = /\[apirateslife\] capture pass: breaks off at [\d.]+m, shields ([\d.]+)%/.exec(line);
+    if (breakOff && open) {
+      open.shieldsAfter = num(breakOff[1]);
+      open = undefined;
+    }
+
+    const hull = /\bhull ([\d.]+)%/.exec(line);
+    if (hull) {
+      lastHull = num(hull[1]);
+      lowestHull = lowestHull === undefined ? lastHull : Math.min(lowestHull, lastHull);
+    }
+    const shields = /\bshields (?:up )?([\d.]+)%/.exec(line);
+    if (shields) lastShields = num(shields[1]);
+    if (
+      (hull || shields) && start !== undefined && hold !== undefined && gateSeconds === undefined &&
+      lastHull !== undefined && lastHull < hold && lastShields !== undefined && lastShields < KNOCK_DOWN
+    ) {
+      gateSeconds = seconds(start, t);
+    }
+    if (shields) {
+      const s = num(shields[1]);
+      last = t;
+      if (up && s < KNOCK_DOWN) {
+        knockDowns++;
+        up = false;
+      } else if (!up && s >= KNOCK_DOWN) {
+        up = true;
+      }
+      if (s >= FULL) {
+        fullSince ??= t;
+      } else if (fullSince !== undefined) {
+        longest = Math.max(longest, seconds(fullSince, t));
+        fullSince = undefined;
+      }
+    }
+  }
+  if (fullSince !== undefined && last !== undefined) longest = Math.max(longest, seconds(fullSince, last));
+
+  return {
+    result,
+    gate: start === undefined ? "no operation" : gateSeconds === undefined ? "not reached" : "reached",
+    gateSeconds,
+    lowestHull,
+    knockDowns,
+    longestFullShieldsSeconds: longest,
+    passes,
+  };
+}
+
+const round = (n: number, places = 0) => String(Math.round(n * 10 ** places) / 10 ** places);
+
+/** One line: "<label> <result>: gate …, lowest hull …, … knock-downs, longest at full shields …, <n> passes …" */
+export function formatSummary(label: string, s: RunSummary): string {
+  const gate = s.gate === "reached" ? `gate ${round(s.gateSeconds!, 1)} s` : s.gate === "not reached" ? "gate not reached" : "no capture operation";
+  const hull = s.lowestHull === undefined ? "no hull seen" : `lowest hull ${round(s.lowestHull, 1)}%`;
+  const passes = s.passes.map((p) =>
+    p.shieldsAfter === undefined
+      ? `${round(p.startDistance)} m ${round(p.shieldsBefore)}% aborted`
+      : `${round(p.startDistance)} m ${round(p.shieldsBefore)} -> ${round(p.shieldsAfter)}%`,
+  );
+  const passList = passes.length ? ` (start, shields before -> after): ${passes.join(", ")}` : "";
+  return (
+    `${label} ${s.result}: ${gate}, ${hull}, ${s.knockDowns} knock-downs, ` +
+    `longest at full shields ${round(s.longestFullShieldsSeconds, 1)} s, ${s.passes.length} passes${passList}`
+  );
+}
