@@ -9,6 +9,8 @@ tests/game/results.xml
 # Claude Code worktrees for parallel sessions
 .claude/worktrees/
 tests/game/report.md
+# Each game test run's trace (tools/run-game-tests.ps1)
+tests/game/runs/
 
 # make release's zips and checklists
 dist/

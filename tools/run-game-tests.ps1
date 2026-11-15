@@ -19,7 +19,9 @@
     4. Watches the profile's debuglog.txt until the run finishes, the game exits, no log appears
        within -LaunchTimeoutSeconds, or the timeout passes (the game is then closed).
     5. Removes the test extension, prints a summary and writes a JUnit report plus a Markdown
-       report (tests/game/report.md) that make game-test-report can post to the PR.
+       report (tests/game/report.md) that make game-test-report can post to the PR. Each test
+       run's mod lines go to <report folder>\runs\<test>-<n>.log, replacing the last run's .log
+       files there (not for -Release); node tools/summarize-game-runs.ts sums them up.
 
     The previous debuglog.txt is kept as debuglog.previous.txt. Deploy the mod first (make
     deploy-local). Holds the game lock (<X4_PATH>\game.lock, tools/game-lock.ps1) from the process
@@ -207,6 +209,46 @@ function Read-GameTestLog([string[]] $Lines) {
     $run.Errors = @($errors)
     $run.Extensions = @($extensions.Keys | Sort-Object)
     $run
+}
+
+# The mod's lines in a game test log ([apirateslife] and [apirateslife-test], whole), split into one
+# run per test result, for the per-run traces (Write-GameTestRunLogs). A run starts after RUN START
+# or the previous result and ends on its own PASS or FAIL line, so a line logged after a test's
+# result (its cleanup) goes with the next test. Name is the name the test reports, Number counts
+# its runs from 1. Lines after the last result, with no DONE, are a run named 'unfinished'.
+function Split-GameTestRuns([string[]] $Lines) {
+    $runs = New-Object System.Collections.ArrayList
+    $numbers = @{}
+    $current = New-Object System.Collections.ArrayList
+    $started = $false
+    $done = $false
+    foreach ($line in $Lines) {
+        if ($line -like '`* *' -or $line -notmatch '\[apirateslife(-test)?\]') { continue }
+        if ($line -match '\[apirateslife-test\] RUN START ') { $started = $true; continue }
+        if (-not $started) { continue }
+        if ($line -match '\[apirateslife-test\] DONE') { $done = $true; break }
+        [void] $current.Add($line)
+        if ($line -match '\[apirateslife-test\] (PASS|FAIL) ([^:\s]+)') {
+            $name = $Matches[2]
+            $numbers[$name] = 1 + [int] $numbers[$name]
+            [void] $runs.Add([pscustomobject]@{ Name = $name; Number = $numbers[$name]; Lines = @($current) })
+            $current.Clear()
+        }
+    }
+    if ($current.Count -and -not $done) { [void] $runs.Add([pscustomobject]@{ Name = 'unfinished'; Number = 1; Lines = @($current) }) }
+    @($runs)
+}
+
+# Writes each run's lines to <Dir>/<name>-<number>.log, after removing the .log files already
+# there, so it holds only the last run's traces (tools/summarize-game-runs.ts reads them); returns
+# how many files it wrote
+function Write-GameTestRunLogs($Runs, [string] $Dir) {
+    New-Item -ItemType Directory -Force -Path $Dir | Out-Null
+    Remove-Item (Join-Path $Dir '*.log') -Force
+    foreach ($run in @($Runs)) {
+        [IO.File]::WriteAllText((Join-Path $Dir "$($run.Name)-$($run.Number).log"), (@($run.Lines) -join "`n") + "`n")
+    }
+    @($Runs).Count
 }
 
 # The $Tests list in the harness (the Run cue of the test extension's md file): "[", one cue name
@@ -926,6 +968,9 @@ else {
     $ending = $sessionResults[0].Ending
     $checks = @(Add-LogChecks $run)
     $phases = if ($seen.Count) { @(Get-RunPhases $seen $total) } else { @() }
+    # Each test run's trace, next to the report (a release run keeps its sessions' whole logs instead)
+    $runsDir = Join-Path (Split-Path $MarkdownPath -Parent) 'runs'
+    $written = Write-GameTestRunLogs (Split-GameTestRuns (Read-SharedFile $LogPath)) $runsDir
 }
 foreach ($c in $checks) {
     Write-Host ("  {0} {1}: {2}" -f $(if ($c.Passed) { 'PASS' } else { 'FAIL' }), $c.Name, $c.Detail)
@@ -942,6 +987,7 @@ foreach ($e in $run.Errors) { Write-Host "  log error: $e" }
 if ($phases) { Write-Host ("Timings: " + (($phases | ForEach-Object { "$($_.Name -replace '\*', '') $(Format-Seconds $_.Seconds)" }) -join '; ')) }
 foreach ($t in (Get-RepeatTally $run.Results)) { Write-Host "Repeated: $($t.Name): $($t.Failed) of $($t.Runs) runs failed" }
 if ($run.Started -and $run.SetaDrops) { Write-Host "SETA dropped $($run.SetaDrops) times during the run" }
+if (-not $Release) { Write-Host "Run traces: $written files in $runsDir (summary: node tools/summarize-game-runs.ts <folder>)" }
 if ($problems.Count) {
     Write-Host "GAME TESTS FAILED ($passed passed): $($problems -join '; ')"
     Write-Host "Report: $MarkdownPath"
