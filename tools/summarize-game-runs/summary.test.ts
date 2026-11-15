@@ -25,9 +25,9 @@ const WING_RUN = [
 test("a capture run's gate time, lowest hull, knock-downs, longest full-shield stretch and passes", () => {
   assert.deepEqual(summarizeRun(WING_RUN), {
     result: "PASS",
-    // From the operation's start (3.02) to the first line inside both bail gates (39.00): the hull
-    // under its 75% hold went there at 38.90, but the shields were last seen at 70% until then
-    gateSeconds: 35.98,
+    // From the operation's start (3.02) to the first line inside both bail gates: the order's
+    // "shields down" with the hull under its 75% hold (38.90)
+    gateSeconds: 35.88,
     gate: "reached",
     lowestHull: 72.5,
     // Shields from 20% or more to under 20%: 64% -> 11%, then 70% -> 0%
@@ -46,7 +46,7 @@ test("a capture run's gate time, lowest hull, knock-downs, longest full-shield s
 test("the summary line rounds each figure and names a pass that never broke off", () => {
   assert.equal(
     formatSummary("capture_wing_breaks_full_shields-1", summarizeRun(WING_RUN)),
-    "capture_wing_breaks_full_shields-1 PASS: gate 36 s, lowest hull 72.5%, 2 knock-downs, longest at full shields 8.8 s, " +
+    "capture_wing_breaks_full_shields-1 PASS: gate 35.9 s, lowest hull 72.5%, 2 knock-downs, longest at full shields 8.8 s, " +
       "3 passes (start, shields before -> after): 390 m 100 -> 11%, 443 m 24 -> 46%, 439 m 70% aborted",
   );
 });
@@ -68,6 +68,23 @@ test("a target that starts under the hold reaches the gate once its shields are 
   ]);
 
   assert.equal(summary.gateSeconds, 6.43);
+});
+
+test("the last run's order, still logging before this run's operation starts, isn't counted", () => {
+  // From a -Repeat 3 run: run 2's finisher logs on after its result, in the same frame as run 3's
+  // first trace line, so the runner puts those lines in run 3's file
+  const summary = summarizeRun([
+    "[General] 101.39 *** Context:md.APiratesLife_Tests.CheckWingCycle: [apirateslife-test] trace: t 0, hull 100%, shields 100%, wingman 2000m away, knock-downs 0",
+    "[Scripts] 101.39 *** aicontext<order.apirateslife.capture,0xa25c>: [apirateslife] capture order: X-wing T65B holds on event_object_hull_damaged: hull 74.6513%, shields 0% (0, stop at 5616)",
+    "[Scripts] 101.40 *** aicontext<apirateslife.capture.pass,0xa25c>: [apirateslife] capture pass: starts at 262.812m, shields 3.68773%, hull 81.0927%",
+    "[Scripts] 102.54 *** Context:md.APiratesLife_Capture.End<inst:a362>: [apirateslife] capture: ended on IMP TIE/LN (null): destroyed (fear left 0)",
+    "[Scripts] 103.55 *** Context:md.APiratesLife_Capture.Operation<inst:a6d4>: [apirateslife] capture: started on IMP TIE/LN (DNF-130), led by Fortitude-class (JBJ-855) with 1 wingmen (hold 75%, floor 35%, fear 0)",
+    "[General] 103.55 *** Context:md.APiratesLife_Tests.CheckWingCycle: [apirateslife-test] trace: t 2, hull 100%, shields 100%, wingman 1981.25m away, knock-downs 0",
+  ]);
+
+  assert.equal(summary.lowestHull, 100);
+  assert.equal(summary.knockDowns, 0);
+  assert.deepEqual(summary.passes, []);
 });
 
 test("a run with no capture operation has no gate, no hull and no passes", () => {

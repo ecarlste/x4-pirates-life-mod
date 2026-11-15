@@ -1,10 +1,12 @@
 // One game test run's trace (a file tools/run-game-tests.ps1 writes to tests/game/runs/) summed up.
 // It reads the lines the capture order and the finisher's pass log at debugchance 100 and the
-// tests' "[apirateslife-test] trace:" lines: every one with "hull N%" or "shields N%" is a sample
-// of the target's state at the log's time stamp. The test's own result line is left out, as its
-// detail can quote other figures (the lowest hull, an expected value).
+// tests' "[apirateslife-test] trace:" lines: every one with "hull N%" or "shields N%" (or the
+// order's "shields down") is a sample of the target's state at the log's time stamp. The test's
+// own result line is left out, as its detail can quote other figures (the lowest hull, an expected
+// value). Before the run's operation starts, only the test's trace lines count: the last run's
+// order can still log for a moment after its result, and the runner puts those lines in this run.
 
-export type Result = "PASS" | "FAIL" | "unfinished";
+type Result = "PASS" | "FAIL" | "unfinished";
 
 export interface Pass {
   /** How far from the target the pass started, in m */
@@ -30,8 +32,8 @@ export interface RunSummary {
   passes: Pass[];
 }
 
-// The shields' bail gate, and where the wing tests count a knock-down
-const KNOCK_DOWN = 20;
+// The shields' bail gate, where the wing tests also count a knock-down
+const SHIELDS_GATE = 20;
 const FULL = 99;
 
 const num = (s: string) => Number.parseFloat(s);
@@ -47,10 +49,10 @@ export function summarizeRun(lines: string[]): RunSummary {
   let lastHull: number | undefined;
   let lastShields: number | undefined;
   let knockDowns = 0;
-  let up = true;
+  let shieldsUp = true;
   let fullSince: number | undefined;
   let longest = 0;
-  let last: number | undefined;
+  let lastShieldsTime: number | undefined;
   const passes: Pass[] = [];
   let open: Pass | undefined;
 
@@ -68,6 +70,8 @@ export function summarizeRun(lines: string[]): RunSummary {
       start = t;
       hold = num(started[1]);
     }
+    const ours = start !== undefined || /\[apirateslife-test\] trace:/.test(line);
+    if (!ours) continue;
     const passStart = /\[apirateslife\] capture pass: starts at ([\d.]+)m, shields ([\d.]+)%/.exec(line);
     if (passStart) {
       open = { startDistance: num(passStart[1]), shieldsBefore: num(passStart[2]), shieldsAfter: undefined };
@@ -84,22 +88,23 @@ export function summarizeRun(lines: string[]): RunSummary {
       lastHull = num(hull[1]);
       lowestHull = lowestHull === undefined ? lastHull : Math.min(lowestHull, lastHull);
     }
-    const shields = /\bshields (?:up )?([\d.]+)%/.exec(line);
-    if (shields) lastShields = num(shields[1]);
+    const shieldsLine = /\bshields (?:up )?([\d.]+)%/.exec(line);
+    const shields = shieldsLine ? num(shieldsLine[1]) : /\bshields down\b/.test(line) ? 0 : undefined;
+    if (shields !== undefined) lastShields = shields;
     if (
-      (hull || shields) && start !== undefined && hold !== undefined && gateSeconds === undefined &&
-      lastHull !== undefined && lastHull < hold && lastShields !== undefined && lastShields < KNOCK_DOWN
+      (hull || shields !== undefined) && start !== undefined && hold !== undefined && gateSeconds === undefined &&
+      lastHull !== undefined && lastHull < hold && lastShields !== undefined && lastShields < SHIELDS_GATE
     ) {
       gateSeconds = seconds(start, t);
     }
-    if (shields) {
-      const s = num(shields[1]);
-      last = t;
-      if (up && s < KNOCK_DOWN) {
+    if (shields !== undefined) {
+      const s = shields;
+      lastShieldsTime = t;
+      if (shieldsUp && s < SHIELDS_GATE) {
         knockDowns++;
-        up = false;
-      } else if (!up && s >= KNOCK_DOWN) {
-        up = true;
+        shieldsUp = false;
+      } else if (!shieldsUp && s >= SHIELDS_GATE) {
+        shieldsUp = true;
       }
       if (s >= FULL) {
         fullSince ??= t;
@@ -109,7 +114,7 @@ export function summarizeRun(lines: string[]): RunSummary {
       }
     }
   }
-  if (fullSince !== undefined && last !== undefined) longest = Math.max(longest, seconds(fullSince, last));
+  if (fullSince !== undefined && lastShieldsTime !== undefined) longest = Math.max(longest, seconds(fullSince, lastShieldsTime));
 
   return {
     result,
