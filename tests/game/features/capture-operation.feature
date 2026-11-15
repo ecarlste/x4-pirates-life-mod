@@ -52,7 +52,7 @@ Feature: Capture operations
 
   # One fixed-gun finisher against a still TIE/LN sometimes lets the shields regrow between
   # passes, so this test reports a run that doesn't get the hull under 75% within 60 s instead of
-  # failing it: about 1 run in 6 (#205).
+  # failing it (#205).
   @capture_wing_breaks_full_shields
   Scenario: The wing breaks a fighter whose shields and hull above the gate fit inside its burst
     Given a capture operation on a capturable TIE/LN at full hull and shields, nothing holding them down
