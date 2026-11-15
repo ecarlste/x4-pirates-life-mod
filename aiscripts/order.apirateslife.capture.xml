@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Capture order for wingmen in a capture operation (md/apirateslife_capture.xml gives it).
-     Fights the target with vanilla's attack script, but decides itself when to fire, so the target
-     stays inside vanilla's bail gates instead of dying:
+     Fights the target with vanilla's attack script (the finisher with its own pass, below), but
+     decides itself when to fire, so the target stays inside vanilla's bail gates instead of dying:
        break:    hull at or above $holdhull (default 75, vanilla's bail gate). While the shields
                  plus the hull above the line hold more than the wing's burst, about
                  $burstseconds of the whole wing's laser and turret damage (lasers only while
@@ -9,12 +9,13 @@
                  from every wingman land above the line. Inside that margin only the finisher
                  (the operation picks it, the closest wingman with a forward gun; a wing of
                  turrets only stops here, and the player takes the hull the rest of the way)
-                 fires: with all but $finishguns guns
-                 out of its weapon group (never none: vanilla's attack fails the order with no DPS),
+                 fires, flying its own passes (aiscripts/apirateslife.capture.pass.xml): a
+                 nose-on run with every forward gun, then on past the target and back. Once the
+                 shields are down it keeps only $finishguns guns in its weapon group (never none),
                  firing on until the line, so only those guns' bolts in flight overshoot it. The rest
                  of the wing holds. Fixed guns rarely land from far out, so the finisher fires
                  only within $finishrange of the target: further out it holds fire and flies
-                 straight at the target, and a shot it fires out there ends the attack run, as
+                 straight at the target, and a shot it fires out there ends the pass, as
                  does flying more than 100 m past it (checked every 1 s). A
                  fixed gun can also miss for good (a nose locked on the target's centre carries
                  that gun's bolts past), so after $missseconds of firing within range without a hit
@@ -36,8 +37,7 @@
      carries $APiratesLife_NoMissiles while this order runs, which our patch on
      aiscripts/fight.attack.object.fighter.xml reads. (Setting the missile ammo aside instead
      didn't work: vanilla still chose missile passes, with the lasers off.)
-     A hand-written combat loop (shoot_at plus our own movement) was tried instead and never landed
-     a shot in the game tests. See docs/specs/capture-operation.md. -->
+     See docs/specs/capture-operation.md. -->
 <aiscript name="order.apirateslife.capture" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="1">
   <order id="APiratesLife_Capture" name="{1774100, 101}" description="{1774100, 102}" category="internal" allowinloop="false">
     <params>
@@ -76,9 +76,27 @@
         <abort_called_scripts resume="decide"/>
       </actions>
     </handler>
+    <!-- Finisher: it keeps every gun while the target's shields are up (decide). On the hit that
+         takes them to nothing, back to decide, which trims it to $finishguns, so only those guns'
+         bolts in flight overshoot the line. The pass restarts from where the finisher is. -->
+    <handler>
+      <conditions>
+        <check_any>
+          <event_object_hull_damaged object="$target"/>
+          <event_object_shield_damaged object="$target"/>
+        </check_any>
+        <check_value value="$firing and $keptguns.count gt [$finishguns, 1].max and $target.shield le 0"/>
+      </conditions>
+      <actions>
+        <set_value name="$firing" exact="false"/>
+        <set_value name="$missstart" exact="null"/>
+        <set_value name="$missbanked" exact="0"/>
+        <abort_called_scripts resume="decide"/>
+      </actions>
+    </handler>
     <!-- Finisher: a hit on the target (hull or shields) starts a new $missseconds window. Any hit
-         counts: in the fine stage the rest of the wing holds. After the handler above, which
-         ends the fine stage on the hit that crosses the line. -->
+         counts: in the fine stage the rest of the wing holds. After the handlers above: the one
+         that ends the fine stage on the hit that crosses the line, and the shields-down trim. -->
     <handler>
       <conditions>
         <check_any>
@@ -93,16 +111,15 @@
       </actions>
     </handler>
     <!-- Finisher: one of our guns fired. Beyond $finishrange, the window pauses (the time from the
-         first to the last shot in range is banked, not the flight out after it) and the attack run
-         ends, so the finisher closes in again without firing. Within it, the first shot after a hit
+         first to the last shot in range is banked, not the flight out after it) and the pass ends,
+         so the finisher closes in again without firing. Within it, the first shot after a hit
          or a pause starts the clock; once the window
          has run $missseconds in range with no hit, the longest-kept gun in the group goes out and the
          first gun still out comes in (the old one goes to the back of the list, so they take
          turns), and a new window starts. Out first, then in, so the group never holds more than
-         $finishguns. Then vanilla's
-         attack starts again: its shoot_at seems to keep to the guns grouped when it was given, as a
-         game test's finisher fired about once in 45 s (one shot per new attack run) after a swap
-         without it. -->
+         $finishguns. Then a new pass starts: shoot_at seems to keep to the guns grouped when it was
+         given, as a game test's finisher fired about once in 45 s after a swap without a new
+         one. -->
     <handler>
       <conditions>
         <event_weapon_fired group="$guns"/>
@@ -149,10 +166,10 @@
         </do_else>
       </actions>
     </handler>
-    <!-- Finisher: every 1 s of vanilla's attack, check its distance to the target. Past
-         $finishrange plus 100 m (the slack keeps a finisher at the line from flipping between
-         attacking and closing in), the attack ends and it closes in again at once, instead of
-         flying out 1 to 3 km with the attack run. The check signals itself again after 1 s; one
+    <!-- Finisher: every 1 s of its pass, check its distance to the target. Past $finishrange
+         plus 100 m (the slack keeps a finisher at the line from flipping between attacking and
+         closing in), the pass ends and it closes in again at once, should its break-off carry it
+         that far. The check signals itself again after 1 s; one
          left from an earlier attack ($rangecheck) is ignored. -->
     <handler>
       <conditions>
@@ -325,15 +342,20 @@
       </do_if>
 
       <!-- Into the fine stage, the finisher: take all but $finishguns guns out of the active weapon
-           group. At least one stays because vanilla's attack fails the order with no DPS
-           (order.fight.attack.object.xml:550-568), and DPS counts only grouped guns. The wing's
-           DPS was kept on the pilot before (WingDps reads it there). -->
+           group, so only their bolts in flight overshoot the line. At least one stays, as the
+           finisher has to fire. The wing's DPS was kept on the pilot before (WingDps reads it
+           there). While the target's shields are up it keeps every gun: one pass of $finishguns
+           guns can't outpace their recharge, and against a target whose shields and hull above
+           the line both fit inside the burst (a TIE/LN against one X-wing) the finisher stalled
+           at full shields (#205). Its guns go back if the shields regrow. (999: more than any
+           ship's guns, so every gun.) -->
+      <set_value name="$keepcount" exact="if $target.shield gt 0 then 999 else [$finishguns, 1].max"/>
       <do_if value="$finishing and not $keptguns.count">
         <set_value name="$missstart" exact="null"/>
         <set_value name="$missbanked" exact="0"/>
         <set_value name="$weapongroup" exact="this.assignedcontrolled.activeweapongroup.primary"/>
         <do_for_each name="$gun" in="this.assignedcontrolled.primaryweapons.{$weapongroup}.list">
-          <do_if value="$keptguns.count lt [$finishguns, 1].max and $gun.isoperational and not $gun.isclass.turret">
+          <do_if value="$keptguns.count lt $keepcount and $gun.isoperational and not $gun.isclass.turret">
             <append_to_list name="$keptguns" exact="$gun"/>
           </do_if>
           <do_else>
@@ -343,13 +365,44 @@
         </do_for_each>
         <debug_text text="'[apirateslife] capture order: %s finishes with %s guns: keeps %s, took %s out of group %s'.[this.assignedcontrolled.knownname, $keptguns.count, $keptguns, $removedguns.count, $weapongroup]" chance="$debugchance"/>
       </do_if>
+      <!-- Shields down: trim to $finishguns, keeping the longest-kept -->
+      <do_elseif value="$finishing and $keptguns.count gt $keepcount">
+        <set_value name="$oldkept" exact="$keptguns"/>
+        <set_value name="$keptguns" exact="[]"/>
+        <do_for_each name="$gun" in="$oldkept">
+          <do_if value="$keptguns.count lt $keepcount and $gun.isoperational">
+            <append_to_list name="$keptguns" exact="$gun"/>
+          </do_if>
+          <do_else>
+            <do_if value="$gun.exists">
+              <remove_weapon_from_weapongroup weapon="$gun" weapongroup="$weapongroup" primary="true"/>
+            </do_if>
+            <append_to_list name="$removedguns" exact="$gun"/>
+          </do_else>
+        </do_for_each>
+        <debug_text text="'[apirateslife] capture order: %s shields down, trims to %s guns, hull %s%%'.[this.assignedcontrolled.knownname, $keptguns.count, $target.hullpercentage]" chance="$debugchance"/>
+      </do_elseif>
+      <!-- Shields regrown: every gun it took out goes back -->
+      <do_elseif value="$finishing and $keepcount gt $keptguns.count and $removedguns.count">
+        <set_value name="$oldremoved" exact="$removedguns"/>
+        <set_value name="$removedguns" exact="[]"/>
+        <do_for_each name="$gun" in="$oldremoved">
+          <do_if value="$gun.isoperational and not $gun.isclass.turret">
+            <add_weapon_to_weapongroup weapon="$gun" weapongroup="$weapongroup" primary="true"/>
+            <append_to_list name="$keptguns" exact="$gun"/>
+          </do_if>
+          <do_else>
+            <append_to_list name="$removedguns" exact="$gun"/>
+          </do_else>
+        </do_for_each>
+        <debug_text text="'[apirateslife] capture order: %s shields up %s%%, back to %s guns'.[this.assignedcontrolled.knownname, $target.shieldpercentage, $keptguns.count]" chance="$debugchance"/>
+      </do_elseif>
 
       <!-- Finisher out of range: no fire, and fly straight at the target, checking every second.
            Not the hold below: its evasive moves keep a wingman where it is, so a finisher between
-           $finishrange and 1.5 km would rarely get back in range. Vanilla's attack starts again
-           in range, and fires about 0.4 s in. -->
+           $finishrange and 1.5 km would rarely get back in range. Its pass starts again in range. -->
       <do_if value="$closing">
-        <!-- The miss window pauses, as for a shot out of range (an attack run can end on its own) -->
+        <!-- The miss window pauses, as for a shot out of range (a pass can end on its own) -->
         <do_if value="$missstart">
           <set_value name="$missbanked" exact="$missbanked + $misslast - $missstart"/>
           <set_value name="$missstart" exact="null"/>
@@ -369,6 +422,17 @@
         <do_if value="$finishing">
           <set_value name="$rangecheck" exact="$rangecheck + 1"/>
           <signal_objects object="this.assignedcontrolled" param="'apirateslife_capture_rangecheck'" param2="$rangecheck" delay="1s"/>
+        </do_if>
+        <!-- The finisher flies its own pass (apirateslife.capture.pass.xml): vanilla's attack
+             runs carried it out of range between short passes, and against full shields it
+             stalled (#205). One pass, then back to decide, which starts the next. -->
+        <do_if value="$finishing">
+          <run_script name="'apirateslife.capture.pass'">
+            <param name="target" value="$target"/>
+            <param name="debugchance" value="$debugchance"/>
+          </run_script>
+          <set_value name="$firing" exact="false"/>
+          <resume label="decide"/>
         </do_if>
         <run_script name="'order.fight.attack.object'">
           <param name="primarytarget" value="$target"/>

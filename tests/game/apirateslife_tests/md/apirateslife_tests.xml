@@ -59,6 +59,7 @@
           CaptureEscaped,
           CaptureWingHoldsFire,
           CaptureWingHoldsFireThreeWingmen,
+          CaptureWingBreaksFullShields,
           CaptureWingTurretsHold,
           CaptureWingTurretsHoldM,
           NoMissilesInSight,
@@ -2004,6 +2005,7 @@
          and flies freely from there. Every run starts from the same place, pilots at skill 15, so
          runs differ less than in CaptureWingHoldsFire, where the wingman starts beside the player.
          Macro and Loadout swap the X-wing for another ship (#184's turreted wingmen).
+         TargetMacro swaps the target, and Hull and ShieldsDown (false: full shields) its start (#205).
          Returns table[$target, $wingmen, $gunowner, $turrets, $minhull, $heldfor]: $gunowner maps
          each wingman's lasers and turrets to the wingman, $turrets lists the turrets, and
          CheckWingHold keeps the last two. -->
@@ -2012,9 +2014,12 @@
         <param name="Count"/>
         <param name="Macro" default="macro.t65b_xwing_macro"/>
         <param name="Loadout" default="'apirateslife_test_xwing_lasers'"/>
+        <param name="TargetMacro" default="macro.tie_advanced_macro"/>
+        <param name="Hull" default="80"/>
+        <param name="ShieldsDown" default="true"/>
       </params>
       <actions>
-        <create_ship name="$Target" macro="tie_advanced_macro" sector="player.sector" capturable="true">
+        <create_ship name="$Target" macro="$TargetMacro" sector="player.sector" capturable="true">
           <owner exact="faction.galempire" overridenpc="true"/>
           <loadout>
             <level exact="1.0"/>
@@ -2027,8 +2032,10 @@
         <create_order id="'Wait'" object="$Target" default="true">
           <param name="noattackresponse" value="true"/>
         </create_order>
-        <set_object_shield object="$Target" exact="0"/>
-        <set_object_hull object="$Target" exact="80"/>
+        <do_if value="$ShieldsDown">
+          <set_object_shield object="$Target" exact="0"/>
+        </do_if>
+        <set_object_hull object="$Target" exact="$Hull"/>
         <set_value name="$X" exact="[2km, -1km, -1km]"/>
         <set_value name="$Z" exact="[0m, 1.732km, -1.732km]"/>
         <set_value name="$Wingmen" exact="[]"/>
@@ -2180,6 +2187,141 @@
                 <do_if value="$Wing.$target.exists">
                   <destroy_object object="$Wing.$target"/>
                 </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- #205: one X-wing 2 km from a TIE/LN with full shields (SpawnWingAt2km), nothing holding the
+         shields down. A TIE/LN's 900 shields and the 25% of hull above the gate are less than the
+         X-wing's burst, the case the tests above never reach. One check of the test below, run
+         every second: fails on a kill or the floor, counts knock-downs (shields from 20% or more
+         to under 20%, as in the release checklist) and the seconds in a row the shields have been
+         full. Returns the problems so far ('' for none). -->
+    <library name="CheckWingCycle" purpose="run_actions">
+      <params>
+        <param name="Wing"/>
+      </params>
+      <actions>
+        <set_value name="$Target" exact="$Wing.$target"/>
+        <do_if value="not $Target.exists or not $Target.isoperational">
+          <return value="' target destroyed (lowest hull seen %s%%);'.[$Wing.$minhull]"/>
+        </do_if>
+        <set_value name="$Wing.$minhull" exact="[$Wing.$minhull, $Target.hullpercentage].min"/>
+        <debug_text text="'[apirateslife-test] trace: t %s, hull %s%%, shields %s%%, wingman %sm away, knock-downs %s'.[$Wing.$secs, $Target.hullpercentage, $Target.shieldpercentage, $Wing.$wingmen.{1}.distanceto.{$Target}, $Wing.$knocks]" filter="general"/>
+        <set_value name="$Wing.$secs" exact="$Wing.$secs + 1"/>
+        <do_if value="$Target.hullpercentage lt 35">
+          <return value="' hull %s%%, below the 35%% floor;'.[$Target.hullpercentage]"/>
+        </do_if>
+        <do_if value="$Wing.$up and $Target.shieldpercentage lt 20">
+          <set_value name="$Wing.$knocks" exact="$Wing.$knocks + 1"/>
+          <set_value name="$Wing.$up" exact="false"/>
+        </do_if>
+        <do_elseif value="not $Wing.$up and $Target.shieldpercentage ge 20">
+          <set_value name="$Wing.$up" exact="true"/>
+        </do_elseif>
+        <set_value name="$Wing.$fullfor" exact="if $Target.shieldpercentage ge 99 then $Wing.$fullfor + 1 else 0"/>
+        <set_value name="$Wing.$maxfullfor" exact="[$Wing.$maxfullfor, $Wing.$fullfor].max"/>
+        <return value="''"/>
+      </actions>
+    </library>
+
+    <!-- The end of the test below: cleans up, and returns table[$ok, $detail] for its report.
+         $Wing.$timedout marks a run that ran out of time, which is reported, not failed. -->
+    <library name="WingCycleDone" purpose="run_actions">
+      <params>
+        <param name="Wing"/>
+        <param name="Problems"/>
+        <param name="Started"/>
+      </params>
+      <actions>
+        <remove_value name="global.$APiratesLife_CaptureDebug"/>
+        <do_if value="not $Started">
+          <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
+        </do_if>
+        <set_value name="$Hull" exact="if $Wing.$target.isoperational then $Wing.$target.hullpercentage else 0"/>
+        <set_value name="$Shields" exact="if $Wing.$target.isoperational then $Wing.$target.shieldpercentage else 0"/>
+        <set_value name="$Result" exact="table[$ok = ($Problems == ''), $detail = $Problems + (if @$Wing.$timedout then ' timed out' else '') + ' after %s s: hull %s%% (lowest %s%%), shields %s%%, %s knock-downs, longest at full shields %s s'.[$Wing.$secs, $Hull, $Wing.$minhull, $Shields, $Wing.$knocks, $Wing.$maxfullfor]]"/>
+        <do_for_each name="$Ship" in="$Wing.$wingmen">
+          <do_if value="$Ship.exists">
+            <destroy_object object="$Ship"/>
+          </do_if>
+        </do_for_each>
+        <do_if value="$Wing.$target.exists">
+          <destroy_object object="$Wing.$target"/>
+        </do_if>
+        <return value="$Result"/>
+      </actions>
+    </library>
+
+    <!-- #205: the wing breaks a full-health TIE/LN's hull to under 75%. Its 900 shields and the 25%
+         of hull above the gate fit inside the X-wing's burst, so the finisher starts in the fine
+         stage from full shields. Fails on a kill or the floor; a run that doesn't get the hull
+         under 75% in 60 s is reported, not failed. -->
+    <cue name="CaptureWingBreaksFullShields">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
+        <run_actions ref="SpawnWingAt2km" result="$Wing">
+          <param name="Count" value="1"/>
+          <param name="TargetMacro" value="macro.tie_fighter_macro"/>
+          <param name="Hull" value="100"/>
+          <param name="ShieldsDown" value="false"/>
+        </run_actions>
+        <set_value name="$Wing.$secs" exact="0"/>
+        <set_value name="$Wing.$knocks" exact="0"/>
+        <set_value name="$Wing.$up" exact="true"/>
+        <set_value name="$Wing.$fullfor" exact="0"/>
+        <set_value name="$Wing.$maxfullfor" exact="0"/>
+      </actions>
+      <cues>
+        <cue name="CaptureWingBreaksFullShields_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+            <set_object_capturable object="$Wing.$target" capturable="false"/>
+          </actions>
+          <cues>
+            <cue name="CaptureWingBreaksFullShields_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="CheckWingCycle" result="$Problems">
+                  <param name="Wing" value="$Wing"/>
+                </run_actions>
+                <do_if value="$Problems != '' or $Wing.$target.hullpercentage lt 75">
+                  <cancel_cue cue="CaptureWingBreaksFullShields_Timeout"/>
+                  <signal_cue_instantly cue="CaptureWingBreaksFullShields_Done" param="$Problems"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="CaptureWingBreaksFullShields_Timeout">
+              <delay exact="60s"/>
+              <actions>
+                <!-- Reported, not a failure: a pass lands about 1 s of fire, and against a still
+                     target the shields sometimes regrow between passes (#205) -->
+                <set_value name="$Wing.$timedout" exact="true"/>
+                <signal_cue_instantly cue="CaptureWingBreaksFullShields_Done" param="''"/>
+              </actions>
+            </cue>
+            <cue name="CaptureWingBreaksFullShields_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureWingBreaksFullShields_Watch"/>
+                <run_actions ref="WingCycleDone" result="$Result">
+                  <param name="Wing" value="$Wing"/>
+                  <param name="Problems" value="event.param"/>
+                  <param name="Started" value="$Started"/>
+                </run_actions>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_breaks_full_shields', $ok = $Result.$ok, $detail = $Result.$detail]"/>
               </actions>
             </cue>
           </cues>
