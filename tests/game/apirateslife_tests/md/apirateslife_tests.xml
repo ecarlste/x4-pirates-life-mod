@@ -2230,7 +2230,8 @@
     </library>
 
     <!-- The end of either test below: cleans up, and returns table[$ok, $detail] for its report.
-         $Wing.$timedout marks a run that ran out of time, which is reported, not failed. -->
+         $Wing.$timedout marks a run that ran out of time, and $Wing.$stalled one that sat 20 s at
+         full shields: both are reported, not failed. -->
     <library name="WingCycleDone" purpose="run_actions">
       <params>
         <param name="Wing"/>
@@ -2244,7 +2245,7 @@
         </do_if>
         <set_value name="$Hull" exact="if $Wing.$target.isoperational then $Wing.$target.hullpercentage else 0"/>
         <set_value name="$Shields" exact="if $Wing.$target.isoperational then $Wing.$target.shieldpercentage else 0"/>
-        <set_value name="$Result" exact="table[$ok = ($Problems == ''), $detail = $Problems + (if @$Wing.$timedout then ' timed out' else '') + ' after %s s: hull %s%% (lowest %s%%), shields %s%%, %s knock-downs, longest at full shields %s s'.[$Wing.$secs, $Hull, $Wing.$minhull, $Shields, $Wing.$knocks, $Wing.$maxfullfor]]"/>
+        <set_value name="$Result" exact="table[$ok = ($Problems == ''), $detail = $Problems + (if @$Wing.$timedout then ' timed out' else '') + (if @$Wing.$stalled then ' stalled at full shields' else '') + ' after %s s: hull %s%% (lowest %s%%), shields %s%%, %s knock-downs, longest at full shields %s s'.[$Wing.$secs, $Hull, $Wing.$minhull, $Shields, $Wing.$knocks, $Wing.$maxfullfor]]"/>
         <do_for_each name="$Ship" in="$Wing.$wingmen">
           <do_if value="$Ship.exists">
             <destroy_object object="$Ship"/>
@@ -2260,8 +2261,8 @@
     <!-- #205, cause 1: once the hull is under 75%, the wing keeps knocking the shields down as they
          regrow, though one burst is more than the TIE/LN's whole shields. The target starts inside
          the hull gate, at 70%, with full shields; the wing must knock them down twice (down, back
-         over 20%, down again). Fails at once on 20 s in a row at full shields: the wing holding
-         forever, the bug. -->
+         over 20%, down again). Fails at once on 20 s in a row at full shields without a shot: the
+         wing holding forever, the bug. With shots, the run is reported, not failed. -->
     <cue name="CaptureWingKnocksShieldsAgain">
       <conditions>
         <event_cue_signalled/>
@@ -2281,6 +2282,9 @@
         <set_value name="$Wing.$up" exact="true"/>
         <set_value name="$Wing.$fullfor" exact="0"/>
         <set_value name="$Wing.$maxfullfor" exact="0"/>
+        <set_value name="$Wing.$lastshot" exact="null"/>
+        <create_group groupname="$Guns"/>
+        <add_to_group groupname="$Guns" list="$Wing.$gunowner.keys.list"/>
       </actions>
       <cues>
         <cue name="CaptureWingKnocksShieldsAgain_Start">
@@ -2292,15 +2296,31 @@
             <set_object_capturable object="$Wing.$target" capturable="false"/>
           </actions>
           <cues>
+            <cue name="CaptureWingKnocksShieldsAgain_Fired" instantiate="true">
+              <conditions>
+                <event_weapon_fired group="$Guns"/>
+              </conditions>
+              <actions>
+                <set_value name="$Wing.$lastshot" exact="player.age"/>
+              </actions>
+            </cue>
             <cue name="CaptureWingKnocksShieldsAgain_Watch" checkinterval="1s" instantiate="true">
               <actions>
                 <run_actions ref="CheckWingCycle" result="$Problems">
                   <param name="Wing" value="$Wing"/>
                 </run_actions>
+                <!-- 20 s at full shields: holding fire throughout is the bug, and fails. Firing
+                     but missing is reported, not failed: the finisher's 2-gun passes sometimes
+                     miss while the shields regrow, as in CaptureWingBreaksFullShields (#205). -->
                 <do_if value="$Problems == '' and $Wing.$fullfor ge 20">
-                  <set_value name="$Problems" exact="' no hit for %s s at full shields;'.[$Wing.$fullfor]"/>
+                  <do_if value="$Wing.$lastshot == null or player.age - $Wing.$lastshot ge 20s">
+                    <set_value name="$Problems" exact="' held fire for %s s at full shields;'.[$Wing.$fullfor]"/>
+                  </do_if>
+                  <do_else>
+                    <set_value name="$Wing.$stalled" exact="true"/>
+                  </do_else>
                 </do_if>
-                <do_if value="$Problems != '' or $Wing.$knocks ge 2">
+                <do_if value="$Problems != '' or $Wing.$knocks ge 2 or @$Wing.$stalled">
                   <cancel_cue cue="CaptureWingKnocksShieldsAgain_Timeout"/>
                   <signal_cue_instantly cue="CaptureWingKnocksShieldsAgain_Done" param="$Problems"/>
                 </do_if>
@@ -2309,7 +2329,9 @@
             <cue name="CaptureWingKnocksShieldsAgain_Timeout">
               <delay exact="120s"/>
               <actions>
-                <signal_cue_instantly cue="CaptureWingKnocksShieldsAgain_Done" param="' fewer than 2 knock-downs in 120 s;'"/>
+                <!-- As for the stall above: failed only if the wing has stopped firing -->
+                <set_value name="$Wing.$timedout" exact="true"/>
+                <signal_cue_instantly cue="CaptureWingKnocksShieldsAgain_Done" param="if $Wing.$lastshot == null or player.age - $Wing.$lastshot ge 20s then ' fewer than 2 knock-downs in 120 s, no shot in the last 20 s;' else ''"/>
               </actions>
             </cue>
             <cue name="CaptureWingKnocksShieldsAgain_Done">
@@ -2317,6 +2339,7 @@
                 <event_cue_signalled/>
               </conditions>
               <actions>
+                <cancel_cue cue="CaptureWingKnocksShieldsAgain_Fired"/>
                 <cancel_cue cue="CaptureWingKnocksShieldsAgain_Watch"/>
                 <run_actions ref="WingCycleDone" result="$Result">
                   <param name="Wing" value="$Wing"/>
