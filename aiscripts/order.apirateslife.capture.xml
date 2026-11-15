@@ -50,9 +50,9 @@
       </param>
       <param name="holdhull" default="75" type="internal" comment="Below this hull percentage, fire only at shields (75 is vanilla's bail gate)"/>
       <param name="floorhull" default="35" type="internal" comment="Hull percentage at or below which nobody fires"/>
-      <param name="burstseconds" default="1.5" type="internal" comment="While suppressing, stop firing while the target's shields still hold this many seconds of the wing's laser and turret damage"/>
-      <param name="missseconds" default="10" type="internal" comment="Break, fine stage: after the finisher has fired this many seconds within finishrange without a hit on the target, it swaps the longest-kept of its guns for another"/>
-      <param name="finishguns" default="2" type="internal" comment="Break, fine stage: how many guns the finisher keeps in its weapon group (at least 1). With one it landed a hit on about one pass in two, too few to finish in time (#182); each gun adds about a bolt of overshoot"/>
+      <param name="burstseconds" default="1.5" type="internal" comment="While suppressing, stop firing while the target's shields still hold this many seconds of the wing's laser and turret damage (shields too small for that stop at shieldgate instead)"/>
+      <param name="missseconds" default="10" type="internal" comment="Break, fine stage (and suppress on small shields): after the finisher has fired this many seconds within finishrange without a hit on the target, it swaps the longest-kept of its guns for another"/>
+      <param name="finishguns" default="2" type="internal" comment="Break, fine stage (and suppress on small shields): how many guns the finisher keeps in its weapon group (at least 1). With one it landed a hit on about one pass in two, too few to finish in time (#182); each gun adds about a bolt of overshoot"/>
       <param name="finishrange" default="600m" type="internal" comment="Break, fine stage (and suppress on small shields): the finisher fires only within this distance of the target, and closes in without firing from further out"/>
       <param name="shieldgate" default="20" type="internal" comment="While suppressing, a target whose full shields can't hold the wing's burst: stop once they're under this percentage (vanilla's bail gate for shields)"/>
       <param name="shieldresume" default="10" type="internal" comment="While suppressing, fire again once shields are this many percent above the stop point"/>
@@ -100,7 +100,7 @@
       </actions>
     </handler>
     <!-- Finisher: a hit on the target (hull or shields) starts a new $missseconds window. Any hit
-         counts: in the fine stage the rest of the wing holds. After the handlers above: the one
+         counts: in the fine stage, and in suppress on small shields, the rest of the wing holds. After the handlers above: the one
          that ends the fine stage on the hit that crosses the line, and the shields-down trim. -->
     <handler>
       <conditions>
@@ -308,9 +308,12 @@
            handler) while they still hold the wing's burst. The whole wing fires, not just the
            finisher: every wingman stops at the same line, and the wing's burst covers all their
            shots in flight. Small shields stop at the gate instead ($stopshield, above), and only
-           the finisher fires, as in the fine stage: its pass, $finishguns guns. -->
+           the finisher fires, as in the fine stage: its pass, $finishguns guns. The finisher comes
+           back here after every pass, so once it's firing it keeps on down to the gate
+           ($lastfire); otherwise a pass ending between the gate and the resume point held it
+           until the shields regrew. -->
       <do_else>
-        <set_value name="$fire" exact="$target.maxshield and $target.shield ge $stopshield + $target.maxshield * $shieldresume / 100.0"/>
+        <set_value name="$fire" exact="$target.maxshield and ($target.shield ge $stopshield + $target.maxshield * $shieldresume / 100.0 or ($smallshields and @$lastfire and $target.shield gt $stopshield))"/>
         <set_value name="$finishing" exact="$fire and $smallshields and @global.$APiratesLife_CaptureOps.{$target}.$finisher == this.assignedcontrolled"/>
         <set_value name="$fire" exact="$fire and (not $smallshields or $finishing)"/>
         <set_value name="$closing" exact="$finishing and this.assignedcontrolled.distanceto.{$target} gt $finishrange"/>
@@ -348,7 +351,8 @@
       <set_value name="$lastfinishing" exact="$finishing"/>
       <set_value name="$lastclosing" exact="$closing"/>
 
-      <!-- Out of the fine stage: put the guns back in the group -->
+      <!-- Not finishing any more (out of the fine stage, or suppress on small shields): put the
+           guns back in the group -->
       <do_if value="$keptguns.count and not $finishing">
         <do_for_each name="$gun" in="$removedguns">
           <do_if value="$gun.exists">
@@ -359,8 +363,9 @@
         <set_value name="$keptguns" exact="[]"/>
       </do_if>
 
-      <!-- Into the fine stage, the finisher: take all but $finishguns guns out of the active weapon
-           group, so only their bolts in flight overshoot the line. At least one stays, as the
+      <!-- Finishing (the fine stage, or suppress on small shields), the finisher: take all but
+           $finishguns guns out of the active weapon group, so only their bolts in flight
+           overshoot the line. At least one stays, as the
            finisher has to fire. The wing's DPS was kept on the pilot before (WingDps reads it
            there). While the target's shields are up it keeps every gun: one pass of $finishguns
            guns can't outpace their recharge, and against a target whose shields and hull above
