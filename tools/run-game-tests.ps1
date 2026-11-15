@@ -12,7 +12,8 @@
        Egosoft's DLCs, so each run is SWI-only.
     2. Installs the dev-only test extension (tests/game/apirateslife_tests) next to the deployed mod.
     3. Starts <X4_PATH>\<X4_EXE> directly (X4_nonsteam.exe, no Steam involved) with
-       -skipintro -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid <id>.
+       -skipintro -disablesound -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid <id>
+       (-disablesound mutes the run without changing the profile's sound settings).
        The test extension starts its own gamestart from the main menu, runs every test, logs
        "[apirateslife-test] ..." lines to debuglog.txt and quits the game.
     4. Watches the profile's debuglog.txt until the run finishes, the game exits, no log appears
@@ -553,7 +554,8 @@ function Get-ProcessName([string] $Exe) {
 }
 
 function Get-LaunchArguments([string] $ProfileId) {
-    "-skipintro -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid $ProfileId"
+    # -disablesound: the runs play no sound. It changes only this launch, not the profile's config.xml
+    "-skipintro -disablesound -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid $ProfileId"
 }
 
 # The extension ids switched on in a profile's content.xml

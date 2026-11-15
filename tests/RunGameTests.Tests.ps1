@@ -110,11 +110,11 @@ Describe 'run-game-tests.ps1' {
         Get-Content (Join-Path $profileDir 'debuglog.previous.txt') | Should -Be $script:PassingLog
     }
 
-    It 'starts the game directly with the debug options and its own profile, and reads that profile''s log' {
+    It 'starts the game directly, muted, with the debug options and its own profile, and reads that profile''s log' {
         Set-Content $env:FAKE_SOURCE_LOG $script:PassingLog
         $r = Invoke-Script $script:Runner $runArgs
         $r.ExitCode | Should -Be 0
-        Get-TestFile $env:FAKE_ARGS | Should -Be '-skipintro -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid 90000301'
+        Get-TestFile $env:FAKE_ARGS | Should -Be '-skipintro -disablesound -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid 90000301'
         $r.Output | Should -BeLike "*results go to $env:FAKE_LOGPATH*"
     }
 
