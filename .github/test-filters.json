@@ -41,7 +41,8 @@
     "maps/**",
     "md/**",
     "t/**",
-    "release/**"
+    "release/**",
+    "tests/game/**"
   ],
 
   "tests/deploy.bats": ["deploy.sh", "deploy.include", "deploy.config.example", "tools/game-lock.sh", "tools/deploy-config.sh", "tests/helpers.bash", "tests/deploy.bats"],
