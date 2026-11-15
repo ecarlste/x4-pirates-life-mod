@@ -9,7 +9,8 @@
 #   - the Python unit tests for tools/ (tests/python/, with the standard library's unittest)
 #   - the TypeScript tools (tools/*.ts, under Node): node_modules matches the lock (make setup
 #     installs it), the types check, their unit tests pass, the lowercase-paths check (every
-#     shipped path is lowercase), the doc-size check (docs/PROJECT.md within its budget), the
+#     shipped path is lowercase), the debug-tags check (no [DEBUG-…] probe tag left in the mod or
+#     the game tests), the doc-size check (docs/PROJECT.md within its budget), the
 #     settings checks (defaults, README) and the diff-patch check (it skips with a note without the unpacked game files, as in CI)
 #   - the doc-paths check (tools/check-doc-paths.ts): the docs name only repo paths that exist
 #   - the doc-names check (tools/check-doc-names.ts): the docs and tools name no removed mod global
@@ -35,10 +36,10 @@ PWSH_SHA256=1da6d6d6035d651f20e70ddee7c4c15ac6ab8b9fb40ee92240d91263f28a884b
 cd "$(dirname "$0")/.."
 
 # The TypeScript tools: node_modules matches package-lock.json (first, so a missing package is named),
-# the types check, the unit tests pass, every shipped path is lowercase, docs/PROJECT.md is within its
-# size budget, the settings loader's defaults match the config file's, the player README names every
-# setting the config file has, then the diff-patch check on
-# the unpacked 8.00 and SWI files
+# the types check, the unit tests pass, every shipped path is lowercase, no probe tag is left,
+# docs/PROJECT.md is within its size budget, the settings loader's defaults match the config file's,
+# the player README names every setting the config file has, then the diff-patch check on the
+# unpacked 8.00 and SWI files
 run_typescript() {
     echo "== TypeScript"
     if ! command -v node >/dev/null; then
@@ -49,6 +50,7 @@ run_typescript() {
     { npx --no-install tsc && echo "Types: ok"; } || return 1
     node --test --test-reporter=dot 'tools/**/*.test.ts' || return 1
     node tools/check-lowercase-paths.ts || return 1
+    node tools/check-debug-tags.ts || return 1
     node tools/check-doc-size.ts || return 1
     node tools/check-settings-defaults.ts || return 1
     node tools/check-readme-settings.ts || return 1

@@ -84,7 +84,7 @@ jobs:
       - run: tests/run.sh --lua-only
 
   # The TypeScript tools: the diff-patch check skips here (no unpacked game files), its unit tests run;
-  # also the lowercase-paths check on the shipped files
+  # also the lowercase-paths check on the shipped files and the debug-tags check
   typescript:
     name: TypeScript (tsc, unit tests)
     needs: changes
