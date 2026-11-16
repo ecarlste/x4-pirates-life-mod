@@ -11,7 +11,7 @@
 
      Adding a test: a root cue named after it that fires on event_cue_signalled, sets things up,
      and signals Report exactly once (from a result cue or a timeout cue) with
-     table[$name, $ok, $detail]. Then add it to $Tests in Run, on a line of its own
+     table[$name, $ok, $detail], plus $outcome for a split verdict (see Report). Then add it to $Tests in Run, on a line of its own
      (tests/python/test_game_tests_list.py checks the list against the test cues; the runner's
      -Test and -Repeat, and a PR-tier run leaving out $ReleaseOnly, rewrite it in the installed
      copy, so keep its layout), to $ReleaseOnly too if it's too slow for the PR tier, and to

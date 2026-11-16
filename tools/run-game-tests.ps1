@@ -275,11 +275,13 @@ function Get-GameTestNames([string] $HarnessText, [string] $List = 'Tests') {
 
 # The harness's $ReleaseRuns list: the tests the release tier runs more than once, each as
 # [<cue name>, <runs>, <passes needed>]; returns cue name -> @{ Runs; Needed }
-# (tests/python/test_game_tests_list.py checks the list)
+# (tests/python/test_game_tests_list.py checks the list). Refuses a $FirstOnlyTests test, which a
+# run can't repeat.
 function Get-ReleaseRuns([string] $HarnessText) {
     if ($HarnessText -notmatch '<set_value name="\$ReleaseRuns" exact="([^"]*)"') { throw 'no $ReleaseRuns list found in the game-test harness' }
     $runs = @{}
     foreach ($m in [regex]::Matches($Matches[1], '\[\s*(\w+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]')) {
+        if ($FirstOnlyTests -contains $m.Groups[1].Value) { throw "`$ReleaseRuns lists $($m.Groups[1].Value), which runs once, first, in any run; take it out" }
         $runs[$m.Groups[1].Value] = [pscustomobject]@{ Runs = [int] $m.Groups[2].Value; Needed = [int] $m.Groups[3].Value }
     }
     $runs
@@ -297,25 +299,24 @@ $FirstOnlyTests = @('ConfigAppliedOnStart')
 # (capture_wing_holds_fire is CaptureWingHoldsFire), or without -Test every test but the $Skip ones
 # (the release-only tests, on a PR-tier run); in rounds of the selection, in the order given,
 # $Repeat times ($FirstOnlyTests once, first). A test in $Runs (cue name -> count: the release
-# tier's $ReleaseRuns) runs that many times in a row where it stands. -Test can arrive as one
+# tier's pass bars, from Get-ReleaseRuns) runs its bar's Runs times in a row where it stands. -Test can arrive as one
 # comma-separated string (powershell -File passes "a,b" as is), so names are split on commas too.
 function Resolve-GameTestSelection([string[]] $Available, [string[]] $Test, [int] $Repeat, [string[]] $Skip = @(), [hashtable] $Runs = @{}) {
     if ($Repeat -lt 1) { throw "-Repeat must be 1 or more (got $Repeat)" }
-    $key = { param($n) Get-TestKey $n }
     $requested = @($Test | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
     $selected = @($Available | Where-Object { $Skip -notcontains $_ })
     if ($requested.Count) {
         $selected = @()
         $unknown = @()
         foreach ($name in $requested) {
-            $match = @($Available | Where-Object { (& $key $_) -eq (& $key $name) })
+            $match = @($Available | Where-Object { (Get-TestKey $_) -eq (Get-TestKey $name) })
             if ($match.Count) { $selected += $match[0] } else { $unknown += $name }
         }
         if ($unknown.Count) { throw "No game test named $($unknown -join ', '). The tests: $($Available -join ', ')" }
     }
     $first = @($selected | Where-Object { $FirstOnlyTests -contains $_ } | Select-Object -Unique)
     $rest = @($selected | Where-Object { $FirstOnlyTests -notcontains $_ })
-    $round = @(foreach ($name in $rest) { $count = if ($Runs.ContainsKey($name)) { $Runs[$name] } else { 1 }; for ($j = 0; $j -lt $count; $j++) { $name } })
+    $round = @(foreach ($name in $rest) { $count = if ($Runs.ContainsKey($name)) { $Runs[$name].Runs } else { 1 }; for ($j = 0; $j -lt $count; $j++) { $name } })
     @($first) + @(for ($i = 0; $i -lt $Repeat; $i++) { $round })
 }
 
@@ -908,10 +909,8 @@ $isSelection = [bool] ($Test -or $Repeat -ne 1)
 $tier = if ($isSelection -or $Release) { $null } elseif ($ReleaseTier) { 'release' } else { 'pr' }
 # The release tier runs each $ReleaseRuns test its runs and holds it to its pass bar
 $bars = if ($tier -eq 'release') { Get-ReleaseRuns $harnessText } else { @{} }
-$runCounts = @{}
-foreach ($name in $bars.Keys) { $runCounts[$name] = $bars[$name].Runs }
 $testList = $null
-if ($isSelection -or $skipped.Count -or $bars.Count) { $testList = @(Resolve-GameTestSelection $available $Test $Repeat $skipped $runCounts) }
+if ($isSelection -or $skipped.Count -or $bars.Count) { $testList = @(Resolve-GameTestSelection $available $Test $Repeat $skipped $bars) }
 $processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
 if ($PreflightOnly) {
     Assert-NoGameRunning $processNames

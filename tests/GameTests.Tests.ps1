@@ -285,11 +285,14 @@ Describe 'Game test selection (-Test, -Repeat)' {
         $runs['BailRaisesBailed'].Runs | Should -Be 40
         (Get-ReleaseRuns ($script:Harness + '<set_value name="$ReleaseRuns" exact="[]"/>')).Keys.Count | Should -Be 0
         { Get-ReleaseRuns $script:Harness } | Should -Throw '*no $ReleaseRuns list*'
+        # A test of the game as it starts runs once, so it can't meet a bar of more runs
+        { Get-ReleaseRuns ($script:Harness + '<set_value name="$ReleaseRuns" exact="[[ConfigAppliedOnStart, 10, 8]]"/>') } | Should -Throw '*lists ConfigAppliedOnStart, which runs once, first*'
     }
 
     It 'runs each $ReleaseRuns test its runs, one after another, where it stands in the list' {
-        Resolve-GameTestSelection @('A', 'B', 'C') @() 1 -Runs @{ B = 3 } | Should -Be @('A', 'B', 'B', 'B', 'C')
-        Resolve-GameTestSelection @('A', 'Slow', 'B') @() 1 @('Slow') @{ Slow = 2; A = 2 } | Should -Be @('A', 'A', 'B')
+        $bar = { param($n) [pscustomobject]@{ Runs = $n; Needed = 1 } }
+        Resolve-GameTestSelection @('A', 'B', 'C') @() 1 -Runs @{ B = & $bar 3 } | Should -Be @('A', 'B', 'B', 'B', 'C')
+        Resolve-GameTestSelection @('A', 'Slow', 'B') @() 1 @('Slow') @{ Slow = & $bar 2; A = & $bar 2 } | Should -Be @('A', 'A', 'B')
     }
 
     It 'selects a test by its cue name or the name it reports, in rounds of -Repeat' {
