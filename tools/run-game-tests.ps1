@@ -108,7 +108,9 @@
 
 .PARAMETER ReleaseTier
     Run the release tier (make game-test RELEASE=1): every test in $Tests, the ones in the
-    harness's $ReleaseOnly list too, which a plain run (the PR tier) leaves out. The report names
+    harness's $ReleaseOnly list too, which a plain run (the PR tier) leaves out, and each test in its
+    $ReleaseRuns list its runs in a row, failing a test whose passes with the outcome met fall
+    below the passes it needs (a plain run runs it once, and only logs its outcome). The report names
     the tier and warns, without failing, when the run is over the tier's budget: 5 minutes for the
     PR tier, 30 for the release tier, from launch to quit. Raises the default -TimeoutSeconds to
     2400. Not the release sessions (-Release).
@@ -158,7 +160,8 @@ $SwiFolder = 'starwarsmod_m1'
 
 # Parses debuglog.txt lines into the run's results. Errors are lines that mention the mod and an
 # error or a warning, apart from our own markers and the harmless "unsigned file" warnings every
-# mod gets. FirstRead holds the line each file of SWI's and the mod's was first read on
+# mod gets. A result's Outcome is 'met' or 'missed' for a test with a split verdict (its PASS or FAIL
+# is then its invariants), else empty. FirstRead holds the line each file of SWI's and the mod's was first read on
 # ("<folder>|<path>"): X4 checks a file's signature as it reads it, in load order. Extensions holds
 # the extension folders any file was read from, lowercased. A release session (-Release) logs the
 # save it wrote (Saved, or SaveFailed with why), the save it asked to load (LoadingSave) and the
@@ -202,8 +205,8 @@ function Read-GameTestLog([string[]] $Lines) {
             $run.Started = $true
             $run.Expected = [int] $Matches[1]
         }
-        elseif ($line -match '\[apirateslife-test\] (PASS|FAIL) ([^:\s]+):? ?(.*)$') {
-            [void] $results.Add([pscustomobject]@{ Name = $Matches[2]; Passed = ($Matches[1] -eq 'PASS'); Detail = $Matches[3].Trim() })
+        elseif ($line -match '\[apirateslife-test\] (PASS|FAIL) ([^:\s]+)(?: outcome=(met|missed))?:? ?(.*)$') {
+            [void] $results.Add([pscustomobject]@{ Name = $Matches[2]; Passed = ($Matches[1] -eq 'PASS'); Outcome = [string] $Matches[3]; Detail = $Matches[4].Trim() })
         }
         elseif ($line -match '\[apirateslife-test\] DONE' -and $run.Started) {
             $run.Done = $true
@@ -270,6 +273,24 @@ function Get-GameTestNames([string] $HarnessText, [string] $List = 'Tests') {
     @($Matches[1] -split '[,\s]+' | Where-Object { $_ })
 }
 
+# The harness's $ReleaseRuns list: the tests the release tier runs more than once, each as
+# [<cue name>, <runs>, <passes needed>]; returns cue name -> @{ Runs; Needed }
+# (tests/python/test_game_tests_list.py checks the list). Refuses a $FirstOnlyTests test, which a
+# run can't repeat.
+function Get-ReleaseRuns([string] $HarnessText) {
+    if ($HarnessText -notmatch '<set_value name="\$ReleaseRuns" exact="([^"]*)"') { throw 'no $ReleaseRuns list found in the game-test harness' }
+    $runs = @{}
+    foreach ($m in [regex]::Matches($Matches[1], '\[\s*(\w+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\]')) {
+        if ($FirstOnlyTests -contains $m.Groups[1].Value) { throw "`$ReleaseRuns lists $($m.Groups[1].Value), which runs once, first, in any run; take it out" }
+        $runs[$m.Groups[1].Value] = [pscustomobject]@{ Runs = [int] $m.Groups[2].Value; Needed = [int] $m.Groups[3].Value }
+    }
+    $runs
+}
+
+# A test's name as -Test and the bars match it: the cue name and the name it reports
+# (CaptureWingHoldsFire, capture_wing_holds_fire) are the same key
+function Get-TestKey([string] $Name) { ($Name -replace '_', '').ToLowerInvariant() }
+
 # Tests that check the game as it starts, so they only pass before any other test has run: a
 # selection runs them once, first
 $FirstOnlyTests = @('ConfigAppliedOnStart')
@@ -277,25 +298,26 @@ $FirstOnlyTests = @('ConfigAppliedOnStart')
 # The cue names to run: each test -Test names, by cue name or the name it reports
 # (capture_wing_holds_fire is CaptureWingHoldsFire), or without -Test every test but the $Skip ones
 # (the release-only tests, on a PR-tier run); in rounds of the selection, in the order given,
-# $Repeat times ($FirstOnlyTests once, first). -Test can arrive as one comma-separated string
-# (powershell -File passes "a,b" as is), so names are split on commas too.
-function Resolve-GameTestSelection([string[]] $Available, [string[]] $Test, [int] $Repeat, [string[]] $Skip = @()) {
+# $Repeat times ($FirstOnlyTests once, first). A test in $Runs (cue name -> count: the release
+# tier's pass bars, from Get-ReleaseRuns) runs its bar's Runs times in a row where it stands. -Test can arrive as one
+# comma-separated string (powershell -File passes "a,b" as is), so names are split on commas too.
+function Resolve-GameTestSelection([string[]] $Available, [string[]] $Test, [int] $Repeat, [string[]] $Skip = @(), [hashtable] $Runs = @{}) {
     if ($Repeat -lt 1) { throw "-Repeat must be 1 or more (got $Repeat)" }
-    $key = { param($n) ($n -replace '_', '').ToLowerInvariant() }
     $requested = @($Test | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
     $selected = @($Available | Where-Object { $Skip -notcontains $_ })
     if ($requested.Count) {
         $selected = @()
         $unknown = @()
         foreach ($name in $requested) {
-            $match = @($Available | Where-Object { (& $key $_) -eq (& $key $name) })
+            $match = @($Available | Where-Object { (Get-TestKey $_) -eq (Get-TestKey $name) })
             if ($match.Count) { $selected += $match[0] } else { $unknown += $name }
         }
         if ($unknown.Count) { throw "No game test named $($unknown -join ', '). The tests: $($Available -join ', ')" }
     }
     $first = @($selected | Where-Object { $FirstOnlyTests -contains $_ } | Select-Object -Unique)
     $rest = @($selected | Where-Object { $FirstOnlyTests -notcontains $_ })
-    @($first) + @(for ($i = 0; $i -lt $Repeat; $i++) { $rest })
+    $round = @(foreach ($name in $rest) { $count = if ($Runs.ContainsKey($name)) { $Runs[$name].Runs } else { 1 }; for ($j = 0; $j -lt $count; $j++) { $name } })
+    @($first) + @(for ($i = 0; $i -lt $Repeat; $i++) { $round })
 }
 
 # The harness text with its $Tests list replaced by these cue names, one per line
@@ -337,6 +359,25 @@ function Get-TestTally($Results) {
 function Get-RepeatTally($Results) {
     @(Get-TestTally $Results | Where-Object { $_.Runs -gt 1 })
 }
+
+# Each release-run test's tally against its pass bar ($Bars: cue name -> @{ Runs; Needed }, from
+# Get-ReleaseRuns), in the order first seen: Met counts its runs that held their invariants (PASS)
+# and didn't miss their outcome, of the Runs the bar asks for, so runs that never reported count
+# against it. A test with no result at all has no tally (the run's own problems name it).
+function Get-BarTally($Results, [hashtable] $Bars) {
+    if (-not $Bars -or -not $Bars.Count) { return }
+    $byKey = @{}
+    foreach ($name in $Bars.Keys) { $byKey[(Get-TestKey $name)] = $Bars[$name] }
+    foreach ($t in @(Get-TestTally $Results)) {
+        $bar = $byKey[(Get-TestKey $t.Name)]
+        if (-not $bar) { continue }
+        $met = @($Results | Where-Object { $_.Name -eq $t.Name -and $_.Passed -and $_.Outcome -ne 'missed' }).Count
+        [pscustomobject]@{ Name = $t.Name; Met = $met; Runs = $bar.Runs; Needed = $bar.Needed; Passed = ($met -ge $bar.Needed) }
+    }
+}
+
+# A pass bar's tally as the reports show it
+function Format-BarTally($Tally) { "$($Tally.Met) of $($Tally.Runs), needs $($Tally.Needed)" }
 
 # The runner's own checks on the log, reported like game tests (tools/check_test_plan.py reads
 # their names from the New-LogCheck calls): the mod loads after SWI, nothing in the log is an
@@ -434,8 +475,9 @@ function Add-LogChecks($Run) {
     $checks
 }
 
-# Every way a run can fail, as messages; empty means it passed
-function Get-RunProblems($Run, [string] $Ending) {
+# Every way a run can fail, as messages; empty means it passed. $Bars: the release tier's pass bars
+# (Get-BarTally), each failing the run when its test falls below it
+function Get-RunProblems($Run, [string] $Ending, [hashtable] $Bars = @{}) {
     $problems = @()
     if (-not $Run.Started) { $problems += "the tests never started ($Ending)" }
     elseif (-not $Run.Done) { $problems += "the run didn't finish ($Ending)" }
@@ -447,6 +489,9 @@ function Get-RunProblems($Run, [string] $Ending) {
         # A repeated test is named once, with how often it failed
         $names = Get-TestTally $failed | ForEach-Object { if ($_.Runs -gt 1) { "$($_.Name) ($($_.Runs) times)" } else { $_.Name } }
         $problems += "$($failed.Count) failed: $($names -join ', ')"
+    }
+    foreach ($t in @(Get-BarTally $Run.Results $Bars | Where-Object { -not $_.Passed })) {
+        $problems += "$($t.Name) below its pass bar: $(Format-BarTally $t)"
     }
     $problems
 }
@@ -513,7 +558,8 @@ function Get-BudgetWarning($Info) {
 # $Info: Commit, Branch, Dirty, StartedAt (datetime), DurationSeconds, and optionally Phases
 # (an ordered list of @{ Name; Seconds }, from Get-RunPhases), Selected (a -Test or -Repeat run,
 # marked so tools/post-game-test-report.sh won't post it as the whole suite), Tier ('pr' or
-# 'release', for a run of the whole tier) and Skipped (the release-only tests a PR-tier run left out).
+# 'release', for a run of the whole tier), Skipped (the release-only tests a PR-tier run left out)
+# and Bars (the release tier's pass bars, from Get-ReleaseRuns).
 function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     $passed = @($Run.Results | Where-Object { $_.Passed }).Count
     $total = [Math]::Max($Run.Expected, $Run.Results.Count)
@@ -537,9 +583,18 @@ function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     )
     foreach ($r in $Run.Results) {
         $detail = ($r.Detail -replace '\|', '\|')
-        $lines += "| ``$($r.Name)`` | $(if ($r.Passed) { 'PASS' } else { '**FAIL**' }) | $detail |"
+        $outcome = if ($r.Outcome) { ", outcome $($r.Outcome)" } else { '' }
+        $lines += "| ``$($r.Name)`` | $(if ($r.Passed) { 'PASS' } else { '**FAIL**' })$outcome | $detail |"
     }
-    $tallies = @(Get-RepeatTally $Run.Results)
+    $bars = @(Get-BarTally $Run.Results $Info.Bars)
+    if ($bars.Count) {
+        $lines += ''
+        $lines += '| Release-run test | Passes | Result |'
+        $lines += '| --- | --- | --- |'
+        foreach ($t in $bars) { $lines += "| ``$($t.Name)`` | $(Format-BarTally $t) | $(if ($t.Passed) { 'pass' } else { '**FAIL**' }) |" }
+    }
+    $barred = @($bars | ForEach-Object { $_.Name })
+    $tallies = @(Get-RepeatTally $Run.Results | Where-Object { $barred -notcontains $_.Name })
     if ($tallies.Count) {
         $lines += ''
         $lines += '| Repeated test | Runs | Failed |'
@@ -735,7 +790,7 @@ function Watch-GameRun($Game, [string] $LogPath, [double] $PollSeconds, [int] $T
         $run = Read-GameTestLog (Read-SharedFile $LogPath)
         for ($i = $reported; $i -lt $run.Results.Count; $i++) {
             $r = $run.Results[$i]
-            Write-Host ("  {0} {1}: {2}" -f $(if ($r.Passed) { 'PASS' } else { 'FAIL' }), $r.Name, $r.Detail)
+            Write-Host ("  {0} {1}{2}: {3}" -f $(if ($r.Passed) { 'PASS' } else { 'FAIL' }), $r.Name, $(if ($r.Outcome) { " (outcome $($r.Outcome))" }), $r.Detail)
         }
         $reported = $run.Results.Count
         $now = ((Get-Date) - $StartedAt).TotalSeconds
@@ -852,8 +907,10 @@ $available = @(Get-GameTestNames $harnessText)
 $skipped = if ($ReleaseTier -or $Release) { @() } else { @(Get-GameTestNames $harnessText 'ReleaseOnly') }
 $isSelection = [bool] ($Test -or $Repeat -ne 1)
 $tier = if ($isSelection -or $Release) { $null } elseif ($ReleaseTier) { 'release' } else { 'pr' }
+# The release tier runs each $ReleaseRuns test its runs and holds it to its pass bar
+$bars = if ($tier -eq 'release') { Get-ReleaseRuns $harnessText } else { @{} }
 $testList = $null
-if ($isSelection -or $skipped.Count) { $testList = @(Resolve-GameTestSelection $available $Test $Repeat $skipped) }
+if ($isSelection -or $skipped.Count -or $bars.Count) { $testList = @(Resolve-GameTestSelection $available $Test $Repeat $skipped $bars) }
 $processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
 if ($PreflightOnly) {
     Assert-NoGameRunning $processNames
@@ -915,6 +972,7 @@ function Invoke-GameSession($Session) {
             Edit-InstalledFile (Join-Path $tests $harnessPath) { param($t) Set-GameTestList $t $testList }
             if ($isSelection) { Write-Host "Running $($testList.Count) selected tests: $(($testList | Select-Object -Unique) -join ', '), $Repeat times" }
         }
+        if ($bars.Count) { Write-Host "Release tier: running $(@($bars.Keys | Sort-Object | ForEach-Object { "$_ $($bars[$_].Runs) times" }) -join ', ')" }
         if ($tier -eq 'pr' -and $skipped.Count) { Write-Host "PR tier: skipping $($skipped.Count) release-only tests ($($skipped -join ', ')); RELEASE=1 runs them" }
         if ($Session) {
             Edit-InstalledFile (Join-Path $extensionsDir "$ReleaseExtensionId/ui/$ReleaseExtensionId.lua") { param($t) Set-ReleaseSession $t $Session }
@@ -1028,16 +1086,17 @@ else {
 foreach ($c in $checks) {
     Write-Host ("  {0} {1}: {2}" -f $(if ($c.Passed) { 'PASS' } else { 'FAIL' }), $c.Name, $c.Detail)
 }
-$problems = @(Get-RunProblems $run $ending)
+$problems = @(Get-RunProblems $run $ending $bars)
 New-Item -ItemType Directory -Force -Path (Split-Path $ReportPath -Parent) | Out-Null
 [IO.File]::WriteAllText($ReportPath, (ConvertTo-JUnitXml $run $problems))
-$info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = $total; Phases = $phases; Selected = $isSelection; Release = [bool] $Release; Tier = $tier; Skipped = $skipped }
+$info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = $total; Phases = $phases; Selected = $isSelection; Release = [bool] $Release; Tier = $tier; Skipped = $skipped; Bars = $bars }
 New-Item -ItemType Directory -Force -Path (Split-Path $MarkdownPath -Parent) | Out-Null
 [IO.File]::WriteAllText($MarkdownPath, (ConvertTo-MarkdownReport $run $problems $info) + "`n")
 
 $passed = @($run.Results | Where-Object { $_.Passed }).Count
 foreach ($e in $run.Errors) { Write-Host "  log error: $e" }
 if ($phases) { Write-Host ("Timings: " + (($phases | ForEach-Object { "$($_.Name -replace '\*', '') $(Format-Seconds $_.Seconds)" }) -join '; ')) }
+foreach ($t in @(Get-BarTally $run.Results $bars)) { Write-Host "Release runs: $($t.Name): $(Format-BarTally $t)" }
 foreach ($t in (Get-RepeatTally $run.Results)) { Write-Host "Repeated: $($t.Name): $($t.Failed) of $($t.Runs) runs failed" }
 if ($run.Started -and $run.SetaDrops) { Write-Host "SETA dropped $($run.SetaDrops) times during the run" }
 $warning = Get-BudgetWarning $info

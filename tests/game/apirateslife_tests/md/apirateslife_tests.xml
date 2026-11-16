@@ -6,14 +6,16 @@
        RUN START <n> tests
        PASS <name>: <detail>
        FAIL <name>: <detail>
+       (with " outcome=met" or " outcome=missed" after the name for a test that reports $outcome)
        DONE passed=<n> failed=<n>
 
      Adding a test: a root cue named after it that fires on event_cue_signalled, sets things up,
      and signals Report exactly once (from a result cue or a timeout cue) with
-     table[$name, $ok, $detail]. Then add it to $Tests in Run, on a line of its own
+     table[$name, $ok, $detail], plus $outcome for a split verdict (see Report). Then add it to $Tests in Run, on a line of its own
      (tests/python/test_game_tests_list.py checks the list against the test cues; the runner's
      -Test and -Repeat, and a PR-tier run leaving out $ReleaseOnly, rewrite it in the installed
-     copy, so keep its layout), and to $ReleaseOnly too if it's too slow for the PR tier. Set any mod
+     copy, so keep its layout), to $ReleaseOnly too if it's too slow for the PR tier, and to
+     $ReleaseRuns if the release tier should hold its outcome to a pass bar. Set any mod
      setting the test relies on, so settings overridden at deploy time can't change its outcome. -->
 <mdscript name="APiratesLife_Tests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
@@ -84,6 +86,11 @@
              make game-test RELEASE=1 runs them. Only the runner reads it, not MD: it leaves them
              out of the installed copy's $Tests on a PR-tier run (docs/testing.md, Game test tiers) -->
         <set_value name="$ReleaseOnly" exact="[]"/>
+        <!-- The tests the release tier runs more than once, against a pass bar, one per line as
+             [<test>, <runs>, <passes needed>]: [CaptureWingHoldsFire, 10, 8] is the bar for a
+             90% outcome. A plain run (the PR tier) runs them once. Only the runner reads it, not
+             MD (docs/testing.md, Game test tiers) -->
+        <set_value name="$ReleaseRuns" exact="[]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$Passed" exact="0"/>
         <set_value name="$Failed" exact="0"/>
@@ -154,19 +161,29 @@
           </actions>
         </cue>
 
-        <!-- Each test signals this once, with table[$name, $ok, $detail] -->
+        <!-- Each test signals this once, with table[$name, $ok, $detail], plus $outcome for a
+             test with a split verdict: $ok is its invariants, which fail the run, and $outcome
+             (true or false) the result it aims for, which is only logged. The runner holds the
+             outcome to the test's pass bar in the release tier ($ReleaseRuns) -->
         <cue name="Report" instantiate="true">
           <conditions>
             <event_cue_signalled/>
           </conditions>
           <actions>
+            <set_value name="$Outcome" exact="''"/>
+            <do_if value="event.param.$outcome? and event.param.$outcome">
+              <set_value name="$Outcome" exact="' outcome=met'"/>
+            </do_if>
+            <do_elseif value="event.param.$outcome?">
+              <set_value name="$Outcome" exact="' outcome=missed'"/>
+            </do_elseif>
             <do_if value="event.param.$ok">
               <set_value name="$Passed" operation="add"/>
-              <debug_text text="'[apirateslife-test] PASS %s: %s'.[event.param.$name, event.param.$detail]" filter="general"/>
+              <debug_text text="'[apirateslife-test] PASS %s%s: %s'.[event.param.$name, $Outcome, event.param.$detail]" filter="general"/>
             </do_if>
             <do_else>
               <set_value name="$Failed" operation="add"/>
-              <debug_text text="'[apirateslife-test] FAIL %s: %s'.[event.param.$name, event.param.$detail]" filter="general"/>
+              <debug_text text="'[apirateslife-test] FAIL %s%s: %s'.[event.param.$name, $Outcome, event.param.$detail]" filter="general"/>
             </do_else>
             <signal_cue cue="NextTest"/>
           </actions>

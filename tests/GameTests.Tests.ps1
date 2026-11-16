@@ -63,6 +63,21 @@ Describe 'Read-GameTestLog' {
         $run.Errors.Count | Should -Be 1
     }
 
+    It 'reads a split verdict''s outcome apart from its invariants' {
+        $run = Read-GameTestLog @(
+            '[Scripts] 1.00 *** Context:x: [apirateslife-test] PASS fixture_test_a outcome=missed: lowest hull 60%'
+            '[Scripts] 2.00 *** Context:x: [apirateslife-test] FAIL fixture_test_a outcome=met: destroyed'
+            '[Scripts] 3.00 *** Context:x: [apirateslife-test] PASS fixture_test_b: 5 cases'
+        )
+        $run.Results[0].Name | Should -Be 'fixture_test_a'
+        $run.Results[0].Passed | Should -BeTrue
+        $run.Results[0].Outcome | Should -Be 'missed'
+        $run.Results[0].Detail | Should -Be 'lowest hull 60%'
+        $run.Results[1].Passed | Should -BeFalse
+        $run.Results[1].Outcome | Should -Be 'met'
+        $run.Results[2].Outcome | Should -Be ''
+    }
+
     It 'returns an empty run for an empty log' {
         $run = Read-GameTestLog @()
         $run.Started | Should -BeFalse
@@ -261,6 +276,25 @@ Describe 'Game test selection (-Test, -Repeat)' {
         { Get-GameTestNames $script:Harness 'ReleaseOnly' } | Should -Throw '*no $ReleaseOnly list*'
     }
 
+    It 'reads the $ReleaseRuns list: each test''s runs and the passes it needs' {
+        $text = $script:Harness -replace '<set_value name="\$Index"', "<set_value name=`"`$ReleaseRuns`" exact=`"[`n          [CaptureWingHoldsFire, 10, 8],`n          [BailRaisesBailed, 40, 34]`n        ]`"/>`n        `$0"
+        $runs = Get-ReleaseRuns $text
+        $runs.Keys.Count | Should -Be 2
+        $runs['CaptureWingHoldsFire'].Runs | Should -Be 10
+        $runs['CaptureWingHoldsFire'].Needed | Should -Be 8
+        $runs['BailRaisesBailed'].Runs | Should -Be 40
+        (Get-ReleaseRuns ($script:Harness + '<set_value name="$ReleaseRuns" exact="[]"/>')).Keys.Count | Should -Be 0
+        { Get-ReleaseRuns $script:Harness } | Should -Throw '*no $ReleaseRuns list*'
+        # A test of the game as it starts runs once, so it can't meet a bar of more runs
+        { Get-ReleaseRuns ($script:Harness + '<set_value name="$ReleaseRuns" exact="[[ConfigAppliedOnStart, 10, 8]]"/>') } | Should -Throw '*lists ConfigAppliedOnStart, which runs once, first*'
+    }
+
+    It 'runs each $ReleaseRuns test its runs, one after another, where it stands in the list' {
+        $bar = { param($n) [pscustomobject]@{ Runs = $n; Needed = 1 } }
+        Resolve-GameTestSelection @('A', 'B', 'C') @() 1 -Runs @{ B = & $bar 3 } | Should -Be @('A', 'B', 'B', 'B', 'C')
+        Resolve-GameTestSelection @('A', 'Slow', 'B') @() 1 @('Slow') @{ Slow = & $bar 2; A = & $bar 2 } | Should -Be @('A', 'A', 'B')
+    }
+
     It 'selects a test by its cue name or the name it reports, in rounds of -Repeat' {
         $names = @('ConfigAppliedOnStart', 'CaptureWingHoldsFire', 'BailRaisesBailed')
         Resolve-GameTestSelection $names @('capture_wing_holds_fire') 3 | Should -Be @('CaptureWingHoldsFire', 'CaptureWingHoldsFire', 'CaptureWingHoldsFire')
@@ -311,6 +345,64 @@ Describe 'Game test selection (-Test, -Repeat)' {
         $tally[0].Failed | Should -Be 0
         $tally[1].Name | Should -Be 'fixture_test_a'
         $tally[1].Failed | Should -Be 1
+    }
+}
+
+Describe 'Get-BarTally' {
+    BeforeAll {
+        function New-Results([string[]] $Marks) {
+            # One result per mark: + passed with the outcome met, - passed with it missed, x failed
+            Read-GameTestLog (@("[Scripts] 0.00 *** Context:x: [apirateslife-test] RUN START $($Marks.Count) tests") + @(foreach ($m in $Marks) {
+                switch ($m) {
+                    '+' { '[Scripts] 1.00 *** Context:x: [apirateslife-test] PASS wing_bails outcome=met: bailed' }
+                    '-' { '[Scripts] 1.00 *** Context:x: [apirateslife-test] PASS wing_bails outcome=missed: lowest hull 40%' }
+                    'x' { '[Scripts] 1.00 *** Context:x: [apirateslife-test] FAIL wing_bails outcome=met: destroyed' }
+                    'p' { '[Scripts] 1.00 *** Context:x: [apirateslife-test] PASS plain: ok' }
+                }
+            }) + @('[Scripts] 2.00 *** Context:x: [apirateslife-test] DONE'))
+        }
+        $script:Bars = @{ WingBails = [pscustomobject]@{ Runs = 10; Needed = 8 }; Plain = [pscustomobject]@{ Runs = 3; Needed = 3 } }
+    }
+
+    It 'counts the runs that held their invariants and met their outcome, against the bar' {
+        $run = New-Results @('+', '+', '-', '+', '+', '+', '+', '+', '-', '+')
+        $tally = @(Get-BarTally $run.Results $script:Bars)
+        $tally.Count | Should -Be 1
+        $tally[0].Name | Should -Be 'wing_bails'
+        $tally[0].Met | Should -Be 8
+        $tally[0].Runs | Should -Be 10
+        $tally[0].Needed | Should -Be 8
+        $tally[0].Passed | Should -BeTrue
+    }
+
+    It 'fails a test below its bar, and counts a failed invariant against it' {
+        $run = New-Results @('+', '+', '-', '+', 'x', '+', '+', '+', '-', '+')
+        $tally = @(Get-BarTally $run.Results $script:Bars)
+        $tally[0].Met | Should -Be 7
+        $tally[0].Passed | Should -BeFalse
+        Get-RunProblems $run 'finished' $script:Bars | Should -Contain 'wing_bails below its pass bar: 7 of 10, needs 8'
+    }
+
+    It 'counts a run with no outcome by its result alone' {
+        $run = New-Results @('p', 'p', 'p')
+        $tally = @(Get-BarTally $run.Results $script:Bars)
+        $tally[0].Name | Should -Be 'plain'
+        $tally[0].Met | Should -Be 3
+        $tally[0].Passed | Should -BeTrue
+    }
+
+    It 'counts the runs the bar asks for, so an unfinished run falls short' {
+        $run = New-Results @('+', '+', '+', '+', '+', '+', '+')
+        $tally = @(Get-BarTally $run.Results $script:Bars)
+        $tally[0].Met | Should -Be 7
+        $tally[0].Runs | Should -Be 10
+        $tally[0].Passed | Should -BeFalse
+    }
+
+    It 'has no bars without $ReleaseRuns, and a missed outcome alone fails nothing' {
+        $run = New-Results @('-', '-')
+        @(Get-BarTally $run.Results @{}).Count | Should -Be 0
+        @(Get-RunProblems $run 'finished').Count | Should -Be 0
     }
 }
 
@@ -442,6 +534,28 @@ Describe 'ConvertTo-MarkdownReport' {
         $plain = ConvertTo-MarkdownReport (Read-GameTestLog $script:PassingLog) @() $script:Info
         $plain | Should -Not -BeLike '*selected*'
         $plain | Should -Not -BeLike '*Repeated test*'
+    }
+
+    It 'shows each repeated release test as k of N, needs M, and a missed outcome on its row' {
+        $run = Read-GameTestLog @(
+            '[Scripts] 1.00 *** Context:x: [apirateslife-test] RUN START 3 tests'
+            '[Scripts] 2.00 *** Context:x: [apirateslife-test] PASS wing_bails outcome=met: bailed at 41%'
+            '[Scripts] 3.00 *** Context:x: [apirateslife-test] PASS wing_bails outcome=missed: lowest hull 40%'
+            '[Scripts] 4.00 *** Context:x: [apirateslife-test] PASS wing_bails outcome=met: bailed at 38%'
+            '[Scripts] 6.00 *** Context:x: [apirateslife-test] DONE passed=3 failed=0'
+        )
+        $info = $script:Info.Clone(); $info.Tier = 'release'
+        $info.Bars = @{ WingBails = [pscustomobject]@{ Runs = 3; Needed = 3 } }
+        $problems = Get-RunProblems $run 'finished' $info.Bars
+        $lines = (ConvertTo-MarkdownReport $run $problems $info) -split "`n"
+        $lines[0] | Should -BeLike '* result=fail passed=3 total=3 -->'
+        $lines | Should -Contain '| `wing_bails` | PASS, outcome missed | lowest hull 40% |'
+        $lines | Should -Contain '| `wing_bails` | PASS, outcome met | bailed at 41% |'
+        $lines | Should -Contain '| Release-run test | Passes | Result |'
+        $lines | Should -Contain '| `wing_bails` | 2 of 3, needs 3 | **FAIL** |'
+        $lines | Should -Contain '- wing_bails below its pass bar: 2 of 3, needs 3'
+        # Its runs are in the pass bar table, not the repeat tally
+        $lines | Should -Not -Contain '| Repeated test | Runs | Failed |'
     }
 
     It 'names the tier, the release-only tests a PR-tier run skipped, and the budget' {
