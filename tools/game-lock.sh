@@ -4,7 +4,7 @@
 # in tools/README.md ("The game lock"). tools/game-lock.ps1 is the PowerShell twin.
 #
 # Sourced by deploy.sh for its functions:
-#   game_lock_acquire FILE WHAT   take the lock, waiting for another holder; returns 1 if it can't
+#   game_lock_acquire FILE WHAT   join the line, take the lock in turn; returns 1 if it can't
 #   game_lock_release             let it go (only if this script took it)
 #   x4_path_resolve ROOT          set X4_PATH from the environment, else deploy.config (tools/deploy-config.sh)
 #
@@ -157,8 +157,8 @@ game_lock_acquire() {
 
         # The tickets ahead; drop one that stopped changing (its waiter crashed)
         ahead=()
-        for t in "$queue"/[0-9][0-9][0-9][0-9][0-9][0-9]; do
-            [[ -e "$t" && "${t##*/}" < "${GAME_LOCK_TICKET##*/}" ]] || continue
+        while IFS= read -r t; do
+            [[ "${t##*/}" < "${GAME_LOCK_TICKET##*/}" ]] || continue
             current=$(cat "$t" 2>/dev/null) || continue
             if [ "${ticket_seen[$t]+set}" != set ] || [ "${ticket_seen[$t]}" != "$current" ]; then
                 ticket_seen[$t]=$current ticket_at[$t]=$SECONDS
@@ -169,7 +169,7 @@ game_lock_acquire() {
                 continue
             fi
             ahead+=("$t")
-        done
+        done < <(_game_lock_tickets "$queue")
 
         # The lock: watched by every waiter, acted on only by the first in line
         current=$(cat "$file" 2>/dev/null) || current=''

@@ -623,3 +623,12 @@ STUB
     [ -f "$TARGET/content.xml" ]
     [ "$(game_tickets)" = "000001 " ]
 }
+
+@test "leaves the line when the deploy fails after taking the lock" {
+    echo 'not a folder' > "$TARGET"
+
+    deploy --working-tree
+    [ "$status" -ne 0 ]
+    [ -z "$(game_tickets)" ]
+    [ ! -e "$X4_PATH/game.lock" ]
+}

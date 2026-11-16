@@ -3,7 +3,7 @@
 # <X4_PATH>\game.lock; its format and rules are in tools/README.md ("The game lock").
 #
 # Dot-source it, then:
-#   $lock = Enter-GameLock <file> <what> <repo root>   # waits for another holder; throws if it can't
+#   $lock = Enter-GameLock <file> <what> <repo root>   # joins the line, takes the lock in turn; throws if it can't
 #   Update-GameLock $lock                              # the heartbeat: call it in every loop while held
 #   Exit-GameLock $lock                                # in a finally
 #
