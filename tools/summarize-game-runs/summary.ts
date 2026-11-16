@@ -15,6 +15,14 @@ export interface Pass {
    * (the order aborted the pass, as on the hit that takes the shields down) leaves it undefined */
   shieldsBefore: number;
   shieldsAfter: number | undefined;
+  /** The target's hull when the pass started, in % */
+  hullBefore: number;
+  /** Whether damage landed: the shields or the hull went under where they started, seen on any line
+   * up to the next pass's start (or the run's end), so bolts still in flight after the break-off
+   * count. Shields regrowing between two samples can hide a small hit. */
+  hit: boolean;
+  /** The hull the pass took off, in points of %: its start less the lowest hull before the next pass */
+  hullDrop: number;
 }
 
 export interface RunSummary {
@@ -55,6 +63,8 @@ export function summarizeRun(lines: string[]): RunSummary {
   let lastShieldsTime: number | undefined;
   const passes: Pass[] = [];
   let open: Pass | undefined;
+  // The pass whose window is open, from its start to the next pass's start
+  let current: Pass | undefined;
 
   for (const line of lines) {
     const time = /^\[[^\]]*\]\s+([\d.]+)\s/.exec(line);
@@ -72,10 +82,18 @@ export function summarizeRun(lines: string[]): RunSummary {
     }
     const ours = start !== undefined || /\[apirateslife-test\] trace:/.test(line);
     if (!ours) continue;
-    const passStart = /\[apirateslife\] capture pass: starts at ([\d.]+)m, shields ([\d.]+)%/.exec(line);
+    const passStart = /\[apirateslife\] capture pass: starts at ([\d.]+)m, shields ([\d.]+)%, hull ([\d.]+)%/.exec(line);
     if (passStart) {
-      open = { startDistance: num(passStart[1]), shieldsBefore: num(passStart[2]), shieldsAfter: undefined };
+      open = {
+        startDistance: num(passStart[1]),
+        shieldsBefore: num(passStart[2]),
+        shieldsAfter: undefined,
+        hullBefore: num(passStart[3]),
+        hit: false,
+        hullDrop: 0,
+      };
       passes.push(open);
+      current = open;
     }
     const breakOff = /\[apirateslife\] capture pass: breaks off at [\d.]+m, shields ([\d.]+)%/.exec(line);
     if (breakOff && open) {
@@ -91,6 +109,13 @@ export function summarizeRun(lines: string[]): RunSummary {
     const shieldsLine = /\bshields (?:up )?([\d.]+)%/.exec(line);
     const shields = shieldsLine ? num(shieldsLine[1]) : /\bshields down\b/.test(line) ? 0 : undefined;
     if (shields !== undefined) lastShields = shields;
+    if (current && !passStart) {
+      if (shields !== undefined && shields < current.shieldsBefore) current.hit = true;
+      if (hull && lastHull! < current.hullBefore) {
+        current.hit = true;
+        current.hullDrop = Math.max(current.hullDrop, Math.round((current.hullBefore - lastHull!) * 1e4) / 1e4);
+      }
+    }
     if (
       (hull || shields !== undefined) && start !== undefined && hold !== undefined && gateSeconds === undefined &&
       lastHull !== undefined && lastHull < hold && lastShields !== undefined && lastShields < SHIELDS_GATE
@@ -133,14 +158,17 @@ const round = (n: number, places = 0) => String(Math.round(n * 10 ** places) / 1
 export function formatSummary(label: string, s: RunSummary): string {
   const gate = s.gate === "reached" ? `gate ${round(s.gateSeconds!, 1)} s` : s.gate === "not reached" ? "gate not reached" : "no capture operation";
   const hull = s.lowestHull === undefined ? "no hull seen" : `lowest hull ${round(s.lowestHull, 1)}%`;
-  const passes = s.passes.map((p) =>
-    p.shieldsAfter === undefined
-      ? `${round(p.startDistance)} m ${round(p.shieldsBefore)}% aborted`
-      : `${round(p.startDistance)} m ${round(p.shieldsBefore)} -> ${round(p.shieldsAfter)}%`,
-  );
-  const passList = passes.length ? ` (start, shields before -> after): ${passes.join(", ")}` : "";
+  const passes = s.passes.map((p) => {
+    const shields =
+      p.shieldsAfter === undefined
+        ? `${round(p.startDistance)} m ${round(p.shieldsBefore)}% aborted`
+        : `${round(p.startDistance)} m ${round(p.shieldsBefore)} -> ${round(p.shieldsAfter)}%`;
+    return `${shields} ${p.hit ? "hit" : "miss"}${p.hullDrop > 0 ? ` hull -${round(p.hullDrop, 1)}%` : ""}`;
+  });
+  const hits = s.passes.length ? `, ${s.passes.filter((p) => p.hit).length} with a hit` : "";
+  const passList = passes.length ? ` (start, shields before -> after, hit or miss, hull drop): ${passes.join(", ")}` : "";
   return (
     `${label} ${s.result}: ${gate}, ${hull}, ${s.knockDowns} knock-downs, ` +
-    `longest at full shields ${round(s.longestFullShieldsSeconds, 1)} s, ${s.passes.length} passes${passList}`
+    `longest at full shields ${round(s.longestFullShieldsSeconds, 1)} s, ${s.passes.length} passes${hits}${passList}`
   );
 }

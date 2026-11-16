@@ -2112,6 +2112,11 @@
               <param name="Target" value="$Target"/>
             </run_actions>
             <set_object_capturable object="$Target" capturable="false"/>
+            <!-- The combat trace (#220), for the finisher's hit rate per pass at 1x (#224) -->
+            <run_actions ref="CombatTraceStart">
+              <param name="Wingmen" value="[$Wingman]"/>
+              <param name="Target" value="$Target"/>
+            </run_actions>
           </actions>
           <cues>
             <cue name="CaptureWingHoldsFire_Watch" checkinterval="1s" instantiate="true">
@@ -2169,6 +2174,10 @@
               </conditions>
               <actions>
                 <cancel_cue cue="CaptureWingHoldsFire_Watch"/>
+                <!-- The reported name again: tools/check_test_plan.py reads it from Report's literal -->
+                <run_actions ref="CombatTraceStop">
+                  <param name="Name" value="'capture_wing_holds_fire'"/>
+                </run_actions>
                 <remove_value name="global.$APiratesLife_CaptureDebug"/>
                 <set_value name="$Problems" exact="event.param"/>
                 <do_if value="not $Started">
@@ -2486,7 +2495,7 @@
               <param name="Target" value="$Wing.$target"/>
             </run_actions>
             <set_object_capturable object="$Wing.$target" capturable="false"/>
-            <!-- The one combat test with the combat trace on (#220), for the 1x rechecks -->
+            <!-- The combat trace (#220), for the 1x rechecks -->
             <run_actions ref="CombatTraceStart">
               <param name="Wingmen" value="$Wing.$wingmen"/>
               <param name="Target" value="$Wing.$target"/>
@@ -2588,6 +2597,11 @@
               <param name="Target" value="$Wing.$target"/>
             </run_actions>
             <set_object_capturable object="$Wing.$target" capturable="false"/>
+            <!-- The combat trace (#220), for the finisher's hit rate per pass at 1x (#224) -->
+            <run_actions ref="CombatTraceStart">
+              <param name="Wingmen" value="$Wing.$wingmen"/>
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
           </actions>
           <cues>
             <cue name="CaptureWingBreaksFullShields_Watch" checkinterval="1s" instantiate="true">
@@ -2616,6 +2630,9 @@
               </conditions>
               <actions>
                 <cancel_cue cue="CaptureWingBreaksFullShields_Watch"/>
+                <run_actions ref="CombatTraceStop">
+                  <param name="Name" value="'capture_wing_breaks_full_shields'"/>
+                </run_actions>
                 <run_actions ref="WingCycleDone" result="$Result">
                   <param name="Wing" value="$Wing"/>
                   <param name="Problems" value="event.param"/>

@@ -34,11 +34,15 @@ test("a capture run's gate time, lowest hull, knock-downs, longest full-shield s
     knockDowns: 2,
     // Full (99% or more) from 1.01 until the 64% line at 9.85
     longestFullShieldsSeconds: 8.84,
+    // A pass hits when the shields or the hull go under where they started, before the next pass
+    // starts (bolts still in flight after the break-off count)
     passes: [
-      { startDistance: 390.438, shieldsBefore: 100, shieldsAfter: 11.1111 },
-      { startDistance: 443.062, shieldsBefore: 24.0901, shieldsAfter: 45.766 },
-      // Never broke off: the hit that took the shields down sent the order back to decide
-      { startDistance: 438.75, shieldsBefore: 70, shieldsAfter: undefined },
+      // Shields 100% -> 11.1% by the break-off
+      { startDistance: 390.438, shieldsBefore: 100, shieldsAfter: 11.1111, hullBefore: 100, hit: true, hullDrop: 0 },
+      // Shields only regrew from 24.1%: no hit seen
+      { startDistance: 443.062, shieldsBefore: 24.0901, shieldsAfter: 45.766, hullBefore: 100, hit: false, hullDrop: 0 },
+      // Never broke off: the hit that took the shields down sent the order back to decide, at hull 72.5%
+      { startDistance: 438.75, shieldsBefore: 70, shieldsAfter: undefined, hullBefore: 100, hit: true, hullDrop: 27.5 },
     ],
   });
 });
@@ -47,7 +51,8 @@ test("the summary line rounds each figure and names a pass that never broke off"
   assert.equal(
     formatSummary("capture_wing_breaks_full_shields-1", summarizeRun(WING_RUN)),
     "capture_wing_breaks_full_shields-1 PASS: gate 35.9 s, lowest hull 72.5%, 2 knock-downs, longest at full shields 8.8 s, " +
-      "3 passes (start, shields before -> after): 390 m 100 -> 11%, 443 m 24 -> 46%, 439 m 70% aborted",
+      "3 passes, 2 with a hit (start, shields before -> after, hit or miss, hull drop): " +
+      "390 m 100 -> 11% hit, 443 m 24 -> 46% miss, 439 m 70% aborted hit hull -27.5%",
   );
 });
 
