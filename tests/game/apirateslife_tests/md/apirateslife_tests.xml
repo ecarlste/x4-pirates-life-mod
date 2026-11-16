@@ -66,6 +66,7 @@
           CaptureWingHoldsFireThreeWingmen,
           CaptureWingKnocksShieldsAgain,
           CaptureWingBreaksFullShields,
+          CaptureWingBailsPhantom,
           CaptureWingTurretsHold,
           CaptureWingTurretsHoldM,
           TurretDamageLandedS,
@@ -90,6 +91,7 @@
              make game-test RELEASE=1 runs them. Only the runner reads it, not MD: it leaves them
              out of the installed copy's $Tests on a PR-tier run (docs/testing.md, Game test tiers) -->
         <set_value name="$ReleaseOnly" exact="[
+          CaptureWingBailsPhantom,
           TurretDamageLandedS,
           TurretDamageLandedM
         ]"/>
@@ -2652,6 +2654,107 @@
       </cues>
     </cue>
 
+
+    <!-- #216: one X-wing against a full-health TIE Phantom, with nothing forcing the bail. Its about
+         5600 shields hold barely more than the room above the 75% line, so the wing's burst nearly
+         fits and the finisher takes over in the break stage. Fails on a kill or the floor (the
+         break-stage overshoot this test caught at 1x). $outcome is whether the pilot bailed within
+         300 s, about 85% of runs at 1x: a timeout is reported, not failed, as the finisher's
+         close-range pass sometimes can't keep the shields under the gate (#224). -->
+    <cue name="CaptureWingBailsPhantom">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="MarkCombatTest"/>
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
+        <run_actions ref="SpawnWingAt2km" result="$Wing">
+          <param name="Count" value="1"/>
+          <param name="TargetMacro" value="macro.tie_phantom_macro"/>
+          <param name="Hull" value="100"/>
+          <param name="ShieldsDown" value="false"/>
+        </run_actions>
+        <set_value name="$Wing.$secs" exact="0"/>
+        <set_value name="$Wing.$knocks" exact="0"/>
+        <set_value name="$Wing.$up" exact="true"/>
+        <set_value name="$Wing.$fullfor" exact="0"/>
+        <set_value name="$Wing.$maxfullfor" exact="0"/>
+      </actions>
+      <cues>
+        <cue name="CaptureWingBailsPhantom_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+            <!-- The combat trace (#220), for the finisher's hit rate per pass at 1x (#224) -->
+            <run_actions ref="CombatTraceStart">
+              <param name="Wingmen" value="$Wing.$wingmen"/>
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="CaptureWingBailsPhantom_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="CheckWingCycle" result="$Problems">
+                  <param name="Wing" value="$Wing"/>
+                </run_actions>
+                <do_if value="$Problems != ''">
+                  <cancel_cue cue="CaptureWingBailsPhantom_Ended"/>
+                  <cancel_cue cue="CaptureWingBailsPhantom_Timeout"/>
+                  <signal_cue_instantly cue="CaptureWingBailsPhantom_Done" param="table[$problems = $Problems, $outcome = '']"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="CaptureWingBailsPhantom_Ended">
+              <conditions>
+                <event_cue_signalled cue="md.APiratesLife_Capture.Ended"/>
+                <check_value value="event.param.$target == $Wing.$target"/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureWingBailsPhantom_Timeout"/>
+                <!-- The floor still applies on the frame the operation ends -->
+                <set_value name="$Problems" exact="if $Wing.$target.isoperational and $Wing.$target.hullpercentage lt 35 then ' hull %s%%, below the 35%% floor;'.[$Wing.$target.hullpercentage] else ''"/>
+                <do_if value="not $Wing.$target.isoperational">
+                  <set_value name="$Problems" exact="' target destroyed (lowest hull seen %s%%);'.[$Wing.$minhull]"/>
+                </do_if>
+                <signal_cue_instantly cue="CaptureWingBailsPhantom_Done" param="table[$problems = $Problems, $outcome = event.param.$outcome]"/>
+              </actions>
+            </cue>
+            <cue name="CaptureWingBailsPhantom_Timeout">
+              <delay exact="300s"/>
+              <actions>
+                <cancel_cue cue="CaptureWingBailsPhantom_Ended"/>
+                <set_value name="$Wing.$timedout" exact="true"/>
+                <signal_cue_instantly cue="CaptureWingBailsPhantom_Done" param="table[$problems = '', $outcome = '']"/>
+              </actions>
+            </cue>
+            <cue name="CaptureWingBailsPhantom_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureWingBailsPhantom_Watch"/>
+                <!-- The reported name again: tools/check_test_plan.py reads it from Report's literal -->
+                <run_actions ref="CombatTraceStop">
+                  <param name="Name" value="'capture_wing_bails_phantom'"/>
+                </run_actions>
+                <set_value name="$Bailed" exact="event.param.$outcome == 'abandoned'"/>
+                <run_actions ref="WingCycleDone" result="$Result">
+                  <param name="Wing" value="$Wing"/>
+                  <param name="Problems" value="event.param.$problems"/>
+                  <param name="Started" value="$Started"/>
+                </run_actions>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_bails_phantom', $ok = $Result.$ok, $outcome = $Bailed, $detail = (if $Bailed then 'bailed;' else 'no bail;') + $Result.$detail]"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
     <!-- #184, turreted wingmen: one wingman 2 km out (SpawnWingAt2km), the hull checks of
          CaptureWingHoldsFire (CheckWingHold), and every shot of its guns and turrets counted by what
          the wing should be doing when it's fired (TurretShotStage). Turrets hold fire from the fine

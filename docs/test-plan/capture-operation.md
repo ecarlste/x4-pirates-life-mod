@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 19 | 2 | 4 | **6** |
+| 0 | 20 | 2 | 4 | **6** |
 
 ## Scenarios
 
@@ -104,6 +104,18 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   And my wingman flies an X-wing with four lasers and no missiles, starting 2 km from the fighter and facing it
   When the finisher fights it from the start, as all of it is inside the wing's margin
   Then the hull is below 75% within 60 seconds, or the run is reported as timed out
+  And the hull never drops below the 35% floor, and the fighter is never destroyed
+```
+
+### One wingman makes a heavily shielded fighter's pilot bail without destroying it
+
+**Automated:** in game `capture_wing_bails_phantom`
+
+```gherkin
+  Given a capture operation on a capturable TIE Phantom at full hull and shields, nothing holding them down
+  And my wingman flies an X-wing with four lasers and no missiles, starting 2 km from the fighter and facing it
+  When the wing's burst breaks the shields and the finisher takes over in the break stage
+  Then the pilot bails within 300 seconds, or the run is reported as timed out
   And the hull never drops below the 35% floor, and the fighter is never destroyed
 ```
 
