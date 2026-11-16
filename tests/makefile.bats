@@ -17,7 +17,7 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 @test "make help lists every target" {
     run make -C "$REPO" help
     [ "$status" -eq 0 ]
-    for target in setup deploy deploy-local deploy-dry-run test test-plan release doc-paths doc-names game-test game-test-report worktrees; do
+    for target in setup deploy deploy-local deploy-dry-run test test-plan release doc-paths doc-names game-test game-test-report game-queue worktrees; do
         [[ "$output" == *"make $target "* ]] || { echo "missing: $target"; return 1; }
     done
 }
@@ -240,6 +240,49 @@ SCRIPT
     run make -C "$REPO" game-test GAME_TEST_RUNNER=false
     [ "$status" -ne 0 ]
     [ ! -e "$X4_PATH/game.lock" ]
+}
+
+@test "make game-test says how many wait behind it when it takes the lock" {
+    write_game_lock
+    X4_GAME_LOCK_POLL=0.2 make -C "$REPO" game-test GAME_TEST_RUNNER=true > "$SANDBOX/out" 2>&1 &
+    pid=$!
+    wait_for_text "$SANDBOX/out" "Waiting for the game lock"
+    # Someone joins the line behind it, then the holder finishes
+    write_game_ticket 2
+    rm -f "$X4_PATH/game.lock"
+    status=0
+    wait "$pid" || status=$?
+
+    [ "$status" -eq 0 ]
+    grep -q "1 waiting behind you; keep this run short" "$SANDBOX/out"
+}
+
+@test "make game-queue says when the lock is free and nobody waits" {
+    run make -C "$REPO" game-queue
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"free, nobody waiting"* ]]
+}
+
+@test "make game-queue shows the holder, how long it has held the lock and its heartbeat" {
+    write_game_lock
+    run make -C "$REPO" game-queue
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"held by game-test (x4-swi-bounty-hunter, feature/other), pid 4242 on windows"* ]]
+    [[ "$output" == *"for "*", last heartbeat "*" ago"* ]]
+    [[ "$output" == *"nobody waiting"* ]]
+    # Read-only
+    [[ "$(cat "$X4_PATH/game.lock")" == token=other* ]]
+}
+
+@test "make game-queue shows the holder and the line in order, with ages" {
+    write_game_lock
+    write_game_ticket 7
+    write_game_ticket 3 game-test
+    run make -C "$REPO" game-queue
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"held by game-test (x4-swi-bounty-hunter, feature/other)"* ]]
+    [[ "$output" == *"2 waiting"*"1. game-test (x4-swi-bounty-hunter, feature/waiter3)"*"waiting "*" ago"*"2. deploy (x4-swi-bounty-hunter, feature/waiter7)"* ]]
+    [ "$(game_tickets)" = "000003 000007 " ]
 }
 
 @test "make test-plan regenerates docs/test-plan/" {

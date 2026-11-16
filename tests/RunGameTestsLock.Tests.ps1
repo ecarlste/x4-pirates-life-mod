@@ -43,4 +43,20 @@ Describe 'run-game-tests.ps1 and the game lock' {
         $r.ExitCode | Should -Not -Be 0
         $lock | Should -Not -Exist
     }
+
+    It 'joins the line: refuses while someone waits ahead of it, without starting the game' {
+        Write-TestGameTicket $x4 1
+        Set-GameLockEnv @{ X4_GAME_LOCK_WAIT = 0 }
+        $r = Invoke-Script $script:Runner $runArgs
+        $r.ExitCode | Should -Not -Be 0
+        Get-FlatText $r.Output | Should -BeLike '*in line ahead of you: deploy (x4-swi-bounty-hunter, feature/waiter1)*'
+        $env:FAKE_ARGS | Should -Not -Exist
+        Get-TestGameTickets $x4 | Should -Be '000001'
+    }
+
+    It 'leaves no ticket in the line after a run' {
+        Set-Content $env:FAKE_SOURCE_LOG $script:PassingLog
+        (Invoke-Script $script:Runner $runArgs).ExitCode | Should -Be 0
+        Get-TestGameTickets $x4 | Should -Be ''
+    }
 }
