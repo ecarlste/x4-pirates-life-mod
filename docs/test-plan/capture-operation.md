@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 16 | 2 | 4 | **6** |
+| 0 | 18 | 2 | 4 | **6** |
 
 ## Scenarios
 
@@ -80,6 +80,31 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   Then only one wingman fires until the hull is below 75%, as the whole break from 80% is inside the wing's margin
   And for 30 seconds the hull stays below 75%, and the fighter is never destroyed
   And the hull never drops below the 35% floor
+```
+
+### The wing keeps knocking the shields down as they regrow
+
+**Automated:** in game `capture_wing_knocks_shields_again`
+
+```gherkin
+  Given a capture operation on a capturable TIE/LN with 70% hull and full shields, nothing holding them down
+  And my wingman flies an X-wing with four lasers and no missiles, starting 2 km from the fighter and facing it
+  When the wing knocks the shields under 20% and they regrow
+  Then the wing knocks them under 20% again within 120 seconds, or the run is reported while it's still firing
+  And the wing never holds fire for 20 seconds in a row with the shields full
+  And the hull never drops below the 35% floor, and the fighter is never destroyed
+```
+
+### The wing breaks a fighter whose shields and hull above the gate fit inside its burst
+
+**Automated:** in game `capture_wing_breaks_full_shields`
+
+```gherkin
+  Given a capture operation on a capturable TIE/LN at full hull and shields, nothing holding them down
+  And my wingman flies an X-wing with four lasers and no missiles, starting 2 km from the fighter and facing it
+  When the finisher fights it from the start, as all of it is inside the wing's margin
+  Then the hull is below 75% within 60 seconds, or the run is reported as timed out
+  And the hull never drops below the 35% floor, and the fighter is never destroyed
 ```
 
 ### A turreted wingman's turrets hold fire once the wing is near the bail gate

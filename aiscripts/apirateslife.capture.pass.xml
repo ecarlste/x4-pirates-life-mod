@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One pass of a capture operation's finisher (order.apirateslife.capture.xml runs it in the fine
+     stage, in place of vanilla's attack): a nose-on run at the target, firing every gun in its
+     weapon group, a break-off inside $breakoff, then on past the target without firing, until it is
+     $turnback away. The order then starts the next pass. Flying on through instead of turning away
+     brings the nose back round sooner, so the shields have less time to regrow (#205). -->
+<aiscript name="apirateslife.capture.pass" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="1">
+  <params>
+    <param name="target" comment="The operation's target"/>
+    <param name="breakoff" default="100m" comment="The run stops firing and breaks off inside this distance of the target"/>
+    <param name="turnback" default="400m" comment="The break-off ends, and the pass with it, once this far from the target"/>
+    <param name="exit" default="600m" comment="The break-off flies at a point this far beyond the target, on the line of the run"/>
+    <param name="debugchance" default="0"/>
+  </params>
+  <attention min="visible">
+    <actions>
+      <debug_text text="'[apirateslife] capture pass: starts at %sm, shields %s%%, hull %s%%'.[this.ship.distanceto.{$target}, $target.shieldpercentage, $target.hullpercentage]" chance="$debugchance"/>
+      <!-- The run: fire at the target while flying straight at it, for 20 s at most -->
+      <shoot_at object="this.ship" target="$target" fixedtarget="true"/>
+      <!-- Guns only: shoot_at would fire missiles too -->
+      <stop_shooting object="this.ship" missiles="true"/>
+      <set_value name="$runend" exact="player.age + 20s"/>
+      <do_while value="$target.isoperational and this.ship.distanceto.{$target} gt $breakoff and player.age lt $runend">
+        <move_to object="this.ship" destination="$target" forcesteering="true">
+          <interrupt_after_time time="0.5s"/>
+        </move_to>
+      </do_while>
+      <stop_shooting object="this.ship"/>
+      <debug_text text="'[apirateslife] capture pass: breaks off at %sm, shields %s%%, hull %s%%'.[this.ship.distanceto.{$target}, $target.shieldpercentage, $target.hullpercentage]" chance="$debugchance"/>
+      <!-- The break-off: on past the target to a point $exit beyond it, on the far side from where
+           the run ended, for 15 s at most -->
+      <create_position name="$rel" space="$target" object="this.ship"/>
+      <set_value name="$scale" exact="-$exit / [this.ship.distanceto.{$target}, 1m].max"/>
+      <create_position name="$exitpos" x="$rel.x * $scale" y="$rel.y * $scale" z="$rel.z * $scale"/>
+      <set_value name="$gainend" exact="player.age + 15s"/>
+      <do_while value="$target.isoperational and this.ship.distanceto.{$target} lt $turnback and player.age lt $gainend">
+        <move_to object="this.ship" destination="$target" forcesteering="true" finishonapproach="false">
+          <position value="$exitpos"/>
+          <interrupt_after_time time="0.25s"/>
+        </move_to>
+      </do_while>
+      <debug_text text="'[apirateslife] capture pass: turns back at %sm'.[this.ship.distanceto.{$target}]" chance="$debugchance"/>
+    </actions>
+  </attention>
+  <!-- shoot_at needs the ship in visible attention; out of it, wait for the order to move on -->
+  <attention min="unknown">
+    <actions>
+      <wait exact="1s"/>
+    </actions>
+  </attention>
+</aiscript>

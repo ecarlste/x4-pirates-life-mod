@@ -2,6 +2,10 @@
 
 Judgement calls a reviewer checks in a diff (`/mattpocock-skills:code-review` reads this file). Anything mechanical belongs in a check that `make test` runs, not here. How to run and wire up tests is in [docs/testing.md](docs/testing.md); the workflow rules are in [docs/PROJECT.md](docs/PROJECT.md).
 
+## All changes
+
+- **When a diff replaces a mechanism, every comment and spec line that names the old one is updated.** No check can tell a comment describes code that's gone. In [#207](https://github.com/ecarlste/x4-pirates-life-mod/pull/207), five comments still described vanilla's attack runs after the finisher moved to its own pass, and the review caught the fifth. Search the diff's files, and the specs and feature files, for the old mechanism's names.
+
 ## MD scripts
 
 - **Every property an MD expression uses exists for its datatype** in the unpacked 8.00 `libraries/scriptproperties.xml` ([docs/environment.md, Paths](docs/environment.md#paths-eriks-machine)). X4 reads an unknown property as null and gives no error, so `indexof` on a string (only lists and groups have it) silently checks nothing. Found in the release tests ([#187](https://github.com/ecarlste/x4-pirates-life-mod/pull/187)).

@@ -300,6 +300,60 @@ Describe 'Game test selection (-Test, -Repeat)' {
     }
 }
 
+Describe 'Split-GameTestRuns' {
+    It 'splits the mod''s lines into one run per result, numbered per test' {
+        $runs = @(Split-GameTestRuns @(
+            '[Scripts] 0.00 *** Context:md.APiratesLife_Settings.OnLoad: [apirateslife] settings: config applied'
+            '[General] 1.01 *** Context:md.APiratesLife_Tests.Begin: [apirateslife-test] RUN START 3 tests'
+            '[General] 1.01 *** Context:md.APiratesLife_Tests.CheckWingCycle: [apirateslife-test] trace: t 0, hull 100%, shields 100%'
+            '[General] 1.50 Some other line from the game'
+            '[Scripts] 3.02 *** Context:md.APiratesLife_Capture.Operation: [apirateslife] capture: started on IMP TIE/LN (ZSX-457)'
+            '[General] 9.00 *** Context:md.APiratesLife_Tests.Report: [apirateslife-test] PASS fixture_test_a: after 8 s'
+            '[Scripts] 9.00 *** aicontext<order.apirateslife.capture,0x9d3f>: [apirateslife] capture order: X-wing T65B ends on IMP TIE/LN'
+            '[General] 20.00 *** Context:md.APiratesLife_Tests.Report: [apirateslife-test] FAIL fixture_test_a: target destroyed'
+            '[General] 25.00 *** Context:md.APiratesLife_Tests.Report: [apirateslife-test] PASS fixture_test_b: ok'
+            '[General] 25.01 *** Context:md.APiratesLife_Tests.NextTest: [apirateslife-test] DONE passed=2 failed=1'
+        ))
+        $runs.Count | Should -Be 3
+        @($runs | ForEach-Object { "$($_.Name)-$($_.Number)" }) | Should -Be @('fixture_test_a-1', 'fixture_test_a-2', 'fixture_test_b-1')
+        # Only the mod's lines, from RUN START on, each run ending on its own result line
+        $runs[0].Lines | Should -Be @(
+            '[General] 1.01 *** Context:md.APiratesLife_Tests.CheckWingCycle: [apirateslife-test] trace: t 0, hull 100%, shields 100%'
+            '[Scripts] 3.02 *** Context:md.APiratesLife_Capture.Operation: [apirateslife] capture: started on IMP TIE/LN (ZSX-457)'
+            '[General] 9.00 *** Context:md.APiratesLife_Tests.Report: [apirateslife-test] PASS fixture_test_a: after 8 s'
+        )
+        # A line logged after a test's result goes with the next test
+        $runs[1].Lines[0] | Should -BeLike '*capture order: X-wing T65B ends on*'
+        $runs[2].Lines | Should -Be @('[General] 25.00 *** Context:md.APiratesLife_Tests.Report: [apirateslife-test] PASS fixture_test_b: ok')
+    }
+
+    It 'keeps the lines of a test that never reported as an unfinished run' {
+        $runs = @(Split-GameTestRuns @(
+            '[General] 1.00 *** Context:x: [apirateslife-test] RUN START 2 tests'
+            '[General] 2.00 *** Context:x: [apirateslife-test] PASS fixture_test_a: ok'
+            '[General] 3.00 *** Context:x: [apirateslife-test] trace: t 0, hull 100%, shields 100%'
+        ))
+        $runs.Count | Should -Be 2
+        $runs[1].Name | Should -Be 'unfinished'
+        $runs[1].Lines | Should -Be @('[General] 3.00 *** Context:x: [apirateslife-test] trace: t 0, hull 100%, shields 100%')
+    }
+
+    It 'skips the markers quoted in script error details, and a run with no lines left after the last result' {
+        $runs = @(Split-GameTestRuns @(
+            '[General] 1.00 *** Context:x: [apirateslife-test] RUN START 1 tests'
+            "* Expression: '[apirateslife-test] PASS fake: x'"
+            '[General] 2.00 *** Context:x: [apirateslife-test] PASS fixture_test_a: ok'
+            '[General] 2.01 *** Context:x: [apirateslife-test] DONE passed=1 failed=0'
+        ))
+        $runs.Count | Should -Be 1
+        $runs[0].Lines.Count | Should -Be 1
+    }
+
+    It 'returns no runs for a log where the tests never started' {
+        @(Split-GameTestRuns @('[Scripts] 0.00 *** Context:x: [apirateslife] settings: config applied')).Count | Should -Be 0
+    }
+}
+
 Describe 'ConvertTo-JUnitXml' {
     It 'writes one case per test plus the run, with failures escaped' {
         $log = $script:PassingLog -replace 'PASS fixture_test_b: hull 100%', 'FAIL fixture_test_b: hull <72%> & "worse"'

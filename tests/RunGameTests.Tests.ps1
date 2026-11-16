@@ -75,6 +75,26 @@ Describe 'run-game-tests.ps1' {
         (Get-Content $markdown)[0] | Should -BeLike '* selected=true -->'
     }
 
+    It 'keeps each run''s mod lines in a file per run next to the report, replacing the last run''s' {
+        $runs = Join-Path $root 'runs'
+        Write-LfFile (Join-Path $runs 'stale_test-1.log') 'from an earlier run'
+        Set-Content $env:FAKE_SOURCE_LOG @(
+            '[Scripts] 1.00 *** Context:x: [apirateslife-test] RUN START 2 tests'
+            '[Scripts] 1.50 *** Context:x: [apirateslife] capture pass: starts at 390m, shields 100%, hull 100%'
+            '[General] 1.60 Not a line of ours'
+            '[Scripts] 2.00 *** Context:x: [apirateslife-test] PASS capture_wing_holds_fire: lowest hull 70%'
+            '[Scripts] 3.00 *** Context:x: [apirateslife-test] FAIL capture_wing_holds_fire: lowest hull 54%'
+            '[Scripts] 5.00 *** Context:x: [apirateslife-test] DONE passed=1 failed=1'
+        )
+        $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire', '-Repeat', '2'))
+        $r.Output | Should -BeLike "*Run traces: 2 files in $runs*"
+        @(Get-ChildItem $runs | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @('capture_wing_holds_fire-1.log', 'capture_wing_holds_fire-2.log')
+        Get-Content (Join-Path $runs 'capture_wing_holds_fire-1.log') | Should -Be @(
+            '[Scripts] 1.50 *** Context:x: [apirateslife] capture pass: starts at 390m, shields 100%, hull 100%'
+            '[Scripts] 2.00 *** Context:x: [apirateslife-test] PASS capture_wing_holds_fire: lowest hull 70%'
+        )
+    }
+
     It 'refuses an unknown test before anything changes, even with -PreflightOnly' {
         foreach ($extra in @(@('-Test', 'NoSuchTest'), @('-Test', 'NoSuchTest', '-PreflightOnly'))) {
             $r = Invoke-Script $script:Runner ($runArgs + $extra)
@@ -110,11 +130,11 @@ Describe 'run-game-tests.ps1' {
         Get-Content (Join-Path $profileDir 'debuglog.previous.txt') | Should -Be $script:PassingLog
     }
 
-    It 'starts the game directly with the debug options and its own profile, and reads that profile''s log' {
+    It 'starts the game directly, muted, with the debug options and its own profile, and reads that profile''s log' {
         Set-Content $env:FAKE_SOURCE_LOG $script:PassingLog
         $r = Invoke-Script $script:Runner $runArgs
         $r.ExitCode | Should -Be 0
-        Get-TestFile $env:FAKE_ARGS | Should -Be '-skipintro -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid 90000301'
+        Get-TestFile $env:FAKE_ARGS | Should -Be '-skipintro -disablesound -debug all -logfile debuglog.txt -scriptlogfiles -personalfolderid 90000301'
         $r.Output | Should -BeLike "*results go to $env:FAKE_LOGPATH*"
     }
 
