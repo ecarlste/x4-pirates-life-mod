@@ -149,6 +149,17 @@ SCRIPT
     [[ "$(sed -n 2p "$SANDBOX/runner.log")" == "-Commit "*" -PrepareProfile deployed=yes" ]]
 }
 
+@test "make game-test runs the PR tier, and RELEASE=1 the release tier" {
+    write_logging_runner
+    run env -u RELEASE make -C "$REPO" game-test GAME_TEST_RUNNER="$SANDBOX/runner"
+    [ "$status" -eq 0 ]
+    [[ "$(sed -n 2p "$SANDBOX/runner.log")" != *-ReleaseTier* ]]
+    rm "$SANDBOX/runner.log"
+    run make -C "$REPO" game-test RELEASE=1 GAME_TEST_RUNNER="$SANDBOX/runner"
+    [ "$status" -eq 0 ]
+    [[ "$(sed -n 2p "$SANDBOX/runner.log")" == "-Commit "*" -ReleaseTier deployed=yes" ]]
+}
+
 @test "make game-test deploys nothing when the runner's setup check fails" {
     write_logging_runner
     run env FAIL_PREFLIGHT=1 make -C "$REPO" game-test GAME_TEST_RUNNER="$SANDBOX/runner"

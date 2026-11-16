@@ -75,6 +75,28 @@ Describe 'run-game-tests.ps1' {
         (Get-Content $markdown)[0] | Should -BeLike '* selected=true -->'
     }
 
+    It 'runs the PR tier by default and the release tier with -ReleaseTier, and says which' {
+        Set-Content $env:FAKE_SOURCE_LOG $script:PassingLog
+        $r = Invoke-Script $script:Runner $runArgs
+        $r.ExitCode | Should -Be 0
+        (Get-Content $markdown) | Should -Contain 'PR tier (`make game-test`), budget 5 minutes.'
+        $r = Invoke-Script $script:Runner ($runArgs + @('-ReleaseTier', '-KeepExtension'))
+        $r.ExitCode | Should -Be 0
+        (Get-Content $markdown) | Should -Contain 'Release tier (`make game-test RELEASE=1`): every test, budget 30 minutes.'
+        $harness = Join-Path $script:RepoRoot 'tests/game/apirateslife_tests/md/apirateslife_tests.xml'
+        Get-GameTestNames (Get-Content "$x4/extensions/apirateslife_tests/md/apirateslife_tests.xml" -Raw) |
+            Should -Be (Get-GameTestNames (Get-Content $harness -Raw))
+        # A selection is no tier's run
+        $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire'))
+        (Get-Content $markdown -Raw) | Should -Not -BeLike '*tier*'
+    }
+
+    It 'refuses -ReleaseTier with -Release, which runs its own sessions' {
+        $r = Invoke-Script $script:Runner ($runArgs + @('-Release', '-ReleaseTier'))
+        $r.ExitCode | Should -Not -Be 0
+        $r.Output | Should -BeLike '*-Release runs its own sessions*-ReleaseTier*'
+    }
+
     It 'keeps each run''s mod lines in a file per run next to the report, replacing the last run''s' {
         $runs = Join-Path $root 'runs'
         Write-LfFile (Join-Path $runs 'stale_test-1.log') 'from an earlier run'

@@ -5,6 +5,8 @@ NPM ?= npm
 # Runs the game test runner on Windows through WSL interop; override to run it another way
 GAME_TEST_RUNNER ?= powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$$(wslpath -w tools/run-game-tests.ps1)"
 # What the report says was tested: the commit, branch, and whether uncommitted changes were deployed too
+# The game test tier: the PR tier, or with RELEASE=1 the release tier, release-only tests included
+GAME_TEST_TIER = $(if $(RELEASE),-ReleaseTier)
 GAME_TEST_GIT = -Commit $$(git rev-parse HEAD) -Branch $$(git rev-parse --abbrev-ref HEAD) $$(test -z "$$(git status --porcelain)" || echo -Dirty)
 
 help:
@@ -22,7 +24,8 @@ help:
 	@echo "  make doc-paths      - Check the docs name only repo paths that exist (make test runs it too)"
 	@echo "  make doc-names      - Check the docs and tools name no removed mod global or game test (make test runs it too)"
 	@echo "  make game-test      - Deploy your working tree and run the in-game tests in the X4 8.00 copy (Windows),"
-	@echo "                       holding the game lock so no other run uses the game meanwhile"
+	@echo "                       holding the game lock so no other run uses the game meanwhile: the PR tier,"
+	@echo "                       5 minutes or less (RELEASE=1: the release tier, every test, 30 minutes or less)"
 	@echo "  make game-queue     - Show who holds the game lock and who waits in line for it, with ages"
 	@echo "  make game-test-report - Post the last game-test report to this branch's PR (comment and check)"
 	@echo "  make worktrees      - List worktrees; flag uncommitted or unpushed work not yet on main"
@@ -89,7 +92,7 @@ game-test-locked: export WSLENV := $(if $(WSLENV),$(WSLENV):)X4_PATH:X4_EXE:X4_P
 game-test-locked:
 	@$(GAME_TEST_RUNNER) -PreflightOnly $(RUNNER_ARGS)
 	@./deploy.sh --working-tree $(ARGS)
-	@$(GAME_TEST_RUNNER) $(GAME_TEST_GIT) $(RUNNER_ARGS)
+	@$(GAME_TEST_RUNNER) $(GAME_TEST_GIT) $(GAME_TEST_TIER) $(RUNNER_ARGS)
 
 game-queue:
 	@tools/game-lock.sh --queue

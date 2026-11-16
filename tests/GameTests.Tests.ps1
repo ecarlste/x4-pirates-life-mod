@@ -253,6 +253,14 @@ Describe 'Game test selection (-Test, -Repeat)' {
         { Get-GameTestNames '<cue name="Run"/>' } | Should -Throw '*no $Tests list*'
     }
 
+    It 'reads the $ReleaseOnly list, empty or not' {
+        $text = $script:Harness -replace '<set_value name="\$Index"', "<set_value name=`"`$ReleaseOnly`" exact=`"[`n          CaptureWingHoldsFire`n        ]`"/>`n        `$0"
+        Get-GameTestNames $text 'ReleaseOnly' | Should -Be @('CaptureWingHoldsFire')
+        Get-GameTestNames $text | Should -Be @('ConfigAppliedOnStart', 'CaptureWingHoldsFire', 'BailRaisesBailed')
+        @(Get-GameTestNames ($script:Harness + '<set_value name="$ReleaseOnly" exact="[]"/>') 'ReleaseOnly').Count | Should -Be 0
+        { Get-GameTestNames $script:Harness 'ReleaseOnly' } | Should -Throw '*no $ReleaseOnly list*'
+    }
+
     It 'selects a test by its cue name or the name it reports, in rounds of -Repeat' {
         $names = @('ConfigAppliedOnStart', 'CaptureWingHoldsFire', 'BailRaisesBailed')
         Resolve-GameTestSelection $names @('capture_wing_holds_fire') 3 | Should -Be @('CaptureWingHoldsFire', 'CaptureWingHoldsFire', 'CaptureWingHoldsFire')
@@ -263,6 +271,12 @@ Describe 'Game test selection (-Test, -Repeat)' {
 
     It 'repeats every test without -Test' {
         Resolve-GameTestSelection @('A', 'B') @() 2 | Should -Be @('A', 'B', 'A', 'B')
+    }
+
+    It 'leaves out the tests it''s told to skip (the PR tier''s release-only ones), unless -Test names them' {
+        Resolve-GameTestSelection @('A', 'Slow', 'B') @() 1 @('Slow') | Should -Be @('A', 'B')
+        Resolve-GameTestSelection @('A', 'Slow', 'B') @() 2 @('Slow') | Should -Be @('A', 'B', 'A', 'B')
+        Resolve-GameTestSelection @('A', 'Slow', 'B') @('slow,A') 1 @('Slow') | Should -Be @('Slow', 'A')
     }
 
     It 'runs a test of the game as it starts once, first' {
@@ -428,6 +442,30 @@ Describe 'ConvertTo-MarkdownReport' {
         $plain = ConvertTo-MarkdownReport (Read-GameTestLog $script:PassingLog) @() $script:Info
         $plain | Should -Not -BeLike '*selected*'
         $plain | Should -Not -BeLike '*Repeated test*'
+    }
+
+    It 'names the tier, the release-only tests a PR-tier run skipped, and the budget' {
+        $run = Read-GameTestLog $script:PassingLog
+        $info = $script:Info.Clone(); $info.Tier = 'pr'; $info.Skipped = @('SlowA', 'SlowB')
+        $lines = (ConvertTo-MarkdownReport $run @() $info) -split "`n"
+        $lines | Should -Contain 'PR tier (`make game-test`), budget 5 minutes. Skipped 2 release-only tests, which `make game-test RELEASE=1` runs: `SlowA`, `SlowB`.'
+        $info = $script:Info.Clone(); $info.Tier = 'release'
+        $lines = (ConvertTo-MarkdownReport $run @() $info) -split "`n"
+        $lines | Should -Contain 'Release tier (`make game-test RELEASE=1`): every test, budget 30 minutes.'
+        # Selections and release sessions have no tier
+        ConvertTo-MarkdownReport $run @() $script:Info | Should -Not -BeLike '*tier*'
+    }
+
+    It 'warns, without failing, when a run is over its tier''s budget' {
+        $run = Read-GameTestLog $script:PassingLog
+        $info = $script:Info.Clone(); $info.Tier = 'pr'; $info.DurationSeconds = 301
+        $md = ConvertTo-MarkdownReport $run @() $info
+        $md | Should -BeLike '<!-- * result=pass *'
+        $md.Contains('**Over the PR tier''s 5-minute budget** (5 min 1 s): move a slow test to `$ReleaseOnly` in the harness (docs/testing.md, Game test tiers).') | Should -BeTrue
+        $info.Tier = 'release'; $info.DurationSeconds = 1801
+        (ConvertTo-MarkdownReport $run @() $info).Contains('**Over the release tier''s 30-minute budget** (30 min 1 s)') | Should -BeTrue
+        $info.DurationSeconds = 1800
+        ConvertTo-MarkdownReport $run @() $info | Should -Not -BeLike '*Over the*'
     }
 
     It 'says whether SETA stayed on, and shows the phase timings' {
