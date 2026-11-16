@@ -12,7 +12,8 @@
      and signals Report exactly once (from a result cue or a timeout cue) with
      table[$name, $ok, $detail]. Then add it to $Tests in Run, on a line of its own
      (tests/python/test_game_tests_list.py checks the list against the test cues; the runner's
-     -Test and -Repeat rewrite it in the installed copy, so keep its layout). Set any mod
+     -Test and -Repeat rewrite it in the installed copy, so keep its layout), and to $ReleaseOnly
+     too if it's too slow for the PR tier. Set any mod
      setting the test relies on, so settings overridden at deploy time can't change its outcome. -->
 <mdscript name="APiratesLife_Tests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
@@ -79,6 +80,10 @@
           PiratedClaimWithoutBail,
           ReleaseLeftovers
         ]"/>
+        <!-- The tests too slow for the PR tier, one per line like $Tests, each listed there too: only
+             make game-test RELEASE=1 runs them. Read by the runner, which leaves them out of the
+             installed copy's $Tests on a PR-tier run (docs/testing.md, Game test tiers) -->
+        <set_value name="$ReleaseOnly" exact="[]"/>
         <set_value name="$Index" exact="0"/>
         <set_value name="$Passed" exact="0"/>
         <set_value name="$Failed" exact="0"/>
