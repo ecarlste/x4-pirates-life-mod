@@ -409,6 +409,145 @@
       </actions>
     </library>
 
+    <!-- The combat trace (#220): dev only, and off unless a test runs CombatTraceStart. Every
+         second it puts each wingman in a band of nose angle to the target and distance, and counts
+         the seconds it fired and the seconds damage landed (the target's shields plus hull
+         dropped). Damage landed is the target's, so with more than one wingman it counts for each
+         (#231). The bands and the summary's format: docs/testing.md, Game tests. -->
+    <cue name="CombatTrace">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="$R" exact="event.param"/>
+        <create_group groupname="$Guns"/>
+        <add_to_group groupname="$Guns" list="$R.$gunowner.keys.list"/>
+      </actions>
+      <cues>
+        <cue name="CombatTrace_Fired" instantiate="true">
+          <conditions>
+            <event_weapon_fired group="$Guns"/>
+          </conditions>
+          <actions>
+            <set_value name="$Owner" exact="@$R.$gunowner.{event.object}"/>
+            <do_if value="$Owner">
+              <set_value name="$R.$per.{$Owner}.$shots" operation="add"/>
+              <set_value name="$R.$firing.{$Owner}" exact="true"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="CombatTrace_Overheated" instantiate="true">
+          <conditions>
+            <event_weapon_overheated group="$Guns"/>
+          </conditions>
+          <actions>
+            <set_value name="$Owner" exact="@$R.$gunowner.{event.object}"/>
+            <do_if value="$Owner">
+              <set_value name="$R.$per.{$Owner}.$overheats" operation="add"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="CombatTrace_Tick" checkinterval="1s" instantiate="true">
+          <actions>
+            <set_value name="$T" exact="$R.$target"/>
+            <do_if value="$T.isoperational">
+              <set_value name="$Now" exact="$T.shield + $T.hull"/>
+              <set_value name="$Landed" exact="$Now lt $R.$last"/>
+              <set_value name="$R.$last" exact="$Now"/>
+              <set_value name="$R.$seconds" operation="add"/>
+              <do_for_each name="$W" in="$R.$wingmen">
+                <do_if value="$W.isoperational">
+                  <!-- The target in the wingman's frame: z is ahead. The nose is within an angle
+                       when z is positive and z squared is at least cos squared of the angle times
+                       the distance squared (cos squared: 0.997261 for 3 degrees, 0.883022 for 20) -->
+                  <set_value name="$Rel" exact="$T.relativeposition.{$W}"/>
+                  <set_value name="$X" exact="($Rel.x)f"/>
+                  <set_value name="$Y" exact="($Rel.y)f"/>
+                  <set_value name="$Z" exact="($Rel.z)f"/>
+                  <set_value name="$Sq" exact="$X * $X + $Y * $Y + $Z * $Z"/>
+                  <set_value name="$Angle" exact="if $Z gt 0 and $Z * $Z ge 0.997261 * $Sq then 0 else if $Z gt 0 and $Z * $Z ge 0.883022 * $Sq then 1 else 2"/>
+                  <set_value name="$Dist" exact="$W.distanceto.{$T}"/>
+                  <set_value name="$DistBand" exact="if $Dist lt 600m then 1 else if $Dist lt 1400m then 2 else 3"/>
+                  <!-- X4 takes no string keys in a table, so the counts are lists by band number -->
+                  <set_value name="$Band" exact="$Angle * 3 + $DistBand"/>
+                  <set_value name="$P" exact="$R.$per.{$W}"/>
+                  <set_value name="$P.$secs.{$Band}" operation="add"/>
+                  <do_if value="@$R.$firing.{$W}">
+                    <set_value name="$P.$firedsecs.{$Band}" operation="add"/>
+                  </do_if>
+                  <do_if value="$Landed">
+                    <set_value name="$P.$hitsecs.{$Band}" operation="add"/>
+                  </do_if>
+                </do_if>
+              </do_for_each>
+            </do_if>
+            <set_value name="$R.$firing" exact="table[]"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- Switches the combat trace on for Wingmen (a list) against Target, from now until
+         CombatTraceStop. A test that wants it runs this once its fight starts. -->
+    <library name="CombatTraceStart" purpose="run_actions">
+      <params>
+        <param name="Wingmen"/>
+        <param name="Target"/>
+      </params>
+      <actions>
+        <!-- A trace a test left running (a run cut short) -->
+        <do_if value="CombatTrace.state != cuestate.waiting">
+          <reset_cue cue="CombatTrace"/>
+        </do_if>
+        <!-- Its own map of each gun to its wingman, so it works for wingmen from any setup, not
+             only SpawnWingAt2km's -->
+        <set_value name="$GunOwner" exact="table[]"/>
+        <do_for_each name="$W" in="$Wingmen">
+          <do_for_each name="$Gun" in="$W.weapons.operational.list">
+            <set_value name="$GunOwner.{$Gun}" exact="$W"/>
+          </do_for_each>
+          <do_for_each name="$Gun" in="$W.turrets.operational.list">
+            <set_value name="$GunOwner.{$Gun}" exact="$W"/>
+          </do_for_each>
+        </do_for_each>
+        <set_value name="$Bands" exact="[]"/>
+        <do_for_each name="$A" in="['0-3 deg', '3-20 deg', 'over 20 deg']">
+          <do_for_each name="$D" in="['under 600 m', '600-1400 m', '1400 m+']">
+            <append_to_list name="$Bands" exact="$A + ' ' + $D"/>
+          </do_for_each>
+        </do_for_each>
+        <!-- Each wingman's own counts: lists by band number, in the order of $Bands -->
+        <set_value name="$Per" exact="table[]"/>
+        <do_for_each name="$W" in="$Wingmen">
+          <set_value name="$Per.{$W}" exact="table[$shots = 0, $overheats = 0, $secs = [0, 0, 0, 0, 0, 0, 0, 0, 0], $firedsecs = [0, 0, 0, 0, 0, 0, 0, 0, 0], $hitsecs = [0, 0, 0, 0, 0, 0, 0, 0, 0]]"/>
+        </do_for_each>
+        <signal_cue_instantly cue="CombatTrace" param="table[$wingmen = $Wingmen, $target = $Target, $gunowner = $GunOwner, $last = $Target.shield + $Target.hull, $seconds = 0, $firing = table[], $bands = $Bands, $per = $Per]"/>
+      </actions>
+    </library>
+
+    <!-- Prints the combat trace's summary for the test Name, one line per wingman in the order
+         CombatTraceStart got them, and switches the trace off. Does nothing if the trace isn't
+         on. Run it before the test reports, so the lines land in the test's own run trace. -->
+    <library name="CombatTraceStop" purpose="run_actions">
+      <params>
+        <param name="Name"/>
+      </params>
+      <actions>
+        <do_if value="CombatTrace.state == cuestate.complete">
+          <set_value name="$R" exact="CombatTrace.$R"/>
+          <do_all exact="$R.$wingmen.count" counter="$i">
+            <set_value name="$P" exact="$R.$per.{$R.$wingmen.{$i}}"/>
+            <set_value name="$Bands" exact="''"/>
+            <do_all exact="$R.$bands.count" counter="$b">
+              <set_value name="$Bands" exact="$Bands + (if $Bands == '' then '' else ', ') + '%s %s/%s/%s'.[$R.$bands.{$b}, $P.$hitsecs.{$b}, $P.$firedsecs.{$b}, $P.$secs.{$b}]"/>
+            </do_all>
+            <debug_text text="'[apirateslife-test] combat trace %s, wingman %s of %s: %s s, shots %s, overheats %s; seconds with damage/fired/in band, by nose angle and distance: %s'.[$Name, $i, $R.$wingmen.count, $R.$seconds, $P.$shots, $P.$overheats, $Bands]" filter="general"/>
+          </do_all>
+          <reset_cue cue="CombatTrace"/>
+        </do_if>
+      </actions>
+    </library>
+
     <!-- A player-owned X-wing and a crewless Imperial TIE Advanced at full hull, 2-3 km from the
          player. With no crew, the first bail takes the pilot and leaves the ship ownerless. Returns
          table[$attacker, $target]. -->
@@ -2347,6 +2486,11 @@
               <param name="Target" value="$Wing.$target"/>
             </run_actions>
             <set_object_capturable object="$Wing.$target" capturable="false"/>
+            <!-- The one combat test with the combat trace on (#220), for the 1x rechecks -->
+            <run_actions ref="CombatTraceStart">
+              <param name="Wingmen" value="$Wing.$wingmen"/>
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
           </actions>
           <cues>
             <cue name="CaptureWingKnocksShieldsAgain_Fired" instantiate="true">
@@ -2394,6 +2538,10 @@
               <actions>
                 <cancel_cue cue="CaptureWingKnocksShieldsAgain_Fired"/>
                 <cancel_cue cue="CaptureWingKnocksShieldsAgain_Watch"/>
+                <!-- The reported name again: tools/check_test_plan.py reads it from Report's literal -->
+                <run_actions ref="CombatTraceStop">
+                  <param name="Name" value="'capture_wing_knocks_shields_again'"/>
+                </run_actions>
                 <run_actions ref="WingCycleDone" result="$Result">
                   <param name="Wing" value="$Wing"/>
                   <param name="Problems" value="event.param"/>
