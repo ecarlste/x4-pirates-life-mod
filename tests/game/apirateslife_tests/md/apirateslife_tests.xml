@@ -2630,6 +2630,7 @@
               </conditions>
               <actions>
                 <cancel_cue cue="CaptureWingBreaksFullShields_Watch"/>
+                <!-- The reported name again: tools/check_test_plan.py reads it from Report's literal -->
                 <run_actions ref="CombatTraceStop">
                   <param name="Name" value="'capture_wing_breaks_full_shields'"/>
                 </run_actions>
