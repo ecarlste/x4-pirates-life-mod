@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 18 | 2 | 4 | **6** |
+| 0 | 19 | 2 | 4 | **6** |
 
 ## Scenarios
 
@@ -123,6 +123,22 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
     | ship     | guns                | turrets           |
     | Y-wing   | two KX7 lasers      | an SW4 top turret |
     | YT-1300  | one KX20 laser      | two AG-2G turrets |
+```
+
+### A turret-only wingman's damage landed is measured at 1x
+
+**Automated:** in game `turret_damage_landed_s`, `turret_damage_landed_m`
+
+```gherkin
+  Given a capturable fighter that waits and doesn't fight back, its shields kept at 0
+  And my wingman flies a <ship> with <turrets> and no forward guns, on an Attack order, starting 2 km away
+  When the turrets fire for 60 seconds after the first damage lands, the hull reset to 100% whenever it's under 40%
+  Then the report gives the damage landed per second against the listed turret DPS, and the biggest one-second drop
+  And the fighter is never destroyed
+  Examples:
+    | ship     | turrets           |
+    | Y-wing   | an SW4 top turret |
+    | YT-1300  | two AG-2G turrets |
 ```
 
 ### Before a release, each wing setup captures in at least 9 runs out of 10
