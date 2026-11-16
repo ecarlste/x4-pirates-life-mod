@@ -70,6 +70,8 @@
           CaptureWingTurretsHoldM,
           NoMissilesInSight,
           NoMissilesOutOfSight,
+          MissileInFlightHeld,
+          MissileInFlightHeldFights,
           CaptureMarkedAsHostile,
           CaptureCommChoice,
           CaptureAbortCallsWingOff,
@@ -3139,6 +3141,229 @@
                 <destroy_object object="$Ship"/>
               </do_if>
             </do_for_each>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- ===== Probe (#226): a missile in flight against a held fighter, at 1x ===== -->
+
+    <!-- One of the player's wingmen, an X-wing with its torpedoes (apirateslife_test_xwing_torpedoes,
+         pilot skill 15), attacking a TIE Advanced 2 km away with vanilla's Attack order, as
+         SpawnMissilePair does but without the flag. The target can't go below 50% hull or bail
+         until the first torpedo is away (CheckMissileInFlight), and waits, or with Fights attacks
+         the wingman back (then the wingman can't go below 50% either). Returns the run's state. -->
+    <library name="SpawnMissileInFlight" purpose="run_actions">
+      <params>
+        <param name="Fights"/>
+      </params>
+      <actions>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <create_ship name="$Wingman" macro="t65b_xwing_macro" sector="player.sector">
+          <owner exact="faction.player" overridenpc="true"/>
+          <loadout ref="apirateslife_test_xwing_torpedoes"/>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+            <skills>
+              <skill type="piloting" exact="15"/>
+              <skill type="morale" exact="15"/>
+            </skills>
+          </pilot>
+          <safepos object="player.occupiedship" x="-1km" allowyaxis="true"/>
+        </create_ship>
+        <set_object_commander object="$Wingman" commander="player.occupiedship" assignment="assignment.defence"/>
+        <create_ship name="$Target" macro="tie_advanced_macro" sector="player.sector">
+          <owner exact="faction.galempire" overridenpc="true"/>
+          <loadout>
+            <level exact="1.0"/>
+          </loadout>
+          <pilot>
+            <select faction="faction.galempire" tags="tag.aipilot"/>
+          </pilot>
+          <safepos object="$Wingman" z="2km" allowyaxis="true"/>
+        </create_ship>
+        <do_if value="$Fights">
+          <set_object_min_hull object="$Wingman" exact="50"/>
+          <create_order id="'Attack'" object="$Target" immediate="true">
+            <param name="primarytarget" value="$Wingman"/>
+          </create_order>
+        </do_if>
+        <do_else>
+          <create_order id="'Wait'" object="$Target" default="true">
+            <param name="noattackresponse" value="true"/>
+          </create_order>
+        </do_else>
+        <set_object_min_hull object="$Target" exact="50"/>
+        <set_object_capturable object="$Target" capturable="false"/>
+        <set_relation_boost object="$Target" faction="faction.player" value="-1" decay="1" delay="600s"/>
+        <create_order id="'Attack'" object="$Wingman" immediate="true">
+          <param name="primarytarget" value="$Target"/>
+        </create_order>
+        <return value="table[$wingman = $Wingman, $target = $Target, $ammo = $Wingman.ammostorage.missile.count, $launched = false, $launchat = 0, $spent = 0, $started = false, $distance = 0, $last = 0, $minhull = 100, $maxdrop = 0, $killedafter = -1, $extra = 0]"/>
+      </actions>
+    </library>
+
+    <!-- One check of a SpawnMissileInFlight, run every 0.2 s. Until the wingman's first torpedo is
+         away, it waits. Then, at once, the target becomes a held fighter (70% hull, no shields,
+         free to die or bail) and the player starts a capture operation on it, so the wingman
+         switches to the capture order with the torpedo still in flight. From there it watches the
+         target for 40 s (a proton torpedo lives 35 s) and records the biggest hull drop in one
+         check and whether it died. Returns table[$done, $problems]. -->
+    <library name="CheckMissileInFlight" purpose="run_actions">
+      <params>
+        <param name="Run"/>
+      </params>
+      <actions>
+        <set_value name="$Target" exact="$Run.$target"/>
+        <set_value name="$Spent" exact="$Run.$ammo - @$Run.$wingman.ammostorage.missile.count"/>
+        <do_if value="not $Run.$launched">
+          <do_if value="not @$Run.$wingman.isoperational or not @$Target.isoperational">
+            <return value="table[$done = true, $problems = ' a ship was destroyed before the first torpedo;']"/>
+          </do_if>
+          <do_if value="$Spent gt 0">
+            <set_value name="$Run.$launched" exact="true"/>
+            <set_value name="$Run.$launchat" exact="player.age"/>
+            <set_value name="$Run.$spent" exact="$Spent"/>
+            <set_value name="$Run.$distance" exact="($Run.$wingman.distanceto.{$Target})i"/>
+            <set_object_min_hull object="$Target" exact="0"/>
+            <set_object_shield object="$Target" exact="0"/>
+            <set_object_hull object="$Target" exact="70"/>
+            <set_object_capturable object="$Target" capturable="true"/>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Target"/>
+            </run_actions>
+            <set_value name="$Run.$started" exact="$Started"/>
+            <set_object_capturable object="$Target" capturable="false"/>
+            <set_value name="$Run.$last" exact="$Target.hullpercentage"/>
+            <debug_text text="'[apirateslife-test] probe: %s torpedo(es) away from %s m, target set to 70%% hull, operation started %s'.[$Spent, $Run.$distance, $Started]" filter="general"/>
+          </do_if>
+          <return value="table[$done = false, $problems = '']"/>
+        </do_if>
+        <set_value name="$Run.$extra" exact="$Spent - $Run.$spent"/>
+        <do_if value="not $Target.exists or not $Target.isoperational">
+          <set_value name="$Run.$killedafter" exact="player.age - $Run.$launchat"/>
+          <return value="table[$done = true, $problems = '']"/>
+        </do_if>
+        <set_value name="$Hull" exact="$Target.hullpercentage"/>
+        <set_value name="$Run.$maxdrop" exact="[$Run.$maxdrop, $Run.$last - $Hull].max"/>
+        <set_value name="$Run.$minhull" exact="[$Run.$minhull, $Hull].min"/>
+        <set_value name="$Run.$last" exact="$Hull"/>
+        <return value="table[$done = (player.age - $Run.$launchat ge 40s), $problems = '']"/>
+      </actions>
+    </library>
+
+    <!-- Reports a SpawnMissileInFlight run as Name: the invariants are that a torpedo went, the
+         operation started and no torpedo followed it; the outcome is the target surviving -->
+    <library name="MissileInFlightDone" purpose="run_actions">
+      <params>
+        <param name="Name"/>
+        <param name="Run"/>
+        <param name="Problems"/>
+      </params>
+      <actions>
+        <do_if value="$Run.$launched and not $Run.$started">
+          <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
+        </do_if>
+        <do_if value="$Run.$extra gt 0">
+          <set_value name="$Problems" exact="$Problems + ' %s more torpedo(es) after the operation started;'.[$Run.$extra]"/>
+        </do_if>
+        <set_value name="$Killed" exact="$Run.$killedafter ge 0"/>
+        <set_value name="$Detail" exact="if $Killed then '%s torpedo(es) from %s m, killed %s s after launch'.[$Run.$spent, $Run.$distance, $Run.$killedafter] else '%s torpedo(es) from %s m, survived 40 s, lowest hull %s%%, biggest drop %s%% in 0.2 s'.[$Run.$spent, $Run.$distance, $Run.$minhull, $Run.$maxdrop]"/>
+        <signal_cue_instantly cue="Report" param="table[$name = $Name, $ok = ($Problems == ''), $detail = (if $Problems == '' then $Detail else $Problems), $outcome = not $Killed]"/>
+        <do_for_each name="$Ship" in="[$Run.$wingman, $Run.$target]">
+          <do_if value="$Ship.exists">
+            <destroy_object object="$Ship"/>
+          </do_if>
+        </do_for_each>
+      </actions>
+    </library>
+
+    <!-- The target waits, as in the capture wing tests -->
+    <cue name="MissileInFlightHeld">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="MarkCombatTest"/>
+        <run_actions ref="SpawnMissileInFlight" result="$Run">
+          <param name="Fights" value="false"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="MissileInFlightHeld_Watch" checkinterval="0.2s" instantiate="true">
+          <actions>
+            <run_actions ref="CheckMissileInFlight" result="$Check">
+              <param name="Run" value="$Run"/>
+            </run_actions>
+            <do_if value="$Check.$done">
+              <cancel_cue cue="MissileInFlightHeld_Timeout"/>
+              <signal_cue_instantly cue="MissileInFlightHeld_Done" param="$Check.$problems"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="MissileInFlightHeld_Timeout">
+          <delay exact="240s"/>
+          <actions>
+            <signal_cue_instantly cue="MissileInFlightHeld_Done" param="if $Run.$launched then '' else ' no torpedo in 240 s;'"/>
+          </actions>
+        </cue>
+        <cue name="MissileInFlightHeld_Done">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="MissileInFlightHeld_Watch"/>
+            <run_actions ref="MissileInFlightDone">
+              <param name="Name" value="'missile_in_flight_held'"/>
+              <param name="Run" value="$Run"/>
+              <param name="Problems" value="event.param"/>
+            </run_actions>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- The target attacks the wingman, so it maneuvers when the torpedo comes -->
+    <cue name="MissileInFlightHeldFights">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="MarkCombatTest"/>
+        <run_actions ref="SpawnMissileInFlight" result="$Run">
+          <param name="Fights" value="true"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="MissileInFlightHeldFights_Watch" checkinterval="0.2s" instantiate="true">
+          <actions>
+            <run_actions ref="CheckMissileInFlight" result="$Check">
+              <param name="Run" value="$Run"/>
+            </run_actions>
+            <do_if value="$Check.$done">
+              <cancel_cue cue="MissileInFlightHeldFights_Timeout"/>
+              <signal_cue_instantly cue="MissileInFlightHeldFights_Done" param="$Check.$problems"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="MissileInFlightHeldFights_Timeout">
+          <delay exact="240s"/>
+          <actions>
+            <signal_cue_instantly cue="MissileInFlightHeldFights_Done" param="if $Run.$launched then '' else ' no torpedo in 240 s;'"/>
+          </actions>
+        </cue>
+        <cue name="MissileInFlightHeldFights_Done">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="MissileInFlightHeldFights_Watch"/>
+            <run_actions ref="MissileInFlightDone">
+              <param name="Name" value="'missile_in_flight_held_fights'"/>
+              <param name="Run" value="$Run"/>
+              <param name="Problems" value="event.param"/>
+            </run_actions>
           </actions>
         </cue>
       </cues>
