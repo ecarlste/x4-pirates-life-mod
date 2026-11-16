@@ -42,7 +42,7 @@ Paths use `SWI_UNPACKED` (the unpacked SWI 0.91 HF1), `X4_UNPACKED` (the unpacke
 
 ## Unusual things to know for capture tuning
 
-- **Astromech shields have `delay="0"`.** The `shield_s_r2astro`, `r1astro`, `r4astro`, `q7astro`, `s19astro` and `r2astrohead` macros regenerate (25-40 HP/s) **even while being hit**, with no recharge delay. Every X-wing, Y-wing, ARC-170, Delta-7, Eta-2, N-1, V-wing and Miy'til carries one. That is a small but constant drain on a wing trying to hold shields under 20%.
+- **Astromech shields have `delay="0"`, but that probably doesn't mean they recharge under fire.** The `shield_s_r2astro`, `r1astro`, `r4astro`, `q7astro`, `s19astro` and `r2astrohead` macros list no recharge delay (25-40 HP/s). Every X-wing, Y-wing, ARC-170, Delta-7, Eta-2, N-1, V-wing and Miy'til carries one, next to ordinary shields that do have a delay. A ship's shield generators add up to one shield, and Erik expects the other generators' delay still holds the whole of it back (2026-11-15). Not checked in game: the macros give each generator's numbers, not how the engine combines them.
 - **TIE/LN-family and droid fighters are a separate class** (`tie1` slot, 450-900 HP total, 25-30 HP/s, 10-14 s delay). Their shields are only 8-26% of hull.
 - **Big "S" ships out-shield many M ships:**
   - The Razor Crest, TIE Reaper and U-wing (6/6/5 slots) reach 16-18k shields.
