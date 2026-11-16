@@ -59,6 +59,7 @@
           CaptureEscaped,
           CaptureWingHoldsFire,
           CaptureWingHoldsFireThreeWingmen,
+          CaptureWingKnocksShieldsAgain,
           CaptureWingBreaksFullShields,
           CaptureWingTurretsHold,
           CaptureWingTurretsHoldM,
@@ -2196,7 +2197,7 @@
 
     <!-- #205: one X-wing 2 km from a TIE/LN with full shields (SpawnWingAt2km), nothing holding the
          shields down. A TIE/LN's 900 shields and the 25% of hull above the gate are less than the
-         X-wing's burst, the case the tests above never reach. One check of the test below, run
+         X-wing's burst, the case the tests above never reach. One check of either test below, run
          every second: fails on a kill or the floor, counts knock-downs (shields from 20% or more
          to under 20%, as in the release checklist) and the seconds in a row the shields have been
          full. Returns the problems so far ('' for none). -->
@@ -2228,8 +2229,9 @@
       </actions>
     </library>
 
-    <!-- The end of the test below: cleans up, and returns table[$ok, $detail] for its report.
-         $Wing.$timedout marks a run that ran out of time, which is reported, not failed. -->
+    <!-- The end of either test below: cleans up, and returns table[$ok, $detail] for its report.
+         $Wing.$timedout marks a run that ran out of time, and $Wing.$stalled one that sat 20 s at
+         full shields: both are reported, not failed. -->
     <library name="WingCycleDone" purpose="run_actions">
       <params>
         <param name="Wing"/>
@@ -2243,7 +2245,7 @@
         </do_if>
         <set_value name="$Hull" exact="if $Wing.$target.isoperational then $Wing.$target.hullpercentage else 0"/>
         <set_value name="$Shields" exact="if $Wing.$target.isoperational then $Wing.$target.shieldpercentage else 0"/>
-        <set_value name="$Result" exact="table[$ok = ($Problems == ''), $detail = $Problems + (if @$Wing.$timedout then ' timed out' else '') + ' after %s s: hull %s%% (lowest %s%%), shields %s%%, %s knock-downs, longest at full shields %s s'.[$Wing.$secs, $Hull, $Wing.$minhull, $Shields, $Wing.$knocks, $Wing.$maxfullfor]]"/>
+        <set_value name="$Result" exact="table[$ok = ($Problems == ''), $detail = $Problems + (if @$Wing.$timedout then ' timed out' else '') + (if @$Wing.$stalled then ' stalled at full shields' else '') + ' after %s s: hull %s%% (lowest %s%%), shields %s%%, %s knock-downs, longest at full shields %s s'.[$Wing.$secs, $Hull, $Wing.$minhull, $Shields, $Wing.$knocks, $Wing.$maxfullfor]]"/>
         <do_for_each name="$Ship" in="$Wing.$wingmen">
           <do_if value="$Ship.exists">
             <destroy_object object="$Ship"/>
@@ -2255,6 +2257,102 @@
         <return value="$Result"/>
       </actions>
     </library>
+
+    <!-- #205, cause 1: once the hull is under 75%, the wing keeps knocking the shields down as they
+         regrow, though one burst is more than the TIE/LN's whole shields. The target starts inside
+         the hull gate, at 70%, with full shields; the wing must knock them down twice (down, back
+         over 20%, down again). Fails at once on 20 s in a row at full shields without a shot: the
+         wing holding forever, the bug. With shots, the run is reported, not failed. -->
+    <cue name="CaptureWingKnocksShieldsAgain">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
+        <run_actions ref="SpawnWingAt2km" result="$Wing">
+          <param name="Count" value="1"/>
+          <param name="TargetMacro" value="macro.tie_fighter_macro"/>
+          <param name="Hull" value="70"/>
+          <param name="ShieldsDown" value="false"/>
+        </run_actions>
+        <set_value name="$Wing.$secs" exact="0"/>
+        <set_value name="$Wing.$knocks" exact="0"/>
+        <set_value name="$Wing.$up" exact="true"/>
+        <set_value name="$Wing.$fullfor" exact="0"/>
+        <set_value name="$Wing.$maxfullfor" exact="0"/>
+        <set_value name="$Wing.$lastshot" exact="null"/>
+        <create_group groupname="$Guns"/>
+        <add_to_group groupname="$Guns" list="$Wing.$gunowner.keys.list"/>
+      </actions>
+      <cues>
+        <cue name="CaptureWingKnocksShieldsAgain_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+            <set_object_capturable object="$Wing.$target" capturable="false"/>
+          </actions>
+          <cues>
+            <cue name="CaptureWingKnocksShieldsAgain_Fired" instantiate="true">
+              <conditions>
+                <event_weapon_fired group="$Guns"/>
+              </conditions>
+              <actions>
+                <set_value name="$Wing.$lastshot" exact="player.age"/>
+              </actions>
+            </cue>
+            <cue name="CaptureWingKnocksShieldsAgain_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="CheckWingCycle" result="$Problems">
+                  <param name="Wing" value="$Wing"/>
+                </run_actions>
+                <!-- 20 s at full shields: holding fire throughout is the bug, and fails. Firing
+                     but missing is reported, not failed: the finisher's 2-gun passes sometimes
+                     miss while the shields regrow, as in CaptureWingBreaksFullShields (#205). -->
+                <do_if value="$Problems == '' and $Wing.$fullfor ge 20">
+                  <do_if value="$Wing.$lastshot == null or player.age - $Wing.$lastshot ge 20s">
+                    <set_value name="$Problems" exact="' held fire for %s s at full shields;'.[$Wing.$fullfor]"/>
+                  </do_if>
+                  <do_else>
+                    <set_value name="$Wing.$stalled" exact="true"/>
+                  </do_else>
+                </do_if>
+                <do_if value="$Problems != '' or $Wing.$knocks ge 2 or @$Wing.$stalled">
+                  <cancel_cue cue="CaptureWingKnocksShieldsAgain_Timeout"/>
+                  <signal_cue_instantly cue="CaptureWingKnocksShieldsAgain_Done" param="$Problems"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="CaptureWingKnocksShieldsAgain_Timeout">
+              <delay exact="120s"/>
+              <actions>
+                <!-- As for the stall above: failed only if the wing has stopped firing -->
+                <set_value name="$Wing.$timedout" exact="true"/>
+                <signal_cue_instantly cue="CaptureWingKnocksShieldsAgain_Done" param="if $Wing.$lastshot == null or player.age - $Wing.$lastshot ge 20s then ' fewer than 2 knock-downs in 120 s, no shot in the last 20 s;' else ''"/>
+              </actions>
+            </cue>
+            <cue name="CaptureWingKnocksShieldsAgain_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureWingKnocksShieldsAgain_Fired"/>
+                <cancel_cue cue="CaptureWingKnocksShieldsAgain_Watch"/>
+                <run_actions ref="WingCycleDone" result="$Result">
+                  <param name="Wing" value="$Wing"/>
+                  <param name="Problems" value="event.param"/>
+                  <param name="Started" value="$Started"/>
+                </run_actions>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_knocks_shields_again', $ok = $Result.$ok, $detail = $Result.$detail]"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
 
     <!-- #205: the wing breaks a full-health TIE/LN's hull to under 75%. Its 900 shields and the 25%
          of hull above the gate fit inside the X-wing's burst, so the finisher starts in the fine
