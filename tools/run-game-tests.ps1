@@ -104,7 +104,7 @@
     10 minutes and checks what the mod left in it. The existing_save_loads and
     save_plays_without_mod checks read the logs, kept as debuglog.release-<n>.txt, and each session
     gets the log checks. A session that saves nothing stops the run. The profile is left with the
-    mod and the game tests on. Takes no -Test, -Repeat or -KeepExtension.
+    mod and the game tests on. Takes no -Test, -Repeat, -KeepExtension or -ReleaseTier.
 
 .PARAMETER ReleaseTier
     Run the release tier (make game-test RELEASE=1): every test in $Tests, the ones in the
@@ -475,9 +475,10 @@ function ConvertTo-JUnitXml($Run, [string[]] $Problems) {
     ) -join "`n"
 }
 
-# Each tier's time budget, for the whole run from launch to quit (docs/testing.md, Game test tiers):
-# make game-test is the PR tier, and -ReleaseTier (make game-test RELEASE=1) the release tier
-$TierBudgets = [ordered]@{
+# The game test tiers and each one's time budget, for the run from the game's launch to its quit
+# (docs/testing.md, Game test tiers): make game-test is the PR tier, and -ReleaseTier
+# (make game-test RELEASE=1) the release tier
+$Tiers = [ordered]@{
     pr = [pscustomobject]@{ Name = 'PR'; Seconds = 300; Command = 'make game-test'; Advice = 'move a slow test to `$ReleaseOnly` in the harness (docs/testing.md, Game test tiers)' }
     release = [pscustomobject]@{ Name = 'release'; Seconds = 1800; Command = 'make game-test RELEASE=1'; Advice = 'speed up the slowest tests (docs/testing.md, Game test tiers)' }
 }
@@ -487,15 +488,22 @@ $TierBudgets = [ordered]@{
 # release sessions, which have no tier.
 function Get-TierLines($Info) {
     if (-not $Info.Tier) { return }
-    $tier = $TierBudgets[$Info.Tier]
+    $tier = $Tiers[$Info.Tier]
     $budget = "budget $($tier.Seconds / 60) minutes"
     $skipped = @($Info.Skipped)
     $names = @($skipped | ForEach-Object { '`' + $_ + '`' }) -join ', '
     if ($Info.Tier -eq 'release') { "Release tier (``$($tier.Command)``): every test, $budget." }
-    elseif ($skipped.Count) { "PR tier (``$($tier.Command)``), $budget. Skipped $($skipped.Count) release-only tests, which ``$($TierBudgets.release.Command)`` runs: $names." }
+    elseif ($skipped.Count) { "PR tier (``$($tier.Command)``), $budget. Skipped $($skipped.Count) release-only tests, which ``$($Tiers.release.Command)`` runs: $names." }
     else { "PR tier (``$($tier.Command)``), $budget." }
+    $warning = Get-BudgetWarning $Info
+    if ($warning) { ''; $warning }
+}
+
+# The warning for a tier run over its tier's budget, in Markdown; nothing within it, or with no tier
+function Get-BudgetWarning($Info) {
+    if (-not $Info.Tier) { return }
+    $tier = $Tiers[$Info.Tier]
     if ($Info.DurationSeconds -gt $tier.Seconds) {
-        ''
         "**Over the $($tier.Name) tier's $($tier.Seconds / 60)-minute budget** ($(Format-Seconds $Info.DurationSeconds)): $($tier.Advice)."
     }
 }
@@ -809,8 +817,8 @@ if ($MyInvocation.InvocationName -eq '.') { return }
 if ($Release -and ($Test -or $Repeat -ne 1 -or $KeepExtension -or $ReleaseTier)) {
     throw '-Release runs its own sessions, so it takes no -Test, -Repeat, -KeepExtension or -ReleaseTier'
 }
-# The release tier's budget is longer than the default timeout
-if ($ReleaseTier -and -not $PSBoundParameters.ContainsKey('TimeoutSeconds')) { $TimeoutSeconds = 2400 }
+# The release tier's budget is longer than the default timeout: allow it, and 10 minutes over it
+if ($ReleaseTier -and -not $PSBoundParameters.ContainsKey('TimeoutSeconds')) { $TimeoutSeconds = $Tiers.release.Seconds + 600 }
 
 $root = Split-Path $PSScriptRoot -Parent
 if (-not $X4Path) { $X4Path = Resolve-Setting $root 'X4_PATH' '' }
@@ -842,10 +850,10 @@ $harnessPath = "md/$TestExtensionId.xml"
 $harnessText = Get-Content (Join-Path $root "tests/game/$TestExtensionId/$harnessPath") -Raw
 $available = @(Get-GameTestNames $harnessText)
 $skipped = if ($ReleaseTier -or $Release) { @() } else { @(Get-GameTestNames $harnessText 'ReleaseOnly') }
-$selection = [bool] ($Test -or $Repeat -ne 1)
-$tier = if ($selection -or $Release) { $null } elseif ($ReleaseTier) { 'release' } else { 'pr' }
+$isSelection = [bool] ($Test -or $Repeat -ne 1)
+$tier = if ($isSelection -or $Release) { $null } elseif ($ReleaseTier) { 'release' } else { 'pr' }
 $testList = $null
-if ($selection -or $skipped.Count) { $testList = @(Resolve-GameTestSelection $available $Test $Repeat $skipped) }
+if ($isSelection -or $skipped.Count) { $testList = @(Resolve-GameTestSelection $available $Test $Repeat $skipped) }
 $processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
 if ($PreflightOnly) {
     Assert-NoGameRunning $processNames
@@ -903,9 +911,9 @@ function Invoke-GameSession($Session) {
             Copy-Item (Join-Path $root "tests/game/$id") $dir -Recurse
         }
         $tests = Join-Path $extensionsDir $TestExtensionId
-        if ($testList) {
+        if ($null -ne $testList) {
             Edit-InstalledFile (Join-Path $tests $harnessPath) { param($t) Set-GameTestList $t $testList }
-            if ($selection) { Write-Host "Running $($testList.Count) selected tests: $(($testList | Select-Object -Unique) -join ', '), $Repeat times" }
+            if ($isSelection) { Write-Host "Running $($testList.Count) selected tests: $(($testList | Select-Object -Unique) -join ', '), $Repeat times" }
         }
         if ($tier -eq 'pr' -and $skipped.Count) { Write-Host "PR tier: skipping $($skipped.Count) release-only tests ($($skipped -join ', ')); RELEASE=1 runs them" }
         if ($Session) {
@@ -1023,7 +1031,7 @@ foreach ($c in $checks) {
 $problems = @(Get-RunProblems $run $ending)
 New-Item -ItemType Directory -Force -Path (Split-Path $ReportPath -Parent) | Out-Null
 [IO.File]::WriteAllText($ReportPath, (ConvertTo-JUnitXml $run $problems))
-$info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = $total; Phases = $phases; Selected = $selection; Release = [bool] $Release; Tier = $tier; Skipped = $skipped }
+$info = @{ Commit = $Commit; Branch = $Branch; Dirty = [bool] $Dirty; StartedAt = $startedAt; DurationSeconds = $total; Phases = $phases; Selected = $isSelection; Release = [bool] $Release; Tier = $tier; Skipped = $skipped }
 New-Item -ItemType Directory -Force -Path (Split-Path $MarkdownPath -Parent) | Out-Null
 [IO.File]::WriteAllText($MarkdownPath, (ConvertTo-MarkdownReport $run $problems $info) + "`n")
 
@@ -1032,7 +1040,8 @@ foreach ($e in $run.Errors) { Write-Host "  log error: $e" }
 if ($phases) { Write-Host ("Timings: " + (($phases | ForEach-Object { "$($_.Name -replace '\*', '') $(Format-Seconds $_.Seconds)" }) -join '; ')) }
 foreach ($t in (Get-RepeatTally $run.Results)) { Write-Host "Repeated: $($t.Name): $($t.Failed) of $($t.Runs) runs failed" }
 if ($run.Started -and $run.SetaDrops) { Write-Host "SETA dropped $($run.SetaDrops) times during the run" }
-if ($tier -and $total -gt $TierBudgets[$tier].Seconds) { Write-Host "WARNING: $(@(Get-TierLines $info)[-1] -replace '\*', '')" }
+$warning = Get-BudgetWarning $info
+if ($warning) { Write-Host "WARNING: $($warning -replace '\*\*', '')" }
 if (-not $Release) { Write-Host "Run traces: $written files in $runsDir (summary: node tools/summarize-game-runs.ts <folder>)" }
 if ($problems.Count) {
     Write-Host "GAME TESTS FAILED ($passed passed): $($problems -join '; ')"
