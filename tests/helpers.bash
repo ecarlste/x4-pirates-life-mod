@@ -110,3 +110,39 @@ deployed_setting() {
 write_game_lock() {
     printf 'token=other\nwhat=game-test\nrepo=x4-swi-bounty-hunter\nbranch=feature/other\npid=4242\nhost=windows\nstarted=2026-11-11T09:00:00Z\nheartbeat=1 2026-11-11T09:00:00Z\n' > "$X4_PATH/game.lock"
 }
+
+# A ticket in the game lock's line (<X4_PATH>/game.queue), as another waiter writes it: number $1,
+# what $2 (default deploy)
+write_game_ticket() {
+    mkdir -p "$X4_PATH/game.queue"
+    printf 'token=t%s\nwhat=%s\nrepo=x4-swi-bounty-hunter\nbranch=feature/waiter%s\npid=%s\nhost=windows\nstarted=2026-11-11T09:00:00Z\nheartbeat=1 2026-11-11T09:00:00Z\n' \
+        "$1" "${2:-deploy}" "$1" "$1" > "$X4_PATH/game.queue/$(printf '%06d' "$1")"
+}
+
+# Keeps ticket $1 changing, as a live waiter does, until the test kills $KEEPER_PID
+keep_game_ticket_fresh() {
+    local n=0 file
+    file="$X4_PATH/game.queue/$(printf '%06d' "$1")"
+    (
+        while [ -e "$file" ]; do
+            n=$((n + 1))
+            sed -i "s/^heartbeat=.*/heartbeat=$n now/" "$file" 2>/dev/null
+            sleep 0.2
+        done
+    ) &
+    KEEPER_PID=$!
+}
+
+# The tickets in the game lock's line, by file name
+game_tickets() {
+    local t
+    for t in "$X4_PATH"/game.queue/*; do [ -e "$t" ] && printf '%s ' "${t##*/}"; done
+    return 0
+}
+
+# Waits up to 30 s for a pattern in a file
+wait_for_text() {
+    for _ in $(seq 300); do grep -q "$2" "$1" 2>/dev/null && return 0; sleep 0.1; done
+    echo "timed out waiting for '$2' in $1: $(cat "$1" 2>/dev/null)"
+    return 1
+}

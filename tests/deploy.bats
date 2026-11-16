@@ -494,3 +494,141 @@ STUB
     [[ "$output" == *"Deploying working tree"* ]]
     [ ! -e "$X4_PATH/game.lock" ]
 }
+
+# --- The game lock's line -----------------------------------------------------
+
+@test "leaves no ticket in the line once it has the lock" {
+    deploy --working-tree
+    [ "$status" -eq 0 ]
+    [ -d "$X4_PATH/game.queue" ]
+    [ -z "$(game_tickets)" ]
+}
+
+@test "refuses at once when someone is in line, even with the lock free, naming them" {
+    write_game_ticket 1
+    keep_game_ticket_fresh 1
+
+    X4_GAME_LOCK_WAIT=0 deploy --working-tree
+    kill "$KEEPER_PID"
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"deploy (x4-swi-bounty-hunter, feature/waiter1)"* ]]
+    [ ! -e "$TARGET" ]
+    # Its own ticket is gone; the other waiter's stays
+    [ "$(game_tickets)" = "000001 " ]
+}
+
+@test "refuses at once naming both the holder and the line" {
+    write_game_lock
+    write_game_ticket 1
+
+    X4_GAME_LOCK_WAIT=0 deploy --working-tree
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"held by game-test (x4-swi-bounty-hunter, feature/other)"* ]]
+    [[ "$output" == *"deploy (x4-swi-bounty-hunter, feature/waiter1)"* ]]
+}
+
+@test "waits behind an earlier ticket even with the lock free, saying its place" {
+    write_game_ticket 1
+    keep_game_ticket_fresh 1
+    X4_GAME_LOCK_POLL=0.2 "$REPO/deploy.sh" --working-tree > "$SANDBOX/out" 2>&1 &
+    pid=$!
+    wait_for_text "$SANDBOX/out" "Waiting for the game lock"
+    [ ! -e "$TARGET" ]
+    # The waiter ahead takes its turn and leaves
+    rm -f "$X4_PATH/game.queue/000001"
+    kill "$KEEPER_PID" 2>/dev/null || true
+    status=0
+    wait "$pid" || status=$?
+
+    [ "$status" -eq 0 ]
+    grep -q "2nd in line, behind deploy (x4-swi-bounty-hunter, feature/waiter1)" "$SANDBOX/out"
+    [ -f "$TARGET/content.xml" ]
+    [ -z "$(game_tickets)" ]
+}
+
+@test "drops a ticket ahead of it that stopped changing, as from a crashed waiter" {
+    write_game_ticket 1
+
+    X4_GAME_LOCK_STALE=1 X4_GAME_LOCK_POLL=0.2 deploy --working-tree
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"feature/waiter1"*"looks crashed"* ]]
+    [ -f "$TARGET/content.xml" ]
+    [ -z "$(game_tickets)" ]
+}
+
+@test "only the first in line takes over a crashed holder's lock" {
+    write_game_lock
+    write_game_ticket 1
+    keep_game_ticket_fresh 1
+
+    X4_GAME_LOCK_STALE=1 X4_GAME_LOCK_POLL=0.2 X4_GAME_LOCK_WAIT=3 deploy --working-tree
+    kill "$KEEPER_PID"
+    [ "$status" -ne 0 ]
+    [[ "$output" != *"Taking over"* ]]
+    [[ "$(cat "$X4_PATH/game.lock")" == token=other* ]]
+    [ ! -e "$TARGET" ]
+}
+
+@test "gives up after X4_GAME_LOCK_WAIT seconds in line and leaves the line" {
+    write_game_lock
+
+    X4_GAME_LOCK_WAIT=1 X4_GAME_LOCK_POLL=0.2 deploy --working-tree
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"Waiting for the game lock: 1st in line; held by game-test (x4-swi-bounty-hunter, feature/other)"* ]]
+    [[ "$output" == *"held by game-test"*"Try again"* ]]
+    [ -z "$(game_tickets)" ]
+}
+
+@test "leaves the line when stopped while waiting" {
+    write_game_lock
+    X4_GAME_LOCK_POLL=0.2 "$REPO/deploy.sh" --working-tree > "$SANDBOX/out" 2>&1 &
+    pid=$!
+    wait_for_text "$SANDBOX/out" "Waiting for the game lock"
+    [ -n "$(game_tickets)" ]
+    # TERM, as a background job ignores Ctrl-C's INT; both run deploy.sh's EXIT trap
+    kill -TERM "$pid"
+    wait "$pid" || true
+
+    [ -z "$(game_tickets)" ]
+    [[ "$(cat "$X4_PATH/game.lock")" == token=other* ]]
+}
+
+@test "two waiting deploys take the lock in the order they joined" {
+    write_game_lock
+    X4_GAME_LOCK_POLL=0.2 "$REPO/deploy.sh" --working-tree > "$SANDBOX/first" 2>&1 &
+    first=$!
+    wait_for_text "$SANDBOX/first" "Waiting for the game lock"
+    X4_GAME_LOCK_POLL=0.2 "$REPO/deploy.sh" --working-tree > "$SANDBOX/second" 2>&1 &
+    second=$!
+    wait_for_text "$SANDBOX/second" "Waiting for the game lock"
+    rm -f "$X4_PATH/game.lock"
+    wait "$first"
+    wait "$second"
+
+    grep -q "2nd in line, behind deploy" "$SANDBOX/second"
+    # The first takes the lock while the second still waits behind it
+    grep -q "1 waiting behind you; keep this run short" "$SANDBOX/first"
+    run grep -c "waiting behind you" "$SANDBOX/second"
+    [ "$output" = 0 ]
+    [ -z "$(game_tickets)" ]
+    [ ! -e "$X4_PATH/game.lock" ]
+}
+
+@test "a lock its caller hands down skips the line" {
+    write_game_lock
+    write_game_ticket 1
+
+    X4_GAME_LOCK_WAIT=0 X4_GAME_LOCK_TOKEN=other deploy --working-tree
+    [ "$status" -eq 0 ]
+    [ -f "$TARGET/content.xml" ]
+    [ "$(game_tickets)" = "000001 " ]
+}
+
+@test "leaves the line when the deploy fails after taking the lock" {
+    echo 'not a folder' > "$TARGET"
+
+    deploy --working-tree
+    [ "$status" -ne 0 ]
+    [ -z "$(game_tickets)" ]
+    [ ! -e "$X4_PATH/game.lock" ]
+}

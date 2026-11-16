@@ -1,4 +1,4 @@
-.PHONY: setup deploy deploy-local deploy-dry-run test test-plan release doc-paths doc-names game-test game-test-locked game-test-report worktrees help
+.PHONY: setup deploy deploy-local deploy-dry-run test test-plan release doc-paths doc-names game-test game-test-locked game-test-report game-queue worktrees help
 
 # npm for make setup's install of the TypeScript tools' packages; override to use another
 NPM ?= npm
@@ -23,6 +23,7 @@ help:
 	@echo "  make doc-names      - Check the docs and tools name no removed mod global or game test (make test runs it too)"
 	@echo "  make game-test      - Deploy your working tree and run the in-game tests in the X4 8.00 copy (Windows),"
 	@echo "                       holding the game lock so no other run uses the game meanwhile"
+	@echo "  make game-queue     - Show who holds the game lock and who waits in line for it, with ages"
 	@echo "  make game-test-report - Post the last game-test report to this branch's PR (comment and check)"
 	@echo "  make worktrees      - List worktrees; flag uncommitted or unpushed work not yet on main"
 	@echo "  make help           - Show this help message"
@@ -89,6 +90,9 @@ game-test-locked:
 	@$(GAME_TEST_RUNNER) -PreflightOnly $(RUNNER_ARGS)
 	@./deploy.sh --working-tree $(ARGS)
 	@$(GAME_TEST_RUNNER) $(GAME_TEST_GIT) $(RUNNER_ARGS)
+
+game-queue:
+	@tools/game-lock.sh --queue
 
 game-test-report:
 	@tools/post-game-test-report.sh $(ARGS)
