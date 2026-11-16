@@ -16,7 +16,9 @@
      -Test and -Repeat, and a PR-tier run leaving out $ReleaseOnly, rewrite it in the installed
      copy, so keep its layout), to $ReleaseOnly too if it's too slow for the PR tier, and to
      $ReleaseRuns if the release tier should hold its outcome to a pass bar. Set any mod
-     setting the test relies on, so settings overridden at deploy time can't change its outcome. -->
+     setting the test relies on, so settings overridden at deploy time can't change its outcome.
+     Tests run under SETA at 6x. A combat test (its pass, fail or numbers depend on damage landing)
+     runs MarkCombatTest as its first action instead, and runs at 1x (docs/testing.md, Game tests). -->
 <mdscript name="APiratesLife_Tests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
   <cues>
     <cue name="Run">
@@ -92,6 +94,8 @@
              MD (docs/testing.md, Game test tiers) -->
         <set_value name="$ReleaseRuns" exact="[]"/>
         <set_value name="$Index" exact="0"/>
+        <!-- True while a combat test runs (MarkCombatTest): SETA stays off until it reports -->
+        <set_value name="$CombatRunning" exact="false"/>
         <set_value name="$Passed" exact="0"/>
         <set_value name="$Failed" exact="0"/>
       </actions>
@@ -113,7 +117,8 @@
         </cue>
 
         <!-- SETA drops whenever something interrupts it (a help message, a wingman's comm call, an
-             enemy nearby); switch it back on once the game allows it again -->
+             enemy nearby); switch it back on once the game allows it again, unless a combat test
+             is running -->
         <cue name="QuietOrdersDone">
           <conditions>
             <event_ui_triggered screen="'apirateslife_tests'" control="'quietOrders'"/>
@@ -126,7 +131,7 @@
         <cue name="KeepSeta" instantiate="true" checkinterval="2s">
           <conditions>
             <check_value value="Begin.state == cuestate.complete"/>
-            <check_value value="not player.timewarp.active and player.timewarp.available"/>
+            <check_value value="not $CombatRunning and not player.timewarp.active and player.timewarp.available"/>
           </conditions>
           <actions>
             <toggle_timewarp/>
@@ -170,6 +175,15 @@
             <event_cue_signalled/>
           </conditions>
           <actions>
+            <!-- A combat test is over: SETA back on, if the game allows it yet (KeepSeta
+                 catches it later if not) -->
+            <do_if value="$CombatRunning">
+              <set_value name="$CombatRunning" exact="false"/>
+              <do_if value="not player.timewarp.active and player.timewarp.available">
+                <toggle_timewarp/>
+                <set_timewarp_factor factor="6s"/>
+              </do_if>
+            </do_if>
             <set_value name="$Outcome" exact="''"/>
             <do_if value="event.param.$outcome? and event.param.$outcome">
               <set_value name="$Outcome" exact="' outcome=met'"/>
@@ -380,6 +394,20 @@
     </cue>
 
     <!-- ===== Helpers ===== -->
+
+    <!-- Marks the running test as a combat test: its pass, fail or numbers depend on damage
+         landing, and SETA at 6x cuts the hits that land (#216: nose-on fire at 600-1400 m landed in
+         32% of seconds against 97-100% at 1x). Players fight at 1x, since the game stops SETA with
+         enemies nearby, so SETA goes off here and KeepSeta leaves it off until the test reports.
+         A combat test's first action (tests/python/test_game_tests_list.py checks it). -->
+    <library name="MarkCombatTest" purpose="run_actions">
+      <actions>
+        <set_value name="Run.$CombatRunning" exact="true"/>
+        <do_if value="player.timewarp.active">
+          <toggle_timewarp/>
+        </do_if>
+      </actions>
+    </library>
 
     <!-- A player-owned X-wing and a crewless Imperial TIE Advanced at full hull, 2-3 km from the
          player. With no crew, the first bail takes the pilot and leaves the ship ownerless. Returns
@@ -1896,6 +1924,7 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
+        <run_actions ref="MarkCombatTest"/>
         <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
         <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
@@ -2130,6 +2159,7 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
+        <run_actions ref="MarkCombatTest"/>
         <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
         <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
@@ -2290,6 +2320,7 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
+        <run_actions ref="MarkCombatTest"/>
         <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
         <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
@@ -2385,6 +2416,7 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
+        <run_actions ref="MarkCombatTest"/>
         <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
         <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
@@ -2583,6 +2615,7 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
+        <run_actions ref="MarkCombatTest"/>
         <run_actions ref="TurretTestSetup" result="$Wing">
           <param name="Macro" value="macro.ywing_btla4_macro"/>
           <param name="Loadout" value="'apirateslife_test_ywing_turret'"/>
@@ -2674,6 +2707,7 @@
         <event_cue_signalled/>
       </conditions>
       <actions>
+        <run_actions ref="MarkCombatTest"/>
         <run_actions ref="TurretTestSetup" result="$Wing">
           <param name="Macro" value="macro.yt1300_01_a_macro"/>
           <param name="Loadout" value="'apirateslife_test_yt1300_turrets'"/>

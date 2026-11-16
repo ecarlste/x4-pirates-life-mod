@@ -3,7 +3,8 @@ one test per line, so parallel branches that each add a test don't conflict on o
 the list matches the root test cues, so a test someone forgot to list doesn't silently never run.
 The $ReleaseOnly list (the tests only the release tier runs) is laid out the same way, or empty as
 "[]", and names only tests in $Tests. So is $ReleaseRuns (the tests the release tier runs more than
-once, against a pass bar), with [<test>, <runs>, <passes needed>] entries."""
+once, against a pass bar), with [<test>, <runs>, <passes needed>] entries.
+Also checks that a combat test (docs/testing.md) marks itself as its first action."""
 import os
 import re
 import unittest
@@ -57,6 +58,19 @@ def root_test_cues(root):
     return cues
 
 
+def combat_mark_problems(root):
+    """A combat test runs MarkCombatTest (SETA off until it reports) as the first action of its own
+    cue, so nothing it sets up or fights runs under SETA first."""
+    problems = []
+    for name in root_test_cues(root):
+        cue = root.find("./cues/cue[@name='%s']" % name)
+        marks = [e for e in cue.iter("run_actions") if e.get("ref") == "MarkCombatTest"]
+        first = cue.find("./actions/*")
+        if marks and not (len(marks) == 1 and marks[0] is first):
+            problems.append("%s runs MarkCombatTest after other actions: a combat test marks itself first, so SETA is off from its start" % name)
+    return problems
+
+
 def release_only_problems(text, tests):
     """Every problem with the $ReleaseOnly list: its format (or "[]" when empty), and names not in
     $Tests (tests, or None when $Tests itself couldn't be read)."""
@@ -100,7 +114,8 @@ def release_runs_problems(text, tests):
 
 def harness_problems(text):
     """Every problem with the lists in the harness text: $Tests's format, listed names with no
-    root cue, and root test cues it doesn't list; then $ReleaseOnly's and $ReleaseRuns's."""
+    root cue, root test cues it doesn't list, and combat tests that don't mark themselves first;
+    then $ReleaseOnly's and $ReleaseRuns's."""
     found = re.findall(LIST % "Tests", text)
     if len(found) != 1:
         return ["expected one $Tests list, found %d" % len(found)]
@@ -110,6 +125,7 @@ def harness_problems(text):
         roots = {cue.get("name") for cue in root.findall("./cues/cue")}
         problems += ["$Tests lists %s, but there's no root cue by that name" % n for n in names if n not in roots]
         problems += ["%s is a test cue missing from $Tests, so it never runs" % n for n in root_test_cues(root) if n not in names]
+        problems += combat_mark_problems(root)
     return problems + release_only_problems(text, names) + release_runs_problems(text, names)
 
 
@@ -134,6 +150,19 @@ def make_test_cue(name):
     <cues><cue name="%s_Timeout"><delay exact="1s"/>
       <actions><signal_cue_instantly cue="Report" param="table[]"/></actions></cue></cues>
   </cue>""" % (name, name)
+
+
+def make_combat_cue(name, first):
+    """A test cue whose actions are first and then a spawn, and which reports from a sub-cue."""
+    return """<cue name="%s">
+    <conditions><event_cue_signalled/></conditions>
+    <actions>%s<set_value name="$Ship" exact="null"/></actions>
+    <cues><cue name="%s_Timeout"><delay exact="1s"/>
+      <actions><signal_cue_instantly cue="Report" param="table[]"/></actions></cue></cues>
+  </cue>""" % (name, first, name)
+
+
+COMBAT_MARK = '<run_actions ref="MarkCombatTest"/>'
 
 
 class GameTestsList(unittest.TestCase):
@@ -212,6 +241,22 @@ class GameTestsList(unittest.TestCase):
         helper = '<cue name="Helper"><conditions><event_cue_signalled/></conditions></cue>'
         text = make_harness("[\n  A\n]", make_test_cue("A") + helper)
         self.assertEqual(harness_problems(text), [])
+
+    def test_combat_test_marked_first_passes(self):
+        text = make_harness("[\n  A\n]", make_combat_cue("A", COMBAT_MARK))
+        self.assertEqual(harness_problems(text), [])
+
+    def test_combat_test_marked_after_setup_is_flagged(self):
+        late = '<set_value name="$Ship" exact="null"/>' + COMBAT_MARK
+        text = make_harness("[\n  A\n]", make_combat_cue("A", late))
+        self.assertEqual(harness_problems(text), [
+            "A runs MarkCombatTest after other actions: a combat test marks itself first, so SETA is off from its start"])
+
+    def test_combat_test_marked_in_sub_cue_is_flagged(self):
+        cue = make_test_cue("A").replace("<actions>", "<actions>" + COMBAT_MARK)
+        text = make_harness("[\n  A\n]", cue)
+        self.assertEqual(harness_problems(text), [
+            "A runs MarkCombatTest after other actions: a combat test marks itself first, so SETA is off from its start"])
 
 
 if __name__ == "__main__":

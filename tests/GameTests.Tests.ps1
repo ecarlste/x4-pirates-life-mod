@@ -587,7 +587,7 @@ Describe 'ConvertTo-MarkdownReport' {
         $info = $script:Info.Clone()
         $info.Phases = @(Get-RunPhases @{ menu = 34.0; tests = 80.0; done = 150.0 } 160.0)
         $md = ConvertTo-MarkdownReport $run (Get-RunProblems $run 'finished') $info
-        $md | Should -BeLike '*SETA stayed on for the whole run.*'
+        $md | Should -BeLike '*SETA never dropped outside the combat tests, which switch it off on purpose.*'
         $md.Contains('| X4 starts, to the main menu | 34 s |') | Should -BeTrue
         $md.Contains('| **Total** | 2 min 40 s |') | Should -BeTrue
 

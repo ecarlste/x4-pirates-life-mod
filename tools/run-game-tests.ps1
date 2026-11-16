@@ -605,7 +605,7 @@ function ConvertTo-MarkdownReport($Run, [string[]] $Problems, $Info) {
     }
     if ($Run.Started) {
         $lines += ''
-        $lines += $(if ($Run.SetaDrops) { "SETA dropped $($Run.SetaDrops) times during the run (switched back on each time)." } else { 'SETA stayed on for the whole run.' })
+        $lines += $(if ($Run.SetaDrops) { "SETA dropped $($Run.SetaDrops) times during the run (switched back on each time)." } else { 'SETA never dropped outside the combat tests, which switch it off on purpose.' })
     }
     if ($Info.Phases) {
         $lines += ''
