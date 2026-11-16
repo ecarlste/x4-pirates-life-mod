@@ -91,6 +91,52 @@ Describe 'run-game-tests.ps1' {
         (Get-Content $markdown -Raw) | Should -Not -BeLike '*tier*'
     }
 
+    It 'runs a $ReleaseRuns test its runs on the release tier, once on the PR tier, and holds it to its bar' {
+        # A copy of the runner with a harness whose $ReleaseRuns lists a test: the repo's list may be empty
+        $copy = Join-Path $root 'repo'
+        foreach ($file in 'run-game-tests.ps1', 'deploy-config.ps1', 'game-lock.ps1') {
+            Write-LfFile "$copy/tools/$file" (Get-Content (Join-Path $script:RepoRoot "tools/$file") -Raw)
+        }
+        Copy-Item (Join-Path $script:RepoRoot 'tests/game/apirateslife_tests') "$copy/tests/game/apirateslife_tests" -Recurse
+        $harness = "$copy/tests/game/apirateslife_tests/md/apirateslife_tests.xml"
+        Write-LfFile $harness ((Get-Content $harness -Raw) -replace '<set_value name="\$ReleaseRuns" exact="\[\]"/>', "<set_value name=`"`$ReleaseRuns`" exact=`"[`n          [CaptureWingHoldsFire, 3, 2]`n        ]`"/>")
+        $runner = "$copy/tools/run-game-tests.ps1"
+        $installed = "$x4/extensions/apirateslife_tests/md/apirateslife_tests.xml"
+        $wing = { param($outcome) "[Scripts] 2.00 *** Context:x: [apirateslife-test] PASS capture_wing_holds_fire outcome=$($outcome): lowest hull 60%" }
+
+        # PR tier: once, and a missed outcome passes
+        Set-Content $env:FAKE_SOURCE_LOG ($script:PassingLog[0..6] + @(
+            '[Scripts] 1.00 *** Context:x: [apirateslife-test] RUN START 1 tests'
+            (& $wing 'missed')
+            '[Scripts] 5.00 *** Context:x: [apirateslife-test] DONE passed=1 failed=0'
+        ))
+        $r = Invoke-Script $runner ($runArgs + @('-KeepExtension'))
+        $r.ExitCode | Should -Be 0
+        $r.Output | Should -BeLike '*PASS capture_wing_holds_fire (outcome missed): lowest hull 60%*'
+        $r.Output | Should -Not -BeLike '*pass bar*'
+        @(Get-GameTestNames (Get-Content $installed -Raw) | Where-Object { $_ -eq 'CaptureWingHoldsFire' }).Count | Should -Be 1
+
+        # Release tier: three runs in a row, two met passes the bar
+        $lines = { param([string[]] $outcomes) $script:PassingLog[0..6] + @('[Scripts] 1.00 *** Context:x: [apirateslife-test] RUN START 3 tests') + @($outcomes | ForEach-Object { & $wing $_ }) + @('[Scripts] 5.00 *** Context:x: [apirateslife-test] DONE passed=3 failed=0') }
+        Set-Content $env:FAKE_SOURCE_LOG (& $lines @('met', 'missed', 'met'))
+        $r = Invoke-Script $runner ($runArgs + @('-ReleaseTier', '-KeepExtension'))
+        $r.ExitCode | Should -Be 0
+        $names = @(Get-GameTestNames (Get-Content $installed -Raw))
+        $at = [array]::IndexOf($names, 'CaptureWingHoldsFire')
+        $names[$at..($at + 3)] | Should -Be @('CaptureWingHoldsFire', 'CaptureWingHoldsFire', 'CaptureWingHoldsFire', $names[$at + 3])
+        $names[$at + 3] | Should -Not -Be 'CaptureWingHoldsFire'
+        $r.Output | Should -BeLike '*Release runs: capture_wing_holds_fire: 2 of 3, needs 2*'
+        (Get-Content $markdown) | Should -Contain '| `capture_wing_holds_fire` | 2 of 3, needs 2 | pass |'
+        $r.Output | Should -Not -BeLike '*below its pass bar*'
+
+        # Below the bar fails the release run
+        Set-Content $env:FAKE_SOURCE_LOG (& $lines @('met', 'missed', 'missed'))
+        $r = Invoke-Script $runner ($runArgs + @('-ReleaseTier'))
+        $r.Output | Should -BeLike '*GAME TESTS FAILED*: capture_wing_holds_fire below its pass bar: 1 of 3, needs 2*'
+        $r.Output | Should -Not -BeLike '*failed: capture_wing_holds_fire*'
+        $r.ExitCode | Should -Be 1
+    }
+
     It 'refuses -ReleaseTier with -Release, which runs its own sessions' {
         $r = Invoke-Script $script:Runner ($runArgs + @('-Release', '-ReleaseTier'))
         $r.ExitCode | Should -Not -Be 0
