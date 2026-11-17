@@ -92,7 +92,7 @@ public static extern bool MoveFileEx(string from, string to, int flags);
 # Writes the lock's lines to $File (default: the lock itself; a waiter's ticket has the same lines):
 # to a file beside it first, then moved over it, so a waiter reading it sees the old or the new
 # lines, never an empty or half-written file. Throws if a reader holds it open (Windows); the
-# callers retry next time
+# callers retry: the first write at once (Write-GameLockFirst), the rest next time
 function Write-GameLockFile($Lock, [string] $File = $Lock.File) {
     $now = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
     $text = "token=$($Lock.Token)`nwhat=$($Lock.What)`nrepo=$($Lock.Repo)`nbranch=$($Lock.Branch)`npid=$PID`nhost=$($Lock.Host)`nstarted=$($Lock.Started)`nheartbeat=$($Lock.Beat) $now`n"
@@ -104,6 +104,21 @@ function Write-GameLockFile($Lock, [string] $File = $Lock.File) {
     catch {
         Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
         throw
+    }
+}
+
+# Writes a newly taken lock's first lines. A waiter watching it may have it open right now
+# (Windows), so it retries for about a second; past that it throws, failing the run, and the empty
+# lock goes stale for the next in line to take over
+function Write-GameLockFirst($Lock, $Stale) {
+    for ($try = 1; ; $try++) {
+        try { Write-GameLockFile $Lock; return }
+        catch [IO.IOException], [UnauthorizedAccessException] {
+            if ($try -ge 50) {
+                throw "Took the game lock ($($Lock.File)) but couldn't write its first lines: $($_.Exception.Message). It's left empty, so the next in line takes it over once it has sat unchanged for $Stale s"
+            }
+            Start-Sleep -Milliseconds 20
+        }
     }
 }
 
@@ -220,20 +235,24 @@ function Enter-GameLock([string] $File, [string] $What, [string] $Root) {
                 $seenAt = $clock.Elapsed.TotalSeconds
             }
             if ($ahead.Count -eq 0) {
+                $taken = $false
                 try {
                     # CreateNew is exclusive: an old taker that skips the line may beat us
                     [IO.File]::Open($File, 'CreateNew', 'Write', 'ReadWrite').Dispose()
+                    $taken = $true
+                }
+                catch [IO.IOException], [UnauthorizedAccessException] { }
+                if ($taken) {
                     $lock.Owned = $true
                     $lock.Beat = 0
                     $lock.Started = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
                     $lock.Clock.Restart()
-                    Write-GameLockFile $lock
+                    Write-GameLockFirst $lock $stale
                     Remove-Item -LiteralPath $ticket -Force -ErrorAction SilentlyContinue
                     $behind = @(Get-GameLockTickets $queue).Count
                     if ($behind -gt 0) { Write-Host "Took the game lock; $behind waiting behind you; keep this run short" }
                     return $lock
                 }
-                catch [IO.IOException], [UnauthorizedAccessException] { }
                 if ($null -ne $seen -and $clock.Elapsed.TotalSeconds - $seenAt -ge $stale -and
                     (Read-GameLockWatch $File) -eq $seen) {
                     # Only if it's still the same text: an old taker may have taken it over just now

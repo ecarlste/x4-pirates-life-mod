@@ -269,3 +269,63 @@ Describe "the game lock's rewrites" {
         $torn | Should -Be 0
     }
 }
+
+# A waiter watching the lock may have a newly taken one open while its taker writes the first lines;
+# on Windows that blocks the rename. Only Windows shows the failure (tests/run.sh --windows-powershell)
+Describe 'taking the game lock while a waiter reads it' {
+    BeforeAll {
+        . (Join-Path $script:RepoRoot 'tools/game-lock.ps1')
+        # Opens the lock as soon as it exists, as a waiter's read does, and holds it $HoldMs. Returns
+        # the length it found, so 0 shows it opened the lock before its first lines were written
+        function Start-TestLockReader([string] $File, [int] $HoldMs) {
+            $ready = [hashtable]::Synchronized(@{ Spinning = $false })
+            $reader = [powershell]::Create().AddScript({
+                param($File, $HoldMs, $Ready)
+                $Ready.Spinning = $true
+                $deadline = [DateTime]::UtcNow.AddSeconds(10)
+                while ([DateTime]::UtcNow -lt $deadline) {
+                    try { $stream = [IO.File]::Open($File, 'Open', 'Read', 'Read') } catch { continue }
+                    try { $length = $stream.Length; Start-Sleep -Milliseconds $HoldMs; return $length }
+                    finally { $stream.Dispose() }
+                }
+                -1
+            }).AddArgument($File).AddArgument($HoldMs).AddArgument($ready)
+            $run = $reader.BeginInvoke()
+            while (-not $ready.Spinning) { Start-Sleep -Milliseconds 10 }
+            [pscustomobject]@{ PowerShell = $reader; Run = $run }
+        }
+        function Stop-TestLockReader($Reader) {
+            $length = $Reader.PowerShell.EndInvoke($Reader.Run)
+            $Reader.PowerShell.Dispose()
+            [long] $length[0]
+        }
+    }
+    BeforeEach { $dir = New-TestDir; $file = Join-Path $dir 'game.lock' }
+    AfterEach { Clear-GameLockEnv; Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue }
+
+    It 'retries its first lines until the waiter lets go' {
+        Set-GameLockEnv @{ X4_GAME_LOCK_WAIT = 2; X4_GAME_LOCK_POLL = 0.2 }
+        $reader = Start-TestLockReader $file 300
+
+        $lock = Enter-GameLock $file 'deploy' $script:RepoRoot
+        try {
+            $length = Stop-TestLockReader $reader
+            # On Windows it held the lock open while still empty. Elsewhere nothing blocks the rename,
+            # so the taker may finish before the reader gets in
+            if ($script:OnWindows) { $length | Should -Be 0 }
+            $lock.Owned | Should -BeTrue
+            Get-GameLockField (Read-GameLockText $file) 'token' | Should -Be $lock.Token
+        }
+        finally { Exit-GameLock $lock }
+    }
+
+    It 'fails, leaving the empty lock to go stale, if the waiter never lets go' -Skip:($env:OS -ne 'Windows_NT') {
+        Set-GameLockEnv @{ X4_GAME_LOCK_WAIT = 2; X4_GAME_LOCK_POLL = 0.2 }
+        $reader = Start-TestLockReader $file 3000
+
+        { Enter-GameLock $file 'deploy' $script:RepoRoot } | Should -Throw "*couldn't write its first lines*"
+        Stop-TestLockReader $reader | Should -Be 0
+        Get-TestFile $file | Should -Be ''
+        Get-TestGameTickets $dir | Should -Be ''
+    }
+}
