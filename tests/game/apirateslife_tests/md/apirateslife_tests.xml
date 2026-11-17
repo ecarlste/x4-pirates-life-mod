@@ -17,6 +17,8 @@
      copy, so keep its layout), to $ReleaseOnly too if it's too slow for the PR tier, and to
      $ReleaseRuns if the release tier should hold its outcome to a pass bar. Set any mod
      setting the test relies on, so settings overridden at deploy time can't change its outcome.
+     Sub-cues start when the parent's conditions are met, not after its delay, and their delays
+     count from the parent's activation (docs/research/automated-game-testing.md, First runs in game).
      Tests run under SETA at 6x. A combat test (its pass, fail or numbers depend on damage landing)
      runs MarkCombatTest as its first action instead, and runs at 1x (docs/testing.md, Game tests). -->
 <mdscript name="APiratesLife_Tests" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="md.xsd">
