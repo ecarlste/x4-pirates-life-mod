@@ -10,8 +10,14 @@ The skills speak in terms of five canonical triage roles. This file maps those r
 | `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
 | `wontfix`                  | `wontfix`            | Will not be actioned                     |
 
-One more label sits outside the triage roles: **`idea`**, a parked idea Erik hasn't agreed to build. Don't give it a triage label: it moves to `needs-triage` only when Erik wants to decide on it. File new ideas as issues titled `Idea: …` with this label.
-
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
 
 Edit the "Label in our tracker" column to match whatever vocabulary you actually use.
+
+## Ideas
+
+One more label sits outside the triage roles: [`idea`](https://github.com/ecarlste/x4-pirates-life-mod/issues?q=is%3Aopen+label%3Aidea), for an idea Erik hasn't agreed to build. File a new idea as an issue titled `Idea: …` with this label, and no triage label.
+
+- **Erik wants to decide on it:** swap `idea` for `needs-triage`.
+- **Erik agrees to it:** drop `idea`; the agreed design goes into `DESIGN.md` ([domain.md](domain.md#recording-decisions-in-place-of-adrs)), and the issue becomes the work's ticket or links the one that does.
+- **Erik rejects it:** see [rejected/README.md](../rejected/README.md#rejecting-an-idea).

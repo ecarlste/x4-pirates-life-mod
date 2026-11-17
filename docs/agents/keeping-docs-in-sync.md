@@ -14,9 +14,10 @@ Some updates are left out of the table because a check fails when they're missed
 | A test now covers a `@pending` or `@manual` scenario | Swap the tag for the test's name |
 | Building a feature changes its design | Update its spec |
 | Erik signs off a design choice or change | `DESIGN.md`, in the same PR as the work or its own `docs/` PR |
+| An idea comes up that isn't agreed | An `Idea: …` issue labelled `idea` ([how](triage-labels.md#ideas)) |
 | Research or other work suggests a design change not yet signed off | A "Design proposals" list in the PR description; not `DESIGN.md` |
 | Erik rejects a design idea | Move it into `docs/rejected/` ([how](../rejected/README.md#rejecting-an-idea)) |
-| Erik approves reopening a rejected idea | Move it back into research ([how](../rejected/README.md#reopening-a-rejected-idea)) |
+| Erik approves reopening a rejected idea | Move it back into research or reopen its `idea` issue ([how](../rejected/README.md#reopening-a-rejected-idea)) |
 | A research note is added or changes status | Its row in `docs/research/README.md` |
 | A research spike finishes | Notes in `docs/research/`; update the plan's order and items to match |
 | A key decision changes (target version, DLC, architecture) | "Key decisions" in `docs/PROJECT.md`, and `DESIGN.md` |

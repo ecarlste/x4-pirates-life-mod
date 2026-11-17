@@ -2,7 +2,7 @@
 
 > **This describes the 9.x line,** parked on the [`9.x`](https://github.com/ecarlste/x4-pirates-life-mod/tree/9.x) branch. Booty, the pirate variants and the in-game settings page left `main`; their specs and code are on `9.x`. The **SWI build** (X4 8.00 + SWI 0.91 HF1, S/M capture) is the main focus and is tracked on the map [SWI build with S/M capture](https://github.com/ecarlste/x4-pirates-life-mod/issues/89); see [PROJECT.md, Key decisions](PROJECT.md#key-decisions). The pillars and key decisions still apply to it.
 
-> The agreed design, and its source of truth. Changes need Erik's sign-off and go through PRs; ideas still being explored live in [`research/`](research/README.md) and in issues labelled [`idea`](https://github.com/ecarlste/x4-pirates-life-mod/issues?q=is%3Aopen+label%3Aidea).
+> The agreed design, and its source of truth. Changes need Erik's sign-off and go through PRs; ideas still being explored live in [`research/`](research/README.md) and in [`idea` issues](agents/triage-labels.md#ideas).
 
 ## Vision and goals
 
