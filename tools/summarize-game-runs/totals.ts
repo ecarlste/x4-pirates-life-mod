@@ -1,6 +1,6 @@
 // A batch of one test's runs summed up (summarize-game-runs --totals): the figures each run's
 // summary (summary.ts) already holds, added or ranked across the runs. It reads no new log lines.
-import type { RunSummary, WingmanTrace } from "./summary.ts";
+import type { Outcome, RunSummary, WingmanTrace } from "./summary.ts";
 
 /** Bail checks per run and seconds inside the bail gates per run, as means */
 interface BailMeans {
@@ -30,7 +30,7 @@ export interface Totals {
   /** Each wingman's combat trace lines ("N of M") summed, with the runs that logged one */
   combatTrace: (WingmanTrace & { runs: number })[];
   /** The bail checks across the runs, and the means per run */
-  bail: { checks: number; meanChecks: number; meanInGatesSeconds: number };
+  bail: BailMeans & { checks: number };
   /** The runs by their split verdict, for a test that reports one; each miss's odds that none of
    * its checks bailed, lowest first, show whether it lost its rolls or had too few */
   byOutcome: { met?: BailMeans; missed?: BailMeans & { noBailChances: number[] } };
@@ -88,7 +88,6 @@ export function totalRuns(runs: RunSummary[]): Totals {
   const byOutcome: Totals["byOutcome"] = {};
   if (met.length) byOutcome.met = bailMeans(met);
   if (missed.length) byOutcome.missed = { ...bailMeans(missed), noBailChances: missed.map((r) => r.noBailChance).sort((a, b) => a - b) };
-  const all = bailMeans(runs);
 
   return {
     runs: runs.length,
@@ -102,7 +101,7 @@ export function totalRuns(runs: RunSummary[]): Totals {
     gate: { reached: gates.length, times: gates.length ? { p50: percentile(gates, 50), p90: percentile(gates, 90) } : undefined },
     gunSwaps: { count: runs.reduce((n, r) => n + r.gunSwaps.length, 0), runs: runs.filter((r) => r.gunSwaps.length).length },
     combatTrace: [...traces.values()],
-    bail: { checks: runs.reduce((n, r) => n + r.bailChecks.length, 0), meanChecks: all.meanChecks, meanInGatesSeconds: all.meanInGatesSeconds },
+    bail: { ...bailMeans(runs), checks: runs.reduce((n, r) => n + r.bailChecks.length, 0) },
     byOutcome,
   };
 }
@@ -129,11 +128,13 @@ export function formatTotals(test: string, t: Totals): string {
         `  combat trace, wingman ${w.wingman} (${w.runs} runs): ${round(w.seconds)} s, shots ${w.shots}, overheats ${w.overheats}; ` +
         `seconds with damage/fired/in band: ${w.bands.map((b) => `${b.band} ${b.damage}/${b.fired}/${b.inBand}`).join(", ")}`,
     ),
-    `  bail checks: ${t.bail.checks}, mean ${round(t.bail.meanChecks)} per run; in the gates: mean ${round(t.bail.meanInGatesSeconds)} s per run`,
-    ...(["met", "missed"] as const).flatMap((o) => {
+    t.bail.checks || t.bail.meanInGatesSeconds
+      ? `  bail checks: ${t.bail.checks}, mean ${round(t.bail.meanChecks)} per run; in the gates: mean ${round(t.bail.meanInGatesSeconds)} s per run`
+      : "  bail checks: none",
+    ...(["met", "missed"] satisfies Outcome[]).flatMap((o) => {
       const b = t.byOutcome[o];
       if (!b) return [];
-      const odds = "noBailChances" in b ? `; P(no bail) each: ${b.noBailChances.map((p) => `${round(p * 100)}%`).join(", ")}` : "";
+      const odds = "noBailChances" in b ? `; P(no bail) each: ${b.noBailChances.map((p) => `${round(p * 100, 1)}%`).join(", ")}` : "";
       return [`  outcome ${o} in ${b.runs} of ${t.runs} runs: mean ${round(b.meanChecks)} bail checks, ${round(b.meanInGatesSeconds)} s in the gates${odds}`];
     }),
   ];

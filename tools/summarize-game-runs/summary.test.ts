@@ -213,11 +213,34 @@ test("a timed-out run's checks count until its result, and the gates close at it
   assert.equal(summary.outcome, "missed");
 });
 
-test("a run with no bail checks has even odds of no bail, and no outcome when the test reports none", () => {
+test("a run with no bail checks is certain not to bail, and no outcome when the test reports none", () => {
   const summary = summarizeRun(WING_RUN);
 
   assert.deepEqual(summary.bailChecks, []);
   assert.equal(summary.noBailChance, 1);
   assert.equal(summary.outcome, undefined);
   assert.match(formatSummary("x-1", summary), /, 0 bail checks, P\(no bail\) 100%, 0\.1 s in the gates, /);
+});
+
+test("the gates are the game's 75% hull, not the operation's hold", () => {
+  const summary = summarizeRun([
+    "[Scripts] 2.00 *** Context:md.APiratesLife_Capture.Operation<inst:1>: [apirateslife] capture: started on IMP TIE/LN (TGT-001), led by X-wing T65B (XWG-001) with 1 wingmen (hold 60%, floor 35%, fear 0)",
+    "[General] 10.00 *** Context:md.APiratesLife_Tests: [apirateslife-test] trace: hull 70%, shields 0%",
+    "[General] 20.00 *** Context:md.APiratesLife_Tests: [apirateslife-test] trace: hull 65%, shields 0%",
+  ]);
+
+  assert.equal(summary.gateSeconds, 8);
+  assert.equal(summary.inGatesSeconds, 10);
+});
+
+test("only the operation's own target's checks count, until the operation ends", () => {
+  const summary = summarizeRun([
+    "[Scripts] 2.00 *** Context:md.APiratesLife_Capture.Operation<inst:1>: [apirateslife] capture: started on IMP TIE/LN (TGT-001), led by X-wing T65B (XWG-001) with 1 wingmen (hold 75%, floor 35%, fear 0)",
+    "[Scripts] 5.00 *** Context:md.APiratesLife_Bail: [apirateslife] bail check: X-wing T65B (XWG-001) attacking IMP TIE/LN (TGT-001): chance 10 -> 30 (pressure 20)",
+    "[Scripts] 6.00 *** Context:md.APiratesLife_Bail: [apirateslife] bail check: X-wing T65B (XWG-001) attacking IMP TIE/LN (OTH-002): chance 10 -> 10 (pressure 0)",
+    "[Scripts] 7.00 *** Context:md.APiratesLife_Capture.End<inst:1>: [apirateslife] capture: ended on IMP TIE/LN (TGT-001): bailed (fear left 0)",
+    "[Scripts] 8.00 *** Context:md.APiratesLife_Bail: [apirateslife] bail check: X-wing T65B (XWG-001) attacking IMP TIE/LN (TGT-001): chance 10 -> 10 (pressure 0)",
+  ]);
+
+  assert.deepEqual(summary.bailChecks, [30]);
 });
