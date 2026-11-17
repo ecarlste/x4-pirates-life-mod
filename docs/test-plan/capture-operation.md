@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 20 | 2 | 4 | **6** |
+| 0 | 21 | 2 | 3 | **5** |
 
 ## Scenarios
 
@@ -166,13 +166,16 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 ### A wing of turret-only ships stops at the margin and leaves the finish to me
 
-- [ ] **Pending:** checked by hand until its planned automated test exists
+**Automated:** in game `capture_wing_turrets_break_m`
 
 ```gherkin
-  Given a capture operation on a capturable fighter with 80% hull
-  And my only wingman flies a ship with turrets and no forward guns
-  When the wing's margin above the gate is used up
-  Then no wingman fires again until the hull is below 75%
+  Given a capture operation on a capturable TIE Advanced at full hull and shields, nothing holding them down
+  And my only wingman flies a YT-1300 with two AG-2G turrets and no forward guns, starting 2 km from it and facing it
+  When its turrets break the fighter's shields and hull down to the wing's margin
+  Then its turrets stop firing within a second
+  And for 120 seconds the hull never goes below 75%, and the fighter is never destroyed
+  And the report gives how far past the line the turrets took it
+  And once I cancel its order, each turret is back in the mode it started in
 ```
 
 ### With CaptureWingmenTurrets at 0, my wingmen's turrets fire as I set them

@@ -12,7 +12,7 @@ All runs are on X4 8.00 with SWI 0.91 HF1, at 1× (`MarkCombatTest`), with the c
   - The loadouts are `apirateslife_test_ywing_turretonly` (the SW4 top turret only) and `apirateslife_test_yt1300_turretsonly` (2 × AG-2G only).
   - The turrets stay in the player's default mode, `defend`, and they fire on the Attack order's target.
 - **`capture_wing_turrets_hold` and `capture_wing_turrets_hold_m`** (#184's tests, unchanged apart from the trace).
-- **`capture_wing_turrets_break_m`** (on [`fix/turret-hold-overshoot`](https://github.com/ecarlste/x4-pirates-life-mod/tree/fix/turret-hold-overshoot), not on `main` yet: it lands with [#241](https://github.com/ecarlste/x4-pirates-life-mod/issues/241)'s fix): a capture op with one turret-only YT-1300 (2 × AG-2G), 2 km from a TIE Advanced at full hull and shields, not held down, so the turrets fire through the break. It fails on the hull under 75% (a turret-only wing never finishes), a turret shot more than 1 s after the break, a kill or the floor, and reports how far past the line (the margin under the wing's burst, 2215) the turrets took the target. It runs 120 s; the shields regrow while it holds, so it can cross the line more than once.
+- **`capture_wing_turrets_break_m`** (release tier only): a capture op with one turret-only YT-1300 (2 × AG-2G), 2 km from a TIE Advanced at full hull and shields, not held down, so the turrets fire through the break. It fails on the hull under 75% (a turret-only wing never finishes), a turret shot more than 1 s after the break, a kill or the floor, and reports how far past the line (the margin under the wing's burst, 2215) the turrets took the target. It runs 120 s; the shields regrow while it holds, so it can cross the line more than once.
 
 ## Results
 
