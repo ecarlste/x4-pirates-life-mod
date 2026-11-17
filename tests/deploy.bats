@@ -633,6 +633,31 @@ STUB
     [ ! -e "$X4_PATH/game.lock" ]
 }
 
+@test "a waiter's ticket stays whole while it rewrites it, so others can read its name" {
+    # A slow git widens the gap between building the ticket's lines and writing them
+    mkdir -p "$SANDBOX/bin"
+    printf '#!/usr/bin/env bash\nsleep 0.3\nexec %q "$@"\n' "$(command -v git)" > "$SANDBOX/bin/git"
+    chmod +x "$SANDBOX/bin/git"
+    write_game_lock
+    PATH="$SANDBOX/bin:$PATH" X4_GAME_LOCK_POLL=0 "$REPO/deploy.sh" --working-tree > "$SANDBOX/out" 2>&1 &
+    pid=$!
+    wait_for_text "$SANDBOX/out" "Waiting for the game lock"
+    ticket="$X4_PATH/game.queue/000001"
+
+    # Read it as the waiters behind do, until it has been rewritten three times
+    torn=0 beat=''
+    until [[ "$beat" =~ ^[3-9] ]] || ! kill -0 "$pid" 2>/dev/null; do
+        text=$(cat "$ticket")
+        [[ "$text" == *what=deploy* ]] || torn=$((torn + 1))
+        beat=$(sed -n 's/^heartbeat=//p' <<< "$text")
+    done
+    kill -TERM "$pid"
+    wait "$pid" || true
+
+    [[ "$beat" =~ ^[3-9] ]]
+    [ "$torn" -eq 0 ]
+}
+
 @test "a lock its caller hands down skips the line" {
     write_game_lock
     write_game_ticket 1
