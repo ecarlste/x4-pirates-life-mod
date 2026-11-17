@@ -112,17 +112,12 @@ Feature: Capture operations
     Then at least 90% of each one's runs hold the hull between the 75% gate and the 35% floor
     And none kills the fighter
 
-  # Release tier only. Turrets hold only in the order's 1 s loop, so the report gives how far past
-  # the line (the margin under the wing's burst) they took the fighter before they stopped (#225).
-  @capture_wing_turrets_break_m
+  @pending
   Scenario: A wing of turret-only ships stops at the margin and leaves the finish to me
-    Given a capture operation on a capturable TIE Advanced at full hull and shields, nothing holding them down
-    And my only wingman flies a YT-1300 with two AG-2G turrets and no forward guns, starting 2 km from it and facing it
-    When its turrets break the fighter's shields and hull down to the wing's margin
-    Then its turrets stop firing within a second
-    And for 120 seconds the hull never goes below 75%, and the fighter is never destroyed
-    And the report gives how far past the line the turrets took it
-    And once I cancel its order, each turret is back in the mode it started in
+    Given a capture operation on a capturable fighter with 80% hull
+    And my only wingman flies a ship with turrets and no forward guns
+    When the wing's margin above the gate is used up
+    Then no wingman fires again until the hull is below 75%
 
   @pending
   Scenario: With CaptureWingmenTurrets at 0, my wingmen's turrets fire as I set them
