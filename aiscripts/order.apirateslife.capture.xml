@@ -352,7 +352,8 @@
         <set_value name="$fire" exact="false"/>
       </do_if>
       <!-- Break: where the hit handler stops this wingman and comes back here. While our turrets
-           fire, that's where they'd be held, the full burst: the order checks them only here, and
+           fire, that's where they'd be held, the full burst (with CaptureWingmenTurrets at 0 no
+           turret is held, so that's $wingburst anyway): the order checks them only here, and
            the attack script runs until that handler stops it. $wingburst then still leaves out the
            turrets just released, as it's worked out before they are (0 for a wing of turrets only),
            and a turret-only YT-1300's turrets fired on past the line, never held again (#241). -->

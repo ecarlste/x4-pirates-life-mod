@@ -85,6 +85,7 @@ An H9 quad volley would take a TIE/LN from 80% to about 26%, under the 35% floor
 | 10 | 93.6% | 730 | 4 times |
 
 - Every crossing stopped inside the 2215 margin, the turrets now holding on the hit itself, not after up to 1 s, and the wing cycled between the break and the hold through the 120 s.
+- Close range is covered: in run 10 the turrets stopped 12 times, 4 of them from 173–356 m (the 250–500 m that broke the gate before), and the hull never went under 93.6%.
 - Only half the runs test the line: the first run of each batch of 2 never reached it. Run 1's TIE Advanced had 8733 shields, which the AG-2G pair never outpaces, as in the first batch's run 1 above. Why it's always the first run of a session isn't known.
 
 ## Caveats

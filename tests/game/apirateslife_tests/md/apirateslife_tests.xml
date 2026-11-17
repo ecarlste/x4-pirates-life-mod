@@ -2891,15 +2891,16 @@
           <return value="false"/>
         </do_if>
         <set_value name="$WingBurst" exact="@global.$APiratesLife_CaptureOps.{$T}.$wingdps.$full * 1.5"/>
+        <set_value name="$Margin" exact="$T.shield + $T.hull - $T.maxhull * 0.75"/>
         <do_if value="$WingBurst gt 0">
           <set_value name="$Wing.$burst" exact="$WingBurst"/>
-          <set_value name="$Past" exact="$WingBurst - ($T.shield + $T.hull - $T.maxhull * 0.75)"/>
+          <set_value name="$Past" exact="$WingBurst - $Margin"/>
           <do_if value="$Wing.$pastline == null or $Past gt $Wing.$pastline">
             <set_value name="$Wing.$pastline" exact="$Past"/>
           </do_if>
         </do_if>
         <do_if value="$T.hullpercentage ge 75">
-          <set_value name="$Stage" exact="if $T.shield + $T.hull - $T.maxhull * 0.75 gt $WingBurst then '$break' else '$fine'"/>
+          <set_value name="$Stage" exact="if $Margin gt $WingBurst then '$break' else '$fine'"/>
         </do_if>
         <do_else>
           <set_value name="$Stage" exact="if $T.shield gt $WingBurst then '$suppress' else '$hold'"/>
@@ -3170,8 +3171,8 @@
 
     <!-- #225: a turret-only YT-1300 (two AG-2G turrets, TurretTestSetup) against a TIE Advanced
          at full hull and shields, nothing holding them down, so the turrets fire through the break.
-         Turrets hold only in the order's 1 s loop, so this measures how far past the line (the
-         margin under the wing's burst) they take it before they stop. With no forward gun it never
+         It measures how far past the line (the margin under the wing's burst) the turrets' bolts
+         in flight take it after they stop (#241). With no forward gun it never
          finishes, so the hull under 75% fails it, as do a turret shot more than 1 s after the
          break, a kill, the floor, and a turret not back in its mode. Runs 120 s: the shields
          regrow while it holds, so it may cross the line more than once. -->
