@@ -8,7 +8,7 @@ BeforeAll {
     . $script:Runner
 
     # Test cues shaped like the harness's: Fight a combat test with a 120 s timeout, Travel a SETA
-    # test whose 60 s timeout sits under a 6 s setup cue, Instant one that reports from its own
+    # test whose 60 s timeout sits under a setup cue with a 6 s delay, Instant one that reports from its own
     # actions, Unbounded one that waits with no timeout
     $script:Harness = @'
 <?xml version="1.0" encoding="utf-8"?>
@@ -79,10 +79,12 @@ Describe 'Get-HoldRefusal' {
         Get-HoldRefusal $script:Harness (& $script:Times 'Fight' 2) | Should -BeNullOrEmpty
     }
 
-    It 'counts a test under SETA at a sixth of its delays, the setup cue its timeout sits under included' {
-        # (6 s + 60 s) / 6 = 11 s a run: 55 s + 20 x 11 s = 275 s, and 23 runs 308 s
-        Get-HoldRefusal $script:Harness (& $script:Times 'Travel' 20) | Should -BeNullOrEmpty
-        Get-HoldRefusal $script:Harness (& $script:Times 'Travel' 23) | Should -BeLike '*up to 5 min 8 s*'
+    It 'counts a test under SETA at a sixth of its timeout, which starts with the test whatever cue it sits under' {
+        # A sub-cue's delay counts from its parent's activation, not after the parent's delay
+        # (docs/research/automated-game-testing.md): 60 s / 6 = 10 s a run, so 55 s + 24 x 10 s =
+        # 295 s, and 25 runs 305 s
+        Get-HoldRefusal $script:Harness (& $script:Times 'Travel' 24) | Should -BeNullOrEmpty
+        Get-HoldRefusal $script:Harness (& $script:Times 'Travel' 25) | Should -BeLike '*up to 5 min 5 s*'
     }
 
     It 'counts a test that reports from its own actions as no time' {
@@ -101,17 +103,17 @@ Describe 'Get-HoldRefusal' {
 
     It 'says how the worst case adds up and to split the batch' {
         $refusal = Get-HoldRefusal $script:Harness (@('ConfigAppliedOnStart') + (& $script:Times 'Fight' 2) + (& $script:Times 'Travel' 2) + @('Instant'))
-        # 55 s + 2 x 120 s + 2 x 11 s = 317 s
-        $refusal | Should -BeLike '*up to 5 min 17 s, over the 5-minute hold budget*'
-        $refusal | Should -BeLike '*55 s game start, Fight 2 x 2 min 0 s, Travel 2 x 11 s*'
+        # 55 s + 2 x 120 s + 2 x 10 s = 315 s
+        $refusal | Should -BeLike '*up to 5 min 15 s, over the 5-minute hold budget*'
+        $refusal | Should -BeLike '*55 s game start, Fight 2 x 2 min 0 s, Travel 2 x 10 s*'
         $refusal | Should -Not -BeLike '*Instant*'
         $refusal | Should -BeLike '*Split the batch into smaller runs*'
         $refusal | Should -BeLike '*or pass -LongHold*'
     }
 }
 
-# Against the real harness: CaptureWingHoldsFire is a combat test whose 180 s timeout sits under a
-# 2 s cue, so two runs could hold the game for 55 s + 364 s. pwsh wraps an error's lines.
+# Against the real harness: CaptureWingHoldsFire is a combat test with a 180 s timeout, so two runs
+# could hold the game for 55 s + 360 s. pwsh wraps an error's lines.
 Describe 'run-game-tests.ps1 and the hold budget' {
     BeforeAll { . (Join-Path $PSScriptRoot 'RunGameTestsSandbox.ps1') }
     BeforeEach { New-RunSandbox }
@@ -119,7 +121,7 @@ Describe 'run-game-tests.ps1 and the hold budget' {
 
     It 'refuses a selection over the budget before it takes the game lock or starts the game' {
         $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire', '-Repeat', '2'))
-        $r.Output | Should -Match 'up\s+to\s+6\s+min\s+59\s+s'
+        $r.Output | Should -Match 'up\s+to\s+6\s+min\s+55\s+s'
         $r.ExitCode | Should -Not -Be 0
         Test-Path $env:FAKE_ARGS | Should -BeFalse
         Test-Path "$x4/game.lock" | Should -BeFalse
@@ -133,7 +135,7 @@ Describe 'run-game-tests.ps1 and the hold budget' {
 
     It 'checks only the hold with -HoldCheckOnly, so make game-test can refuse before it queues' {
         $over = Invoke-Script $script:Runner @('-HoldCheckOnly', '-Test', 'capture_wing_holds_fire', '-Repeat', '2')
-        $over.Output | Should -Match 'up\s+to\s+6\s+min\s+59\s+s'
+        $over.Output | Should -Match 'up\s+to\s+6\s+min\s+55\s+s'
         $over.ExitCode | Should -Not -Be 0
         $within = Invoke-Script $script:Runner @('-HoldCheckOnly', '-Test', 'capture_wing_holds_fire')
         $within.ExitCode | Should -Be 0

@@ -581,20 +581,17 @@ $GameStartSeconds = 55
 $SetaFactor = 6
 
 # A test run's worst case in seconds of real time. A test that reports from its own actions (no
-# sub-cues) takes none. Otherwise it's its <Name>_Timeout cue's delay plus the delays of the cues
-# it sits under in the test (a sub-cue's delay counts from when its parent activates), in game time:
-# a combat test (MarkCombatTest first) runs at 1x, every other test under SETA. A test with no
-# timeout cue counts as the PR tier's whole budget, since nothing bounds it.
+# sub-cues) takes none. Otherwise it's its <Name>_Timeout cue's delay, which counts from the test's
+# start whatever cue it sits under (a sub-cue's delay counts from its parent's activation, not after
+# the parent's delay: docs/research/automated-game-testing.md), in game time: a combat test
+# (MarkCombatTest first) runs at 1x, every other test under SETA. A test with no timeout cue counts
+# as the PR tier's whole budget, since nothing bounds it.
 function Get-TestCeiling([xml] $Harness, [string] $Name) {
     $cue = $Harness.SelectSingleNode("//cue[@name='$Name']")
     if (-not $cue.SelectSingleNode('./cues')) { return 0 }
-    $timeout = $cue.SelectSingleNode(".//cue[@name='$($Name)_Timeout']")
-    if (-not $timeout) { return $Tiers.pr.Seconds }
-    $seconds = 0
-    for ($node = $timeout; $node -ne $cue.ParentNode; $node = $node.ParentNode) {
-        $delay = $node.SelectSingleNode('./delay')
-        if ($delay) { $seconds += [double] ($delay.exact -replace 's$', '') }
-    }
+    $delay = $cue.SelectSingleNode(".//cue[@name='$($Name)_Timeout']/delay")
+    if (-not $delay) { return $Tiers.pr.Seconds }
+    $seconds = [double] ($delay.exact -replace 's$', '')
     $first = $cue.SelectSingleNode('./actions/*[1]')
     $combat = $first.LocalName -eq 'run_actions' -and $first.ref -eq 'MarkCombatTest'
     if ($combat) { $seconds } else { $seconds / $SetaFactor }

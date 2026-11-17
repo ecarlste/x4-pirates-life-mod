@@ -95,6 +95,7 @@
   "tests/RunGameTests.Tests.ps1": ["tools/run-game-tests.ps1", "tests/game/apirateslife_tests/**", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tests/TestHelpers.ps1", "tests/RunGameTestsSandbox.ps1", "tests/RunGameTests.Tests.ps1"],
   "tests/RunGameTestsProfile.Tests.ps1": ["tools/run-game-tests.ps1", "tests/game/apirateslife_tests/**", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tests/TestHelpers.ps1", "tests/RunGameTestsSandbox.ps1", "tests/RunGameTestsProfile.Tests.ps1"],
   "tests/RunGameTestsLock.Tests.ps1": ["tools/run-game-tests.ps1", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tests/game/apirateslife_tests/**", "tests/TestHelpers.ps1", "tests/RunGameTestsSandbox.ps1", "tests/RunGameTestsLock.Tests.ps1"],
+  "tests/RunGameTestsHold.Tests.ps1": ["tools/run-game-tests.ps1", "tests/game/apirateslife_tests/**", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tests/TestHelpers.ps1", "tests/RunGameTestsSandbox.ps1", "tests/RunGameTestsHold.Tests.ps1"],
   "tests/RunGameTestsRelease.Tests.ps1": ["tools/run-game-tests.ps1", "tests/game/apirateslife_tests/**", "tests/game/apirateslife_release_tests/**", "tools/game-lock.ps1", "tools/deploy-config.ps1", "tests/TestHelpers.ps1", "tests/RunGameTestsSandbox.ps1", "tests/RunGameTestsRelease.Tests.ps1"],
   "tests/Unpack.Tests.ps1": ["tools/unpack-x4.ps1", "tests/TestHelpers.ps1", "tests/Unpack.Tests.ps1"]
 }
