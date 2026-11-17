@@ -102,7 +102,9 @@
              [<test>, <runs>, <passes needed>]: [CaptureWingHoldsFire, 10, 8] is the bar for a
              90% outcome. A plain run (the PR tier) runs them once. Only the runner reads it, not
              MD (docs/testing.md, Game test tiers) -->
-        <set_value name="$ReleaseRuns" exact="[]"/>
+        <set_value name="$ReleaseRuns" exact="[
+          [CaptureWingBailsPhantom, 10, 6]
+        ]"/>
         <set_value name="$Index" exact="0"/>
         <!-- True while a combat test runs (MarkCombatTest): SETA stays off until it reports -->
         <set_value name="$CombatRunning" exact="false"/>
@@ -2740,7 +2742,8 @@
          fits and the finisher takes over in the break stage. Fails on a kill or the floor (the
          break-stage overshoot this test caught at 1x). $outcome is whether the pilot bailed within
          300 s (32 of 40 at 1x from this 2 km start, #272): a timeout is reported, not failed, as the
-         finisher's close-range pass sometimes can't keep the shields under the gate (#224). -->
+         finisher's close-range pass sometimes can't keep the shields under the gate (#224). Its bar
+         is 80%, 6 of 10 in the release tier: one fighter needn't beat every target (#272). -->
     <cue name="CaptureWingBailsPhantom">
       <conditions>
         <event_cue_signalled/>
