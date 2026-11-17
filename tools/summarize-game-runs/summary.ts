@@ -5,6 +5,7 @@
 // own result line is left out, as its detail can quote other figures (the lowest hull, an expected
 // value). Before the run's operation starts, only the test's trace lines count: the last run's
 // order can still log for a moment after its result, and the runner puts those lines in this run.
+// Lines with a "[DEBUG-" probe tag never count, bare or in a test's trace line.
 // The result line gives the run's result and, for a test that reports one, its outcome; no other
 // line's "outcome=" counts (the capture metrics line logs one too).
 
@@ -121,6 +122,8 @@ export function summarizeRun(lines: string[]): RunSummary {
   };
 
   for (const line of lines) {
+    // Probe lines are in the trace for reading, not for the summary: their figures can be any ship's
+    if (line.includes("[DEBUG-")) continue;
     const time = /^\[[^\]]*\]\s+([\d.]+)\s/.exec(line);
     if (!time) continue;
     const t = num(time[1]);
