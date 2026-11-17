@@ -123,8 +123,8 @@ Feature: Capture operations
     Then at least 90% of each one's runs hold the hull between the 75% gate and the 35% floor
     And none kills the fighter
 
-  # Release tier only. Turrets hold only in the order's 1 s loop, so the report gives how far past
-  # the line (the margin under the wing's burst) they took the fighter before they stopped (#225).
+  # Release tier only. The report gives how far past the line (the margin under the wing's burst)
+  # the turrets' bolts in flight took the fighter after they stopped (#225, #241).
   @capture_wing_turrets_break_m
   Scenario: A wing of turret-only ships stops at the margin and leaves the finish to me
     Given a capture operation on a capturable TIE Advanced at full hull and shields, nothing holding them down
