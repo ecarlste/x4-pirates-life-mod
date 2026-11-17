@@ -73,6 +73,17 @@ Feature: Capture operations
     Then the hull is below 75% within 60 seconds, or the run is reported as timed out
     And the hull never drops below the 35% floor, and the fighter is never destroyed
 
+  # One X-wing against a TIE Phantom's shields, about 5600, bailed it in 34 of 40 runs at 1x, starting beside the player:
+  # the finisher's close-range pass sometimes can't keep the shields under the gate, so a run
+  # without a bail in 300 s is reported instead of failed (#216, #224). Release tier only.
+  @capture_wing_bails_phantom
+  Scenario: One wingman makes a heavily shielded fighter's pilot bail without destroying it
+    Given a capture operation on a capturable TIE Phantom at full hull and shields, nothing holding them down
+    And my wingman flies an X-wing with four lasers and no missiles, starting 2 km from the fighter and facing it
+    When the wing's burst breaks the shields and the finisher takes over in the break stage
+    Then the pilot bails within 300 seconds, or the run is reported as timed out
+    And the hull never drops below the 35% floor, and the fighter is never destroyed
+
   # The YT-1300's one forward gun finishes slowly with its turrets on hold, so its test reports a
   # run that doesn't hold 30 s under 75% within 180 s instead of failing it (#196).
   @capture_wing_turrets_hold @capture_wing_turrets_hold_m
