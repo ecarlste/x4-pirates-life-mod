@@ -26,6 +26,25 @@ export interface Pass {
   hullDrop: number;
 }
 
+/** One of the combat trace's nine bands for a wingman: the seconds damage landed, it fired, and all
+ * its seconds there */
+export interface Band {
+  band: string;
+  damage: number;
+  fired: number;
+  inBand: number;
+}
+
+/** A test's combat trace line for one wingman ("combat trace <test>, wingman N of M: …") */
+export interface WingmanTrace {
+  /** "N of M", as logged */
+  wingman: string;
+  seconds: number;
+  shots: number;
+  overheats: number;
+  bands: Band[];
+}
+
 export interface RunSummary {
   result: Result;
   /** "reached": the target was inside both bail gates (the hull under the operation's hold, the
@@ -39,6 +58,9 @@ export interface RunSummary {
    * one that isn't (or the run's last sample) */
   longestFullShieldsSeconds: number;
   passes: Pass[];
+  /** The capture order's gun swaps, each as logged: "<old gun> for <next gun>" */
+  gunSwaps: string[];
+  combatTrace: WingmanTrace[];
 }
 
 // The shields' bail gate, where the wing tests also count a knock-down
@@ -63,6 +85,8 @@ export function summarizeRun(lines: string[]): RunSummary {
   let longest = 0;
   let lastShieldsTime: number | undefined;
   const passes: Pass[] = [];
+  const gunSwaps: string[] = [];
+  const combatTrace: WingmanTrace[] = [];
   // The pass still waiting for its break-off line
   let awaitingBreakOff: Pass | undefined;
   // The pass that damage now counts for, from its start until the next pass starts or the
@@ -83,8 +107,26 @@ export function summarizeRun(lines: string[]): RunSummary {
       start = t;
       hold = num(started[1]);
     }
+    // The test's own summary, logged before its result: it counts with or without an operation
+    // (the turret tests trace vanilla's attack)
+    const trace = /\[apirateslife-test\] combat trace .*, wingman (\d+ of \d+): ([\d.]+) s, shots (\d+), overheats (\d+); [^:]*: (.*)$/.exec(line);
+    if (trace) {
+      combatTrace.push({
+        wingman: trace[1],
+        seconds: num(trace[2]),
+        shots: num(trace[3]),
+        overheats: num(trace[4]),
+        bands: trace[5].split(", ").flatMap((b) => {
+          const m = /^(.*) (\d+)\/(\d+)\/(\d+)$/.exec(b);
+          return m ? [{ band: m[1], damage: num(m[2]), fired: num(m[3]), inBand: num(m[4]) }] : [];
+        }),
+      });
+      continue;
+    }
     const ours = start !== undefined || /\[apirateslife-test\] trace:/.test(line);
     if (!ours) continue;
+    const swap = /\[apirateslife\] capture order: .*, swaps gun (.*), guns in group /.exec(line);
+    if (swap) gunSwaps.push(swap[1]);
     const passStart = /\[apirateslife\] capture pass: starts at ([\d.]+)m, shields ([\d.]+)%, hull ([\d.]+)%/.exec(line);
     if (passStart) {
       awaitingBreakOff = {
@@ -157,6 +199,8 @@ export function summarizeRun(lines: string[]): RunSummary {
     knockDowns,
     longestFullShieldsSeconds: longest,
     passes,
+    gunSwaps,
+    combatTrace,
   };
 }
 

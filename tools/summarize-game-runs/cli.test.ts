@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const cli = fileURLToPath(new URL("../summarize-game-runs.ts", import.meta.url));
@@ -60,4 +60,43 @@ test("an unknown option exits 2 with a usage line", () => {
 
   assert.equal(out.status, 2);
   assert.match(out.stderr, /Usage: node tools\/summarize-game-runs\.ts/);
+});
+
+test("--totals adds a block per test after the per-run lines", () => {
+  const out = run("--totals", runsFolder());
+
+  assert.equal(out.status, 0, out.stderr);
+  // The run lines, then each test's block, a blank line before each
+  const [runs, ...blocks] = out.stdout.trimEnd().split("\n\n");
+  assert.equal(runs.split("\n").length, 4);
+  assert.deepEqual(
+    blocks.map((b) => b.split("\n")[0]),
+    ["bail_raises_bailed totals: 1 runs, 1 passed", "capture_wing_breaks_full_shields totals: 3 runs, 2 passed"],
+  );
+});
+
+test("traces from more than one folder are named by their folder, and total apart", () => {
+  const base = runsFolder();
+  const variant = join(dirname(base), "variant");
+  mkdirSync(variant);
+  writeFileSync(join(variant, "bail_raises_bailed-1.log"), result("5.00", "FAIL"));
+  const out = run("--totals", base, variant);
+
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /^runs\/bail_raises_bailed-1 PASS: /m);
+  assert.match(out.stdout, /^variant\/bail_raises_bailed-1 FAIL: /m);
+  assert.match(out.stdout, /^runs\/bail_raises_bailed totals: 1 runs, 1 passed$/m);
+  assert.match(out.stdout, /^variant\/bail_raises_bailed totals: 1 runs, 0 passed$/m);
+});
+
+test("folders with the same name are named by their path, so their totals stay apart", () => {
+  const a = runsFolder();
+  const b = runsFolder();
+  const out = run("--totals", a, b);
+
+  assert.equal(out.status, 0, out.stderr);
+  const heads = out.stdout.split("\n").filter((l) => / totals: /.test(l));
+  assert.equal(heads.length, 4);
+  assert.ok(heads.some((h) => h.startsWith(`${join(a, "bail_raises_bailed")} totals:`)), heads.join("\n"));
+  assert.ok(heads.some((h) => h.startsWith(`${join(b, "bail_raises_bailed")} totals:`)), heads.join("\n"));
 });

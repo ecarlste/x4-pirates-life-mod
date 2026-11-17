@@ -165,6 +165,38 @@ Describe 'run-game-tests.ps1' {
         )
     }
 
+    It 'keeps a labelled batch''s traces in a folder of their own, replacing only that label''s' {
+        $runs = Join-Path $root 'runs'
+        Write-LfFile (Join-Path $runs 'capture_wing_holds_fire-1.log') 'the last unlabelled batch'
+        Write-LfFile (Join-Path $runs 'base-b/stale_test-1.log') 'the label''s last batch'
+        Write-LfFile (Join-Path $runs 'base-a/capture_wing_holds_fire-1.log') 'another label''s batch'
+        Set-Content $env:FAKE_SOURCE_LOG @(
+            '[Scripts] 1.00 *** Context:x: [apirateslife-test] RUN START 1 tests'
+            '[Scripts] 2.00 *** Context:x: [apirateslife-test] PASS capture_wing_holds_fire: lowest hull 70%'
+            '[Scripts] 5.00 *** Context:x: [apirateslife-test] DONE passed=1 failed=0'
+        )
+        $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire', '-RunsLabel', 'base-b'))
+        $r.Output | Should -BeLike "*Run traces: 1 files in $(Join-Path $runs 'base-b')*"
+        @(Get-ChildItem (Join-Path $runs 'base-b') | ForEach-Object { $_.Name }) | Should -Be @('capture_wing_holds_fire-1.log')
+        Get-Content (Join-Path $runs 'capture_wing_holds_fire-1.log') | Should -Be 'the last unlabelled batch'
+        Get-Content (Join-Path $runs 'base-a/capture_wing_holds_fire-1.log') | Should -Be 'another label''s batch'
+    }
+
+    It 'refuses a -RunsLabel that isn''t a plain folder name, before anything changes' {
+        foreach ($label in @('../elsewhere', 'a/b', 'a\b', '..', '.')) {
+            $r = Invoke-Script $script:Runner ($runArgs + @('-RunsLabel', $label))
+            $r.Output | Should -BeLike '*-RunsLabel must be a folder name*'
+            $r.ExitCode | Should -Not -Be 0
+            Test-Path $env:FAKE_ARGS | Should -BeFalse
+        }
+    }
+
+    It 'refuses -RunsLabel with -Release, which writes no run traces' {
+        $r = Invoke-Script $script:Runner ($runArgs + @('-Release', '-RunsLabel', 'base-b'))
+        $r.ExitCode | Should -Not -Be 0
+        $r.Output | Should -BeLike '*-Release runs its own sessions*-RunsLabel*'
+    }
+
     It 'refuses an unknown test before anything changes, even with -PreflightOnly' {
         foreach ($extra in @(@('-Test', 'NoSuchTest'), @('-Test', 'NoSuchTest', '-PreflightOnly'))) {
             $r = Invoke-Script $script:Runner ($runArgs + $extra)

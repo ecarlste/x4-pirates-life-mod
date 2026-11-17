@@ -1,19 +1,26 @@
 // Sums up game test runs: one line per run trace (tools/summarize-game-runs/summary.ts), from the
 // files tools/run-game-tests.ps1 leaves in tests/game/runs/ (<test>-<n>.log). Takes trace files or
 // folders of them, tests/game/runs/ by default; a folder's traces print by test name, then run number.
+// --totals then adds a block per test summed across its runs (tools/summarize-game-runs/totals.ts).
+// Traces from more than one folder (a labelled batch each, -RunsLabel) are named, and totalled, by
+// folder: "<folder>/<test>-<n>", or by the folder's path as given when two folders share a name.
 //
-//   node tools/summarize-game-runs.ts [<file or folder>...]
+//   node tools/summarize-game-runs.ts [--totals] [<file or folder>...]
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { formatSummary, summarizeRun } from "./summarize-game-runs/summary.ts";
+import { formatSummary, summarizeRun, type RunSummary } from "./summarize-game-runs/summary.ts";
+import { formatTotals, totalRuns } from "./summarize-game-runs/totals.ts";
 
 let paths: string[];
+let totals: boolean;
 try {
-  paths = parseArgs({ options: {}, allowPositionals: true }).positionals;
+  const args = parseArgs({ options: { totals: { type: "boolean", default: false } }, allowPositionals: true });
+  paths = args.positionals;
+  totals = args.values.totals;
 } catch (e) {
-  console.error(`${(e as Error).message}\nUsage: node tools/summarize-game-runs.ts [<file or folder>...]`);
+  console.error(`${(e as Error).message}\nUsage: node tools/summarize-game-runs.ts [--totals] [<file or folder>...]`);
   process.exit(2);
 }
 if (paths.length === 0) paths = [join(dirname(dirname(fileURLToPath(import.meta.url))), "tests/game/runs")];
@@ -43,6 +50,22 @@ for (const path of paths) {
   files.push(...traces.map((f) => join(path, f)));
 }
 
+// Named by folder only when the traces come from more than one: by its name, or by its path as
+// given when two share a name (unlabelled batches from two worktrees are both runs/)
+const folders = [...new Set(files.map((f) => resolve(dirname(f))))];
+const byPath = new Set(folders.map((d) => basename(d))).size < folders.length;
+const folder = (file: string) => (byPath ? dirname(file) : basename(dirname(resolve(file))));
+const label = (file: string) => (folders.length > 1 ? `${folder(file)}/` : "") + basename(file, ".log");
+
+// Each test's runs, by "<folder>/<test>" or "<test>", in the order first seen
+const tests = new Map<string, RunSummary[]>();
 for (const file of files) {
-  console.log(formatSummary(basename(file, ".log"), summarizeRun(readFileSync(file, "utf8").split(/\r?\n/))));
+  const summary = summarizeRun(readFileSync(file, "utf8").split(/\r?\n/));
+  const run = label(file);
+  console.log(formatSummary(run, summary));
+  const test = run.replace(/-\d+$/, "");
+  tests.set(test, [...(tests.get(test) ?? []), summary]);
+}
+if (totals) {
+  for (const [test, runs] of tests) console.log(`\n${formatTotals(test, totalRuns(runs))}`);
 }

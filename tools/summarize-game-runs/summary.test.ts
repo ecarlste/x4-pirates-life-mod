@@ -44,6 +44,8 @@ test("a capture run's gate time, lowest hull, knock-downs, longest full-shield s
       // Never broke off: the hit that took the shields down sent the order back to decide, at hull 72.5%
       { startDistance: 438.75, shieldsBefore: 70, shieldsAfter: undefined, hullBefore: 100, hit: true, hullDrop: 27.5 },
     ],
+    gunSwaps: [],
+    combatTrace: [],
   });
 });
 
@@ -115,4 +117,42 @@ test("a pass's window closes once the finisher stops finishing, so the wing's la
     { startDistance: 410.5, shieldsBefore: 0, shieldsAfter: undefined, hullBefore: 80, hit: true, hullDrop: 6.5 },
   ]);
   assert.equal(summary.lowestHull, 70.25);
+});
+
+test("a run's gun swaps and combat trace lines, as logged", () => {
+  const summary = summarizeRun([
+    "[Scripts] 2.00 *** Context:md.APiratesLife_Capture.Operation<inst:9e3b>: [apirateslife] capture: started on IMP TIE/LN (ABC-123), led by Fortitude-class (PTD-300) with 2 wingmen (hold 75%, floor 35%, fear 0)",
+    "[Scripts] 20.00 *** aicontext<order.apirateslife.capture,0x9d3f>: [apirateslife] capture order: X-wing T65B missed for 6s, swaps gun laser_a for laser_b, guns in group 2, hull 90%",
+    "[General] 60.00 *** Context:md.APiratesLife_Tests.CombatTraceStop: [apirateslife-test] combat trace capture_wing_holds_fire, wingman 1 of 2: 58 s, shots 34, overheats 1; seconds with damage/fired/in band, by nose angle and distance: 0-3 deg under 600 m 1/2/3, over 20 deg 1400 m+ 0/0/7",
+    "[General] 60.00 *** Context:md.APiratesLife_Tests.CombatTraceStop: [apirateslife-test] combat trace capture_wing_holds_fire, wingman 2 of 2: 58 s, shots 0, overheats 0; seconds with damage/fired/in band, by nose angle and distance: 0-3 deg under 600 m 0/0/0, over 20 deg 1400 m+ 4/5/58",
+  ]);
+
+  assert.deepEqual(summary.gunSwaps, ["laser_a for laser_b"]);
+  assert.deepEqual(summary.combatTrace, [
+    {
+      wingman: "1 of 2", seconds: 58, shots: 34, overheats: 1,
+      bands: [
+        { band: "0-3 deg under 600 m", damage: 1, fired: 2, inBand: 3 },
+        { band: "over 20 deg 1400 m+", damage: 0, fired: 0, inBand: 7 },
+      ],
+    },
+    {
+      wingman: "2 of 2", seconds: 58, shots: 0, overheats: 0,
+      bands: [
+        { band: "0-3 deg under 600 m", damage: 0, fired: 0, inBand: 0 },
+        { band: "over 20 deg 1400 m+", damage: 4, fired: 5, inBand: 58 },
+      ],
+    },
+  ]);
+  // The swap line's hull is a sample like any other
+  assert.equal(summary.lowestHull, 90);
+});
+
+test("a combat trace counts in a run with no capture operation, as in the turret tests on vanilla's attack", () => {
+  const summary = summarizeRun([
+    "[General] 60.00 *** Context:md.APiratesLife_Tests.CombatTraceStop: [apirateslife-test] combat trace turret_damage_landed_s, wingman 1 of 1: 58 s, shots 12, overheats 0; seconds with damage/fired/in band, by nose angle and distance: 0-3 deg under 600 m 1/2/3",
+  ]);
+
+  assert.equal(summary.gate, "no operation");
+  assert.deepEqual(summary.combatTrace.map((t) => t.shots), [12]);
 });
