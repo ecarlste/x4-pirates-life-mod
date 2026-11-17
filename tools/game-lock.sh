@@ -88,7 +88,8 @@ _game_lock_write() {
 
 # Writes the lock's lines to $1 (the lock, or this waiter's ticket), with heartbeat number $2: to a
 # file beside it first, then moved over it, so a waiter reading it sees the old or the new lines,
-# never an empty or half-written file
+# never an empty or half-written file. Returns 1 if it can't; callers retry: the first write at once
+# (_game_lock_write_first), the rest next time
 _game_lock_replace() {
     local tmp="$1.$BASHPID.tmp"
     if _game_lock_write "$1" "$2" >| "$tmp" && mv -f "$tmp" "$1"; then return 0; fi
