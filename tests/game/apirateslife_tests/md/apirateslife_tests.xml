@@ -106,6 +106,8 @@
         <set_value name="$Index" exact="0"/>
         <!-- True while a combat test runs (MarkCombatTest): SETA stays off until it reports -->
         <set_value name="$CombatRunning" exact="false"/>
+        <!-- When SETA was last switched off for a combat test (KeepSetaOff) -->
+        <set_value name="$SetaOffAt" exact="-3s"/>
         <set_value name="$Passed" exact="0"/>
         <set_value name="$Failed" exact="0"/>
       </actions>
@@ -147,6 +149,23 @@
             <toggle_timewarp/>
             <set_timewarp_factor factor="6s"/>
             <debug_text text="'[apirateslife-test] SETA was off; switched back on (now active: %s)'.[player.timewarp.active]"/>
+          </actions>
+        </cue>
+
+        <!-- And off again while a combat test runs, whatever switched it on: MarkCombatTest's own
+             toggle doesn't hold when the test starts in the second Begin switches SETA on, and the
+             game turns it back on about 2 s later, so a -Test run's first combat test ran at 6x
+             (#272: 0 of 5 first runs bailed, 5 of 5 second runs did). SETA still reads active for
+             about 2 s after a toggle switches it off, so it waits 3 s after the last one
+             ($SetaOffAt): a second toggle in that time switches it back on. -->
+        <cue name="KeepSetaOff" instantiate="true" checkinterval="1s">
+          <conditions>
+            <check_value value="$CombatRunning and player.timewarp.active and player.age ge $SetaOffAt + 3s"/>
+          </conditions>
+          <actions>
+            <set_value name="$SetaOffAt" exact="player.age"/>
+            <toggle_timewarp/>
+            <debug_text text="'[apirateslife-test] SETA came on in a combat test; switched off'" filter="general"/>
           </actions>
         </cue>
 
@@ -418,12 +437,14 @@
     <!-- Marks the running test as a combat test: its pass, fail or numbers depend on damage
          landing, and SETA at 6x cuts the hits that land (#216: nose-on fire at 600-1400 m landed in
          32% of seconds against 97-100% at 1x). Players fight at 1x, since the game stops SETA with
-         enemies nearby, so SETA goes off here and KeepSeta leaves it off until the test reports.
+         enemies nearby, so SETA goes off here, KeepSeta leaves it off and KeepSetaOff switches it
+         off again if it comes back on, until the test reports.
          A combat test's first action (tests/python/test_game_tests_list.py checks it). -->
     <library name="MarkCombatTest" purpose="run_actions">
       <actions>
         <set_value name="Run.$CombatRunning" exact="true"/>
         <do_if value="player.timewarp.active">
+          <set_value name="Run.$SetaOffAt" exact="player.age"/>
           <toggle_timewarp/>
         </do_if>
       </actions>
@@ -2718,8 +2739,8 @@
          5600 shields hold barely more than the room above the 75% line, so the wing's burst nearly
          fits and the finisher takes over in the break stage. Fails on a kill or the floor (the
          break-stage overshoot this test caught at 1x). $outcome is whether the pilot bailed within
-         300 s (34 of 40 at 1x in #216's batch, with the wingman starting beside the player): a timeout is reported, not failed, as the finisher's
-         close-range pass sometimes can't keep the shields under the gate (#224). -->
+         300 s (32 of 40 at 1x from this 2 km start, #272): a timeout is reported, not failed, as the
+         finisher's close-range pass sometimes can't keep the shields under the gate (#224). -->
     <cue name="CaptureWingBailsPhantom">
       <conditions>
         <event_cue_signalled/>
@@ -2749,11 +2770,20 @@
             <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
               <param name="Target" value="$Wing.$target"/>
             </run_actions>
-            <!-- The combat trace (#220), for the finisher's hit rate per pass at 1x (#224) -->
-            <run_actions ref="CombatTraceStart">
-              <param name="Wingmen" value="$Wing.$wingmen"/>
-              <param name="Target" value="$Wing.$target"/>
-            </run_actions>
+            <!-- No operation: fail now, not at the 300 s timeout (#272). The sub-cues below have
+                 been active since this cue was, not since its delay, so Done is listening -->
+            <do_if value="not $Started">
+              <cancel_cue cue="CaptureWingBailsPhantom_Ended"/>
+              <cancel_cue cue="CaptureWingBailsPhantom_Timeout"/>
+              <signal_cue_instantly cue="CaptureWingBailsPhantom_Done" param="table[$problems = '', $outcome = '']"/>
+            </do_if>
+            <do_else>
+              <!-- The combat trace (#220), for the finisher's hit rate per pass at 1x (#224) -->
+              <run_actions ref="CombatTraceStart">
+                <param name="Wingmen" value="$Wing.$wingmen"/>
+                <param name="Target" value="$Wing.$target"/>
+              </run_actions>
+            </do_else>
           </actions>
           <cues>
             <cue name="CaptureWingBailsPhantom_Watch" checkinterval="1s" instantiate="true">
