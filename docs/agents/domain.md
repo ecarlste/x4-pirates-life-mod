@@ -18,7 +18,7 @@ Use the terms the design docs use (booty, pirated ship, capture operation, hold 
 
 Where a skill would write an ADR:
 
-- **Erik decides each piece of a proposal:** accept it, keep iterating on it, or reject it. A proposal can be split, and its pieces can get different outcomes. An accepted piece goes into `DESIGN.md`. A piece to keep iterating on stays in its research note, or under "Ideas and maybe" in the plan. A rejected piece moves to `docs/rejected/`.
+- **Erik decides each piece of a proposal:** accept it, keep iterating on it, or reject it. A proposal can be split, and its pieces can get different outcomes. An accepted piece goes into `DESIGN.md`. A piece to keep iterating on stays in its research note, or in an issue labelled `idea`. A rejected piece moves to `docs/rejected/`.
 - **Design decisions** go into `docs/DESIGN.md`, and only after Erik has explicitly agreed, in chat or on the PR. Until then they're "Design proposals" in the PR description, or stay in a research note.
 - **Feature-level decisions** go into that feature's spec in `docs/specs/`.
 - **Rejected ideas** move to `docs/rejected/` (see its README).
