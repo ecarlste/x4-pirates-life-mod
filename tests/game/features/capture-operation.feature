@@ -75,7 +75,8 @@ Feature: Capture operations
 
   # One X-wing against a TIE Phantom's shields, about 5600, bailed a full-health one in 32 of 40 runs at 1x from a 2 km start (#272):
   # the finisher's close-range pass sometimes can't keep the shields under the gate, so a run
-  # without a bail in 300 s is reported instead of failed (#216, #224). Release tier only.
+  # without a bail in 300 s is reported instead of failed (#216, #224). Release tier only, with an
+  # 80% bar: 6 of 10 runs must bail (#272).
   @capture_wing_bails_phantom
   Scenario: One wingman makes a heavily shielded fighter's pilot bail without destroying it
     Given a capture operation on a capturable TIE Phantom at full hull and shields, nothing holding them down

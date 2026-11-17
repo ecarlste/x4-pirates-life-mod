@@ -86,7 +86,8 @@ Describe 'run-game-tests.ps1' {
         $r.ExitCode | Should -Be 0
         (Get-Content $markdown) | Should -Contain 'Release tier (`make game-test RELEASE=1`): every test, budget 30 minutes.'
         $harness = Join-Path $script:RepoRoot 'tests/game/apirateslife_tests/md/apirateslife_tests.xml'
-        Get-GameTestNames (Get-Content "$x4/extensions/apirateslife_tests/md/apirateslife_tests.xml" -Raw) |
+        # Every test, each once here: a $ReleaseRuns test runs its runs in a row (the next test)
+        Get-GameTestNames (Get-Content "$x4/extensions/apirateslife_tests/md/apirateslife_tests.xml" -Raw) | Select-Object -Unique |
             Should -Be (Get-GameTestNames (Get-Content $harness -Raw))
         # A selection is no tier's run
         $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire'))
@@ -94,14 +95,14 @@ Describe 'run-game-tests.ps1' {
     }
 
     It 'runs a $ReleaseRuns test its runs on the release tier, once on the PR tier, and holds it to its bar' {
-        # A copy of the runner with a harness whose $ReleaseRuns lists a test: the repo's list may be empty
+        # A copy of the runner with a harness whose $ReleaseRuns lists this test alone, whatever the repo's lists
         $copy = Join-Path $root 'repo'
         foreach ($file in 'run-game-tests.ps1', 'deploy-config.ps1', 'game-lock.ps1') {
             Write-LfFile "$copy/tools/$file" (Get-Content (Join-Path $script:RepoRoot "tools/$file") -Raw)
         }
         Copy-Item (Join-Path $script:RepoRoot 'tests/game/apirateslife_tests') "$copy/tests/game/apirateslife_tests" -Recurse
         $harness = "$copy/tests/game/apirateslife_tests/md/apirateslife_tests.xml"
-        Write-LfFile $harness ((Get-Content $harness -Raw) -replace '<set_value name="\$ReleaseRuns" exact="\[\]"/>', "<set_value name=`"`$ReleaseRuns`" exact=`"[`n          [CaptureWingHoldsFire, 3, 2]`n        ]`"/>")
+        Write-LfFile $harness ((Get-Content $harness -Raw) -replace '<set_value name="\$ReleaseRuns" exact="[^"]*"/>', "<set_value name=`"`$ReleaseRuns`" exact=`"[`n          [CaptureWingHoldsFire, 3, 2]`n        ]`"/>")
         $runner = "$copy/tools/run-game-tests.ps1"
         $installed = "$x4/extensions/apirateslife_tests/md/apirateslife_tests.xml"
         $wing = { param($outcome) "[Scripts] 2.00 *** Context:x: [apirateslife-test] PASS capture_wing_holds_fire outcome=$($outcome): lowest hull 60%" }
