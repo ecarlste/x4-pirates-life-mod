@@ -229,3 +229,43 @@ Describe "deploy.ps1 and the game lock's line" {
         $lock | Should -Not -Exist
     }
 }
+
+# The twin of deploy.bats's torn-ticket test, on game-lock.ps1 directly: deploy.ps1 can't slow its
+# writes, as the text is built before each one
+Describe "the game lock's rewrites" {
+    BeforeAll { . (Join-Path $script:RepoRoot 'tools/game-lock.ps1') }
+    BeforeEach { $dir = New-TestDir }
+    AfterEach { Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue }
+
+    It "a waiter's ticket stays whole while it rewrites it, so others can read its name" {
+        # deploy.bats slows its writes with a slow git; here the text is built before the write, so a
+        # long branch name slows each write instead, enough that a torn read would show. A second
+        # runspace rewrites the ticket while this one reads it as the waiters behind do
+        $ticket = Join-GameLockLine (Join-Path $dir 'game.queue')
+        $lock = [pscustomobject]@{
+            Token = 't'; What = 'deploy'; Repo = 'repo'; Branch = 'b' * 4MB
+            Host = 'linux'; Started = 'now'; Beat = 0
+        }
+        Write-GameLockFile $lock $ticket
+        $writer = [powershell]::Create().AddScript({
+            param($Script, $Lock, $Ticket)
+            . $Script
+            for ($i = 1; $i -le 60; $i++) {
+                $Lock.Beat = $i
+                try { Write-GameLockFile $Lock $Ticket } catch { }  # a reader holding it open (Windows): as its callers do
+            }
+        }).AddArgument((Join-Path $script:RepoRoot 'tools/game-lock.ps1')).AddArgument($lock).AddArgument($ticket)
+        $run = $writer.BeginInvoke()
+
+        $torn = 0; $beats = @{}
+        while (-not $run.IsCompleted) {
+            $text = Read-GameLockText $ticket
+            if ($text -match '(?m)^heartbeat=(\d+) \S+\n\z') { $beats[$Matches[1]] = $true } else { $torn++ }
+        }
+        $writer.EndInvoke($run); $writer.Dispose()
+
+        # It read the ticket across rewrites, and every read was whole
+        $beats.Count | Should -BeGreaterOrEqual 3
+        $torn | Should -Be 0
+    }
+}
