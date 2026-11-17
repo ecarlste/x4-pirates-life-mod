@@ -50,6 +50,26 @@ export interface WingmanTrace {
   bands: Band[];
 }
 
+export const STAGES = ["burst", "line", "suppress"] as const;
+export type Stage = (typeof STAGES)[number];
+
+/** The wing stopping on the target: the capture order's hold handler ("holds on event_…") */
+export interface Stop {
+  /** "burst": the wing's stop with the hull still at or over the operation's hold, its burst
+   * (burstseconds of its fire) left above the line; "line": the finisher's stop on the hit that took
+   * the hull under the hold, last seen at or over it before the stop's frame; "suppress": a stop on
+   * the shields with the hull already under the hold */
+  stage: Stage;
+  /** When, from the operation's start */
+  seconds: number;
+  /** The target's hull and shields at the stop, in %, as the order logged them */
+  hullAt: number;
+  shieldsAt: number;
+  /** As last seen on the first line 3 s or more after the stop, with a hull or shields figure */
+  hullAfter: number | undefined;
+  shieldsAfter: number | undefined;
+}
+
 export interface RunSummary {
   result: Result;
   /** The split verdict from the result line's " outcome=met|missed", for a test that reports one */
@@ -76,6 +96,7 @@ export interface RunSummary {
   /** All the time inside both bail gates, as the samples show it, until the operation ends (or the
    * run's last line) */
   inGatesSeconds: number;
+  stops: Stop[];
 }
 
 // The shields' bail gate, where the wing tests also count a knock-down
@@ -83,6 +104,9 @@ const SHIELDS_GATE = 20;
 // The hull's bail gate: the game's, fixed whatever the operation's hold (InGates, md/apirateslife_capture.xml)
 const HULL_GATE = 75;
 const FULL = 99;
+// How long after a stop its figures are read again, in s
+export const AFTER_STOP_SECONDS = 3;
+const SAME_STOP_SECONDS = 1;
 
 const num = (s: string) => Number.parseFloat(s);
 // Differences of two-decimal time stamps, without the float noise
@@ -98,9 +122,15 @@ export function summarizeRun(lines: string[]): RunSummary {
   let ended = false;
   let lastTime: number | undefined;
   let start: number | undefined;
+  // The operation's hold, where the wing stops on the hull (the stops' stages)
+  let hold: number | undefined;
   let gateSeconds: number | undefined;
   let lowestHull: number | undefined;
   let lastHull: number | undefined;
+  // The hull as last seen before this line's frame, and that frame's time stamp: a line in the same
+  // frame as a stop can already show the hit that set it off
+  let hullBeforeFrame: number | undefined;
+  let frame: number | undefined;
   let lastShields: number | undefined;
   let knockDowns = 0;
   let shieldsUp = true;
@@ -110,6 +140,7 @@ export function summarizeRun(lines: string[]): RunSummary {
   const passes: Pass[] = [];
   const gunSwaps: string[] = [];
   const combatTrace: WingmanTrace[] = [];
+  const stops: Stop[] = [];
   // The pass still waiting for its break-off line
   let awaitingBreakOff: Pass | undefined;
   // The pass that damage now counts for, from its start until the next pass starts or the
@@ -127,6 +158,10 @@ export function summarizeRun(lines: string[]): RunSummary {
     const time = /^\[[^\]]*\]\s+([\d.]+)\s/.exec(line);
     if (!time) continue;
     const t = num(time[1]);
+    if (t !== frame) {
+      hullBeforeFrame = lastHull;
+      frame = t;
+    }
     const resultLine = /\[apirateslife-test\] (PASS|FAIL) [^:]*?(?: outcome=(met|missed))?:/.exec(line);
     if (resultLine) {
       result = resultLine[1] as Result;
@@ -137,6 +172,8 @@ export function summarizeRun(lines: string[]): RunSummary {
     if (started && start === undefined) {
       start = t;
       target = started[1];
+      const holdLine = /\(hold ([\d.]+)%/.exec(line);
+      if (holdLine) hold = num(holdLine[1]);
     }
     // The test's own summary, logged before its result: it counts with or without an operation
     // (the turret tests trace vanilla's attack)
@@ -189,6 +226,29 @@ export function summarizeRun(lines: string[]): RunSummary {
     const shieldsLine = /\bshields (?:up )?([\d.]+)%/.exec(line);
     const shields = shieldsLine ? num(shieldsLine[1]) : /\bshields down\b/.test(line) ? 0 : undefined;
     if (shields !== undefined) lastShields = shields;
+    if (hull || shields !== undefined) {
+      for (const stop of stops) {
+        if (stop.hullAfter === undefined && seconds(start! + stop.seconds, t) >= AFTER_STOP_SECONDS) {
+          stop.hullAfter = lastHull;
+          stop.shieldsAfter = lastShields;
+        }
+      }
+    }
+    const stopLine = /\[apirateslife\] capture order: .* holds on event_\w+: hull ([\d.]+)%, shields ([\d.]+)%/.exec(line);
+    // Every wingman's handler logs the same stop, and one handler can run more than once in a
+    // frame (#172), so a stop within SAME_STOP_SECONDS of the last one is that one
+    const last = stops.at(-1);
+    if (stopLine && start !== undefined && hold !== undefined && !(last && seconds(start + last.seconds, t) < SAME_STOP_SECONDS)) {
+      const at = num(stopLine[1]);
+      stops.push({
+        stage: at >= hold ? "burst" : (hullBeforeFrame ?? at) >= hold ? "line" : "suppress",
+        seconds: seconds(start, t),
+        hullAt: at,
+        shieldsAt: num(stopLine[2]),
+        hullAfter: undefined,
+        shieldsAfter: undefined,
+      });
+    }
     if (counting && !passStart) {
       if (shields !== undefined && shields < counting.shieldsBefore) counting.hit = true;
       const h = hull ? num(hull[1]) : undefined;
@@ -246,6 +306,7 @@ export function summarizeRun(lines: string[]): RunSummary {
     bailChecks,
     noBailChance: noBail(bailChecks),
     inGatesSeconds: Math.round(inGatesSeconds * 100) / 100,
+    stops,
   };
 }
 
@@ -269,12 +330,20 @@ export function formatSummary(label: string, s: RunSummary): string {
   });
   const hits = s.passes.length ? `, ${s.passes.filter((p) => p.hit).length} with a hit` : "";
   const passList = passes.length ? ` (start, shields before -> after, hit or miss, hull drop): ${passes.join(", ")}` : "";
+  const stopList = s.stops.map(
+    (st) =>
+      `${st.stage} ${round(st.seconds, 1)} s ${round(st.hullAt, 1)}/${round(st.shieldsAt, 1)} -> ` +
+      (st.hullAfter === undefined || st.shieldsAfter === undefined ? "no sample" : `${round(st.hullAfter, 1)}/${round(st.shieldsAfter, 1)}%`),
+  );
+  const stops = stopList.length
+    ? `, ${stopList.length} stops (stage at, hull/shields at the stop -> ${AFTER_STOP_SECONDS} s later): ${stopList.join(", ")}`
+    : "";
   const outcome = s.outcome ? ` outcome=${s.outcome}` : "";
   const checks = s.bailChecks.length ? ` (chance after pressure: ${s.bailChecks.map((c) => `${round(c, 1)}%`).join(", ")})` : "";
   return (
     `${label} ${s.result}${outcome}: ${gate}, ${hull}, ${s.knockDowns} knock-downs, ` +
     `longest at full shields ${round(s.longestFullShieldsSeconds, 1)} s, ` +
     `${s.bailChecks.length} bail checks${checks}, P(no bail) ${round(s.noBailChance * 100, 1)}%, ${round(s.inGatesSeconds, 1)} s in the gates, ` +
-    `${s.passes.length} passes${hits}${passList}`
+    `${s.passes.length} passes${hits}${passList}${stops}`
   );
 }

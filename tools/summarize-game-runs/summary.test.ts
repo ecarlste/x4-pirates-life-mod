@@ -51,6 +51,7 @@ test("a capture run's gate time, lowest hull, knock-downs, longest full-shield s
     noBailChance: 1,
     // Inside both gates from 38.90 to the run's last sample, 39.00
     inGatesSeconds: 0.1,
+    stops: [],
   });
 });
 
@@ -258,4 +259,80 @@ test("only the operation's own target's checks count, until the operation ends",
   ]);
 
   assert.deepEqual(summary.bailChecks, [30]);
+});
+
+// A capture_wing_holds_fire run at 1x, trimmed (release-1.00-date's trace): the finisher's hit takes
+// the hull past the 75% hold, and the test's 1 s trace shows where it settles
+const HOLD_RUN = [
+  "[Scripts] 923.41 *** Context:md.APiratesLife_Capture.Operation<inst:e163>: [apirateslife] capture: started on IMP TIE/x1 (JHD-225), led by Fortitude-class (QFU-094) with 1 wingmen (hold 75%, floor 35%, fear 0)",
+  "[Scripts] 933.65 *** Context:md.APiratesLife_Tests.CaptureWingHoldsFire_Watch<inst:e1e0>: [apirateslife-test] trace: hull 76.75%, shields 0%, wingman 62.1172m away at 206.406 m/s",
+  "[Scripts] 933.81 *** aicontext<order.apirateslife.capture,0xe019>: [apirateslife] capture order: X-wing T65B holds on event_object_hull_damaged: hull 73.5%, shields 0% (0, stop at 5616)",
+  "[Scripts] 933.81 *** aicontext<order.apirateslife.capture,0xe019>: [apirateslife] capture order: X-wing T65B holds on IMP TIE/x1: hull 73.5%, shields 0% (0, stop at 5616), distance 53.8984m",
+  "[Scripts] 934.65 *** Context:md.APiratesLife_Tests.CaptureWingHoldsFire_Watch<inst:e1fd>: [apirateslife-test] trace: hull 70.25%, shields 0%, wingman 130.906m away at 266.188 m/s",
+  "[Scripts] 936.85 *** Context:md.APiratesLife_Tests.CaptureWingHoldsFire_Watch<inst:e20c>: [apirateslife-test] trace: hull 70.25%, shields 0%, wingman 808.625m away at 343.562 m/s",
+  "[Scripts] 937.85 *** Context:md.APiratesLife_Tests.CaptureWingHoldsFire_Watch<inst:e212>: [apirateslife-test] trace: hull 70.25%, shields 0.5%, wingman 1017m away at 256.062 m/s",
+  "[Scripts] 938.85 *** Context:md.APiratesLife_Tests.CaptureWingHoldsFire_Watch<inst:e219>: [apirateslife-test] trace: hull 70.25%, shields 3%, wingman 1096m away at 181.156 m/s",
+];
+
+test("a stop in the break stage: the target's hull and shields at the stop and at the first sample 3 s or more later", () => {
+  assert.deepEqual(summarizeRun(HOLD_RUN).stops, [
+    // The hull was at 76.75%, over the 75% hold, before the hit that stopped the wing: the line.
+    // 3 s after 933.81 is 936.81, so the 936.85 sample, not 937.85 where the shields regrow
+    { stage: "line", seconds: 10.4, hullAt: 73.5, shieldsAt: 0, hullAfter: 70.25, shieldsAfter: 0 },
+  ]);
+});
+
+test("a stop under the hold is in suppress; wingmen stopping within a second of it are the same stop", () => {
+  // Three wingmen's hold handlers on one knock-down, then one 0.9 s later, still the same stop
+  const summary = summarizeRun([
+    "[Scripts] 2.00 *** Context:md.APiratesLife_Capture.Operation<inst:9e3b>: [apirateslife] capture: started on IMP TIE/LN (ABC-123), led by Fortitude-class (PTD-300) with 3 wingmen (hold 75%, floor 35%, fear 0)",
+    "[General] 9.50 *** Context:md.APiratesLife_Tests.CheckWingCycle: [apirateslife-test] trace: t 7, hull 70%, shields 40%, wingman 600m away, knock-downs 0",
+    "[Scripts] 10.00 *** aicontext<order.apirateslife.capture,0x1>: [apirateslife] capture order: X-wing T65B holds on event_object_shield_damaged: hull 70%, shields 30% (270, stop at 270)",
+    "[Scripts] 10.00 *** aicontext<order.apirateslife.capture,0x2>: [apirateslife] capture order: X-wing T65B holds on event_object_shield_damaged: hull 70%, shields 30% (270, stop at 270)",
+    "[Scripts] 10.90 *** aicontext<order.apirateslife.capture,0x3>: [apirateslife] capture order: X-wing T65B holds on event_object_shield_damaged: hull 70%, shields 25% (225, stop at 270)",
+    "[General] 12.00 *** Context:md.APiratesLife_Tests.CheckWingCycle: [apirateslife-test] trace: t 10, hull 66%, shields 0%, wingman 500m away, knock-downs 1",
+    "[General] 13.10 *** Context:md.APiratesLife_Tests.CheckWingCycle: [apirateslife-test] trace: t 11, hull 65%, shields 2%, wingman 500m away, knock-downs 1",
+  ]);
+
+  assert.deepEqual(summary.stops, [
+    { stage: "suppress", seconds: 8, hullAt: 70, shieldsAt: 30, hullAfter: 65, shieldsAfter: 2 },
+  ]);
+});
+
+test("a stop with no sample 3 s later, as when the run ends first, has no figures after it", () => {
+  const summary = summarizeRun(HOLD_RUN.slice(0, 5));
+
+  assert.deepEqual(summary.stops.map((s) => [s.hullAfter, s.shieldsAfter]), [[undefined, undefined]]);
+});
+
+test("the summary line lists each stop: its stage, then hull and shields at it and 3 s later", () => {
+  assert.match(
+    formatSummary("capture_wing_holds_fire-1", summarizeRun(HOLD_RUN)),
+    /, 0 passes, 1 stops \(stage at, hull\/shields at the stop -> 3 s later\): line 10\.4 s 73\.5\/0 -> 70\.3\/0%$/,
+  );
+  assert.match(formatSummary("x-1", summarizeRun(HOLD_RUN.slice(0, 5))), /: line 10\.4 s 73\.5\/0 -> no sample$/);
+});
+
+test("a stop's stage goes by the hull before the stop's frame: a sample in the same frame can already show the hit", () => {
+  // capture_wing_holds_fire_three_wingmen at 1x: the test's trace logs the hit's 73.5% just before the hold handler does
+  const summary = summarizeRun([
+    "[Scripts] 600.00 *** Context:md.APiratesLife_Capture.Operation<inst:9e3b>: [apirateslife] capture: started on IMP TIE/x1 (ABC-123), led by Fortitude-class (PTD-300) with 3 wingmen (hold 75%, floor 35%, fear 0)",
+    "[General] 628.58 *** Context:md.APiratesLife_Tests.CheckWingHold: [apirateslife-test] trace: hull 76.75%, shields 0%, wingman 1589m away at 297.438 m/s",
+    "[General] 629.58 *** Context:md.APiratesLife_Tests.CheckWingHold: [apirateslife-test] trace: hull 73.5%, shields 0%, wingman 1575.25m away at 71.4531 m/s",
+    "[Scripts] 629.58 *** aicontext<order.apirateslife.capture,0x1>: [apirateslife] capture order: X-wing T65B holds on event_object_hull_damaged: hull 73.5%, shields 0% (0, stop at 1746.6)",
+  ]);
+
+  assert.deepEqual(summary.stops.map((s) => s.stage), ["line"]);
+});
+
+test("a stop with the hull still at or over the hold is the wing's burst stop, apart from the finisher's at the hold line", () => {
+  // A TIE Phantom's big shields: the wing stops with 1.5 s of its fire left above the line
+  const summary = summarizeRun([
+    "[Scripts] 2.00 *** Context:md.APiratesLife_Capture.Operation<inst:9e3b>: [apirateslife] capture: started on IMP TIE Phantom (ABC-123), led by Fortitude-class (PTD-300) with 1 wingmen (hold 75%, floor 35%, fear 0)",
+    "[General] 9.00 *** Context:md.APiratesLife_Tests.CheckWingCycle: [apirateslife-test] trace: t 7, hull 100%, shields 60%, wingman 1500m away, knock-downs 0",
+    "[Scripts] 9.50 *** aicontext<order.apirateslife.capture,0x1>: [apirateslife] capture order: X-wing T65B holds on event_object_shield_damaged: hull 100%, shields 40% (2240, stop at 5616)",
+    "[General] 13.00 *** Context:md.APiratesLife_Tests.CheckWingCycle: [apirateslife-test] trace: t 11, hull 100%, shields 20%, wingman 1200m away, knock-downs 0",
+  ]);
+
+  assert.deepEqual(summary.stops, [{ stage: "burst", seconds: 7.5, hullAt: 100, shieldsAt: 40, hullAfter: 100, shieldsAfter: 20 }]);
 });
