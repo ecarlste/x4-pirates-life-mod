@@ -62,7 +62,7 @@ Describe 'run-game-tests.ps1' {
             '[Scripts] 4.00 *** Context:x: [apirateslife-test] PASS capture_wing_holds_fire: lowest hull 71%'
             '[Scripts] 5.00 *** Context:x: [apirateslife-test] DONE passed=2 failed=1'
         )
-        $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire', '-Repeat', '3', '-KeepExtension'))
+        $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire', '-Repeat', '3', '-KeepExtension', '-LongHold'))
         $r.Output | Should -BeLike '*Running 3 selected tests: CaptureWingHoldsFire, 3 times*'
         $r.Output | Should -BeLike '*Repeated: capture_wing_holds_fire: 1 of 3 runs failed*'
         $r.Output | Should -BeLike '*failed: capture_wing_holds_fire, load_order_after_swi*'
@@ -156,7 +156,7 @@ Describe 'run-game-tests.ps1' {
             '[Scripts] 3.00 *** Context:x: [apirateslife-test] FAIL capture_wing_holds_fire: lowest hull 54%'
             '[Scripts] 5.00 *** Context:x: [apirateslife-test] DONE passed=1 failed=1'
         )
-        $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire', '-Repeat', '2'))
+        $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire', '-Repeat', '2', '-LongHold'))
         $r.Output | Should -BeLike "*Run traces: 2 files in $runs*"
         @(Get-ChildItem $runs | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @('capture_wing_holds_fire-1.log', 'capture_wing_holds_fire-2.log')
         Get-Content (Join-Path $runs 'capture_wing_holds_fire-1.log') | Should -Be @(

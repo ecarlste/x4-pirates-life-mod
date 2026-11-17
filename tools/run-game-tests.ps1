@@ -93,7 +93,20 @@
     Run the selected tests (all of them without -Test) this many times in one game session, in
     rounds: A, B, A, B. The reports then add a tally per test of its runs and failures, for
     measuring a flaky test. Default 1. A run with -Test or -Repeat is marked as a selection in
-    its report, and make game-test-report won't post it.
+    its report, and make game-test-report won't post it. A selection whose worst case could hold
+    the game lock over the PR tier's 5 minutes is refused, unless -LongHold (see -LongHold).
+
+.PARAMETER LongHold
+    Run a -Test or -Repeat selection even if its worst case could hold the game lock over the PR
+    tier's 5 minutes. Without it the runner refuses such a selection before it takes the lock
+    (docs/testing.md, Keep each hold short): the worst case is about 55 s of game start plus
+    each test run's timeout cue, at 1x for a combat test and a sixth of it under SETA otherwise,
+    or the whole 5 minutes for a test with no timeout cue. One test run is never refused, and
+    whole tiers and -Release aren't checked.
+
+.PARAMETER HoldCheckOnly
+    Only check the selection's hold (see -LongHold) and stop: make game-test runs it before it
+    queues for the game lock. Needs no X4 settings.
 
 .PARAMETER RunsLabel
     Keep this batch's run traces in <report folder>\runs\<label>\ instead of runs\, so batches
@@ -129,7 +142,7 @@
     .\tools\run-game-tests.ps1 -PrepareProfile
 
 .EXAMPLE
-    .\tools\run-game-tests.ps1 -Test capture_wing_holds_fire -Repeat 20
+    .\tools\run-game-tests.ps1 -Test capture_wing_holds_fire -Repeat 20 -LongHold
 
 .EXAMPLE
     .\tools\run-game-tests.ps1 -Release
@@ -154,7 +167,9 @@ param(
     [int] $Repeat = 1,
     [string] $RunsLabel,
     [switch] $Release,
-    [switch] $ReleaseTier
+    [switch] $ReleaseTier,
+    [switch] $LongHold,
+    [switch] $HoldCheckOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -560,6 +575,53 @@ function Get-BudgetWarning($Info) {
     }
 }
 
+# Seconds from the game's launch to the first test, about (#195)
+$GameStartSeconds = 55
+# The harness's SETA factor (its Begin cue): every test but a combat test runs at it
+$SetaFactor = 6
+
+# A test run's worst case in seconds of real time. A test that reports from its own actions (no
+# sub-cues) takes none. Otherwise it's its <Name>_Timeout cue's delay plus the delays of the cues
+# it sits under in the test (a sub-cue's delay counts from when its parent activates), in game time:
+# a combat test (MarkCombatTest first) runs at 1x, every other test under SETA. A test with no
+# timeout cue counts as the PR tier's whole budget, since nothing bounds it.
+function Get-TestCeiling([xml] $Harness, [string] $Name) {
+    $cue = $Harness.SelectSingleNode("//cue[@name='$Name']")
+    if (-not $cue.SelectSingleNode('./cues')) { return 0 }
+    $timeout = $cue.SelectSingleNode(".//cue[@name='$($Name)_Timeout']")
+    if (-not $timeout) { return $Tiers.pr.Seconds }
+    $seconds = 0
+    for ($node = $timeout; $node -ne $cue.ParentNode; $node = $node.ParentNode) {
+        $delay = $node.SelectSingleNode('./delay')
+        if ($delay) { $seconds += [double] ($delay.exact -replace 's$', '') }
+    }
+    $first = $cue.SelectSingleNode('./actions/*[1]')
+    $combat = $first.LocalName -eq 'run_actions' -and $first.ref -eq 'MarkCombatTest'
+    if ($combat) { $seconds } else { $seconds / $SetaFactor }
+}
+
+# Why this selection ($TestList, the cue names in run order) can't hold the game lock, or nothing:
+# its worst case, the game's start and each run's ceiling, is over the PR tier's budget
+# (docs/testing.md, Keep each hold short). A single test run (besides $FirstOnlyTests) passes,
+# since it can't be split.
+function Get-HoldRefusal([string] $HarnessText, [string[]] $TestList) {
+    $harness = [xml] $HarnessText
+    $runs = @($TestList | Where-Object { $FirstOnlyTests -notcontains $_ })
+    if ($runs.Count -le 1) { return }
+    $total = $GameStartSeconds
+    $parts = @("$(Format-Seconds $GameStartSeconds) game start")
+    foreach ($name in ($TestList | Select-Object -Unique)) {
+        $ceiling = Get-TestCeiling $harness $name
+        if (-not $ceiling) { continue }
+        $count = @($TestList | Where-Object { $_ -eq $name }).Count
+        $total += $count * $ceiling
+        $parts += "$name $count x $(Format-Seconds $ceiling)"
+    }
+    if ($total -le $Tiers.pr.Seconds) { return }
+    "This selection could hold the game for up to $(Format-Seconds $total), over the $($Tiers.pr.Seconds / 60)-minute hold budget ($($parts -join ', ')). " +
+    'Split the batch into smaller runs, each rejoining the back of the line, so others get the game between them (docs/testing.md, Keep each hold short), or pass -LongHold if the long hold is meant.'
+}
+
 # The Markdown report for a PR comment. Its first line is a hidden marker that
 # tools/post-game-test-report.sh reads to check the report matches the PR's commit.
 # $Info: Commit, Branch, Dirty, StartedAt (datetime), DurationSeconds, and optionally Phases
@@ -886,6 +948,26 @@ if ($RunsLabel -and ($RunsLabel -notmatch '^[A-Za-z0-9._-]+$' -or $RunsLabel -ma
 if ($ReleaseTier -and -not $PSBoundParameters.ContainsKey('TimeoutSeconds')) { $TimeoutSeconds = $Tiers.release.Seconds + 600 }
 
 $root = Split-Path $PSScriptRoot -Parent
+# The tests to run, checked first, so an unknown -Test name or a hold over the budget stops make
+# game-test before it queues for the game lock: a PR-tier run leaves out the release-only tests, a
+# -ReleaseTier run doesn't, and -Test and -Repeat pick from them. $testList is $null when the harness's own list runs as it is.
+$harnessPath = "md/$TestExtensionId.xml"
+$harnessText = Get-Content (Join-Path $root "tests/game/$TestExtensionId/$harnessPath") -Raw
+$available = @(Get-GameTestNames $harnessText)
+$skipped = if ($ReleaseTier -or $Release) { @() } else { @(Get-GameTestNames $harnessText 'ReleaseOnly') }
+$isSelection = [bool] ($Test -or $Repeat -ne 1)
+$tier = if ($isSelection -or $Release) { $null } elseif ($ReleaseTier) { 'release' } else { 'pr' }
+# The release tier runs each $ReleaseRuns test its runs and holds it to its pass bar
+$bars = if ($tier -eq 'release') { Get-ReleaseRuns $harnessText } else { @{} }
+$testList = $null
+if ($isSelection -or $skipped.Count -or $bars.Count) { $testList = @(Resolve-GameTestSelection $available $Test $Repeat $skipped $bars) }
+# A selection mustn't hold the game lock for long unless it says so (docs/testing.md, Keep each
+# hold short); a whole tier and the release sessions have their own budgets
+if ($isSelection -and -not $LongHold) {
+    $refusal = Get-HoldRefusal $harnessText $testList
+    if ($refusal) { throw $refusal }
+}
+if ($HoldCheckOnly) { exit 0 }
 if (-not $X4Path) { $X4Path = Resolve-Setting $root 'X4_PATH' '' }
 if (-not $X4Path) { throw "X4_PATH not set: pass -X4Path, set X4_PATH, or run make setup and edit deploy.config" }
 $X4Path = ConvertFrom-WslPath $X4Path
@@ -908,19 +990,6 @@ if (-not (Test-Path (Join-Path $X4Path "extensions/$SwiFolder/content.xml"))) {
     throw "SWI isn't installed in $X4Path (no extensions\$SwiFolder)"
 }
 $contentXml = Join-Path $profileDir 'content.xml'
-# The tests to run, checked here so an unknown -Test name stops make game-test before its deploy:
-# a PR-tier run leaves out the release-only tests, a -ReleaseTier run doesn't, and -Test and -Repeat
-# pick from them. $testList is $null when the harness's own list runs as it is.
-$harnessPath = "md/$TestExtensionId.xml"
-$harnessText = Get-Content (Join-Path $root "tests/game/$TestExtensionId/$harnessPath") -Raw
-$available = @(Get-GameTestNames $harnessText)
-$skipped = if ($ReleaseTier -or $Release) { @() } else { @(Get-GameTestNames $harnessText 'ReleaseOnly') }
-$isSelection = [bool] ($Test -or $Repeat -ne 1)
-$tier = if ($isSelection -or $Release) { $null } elseif ($ReleaseTier) { 'release' } else { 'pr' }
-# The release tier runs each $ReleaseRuns test its runs and holds it to its pass bar
-$bars = if ($tier -eq 'release') { Get-ReleaseRuns $harnessText } else { @{} }
-$testList = $null
-if ($isSelection -or $skipped.Count -or $bars.Count) { $testList = @(Resolve-GameTestSelection $available $Test $Repeat $skipped $bars) }
 $processNames = if ($fakeGame) { @(Get-ProcessName $GameExe) } else { Get-GameProcessNames $GameExe }
 if ($PreflightOnly) {
     Assert-NoGameRunning $processNames

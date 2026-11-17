@@ -130,10 +130,12 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 }
 
 # A runner that logs each call's arguments and whether the mod was deployed yet, and fails its
-# preflight when FAIL_PREFLIGHT is set
+# preflight when FAIL_PREFLIGHT is set. Its hold checks go to hold.log, and fail when FAIL_HOLD is
+# set.
 write_logging_runner() {
     cat > "$SANDBOX/runner" <<SCRIPT
 #!/bin/sh
+if [ "\$1" = -HoldCheckOnly ]; then echo "\$*" >> "$SANDBOX/hold.log"; [ -z "\$FAIL_HOLD" ]; exit; fi
 deployed=no; [ -e "$TARGET" ] && deployed=yes
 echo "\$* deployed=\$deployed" >> "$SANDBOX/runner.log"
 case "\$1" in -PreflightOnly) [ -z "\$FAIL_PREFLIGHT" ] ;; esac
@@ -167,6 +169,21 @@ SCRIPT
     [ ! -e "$TARGET" ]
     [ "$(wc -l < "$SANDBOX/runner.log")" -eq 1 ]
     [ ! -e "$X4_PATH/game.lock" ]
+}
+
+@test "make game-test checks the selection's hold before it queues for the game lock" {
+    write_logging_runner
+    run make -C "$REPO" game-test RELEASE=1 RUNNER_ARGS="-Test a -Repeat 2" GAME_TEST_RUNNER="$SANDBOX/runner"
+    [ "$status" -eq 0 ]
+    [ "$(cat "$SANDBOX/hold.log")" = "-HoldCheckOnly -ReleaseTier -Test a -Repeat 2" ]
+    # Refused: no waiting in line behind another run, and nothing deployed or run
+    rm -r "$TARGET" "$SANDBOX/runner.log"
+    write_game_lock
+    run env FAIL_HOLD=1 X4_GAME_LOCK_WAIT=0 make -C "$REPO" game-test GAME_TEST_RUNNER="$SANDBOX/runner"
+    [ "$status" -ne 0 ]
+    [[ "$output" != *"held by"* ]]
+    [ ! -e "$TARGET" ]
+    [ ! -e "$SANDBOX/runner.log" ]
 }
 
 @test "make passes ARGS through to deploy.sh" {
@@ -208,6 +225,7 @@ SCRIPT
 write_lock_runner() {
     cat > "$SANDBOX/runner" <<'SCRIPT'
 #!/bin/sh
+[ "$1" = -HoldCheckOnly ] && exit 0
 cat "$X4_PATH/game.lock"
 echo "token: $X4_GAME_LOCK_TOKEN"
 echo "wslenv: $WSLENV"
@@ -243,7 +261,7 @@ SCRIPT
     run env X4_GAME_LOCK_WAIT=0 make -C "$REPO" game-test GAME_TEST_RUNNER='echo game tests ran'
     [ "$status" -ne 0 ]
     [[ "$output" == *"held by game-test (x4-swi-bounty-hunter, feature/other)"* ]]
-    [[ "$output" != *"game tests ran"* ]]
+    [[ "$output" != *"game tests ran -Commit"* ]]
     [ ! -e "$TARGET" ]
 }
 
