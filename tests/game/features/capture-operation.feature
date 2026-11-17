@@ -73,7 +73,7 @@ Feature: Capture operations
     Then the hull is below 75% within 60 seconds, or the run is reported as timed out
     And the hull never drops below the 35% floor, and the fighter is never destroyed
 
-  # One X-wing against a TIE Phantom's shields, about 5600, bails it in about 85% of runs at 1x:
+  # One X-wing against a TIE Phantom's shields, about 5600, bailed it in 34 of 40 runs at 1x, starting beside the player:
   # the finisher's close-range pass sometimes can't keep the shields under the gate, so a run
   # without a bail in 300 s is reported instead of failed (#216, #224). Release tier only.
   @capture_wing_bails_phantom
