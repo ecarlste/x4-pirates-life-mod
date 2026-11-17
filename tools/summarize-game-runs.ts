@@ -3,7 +3,7 @@
 // folders of them, tests/game/runs/ by default; a folder's traces print by test name, then run number.
 // --totals then adds a block per test summed across its runs (tools/summarize-game-runs/totals.ts).
 // Traces from more than one folder (a labelled batch each, -RunsLabel) are named, and totalled, by
-// folder: "<folder>/<test>-<n>".
+// folder: "<folder>/<test>-<n>", or by the folder's path as given when two folders share a name.
 //
 //   node tools/summarize-game-runs.ts [--totals] [<file or folder>...]
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -50,16 +50,20 @@ for (const path of paths) {
   files.push(...traces.map((f) => join(path, f)));
 }
 
-// Named by folder only when the traces come from more than one
-const byFolder = new Set(files.map((f) => resolve(dirname(f)))).size > 1;
-const label = (file: string) => (byFolder ? `${basename(dirname(resolve(file)))}/` : "") + basename(file, ".log");
+// Named by folder only when the traces come from more than one: by its name, or by its path as
+// given when two share a name (unlabelled batches from two worktrees are both runs/)
+const folders = [...new Set(files.map((f) => resolve(dirname(f))))];
+const byPath = new Set(folders.map((d) => basename(d))).size < folders.length;
+const folder = (file: string) => (byPath ? dirname(file) : basename(dirname(resolve(file))));
+const label = (file: string) => (folders.length > 1 ? `${folder(file)}/` : "") + basename(file, ".log");
 
 // Each test's runs, by "<folder>/<test>" or "<test>", in the order first seen
 const tests = new Map<string, RunSummary[]>();
 for (const file of files) {
   const summary = summarizeRun(readFileSync(file, "utf8").split(/\r?\n/));
-  console.log(formatSummary(label(file), summary));
-  const test = label(file).replace(/-\d+$/, "");
+  const run = label(file);
+  console.log(formatSummary(run, summary));
+  const test = run.replace(/-\d+$/, "");
   tests.set(test, [...(tests.get(test) ?? []), summary]);
 }
 if (totals) {

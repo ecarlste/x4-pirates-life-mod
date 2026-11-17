@@ -88,3 +88,15 @@ test("traces from more than one folder are named by their folder, and total apar
   assert.match(out.stdout, /^runs\/bail_raises_bailed totals: 1 runs, 1 passed$/m);
   assert.match(out.stdout, /^variant\/bail_raises_bailed totals: 1 runs, 0 passed$/m);
 });
+
+test("folders with the same name are named by their path, so their totals stay apart", () => {
+  const a = runsFolder();
+  const b = runsFolder();
+  const out = run("--totals", a, b);
+
+  assert.equal(out.status, 0, out.stderr);
+  const heads = out.stdout.split("\n").filter((l) => / totals: /.test(l));
+  assert.equal(heads.length, 4);
+  assert.ok(heads.some((h) => h.startsWith(`${join(a, "bail_raises_bailed")} totals:`)), heads.join("\n"));
+  assert.ok(heads.some((h) => h.startsWith(`${join(b, "bail_raises_bailed")} totals:`)), heads.join("\n"));
+});

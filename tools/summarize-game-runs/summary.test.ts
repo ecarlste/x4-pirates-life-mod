@@ -147,3 +147,12 @@ test("a run's gun swaps and combat trace lines, as logged", () => {
   // The swap line's hull is a sample like any other
   assert.equal(summary.lowestHull, 90);
 });
+
+test("a combat trace counts in a run with no capture operation, as in the turret tests on vanilla's attack", () => {
+  const summary = summarizeRun([
+    "[General] 60.00 *** Context:md.APiratesLife_Tests.CombatTraceStop: [apirateslife-test] combat trace turret_damage_landed_s, wingman 1 of 1: 58 s, shots 12, overheats 0; seconds with damage/fired/in band, by nose angle and distance: 0-3 deg under 600 m 1/2/3",
+  ]);
+
+  assert.equal(summary.gate, "no operation");
+  assert.deepEqual(summary.combatTrace.map((t) => t.shots), [12]);
+});

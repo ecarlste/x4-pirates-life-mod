@@ -58,7 +58,7 @@ test("a batch's totals: runs, passes, finisher hits by shields, lowest hull, gat
     passed: 2,
     finisherPasses: { total: 6, hit: 3, shieldsDown: { total: 3, hit: 2 }, shieldsUp: { total: 3, hit: 1 } },
     lowestHull: { runs: 3, min: 54, p50: 70 },
-    gate: { reached: 2, p50: 30, p90: 50 },
+    gate: { reached: 2, times: { p50: 30, p90: 50 } },
     gunSwaps: { count: 3, runs: 2 },
     combatTrace: [
       { wingman: "1 of 1", runs: 2, seconds: 100, shots: 40, overheats: 1, bands: bands([3, 5, 7], [1, 1, 93]) },
@@ -69,7 +69,7 @@ test("a batch's totals: runs, passes, finisher hits by shields, lowest hull, gat
 test("percentiles are nearest-rank: p50 of four is the second, p90 of four the fourth", () => {
   const totals = totalRuns([10, 40, 20, 30].map((gateSeconds) => run({ gateSeconds })));
 
-  assert.deepEqual(totals.gate, { reached: 4, p50: 20, p90: 40 });
+  assert.deepEqual(totals.gate, { reached: 4, times: { p50: 20, p90: 40 } });
 });
 
 test("the totals block: a line per figure, under the test's name", () => {

@@ -1,6 +1,6 @@
 // A batch of one test's runs summed up (summarize-game-runs --totals): the figures each run's
 // summary (summary.ts) already holds, added or ranked across the runs. It reads no new log lines.
-import type { Band, RunSummary } from "./summary.ts";
+import type { RunSummary, WingmanTrace } from "./summary.ts";
 
 interface HitCount {
   total: number;
@@ -15,17 +15,17 @@ export interface Totals {
   finisherPasses: HitCount & { shieldsDown: HitCount; shieldsUp: HitCount };
   /** Over the runs that saw a hull */
   lowestHull: { runs: number; min: number; p50: number } | undefined;
-  /** Over the runs that reached the gates; p50 and p90 are undefined when none did */
-  gate: { reached: number; p50?: number; p90?: number };
+  /** The runs that reached the gates, and their times; no times when none did */
+  gate: { reached: number; times: { p50: number; p90: number } | undefined };
   /** The order's gun swaps, and the runs with one. Not by gun: the order logs each gun's
    * component ID, which differs from run to run */
   gunSwaps: { count: number; runs: number };
   /** Each wingman's combat trace lines ("N of M") summed, with the runs that logged one */
-  combatTrace: { wingman: string; runs: number; seconds: number; shots: number; overheats: number; bands: Band[] }[];
+  combatTrace: (WingmanTrace & { runs: number })[];
 }
 
-// Shields the run's line rounds to 0%
-const DOWN = 0.5;
+// Shields under this show as 0% on a run's line, so a pass starting there starts at shields down
+const SHIELDS_SHOWN_AS_ZERO = 0.5;
 
 /** The nearest-rank percentile: the smallest value with at least p% of them at or under it */
 const percentile = (values: number[], p: number) => {
@@ -68,11 +68,11 @@ export function totalRuns(runs: RunSummary[]): Totals {
     passed: runs.filter((r) => r.result === "PASS").length,
     finisherPasses: {
       ...hits(passes),
-      shieldsDown: hits(passes.filter((p) => p.shieldsBefore < DOWN)),
-      shieldsUp: hits(passes.filter((p) => p.shieldsBefore >= DOWN)),
+      shieldsDown: hits(passes.filter((p) => p.shieldsBefore < SHIELDS_SHOWN_AS_ZERO)),
+      shieldsUp: hits(passes.filter((p) => p.shieldsBefore >= SHIELDS_SHOWN_AS_ZERO)),
     },
     lowestHull: hulls.length ? { runs: hulls.length, min: Math.min(...hulls), p50: percentile(hulls, 50) } : undefined,
-    gate: gates.length ? { reached: gates.length, p50: percentile(gates, 50), p90: percentile(gates, 90) } : { reached: 0 },
+    gate: { reached: gates.length, times: gates.length ? { p50: percentile(gates, 50), p90: percentile(gates, 90) } : undefined },
     gunSwaps: { count: runs.reduce((n, r) => n + r.gunSwaps.length, 0), runs: runs.filter((r) => r.gunSwaps.length).length },
     combatTrace: [...traces.values()],
   };
@@ -93,7 +93,7 @@ export function formatTotals(test: string, t: Totals): string {
       ? `  lowest hull (${t.lowestHull.runs} runs): min ${round(t.lowestHull.min)}%, p50 ${round(t.lowestHull.p50)}%`
       : "  lowest hull: none seen",
     `  gate: reached in ${t.gate.reached} of ${t.runs} runs` +
-      (t.gate.p50 === undefined ? "" : `, p50 ${round(t.gate.p50)} s, p90 ${round(t.gate.p90!)} s`),
+      (t.gate.times ? `, p50 ${round(t.gate.times.p50)} s, p90 ${round(t.gate.times.p90)} s` : ""),
     t.gunSwaps.count ? `  gun swaps: ${t.gunSwaps.count}, in ${t.gunSwaps.runs} of ${t.runs} runs` : "  gun swaps: none",
     ...t.combatTrace.map(
       (w) =>

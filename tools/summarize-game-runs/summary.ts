@@ -107,8 +107,8 @@ export function summarizeRun(lines: string[]): RunSummary {
       start = t;
       hold = num(started[1]);
     }
-    const ours = start !== undefined || /\[apirateslife-test\] trace:/.test(line);
-    if (!ours) continue;
+    // The test's own summary, logged before its result: it counts with or without an operation
+    // (the turret tests trace vanilla's attack)
     const trace = /\[apirateslife-test\] combat trace .*, wingman (\d+ of \d+): ([\d.]+) s, shots (\d+), overheats (\d+); [^:]*: (.*)$/.exec(line);
     if (trace) {
       combatTrace.push({
@@ -123,6 +123,8 @@ export function summarizeRun(lines: string[]): RunSummary {
       });
       continue;
     }
+    const ours = start !== undefined || /\[apirateslife-test\] trace:/.test(line);
+    if (!ours) continue;
     const swap = /\[apirateslife\] capture order: .*, swaps gun (.*), guns in group /.exec(line);
     if (swap) gunSwaps.push(swap[1]);
     const passStart = /\[apirateslife\] capture pass: starts at ([\d.]+)m, shields ([\d.]+)%, hull ([\d.]+)%/.exec(line);
