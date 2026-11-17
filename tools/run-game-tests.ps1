@@ -256,7 +256,8 @@ function Read-GameTestLog([string[]] $Lines) {
 # whole), split into one run per test result, for the per-run traces (Write-GameTestRunLogs). A run
 # starts after RUN START or the previous result and ends on its own PASS or FAIL line, so a line
 # logged after a test's result (its cleanup) goes with the next test. Name is the name the test
-# reports, Number counts its runs from 1. Lines after the last result, with no DONE, are a run named 'unfinished'.
+# reports, Number counts its runs from 1. Lines after the last result, with no DONE, are a run
+# named 'unfinished'.
 function Split-GameTestRuns([string[]] $Lines) {
     $runs = New-Object System.Collections.ArrayList
     $numbers = @{}
