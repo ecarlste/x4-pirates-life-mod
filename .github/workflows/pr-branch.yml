@@ -1,0 +1,29 @@
+name: PR branch
+
+# research/<name> and prototype/<name> branches hold research or a prototype and are never merged,
+# so a PR from one fails; work on a ticket goes on an issue-<n> branch (docs/PROJECT.md, Workflow
+# rules). The check's tests are in tools/check-pr-branch/.
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  never-merged:
+    name: Not a never-merged branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: tools/check-pr-branch.ts
+          sparse-checkout-cone-mode: false
+      # The check runs .ts directly, which needs Node's type stripping
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "26"
+      - name: Check the PR's head branch
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: node tools/check-pr-branch.ts "$BRANCH"

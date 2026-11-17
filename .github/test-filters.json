@@ -18,6 +18,7 @@
     ".gitignore",
     ".github/workflows/pr-title.yml",
     ".github/workflows/pr-body.yml",
+    ".github/workflows/pr-branch.yml",
     ".github/workflows/test-plan.yml",
     "LICENSE",
     "CHANGELOG.md"
