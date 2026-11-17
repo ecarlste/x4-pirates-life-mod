@@ -3160,6 +3160,9 @@
       <actions>
         <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
         <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <!-- Stray fire must not kill the player's ship: a player in a spacesuit can't start an
+             operation (md.APiratesLife_Capture.CanStart), so every later run would fail -->
+        <set_object_min_hull object="player.occupiedship" exact="50"/>
         <create_ship name="$Wingman" macro="t65b_xwing_macro" sector="player.sector">
           <owner exact="faction.player" overridenpc="true"/>
           <loadout ref="apirateslife_test_xwing_torpedoes"/>
@@ -3206,10 +3209,12 @@
 
     <!-- One check of a SpawnMissileInFlight, run every 0.2 s. Until the wingman's first torpedo is
          away, it waits. Then, at once, the target becomes a held fighter (70% hull, no shields,
-         free to die or bail) and the player starts a capture operation on it, so the wingman
-         switches to the capture order with the torpedo still in flight. From there it watches the
-         target for 40 s (a proton torpedo lives 35 s) and records the biggest hull drop in one
-         check and whether it died. Returns table[$done, $problems]. -->
+         free to die but not to bail, as in the capture wing tests) and the player starts a capture
+         operation on it, so the wingman switches to the capture order with the torpedo still in
+         flight. From there it watches the target for 40 s (a proton torpedo lives 35 s) and records
+         the biggest hull drop in one check, whether it died and its hull just before (a proton
+         torpedo deals 7000 hull, 87% of a TIE Advanced's, so a kill from about 70% is the torpedo,
+         and one from far lower is the guns). Returns table[$done, $problems]. -->
     <library name="CheckMissileInFlight" purpose="run_actions">
       <params>
         <param name="Run"/>
@@ -3234,6 +3239,9 @@
               <param name="Target" value="$Target"/>
             </run_actions>
             <set_value name="$Run.$started" exact="$Started"/>
+            <do_if value="not $Started">
+              <debug_text text="'[apirateslife-test] probe: no operation: player ship operational %s, spacesuit %s, target pilot %s, capturable %s, owner %s'.[@player.occupiedship.isoperational, @player.occupiedship.isclass.spacesuit, $Target.pilot.exists, $Target.iscapturable, $Target.trueowner]" filter="general"/>
+            </do_if>
             <set_object_capturable object="$Target" capturable="false"/>
             <set_value name="$Run.$last" exact="$Target.hullpercentage"/>
             <debug_text text="'[apirateslife-test] probe: %s torpedo(es) away from %s m, target set to 70%% hull, operation started %s'.[$Spent, $Run.$distance, $Started]" filter="general"/>
@@ -3242,6 +3250,7 @@
         </do_if>
         <set_value name="$Run.$extra" exact="$Spent - $Run.$spent"/>
         <do_if value="not $Target.exists or not $Target.isoperational">
+          <!-- $Run.$last is the hull at the check before -->
           <set_value name="$Run.$killedafter" exact="player.age - $Run.$launchat"/>
           <return value="table[$done = true, $problems = '']"/>
         </do_if>
@@ -3269,13 +3278,14 @@
           <set_value name="$Problems" exact="$Problems + ' %s more torpedo(es) after the operation started;'.[$Run.$extra]"/>
         </do_if>
         <set_value name="$Killed" exact="$Run.$killedafter ge 0"/>
-        <set_value name="$Detail" exact="if $Killed then '%s torpedo(es) from %s m, killed %s s after launch'.[$Run.$spent, $Run.$distance, $Run.$killedafter] else '%s torpedo(es) from %s m, survived 40 s, lowest hull %s%%, biggest drop %s%% in 0.2 s'.[$Run.$spent, $Run.$distance, $Run.$minhull, $Run.$maxdrop]"/>
+        <set_value name="$Detail" exact="if $Killed then '%s torpedo(es) from %s m, killed %s s after launch from %s%% hull'.[$Run.$spent, $Run.$distance, $Run.$killedafter, $Run.$last] else '%s torpedo(es) from %s m, survived 40 s, lowest hull %s%%, biggest drop %s%% in 0.2 s'.[$Run.$spent, $Run.$distance, $Run.$minhull, $Run.$maxdrop]"/>
         <signal_cue_instantly cue="Report" param="table[$name = $Name, $ok = ($Problems == ''), $detail = (if $Problems == '' then $Detail else $Problems), $outcome = not $Killed]"/>
         <do_for_each name="$Ship" in="[$Run.$wingman, $Run.$target]">
           <do_if value="$Ship.exists">
             <destroy_object object="$Ship"/>
           </do_if>
         </do_for_each>
+        <set_object_min_hull object="player.occupiedship" exact="0"/>
       </actions>
     </library>
 
@@ -3305,7 +3315,11 @@
         <cue name="MissileInFlightHeld_Timeout">
           <delay exact="240s"/>
           <actions>
-            <signal_cue_instantly cue="MissileInFlightHeld_Done" param="if $Run.$launched then '' else ' no torpedo in 240 s;'"/>
+            <!-- After a launch the watch ends the run, 40 s on -->
+            <do_if value="not $Run.$launched">
+              <cancel_cue cue="MissileInFlightHeld_Watch"/>
+              <signal_cue_instantly cue="MissileInFlightHeld_Done" param="' no torpedo in 240 s;'"/>
+            </do_if>
           </actions>
         </cue>
         <cue name="MissileInFlightHeld_Done">
@@ -3350,7 +3364,11 @@
         <cue name="MissileInFlightHeldFights_Timeout">
           <delay exact="240s"/>
           <actions>
-            <signal_cue_instantly cue="MissileInFlightHeldFights_Done" param="if $Run.$launched then '' else ' no torpedo in 240 s;'"/>
+            <!-- After a launch the watch ends the run, 40 s on -->
+            <do_if value="not $Run.$launched">
+              <cancel_cue cue="MissileInFlightHeldFights_Watch"/>
+              <signal_cue_instantly cue="MissileInFlightHeldFights_Done" param="' no torpedo in 240 s;'"/>
+            </do_if>
           </actions>
         </cue>
         <cue name="MissileInFlightHeldFights_Done">
