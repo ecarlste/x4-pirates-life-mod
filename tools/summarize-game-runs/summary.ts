@@ -5,6 +5,8 @@
 // own result line is left out, as its detail can quote other figures (the lowest hull, an expected
 // value). Before the run's operation starts, only the test's trace lines count: the last run's
 // order can still log for a moment after its result, and the runner puts those lines in this run.
+// The result line gives the run's result and, for a test that reports one, its outcome; no other
+// line's "outcome=" counts (the capture metrics line logs one too).
 
 type Result = "PASS" | "FAIL" | "unfinished";
 
@@ -47,6 +49,8 @@ export interface WingmanTrace {
 
 export interface RunSummary {
   result: Result;
+  /** The split verdict from the result line's " outcome=met|missed", for a test that reports one */
+  outcome: "met" | "missed" | undefined;
   /** "reached": the target was inside both bail gates (the hull under the operation's hold, the
    * shields under 20%, each as last seen) gateSeconds after the operation started */
   gate: "reached" | "not reached" | "no operation";
@@ -61,6 +65,13 @@ export interface RunSummary {
   /** The capture order's gun swaps, each as logged: "<old gun> for <next gun>" */
   gunSwaps: string[];
   combatTrace: WingmanTrace[];
+  /** The bail hook's checks from the operation's start, each its chance after pressure, in % */
+  bailChecks: number[];
+  /** The odds no check bailed: each check's 1 - chance, multiplied */
+  noBailChance: number;
+  /** All the time inside both bail gates, as the samples show it, until the operation ends (or the
+   * run's last line) */
+  inGatesSeconds: number;
 }
 
 // The shields' bail gate, where the wing tests also count a knock-down
@@ -73,6 +84,12 @@ const seconds = (from: number, to: number) => Math.round((to - from) * 100) / 10
 
 export function summarizeRun(lines: string[]): RunSummary {
   let result: Result = "unfinished";
+  let outcomeSeen: RunSummary["outcome"];
+  const bailChecks: number[] = [];
+  let inGatesSince: number | undefined;
+  let inGatesSeconds = 0;
+  let ended = false;
+  let lastTime: number | undefined;
   let start: number | undefined;
   let hold: number | undefined;
   let gateSeconds: number | undefined;
@@ -97,9 +114,10 @@ export function summarizeRun(lines: string[]): RunSummary {
     const time = /^\[[^\]]*\]\s+([\d.]+)\s/.exec(line);
     if (!time) continue;
     const t = num(time[1]);
-    const outcome = /\[apirateslife-test\] (PASS|FAIL) /.exec(line);
+    const outcome = /\[apirateslife-test\] (PASS|FAIL) [^:]*?(?: outcome=(met|missed))?:/.exec(line);
     if (outcome) {
       result = outcome[1] as Result;
+      outcomeSeen = outcome[2] as RunSummary["outcome"];
       continue;
     }
     const started = /\[apirateslife\] capture: started on .*\(hold ([\d.]+)%/.exec(line);
@@ -125,6 +143,9 @@ export function summarizeRun(lines: string[]): RunSummary {
     }
     const ours = start !== undefined || /\[apirateslife-test\] trace:/.test(line);
     if (!ours) continue;
+    if (start !== undefined) lastTime = t;
+    const check = /\[apirateslife\] bail check: .*: chance [\d.]+ -> ([\d.]+) \(pressure /.exec(line);
+    if (check && start !== undefined) bailChecks.push(num(check[1]));
     const swap = /\[apirateslife\] capture order: .*, swaps gun (.*), guns in group /.exec(line);
     if (swap) gunSwaps.push(swap[1]);
     const passStart = /\[apirateslife\] capture pass: starts at ([\d.]+)m, shields ([\d.]+)%, hull ([\d.]+)%/.exec(line);
@@ -172,6 +193,19 @@ export function summarizeRun(lines: string[]): RunSummary {
     ) {
       gateSeconds = seconds(start, t);
     }
+    if ((hull || shields !== undefined) && start !== undefined && hold !== undefined && !ended) {
+      const inGates = lastHull !== undefined && lastHull < hold && lastShields !== undefined && lastShields < SHIELDS_GATE;
+      if (inGates) inGatesSince ??= t;
+      else if (inGatesSince !== undefined) {
+        inGatesSeconds += seconds(inGatesSince, t);
+        inGatesSince = undefined;
+      }
+    }
+    if (start !== undefined && !ended && /\[apirateslife\] capture: ended /.test(line)) {
+      ended = true;
+      if (inGatesSince !== undefined) inGatesSeconds += seconds(inGatesSince, t);
+      inGatesSince = undefined;
+    }
     if (shields !== undefined) {
       const s = shields;
       lastShieldsTime = t;
@@ -189,10 +223,12 @@ export function summarizeRun(lines: string[]): RunSummary {
       }
     }
   }
+  if (inGatesSince !== undefined && lastTime !== undefined) inGatesSeconds += seconds(inGatesSince, lastTime);
   if (fullSince !== undefined && lastShieldsTime !== undefined) longest = Math.max(longest, seconds(fullSince, lastShieldsTime));
 
   return {
     result,
+    outcome: outcomeSeen,
     gate: start === undefined ? "no operation" : gateSeconds === undefined ? "not reached" : "reached",
     gateSeconds,
     lowestHull,
@@ -201,12 +237,20 @@ export function summarizeRun(lines: string[]): RunSummary {
     passes,
     gunSwaps,
     combatTrace,
+    bailChecks,
+    noBailChance: noBail(bailChecks),
+    inGatesSeconds: Math.round(inGatesSeconds * 100) / 100,
   };
 }
 
+/** The odds that none of these checks (chances in %, clamped to 0-100) bailed */
+export const noBail = (chances: number[]) =>
+  Math.round(chances.reduce((p, c) => p * (1 - Math.min(100, Math.max(0, c)) / 100), 1) * 1e6) / 1e6;
+
 const round = (n: number, places = 0) => String(Math.round(n * 10 ** places) / 10 ** places);
 
-/** One line: "<label> <result>: gate …, lowest hull …, … knock-downs, longest at full shields …, <n> passes …" */
+/** One line: "<label> <result>[ outcome=…]: gate …, lowest hull …, … knock-downs, longest at full shields …,
+ * <n> bail checks …, P(no bail) …, … s in the gates, <n> passes …" */
 export function formatSummary(label: string, s: RunSummary): string {
   const gate = s.gate === "reached" ? `gate ${round(s.gateSeconds!, 1)} s` : s.gate === "not reached" ? "gate not reached" : "no capture operation";
   const hull = s.lowestHull === undefined ? "no hull seen" : `lowest hull ${round(s.lowestHull, 1)}%`;
@@ -219,8 +263,12 @@ export function formatSummary(label: string, s: RunSummary): string {
   });
   const hits = s.passes.length ? `, ${s.passes.filter((p) => p.hit).length} with a hit` : "";
   const passList = passes.length ? ` (start, shields before -> after, hit or miss, hull drop): ${passes.join(", ")}` : "";
+  const outcome = s.outcome ? ` outcome=${s.outcome}` : "";
+  const checks = s.bailChecks.length ? ` (chance after pressure: ${s.bailChecks.map((c) => `${round(c, 1)}%`).join(", ")})` : "";
   return (
-    `${label} ${s.result}: ${gate}, ${hull}, ${s.knockDowns} knock-downs, ` +
-    `longest at full shields ${round(s.longestFullShieldsSeconds, 1)} s, ${s.passes.length} passes${hits}${passList}`
+    `${label} ${s.result}${outcome}: ${gate}, ${hull}, ${s.knockDowns} knock-downs, ` +
+    `longest at full shields ${round(s.longestFullShieldsSeconds, 1)} s, ` +
+    `${s.bailChecks.length} bail checks${checks}, P(no bail) ${round(s.noBailChance * 100, 1)}%, ${round(s.inGatesSeconds, 1)} s in the gates, ` +
+    `${s.passes.length} passes${hits}${passList}`
   );
 }
