@@ -453,10 +453,8 @@
           </actions>
         </cue>
         <!-- Who landed the damage: the player-owned attack notices on the target name the
-             attacker. They aren't one per bolt (#216), but in game runs they named a wingman in 13
-             of 17 seconds with damage (#231). No per-hit event names the shooter: the shield and
-             hull damage events don't, and the target's lastattacker changes only with these
-             notices. -->
+             attacker. No per-hit event does, so they're the best signal there is (#231; the
+             evidence: docs/testing.md, Game tests). -->
         <cue name="CombatTrace_Attacked" instantiate="true">
           <conditions>
             <event_player_owned_attacked_object/>
@@ -479,19 +477,19 @@
               <set_value name="$R.$seconds" operation="add"/>
               <!-- The wingman this second's damage goes to: the one operational wingman named,
                    else none and the second is unattributed -->
-              <set_value name="$Named" exact="[]"/>
+              <set_value name="$NamedOperational" exact="[]"/>
               <do_for_each name="$W" in="$R.$named.keys.list">
                 <do_if value="$W.isoperational">
-                  <append_to_list name="$Named" exact="$W"/>
+                  <append_to_list name="$NamedOperational" exact="$W"/>
                 </do_if>
               </do_for_each>
               <set_value name="$Credit" exact="null"/>
               <do_if value="$Landed">
                 <set_value name="$R.$landed" operation="add"/>
-                <do_if value="$Named.count == 1">
-                  <set_value name="$Credit" exact="$Named.{1}"/>
+                <do_if value="$NamedOperational.count == 1">
+                  <set_value name="$Credit" exact="$NamedOperational.{1}"/>
                 </do_if>
-                <do_elseif value="$Named.count == 0">
+                <do_elseif value="$NamedOperational.count == 0">
                   <set_value name="$R.$nonenamed" operation="add"/>
                 </do_elseif>
                 <do_else>
@@ -570,7 +568,7 @@
     </library>
 
     <!-- Prints the combat trace's summary for the test Name, one line per wingman in the order
-         CombatTraceStart got them, and switches the trace off. Does nothing if the trace isn't
+         CombatTraceStart got them and one on whose the damage was, and switches the trace off. Does nothing if the trace isn't
          on. Run it before the test reports, so the lines land in the test's own run trace. -->
     <library name="CombatTraceStop" purpose="run_actions">
       <params>
