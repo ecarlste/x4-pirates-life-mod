@@ -120,7 +120,7 @@ Feature: Capture operations
   @manual
   Scenario: Before a release, each wing setup captures in at least 9 runs out of 10
     Given the wing tests (capture_wing_holds_fire and the tests after it in this file)
-    When I run each one at least 40 times with make game-test, split into holds within the 5-minute hold budget or with -LongHold
+    When I run each one at least 40 times with make game-proof, which splits them into holds within the 5-minute hold budget
     Then at least 90% of each one's runs hold the hull between the 75% gate and the 35% floor, and 80% of capture_wing_bails_phantom's bail
     And none kills the fighter
 

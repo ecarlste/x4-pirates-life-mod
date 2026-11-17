@@ -62,19 +62,20 @@ const json = estimate.stdout.split(/\r?\n/).find((l) => l.trimStart().startsWith
 const estimates = JSON.parse(json ?? "null") as Estimates;
 
 const chunks = planChunks(estimates, runs, label);
-say(`${runs} runs each of ${estimates.tests.map((t) => t.name).join(", ")} as batch ${label}, in ${chunks.length} chunks within the ${estimates.budget / 60}-minute hold budget`);
-for (const t of estimates.tests) {
-  const one = estimates.gameStart + t.seconds;
-  if (one > estimates.budget) {
-    say(`${t.name}: one run could hold the game for up to ${formatSeconds(one)}, over the budget, so it runs one run per chunk`);
-  }
+say(`${runs} runs each of ${estimates.tests.map((t) => t.name).join(", ")} as batch ${label}, in ${chunks.length} chunk${chunks.length === 1 ? "" : "s"} within the ${estimates.budget / 60}-minute hold budget`);
+for (const chunk of chunks.filter((c, i) => c.long && chunks.findIndex((d) => d.test === c.test) === i)) {
+  say(`${chunk.test}: one run could hold the game for up to ${formatSeconds(chunk.hold)}, over the budget, so it runs one run per chunk`);
 }
 
 // One make game-test call, its output passed through as it comes, and kept for the tally
 function runChunk(chunk: Chunk): Promise<{ status: number; output: string }> {
   return new Promise((resolve) => {
+    // make game-test sets its own runner command: one from the environment would beat its ?=, and
+    // make would expand its $(wslpath ...) as a variable, to nothing
+    const { GAME_TEST_RUNNER: _, ...env } = process.env;
     const child = spawn(make, ["--no-print-directory", "game-test", `RUNNER_ARGS=${chunk.args.join(" ")}`], {
       stdio: ["inherit", "pipe", "pipe"],
+      env,
     });
     let output = "";
     child.stdout.on("data", (d: Buffer) => {

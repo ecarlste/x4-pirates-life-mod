@@ -27,6 +27,7 @@ function sandbox({ estimates, results }: Fake) {
   writeFileSync(
     make,
     `#!/bin/bash
+if [ -n "\${GAME_TEST_RUNNER+x}" ]; then echo "GAME_TEST_RUNNER leaked" >> "${dir}/leaks"; fi
 for a in "$@"; do case "$a" in RUNNER_ARGS=*) echo "\${a#RUNNER_ARGS=}" >> "${dir}/calls";; esac; done
 n=$(wc -l < "${dir}/calls")
 line=$(sed -n "\${n}p" "${dir}/results")
@@ -48,7 +49,8 @@ exit $status
     });
   const calls = () => (existsSync(join(dir, "calls")) ? readFileSync(join(dir, "calls"), "utf8").trimEnd().split("\n") : []);
   const estimateArgs = () => readFileSync(join(dir, "estimate-args"), "utf8").trim();
-  return { run, calls, estimateArgs };
+  const leaked = () => existsSync(join(dir, "leaks"));
+  return { run, calls, estimateArgs, leaked };
 }
 
 const fight = (seconds = 120) =>
@@ -68,6 +70,9 @@ test("runs the proof in chunks within the hold budget, one trace set, a line per
 
   assert.equal(out.status, 0, out.stderr + out.stdout);
   assert.equal(fake.estimateArgs(), "-HoldEstimateOnly -Test fight");
+  // make game-test reads its own runner command: one from the environment would beat its ?= and
+  // lose its $(wslpath ...) to make's expansion
+  assert.equal(fake.leaked(), false);
   assert.deepEqual(fake.calls(), [
     "-Test fight -Repeat 2 -RunsLabel base",
     "-Test fight -Repeat 2 -RunsLabel base -RunsAppend",
