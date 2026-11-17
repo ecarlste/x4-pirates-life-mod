@@ -5,7 +5,8 @@
 //   node tools/check-pr-branch.ts <branch>
 import { parseArgs } from "node:util";
 
-const NEVER_MERGED = ["research/", "prototype/"];
+// Each never-merged prefix and what its branches hold
+const NEVER_MERGED: Record<string, string> = { "research/": "research", "prototype/": "a prototype" };
 
 let branch: string | undefined;
 try {
@@ -16,10 +17,11 @@ try {
   process.exit(2);
 }
 
-if (NEVER_MERGED.some((prefix) => branch.startsWith(prefix))) {
+const prefix = Object.keys(NEVER_MERGED).find((p) => branch.startsWith(p));
+if (prefix) {
   console.log(
-    `::error::${branch} holds research or a prototype and is never merged, so it can't be a PR. ` +
-      "Put the work on an issue-<n> branch (git worktree add -b issue-<n> .claude/worktrees/issue-<n> origin/main).",
+    `::error::${branch} holds ${NEVER_MERGED[prefix]} and is never merged, so it can't be a PR. ` +
+      "Put the work on an issue-<n> branch (docs/agents/issue-tracker.md, Starting a ticket).",
   );
   process.exitCode = 1;
 } else {

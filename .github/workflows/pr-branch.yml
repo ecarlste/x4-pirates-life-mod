@@ -2,10 +2,11 @@ name: PR branch
 
 # research/<name> and prototype/<name> branches hold research or a prototype and are never merged,
 # so a PR from one fails; work on a ticket goes on an issue-<n> branch (docs/PROJECT.md, Workflow
-# rules). The check's tests are in tools/check-pr-branch/.
+# rules). The check's tests are in tools/check-pr-branch/. A PR's head branch can't change, but the
+# check runs on every push too, so each commit has it should it become a required check.
 on:
   pull_request:
-    types: [opened, reopened]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read

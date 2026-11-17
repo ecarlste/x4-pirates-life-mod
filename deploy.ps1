@@ -31,7 +31,7 @@
     .\deploy.ps1
 
 .EXAMPLE
-    .\deploy.ps1 -Ref feature/my-branch -DryRun
+    .\deploy.ps1 -Ref issue-12 -DryRun
 
 .EXAMPLE
     .\deploy.ps1 -WorkingTree -Set CaptureFloorHull=20

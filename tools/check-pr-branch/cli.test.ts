@@ -12,7 +12,7 @@ test("a PR from a research/ branch fails, saying the work belongs on an issue-<n
 
   assert.equal(result.status, 1);
   assert.match(result.stdout, /^::error::/);
-  assert.match(result.stdout, /research\/x holds research or a prototype and is never merged/);
+  assert.match(result.stdout, /research\/x holds research and is never merged/);
   assert.match(result.stdout, /issue-<n> branch/);
 });
 
@@ -20,7 +20,7 @@ test("a PR from a prototype/ branch fails too", () => {
   const result = run("prototype/x");
 
   assert.equal(result.status, 1);
-  assert.match(result.stdout, /prototype\/x holds research or a prototype and is never merged/);
+  assert.match(result.stdout, /prototype\/x holds a prototype and is never merged/);
 });
 
 test("a PR from issue-12, or any other name, passes", () => {
