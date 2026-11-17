@@ -89,7 +89,7 @@ _game_lock_write() {
 # Writes the lock's lines to $1 (the lock, or this waiter's ticket), with heartbeat number $2: to a
 # file beside it first, then moved over it, so a waiter reading it sees the old or the new lines,
 # never an empty or half-written file
-_game_lock_put() {
+_game_lock_replace() {
     local tmp="$1.$BASHPID.tmp"
     if _game_lock_write "$1" "$2" >| "$tmp" && mv -f "$tmp" "$1"; then return 0; fi
     rm -f "$tmp"
@@ -172,7 +172,7 @@ game_lock_acquire() {
 
     while :; do
         # Stay in line: rewrite the ticket, so the waiters behind can tell it from a crashed one
-        _game_lock_put "$GAME_LOCK_TICKET" "$beat"
+        _game_lock_replace "$GAME_LOCK_TICKET" "$beat" || true  # a reader holding it open; the next poll will do
         beat=$((beat + 1))
 
         # The tickets ahead; drop one that stopped changing (its waiter crashed)
@@ -202,7 +202,7 @@ game_lock_acquire() {
             # noclobber makes the create exclusive: an old taker that skips the line may beat us
             if (set -o noclobber; : > "$file") 2>/dev/null; then
                 GAME_LOCK_FILE=$file GAME_LOCK_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-                _game_lock_put "$file" 0
+                _game_lock_replace "$file" 0
                 _game_lock_leave
                 # The heartbeat: rewrite the file while this script lives, so waiters can tell a
                 # crashed holder (its file stops changing) from a long run
@@ -213,7 +213,7 @@ game_lock_acquire() {
                     while sleep "$every" && kill -0 "$holder_pid" 2>/dev/null; do
                         n=$((n + 1))
                         [ "$(_game_lock_field "$file" token)" = "$X4_GAME_LOCK_TOKEN" ] || break
-                        _game_lock_put "$file" "$n"
+                        _game_lock_replace "$file" "$n" || true  # a reader holding it open; the next beat will do
                     done
                 ) >/dev/null 2>&1 &
                 GAME_LOCK_HEARTBEAT_PID=$!
