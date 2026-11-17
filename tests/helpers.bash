@@ -75,8 +75,8 @@ path_with_only() {
     echo "$bin"
 }
 
-# Commands deploy.sh needs, minus rsync
-CORE_COMMANDS=(bash sh env git tar sed mktemp rm mkdir cp find grep head tail dirname cat)
+# Commands deploy.sh needs, minus rsync (mv, date, basename, sleep and wc for the game lock)
+CORE_COMMANDS=(bash sh env git tar sed mktemp rm mkdir cp mv find grep head tail dirname basename cat date sleep wc)
 
 assert_file_content() {
     [ -f "$1" ] || { echo "missing file: $1"; return 1; }
