@@ -577,45 +577,55 @@ function Get-BudgetWarning($Info) {
 
 # Seconds from the game's launch to the first test, about (#195)
 $GameStartSeconds = 55
-# The harness's SETA factor (its Begin cue): every test but a combat test runs at it
-$SetaFactor = 6
+# A selection may hold the game lock for about one PR-tier run (docs/testing.md, Keep each hold
+# short)
+$HoldBudgetSeconds = $Tiers.pr.Seconds
+
+# Seconds from a delay's exact="<n>s", the only form the harness's timeouts take; anything else
+# stops the check rather than guess
+function ConvertFrom-Delay([string] $Exact, [string] $What) {
+    if ($Exact -notmatch '^(\d+(\.\d+)?)s$') { throw "Can't read $What's delay, $Exact, for the hold check: give it in seconds, as exact=""<n>s""" }
+    [double] $Matches[1]
+}
 
 # A test run's worst case in seconds of real time. A test that reports from its own actions (no
 # sub-cues) takes none. Otherwise it's its <Name>_Timeout cue's delay, which counts from the test's
 # start whatever cue it sits under (a sub-cue's delay counts from its parent's activation, not after
 # the parent's delay: docs/research/automated-game-testing.md), in game time: a combat test
-# (MarkCombatTest first) runs at 1x, every other test under SETA. A test with no timeout cue counts
-# as the PR tier's whole budget, since nothing bounds it.
-function Get-TestCeiling([xml] $Harness, [string] $Name) {
+# (MarkCombatTest first) runs at 1x, every other test at $Seta, the harness's SETA factor. A test
+# with no timeout cue counts as the whole hold budget, since nothing bounds it.
+function Get-TestCeiling([xml] $Harness, [string] $Name, [double] $Seta) {
     $cue = $Harness.SelectSingleNode("//cue[@name='$Name']")
     if (-not $cue.SelectSingleNode('./cues')) { return 0 }
     $delay = $cue.SelectSingleNode(".//cue[@name='$($Name)_Timeout']/delay")
-    if (-not $delay) { return $Tiers.pr.Seconds }
-    $seconds = [double] ($delay.exact -replace 's$', '')
+    if (-not $delay) { return $HoldBudgetSeconds }
+    $seconds = ConvertFrom-Delay $delay.exact "$($Name)_Timeout"
     $first = $cue.SelectSingleNode('./actions/*[1]')
     $combat = $first.LocalName -eq 'run_actions' -and $first.ref -eq 'MarkCombatTest'
-    if ($combat) { $seconds } else { $seconds / $SetaFactor }
+    if ($combat) { $seconds } else { $seconds / $Seta }
 }
 
 # Why this selection ($TestList, the cue names in run order) can't hold the game lock, or nothing:
-# its worst case, the game's start and each run's ceiling, is over the PR tier's budget
-# (docs/testing.md, Keep each hold short). A single test run (besides $FirstOnlyTests) passes,
-# since it can't be split.
+# its worst case, the game's start and each run's ceiling, is over the hold budget (docs/testing.md,
+# Keep each hold short). A single test run (besides $FirstOnlyTests) passes, since it can't be
+# split.
 function Get-HoldRefusal([string] $HarnessText, [string[]] $TestList) {
     $harness = [xml] $HarnessText
     $runs = @($TestList | Where-Object { $FirstOnlyTests -notcontains $_ })
     if ($runs.Count -le 1) { return }
+    # The SETA factor the harness's Begin cue sets, or 1x without one
+    $factor = $harness.SelectSingleNode("//cue[@name='Begin']//set_timewarp_factor")
+    $seta = if ($factor) { ConvertFrom-Delay $factor.factor 'the SETA factor' } else { 1 }
     $total = $GameStartSeconds
     $parts = @("$(Format-Seconds $GameStartSeconds) game start")
-    foreach ($name in ($TestList | Select-Object -Unique)) {
-        $ceiling = Get-TestCeiling $harness $name
+    foreach ($group in ($TestList | Group-Object -NoElement)) {
+        $ceiling = Get-TestCeiling $harness $group.Name $seta
         if (-not $ceiling) { continue }
-        $count = @($TestList | Where-Object { $_ -eq $name }).Count
-        $total += $count * $ceiling
-        $parts += "$name $count x $(Format-Seconds $ceiling)"
+        $total += $group.Count * $ceiling
+        $parts += "$($group.Name) $($group.Count) x $(Format-Seconds $ceiling)"
     }
-    if ($total -le $Tiers.pr.Seconds) { return }
-    "This selection could hold the game for up to $(Format-Seconds $total), over the $($Tiers.pr.Seconds / 60)-minute hold budget ($($parts -join ', ')). " +
+    if ($total -le $HoldBudgetSeconds) { return }
+    "This selection could hold the game for up to $(Format-Seconds $total), over the $($HoldBudgetSeconds / 60)-minute hold budget ($($parts -join ', ')). " +
     'Split the batch into smaller runs, each rejoining the back of the line, so others get the game between them (docs/testing.md, Keep each hold short), or pass -LongHold if the long hold is meant.'
 }
 
@@ -947,7 +957,8 @@ if ($ReleaseTier -and -not $PSBoundParameters.ContainsKey('TimeoutSeconds')) { $
 $root = Split-Path $PSScriptRoot -Parent
 # The tests to run, checked first, so an unknown -Test name or a hold over the budget stops make
 # game-test before it queues for the game lock: a PR-tier run leaves out the release-only tests, a
-# -ReleaseTier run doesn't, and -Test and -Repeat pick from them. $testList is $null when the harness's own list runs as it is.
+# -ReleaseTier run doesn't, and -Test and -Repeat pick from them. $testList is $null when the
+# harness's own list runs as it is.
 $harnessPath = "md/$TestExtensionId.xml"
 $harnessText = Get-Content (Join-Path $root "tests/game/$TestExtensionId/$harnessPath") -Raw
 $available = @(Get-GameTestNames $harnessText)
