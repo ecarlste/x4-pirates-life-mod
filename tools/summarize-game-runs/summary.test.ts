@@ -99,6 +99,21 @@ test("the last run's order, still logging before this run's operation starts, is
   assert.deepEqual(summary.passes, []);
 });
 
+test("probe lines tagged [DEBUG-*] aren't counted, bare or in a test's trace", () => {
+  // The runner keeps probe lines in the trace for reading (#278); their figures can be any ship's
+  const summary = summarizeRun([
+    "[Scripts] 3.02 *** Context:md.APiratesLife_Capture.Operation<inst:9e3b>: [apirateslife] capture: started on IMP TIE/LN (ZSX-457), led by Fortitude-class (PTD-300) with 1 wingmen (hold 75%, floor 35%, fear 0)",
+    "[General] 4.00 *** Context:md.APiratesLife_Tests.CheckWingCycle: [apirateslife-test] trace: t 1, hull 90%, shields 100%, wingman 1500m away, knock-downs 0",
+    "[Scripts] 5.00 *** Context:md.APiratesLife_Tests.Probe: [DEBUG-x] probe: hull 10%, shields 5%",
+    "[General] 6.00 *** Context:md.APiratesLife_Tests.Probe: [apirateslife-test] [DEBUG-x] trace: hull 20%, shields 0%",
+    "[General] 7.00 *** Context:md.APiratesLife_Tests.CheckWingCycle: [apirateslife-test] trace: t 4, hull 85%, shields 100%, wingman 900m away, knock-downs 0",
+  ]);
+
+  assert.equal(summary.lowestHull, 85);
+  assert.equal(summary.knockDowns, 0);
+  assert.equal(summary.gate, "not reached");
+});
+
 test("a run with no capture operation has no gate, no hull and no passes", () => {
   const summary = summarizeRun([
     "[General] 5.00 *** Context:md.APiratesLife_Tests.Report: [apirateslife-test] FAIL bail_raises_bailed: hull 54%, expected 100%;",
