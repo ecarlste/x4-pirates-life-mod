@@ -4,7 +4,7 @@
 >
 > Don't move this file out of `docs/rejected/` or remove this notice without Erik's approval.
 
-Came from: <link to the research note or plan item it was moved out of>
+Came from: <link to the research note or `idea` issue it was moved out of>
 
 ## Why it was rejected
 

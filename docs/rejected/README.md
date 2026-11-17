@@ -9,7 +9,7 @@ A rejected idea moves out of research and into this folder, with a rejection not
 1. Copy [`_template.md`](_template.md) to a new file here and move the rejected proposal into it.
 2. Fill in the **rejection notice at the top**: date, a one-sentence reason, and links to the full reasons and to [reopening](#reopening-a-rejected-idea). The notice stays with the proposal, so moving it back to research in a PR means visibly deleting the notice, which makes accidental moves hard to miss in review.
 3. Write the full reasons in "Why it was rejected".
-4. Leave a one-line pointer where the idea was (research note or "Ideas and maybe"), and add a row to the table below.
+4. Leave a one-line pointer where the idea was (research note, or a comment on its [`idea` issue](../agents/triage-labels.md#ideas), which then gets `wontfix` and is closed as not planned), and add a row to the table below.
 
 If only part of a proposal is rejected, only that part moves here; the rest stays where it was.
 
@@ -18,7 +18,7 @@ If only part of a proposal is rejected, only that part moves here; the rest stay
 If someone thinks they've solved the reason an idea was rejected:
 
 1. Ask Erik, saying how the reasons in "Why it was rejected" are now answered.
-2. Only once he approves: move the proposal back into a research note, drop the rejection notice (keep the reasons as history in the note if useful), and remove its row here. Say in the PR description that Erik approved reopening it.
+2. Only once he approves: move the proposal back into a research note or reopen its `idea` issue, drop the rejection notice (keep the reasons as history in the note if useful), and remove its row here. Say in the PR description that Erik approved reopening it.
 
 ## Rejected ideas
 

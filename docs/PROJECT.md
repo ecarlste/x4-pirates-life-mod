@@ -44,7 +44,7 @@ An X4: Foundations piracy overhaul: the one pirate mod a player needs, from smal
 - **Design sign-off:**
   - Erik signs off every design change, whoever proposes it. Check [`rejected/`](rejected/README.md) before proposing an idea.
   - Propose a change in a "Design proposals" section of the PR description, or in chat. Edit `DESIGN.md` only after Erik has explicitly agreed, and say so in the PR's title or description.
-  - Ideas stay in research notes or the plan's "Ideas and maybe" until he signs off. Agreed ideas go into `DESIGN.md`, and get a spec when they're about to be built.
+  - Ideas stay in research notes or [`idea` issues](agents/triage-labels.md#ideas) until he signs off. Agreed ideas go into `DESIGN.md`, and get a spec when they're about to be built.
 - **Never commit** the unpacked reference files, or game files copied unchanged. Diff patches are fine.
 - **When one doc refers to another**, link the exact section (`DESIGN.md#roadmap`), not just the file.
 

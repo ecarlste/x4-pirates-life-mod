@@ -2,7 +2,7 @@
 
 > **This describes the 9.x line,** parked on the [`9.x`](https://github.com/ecarlste/x4-pirates-life-mod/tree/9.x) branch. Booty, the pirate variants and the in-game settings page left `main`; their specs and code are on `9.x`. The **SWI build** (X4 8.00 + SWI 0.91 HF1, S/M capture) is the main focus and is tracked on the map [SWI build with S/M capture](https://github.com/ecarlste/x4-pirates-life-mod/issues/89); see [PROJECT.md, Key decisions](PROJECT.md#key-decisions). The pillars and key decisions still apply to it.
 
-> The agreed design, and its source of truth. Changes need Erik's sign-off and go through PRs; ideas still being explored live in [`research/`](research/README.md) and under "Ideas and maybe" in [`IMPLEMENTATION_PLAN.md`](IMPLEMENTATION_PLAN.md#ideas-and-maybe).
+> The agreed design, and its source of truth. Changes need Erik's sign-off and go through PRs; ideas still being explored live in [`research/`](research/README.md) and in [`idea` issues](agents/triage-labels.md#ideas).
 
 ## Vision and goals
 
@@ -79,7 +79,7 @@ Handing prizes to pirate groups is how a pirate earns their trust and unlocks th
   - **What each level unlocks is listed** in a table (see the first set below), so the player can see what's coming.
   - **Credit price:** the vanilla price of the ship or item it's based on, times a configurable multiplier for the variant's stronger stats.
   - **Blueprints cost booty, and a lot of it:** once a level has unlocked a ship or item, its blueprint can be bought from the group's representative, to build it at the player's own wharfs and shipyards. The cost is vanilla's blueprint price for it times a high multiplier, with a floor per blueprint (250k booty to start) so cheap items, missiles above all (priced per missile, as ammunition), aren't trivially cheap. Bought in a conversation first, which works without any UI mod; later, with kuertee's UI Extensions, a full pirate lord window for blueprints, standing and booty (and a README line teasing the landlubbers who don't install it).
-  - **Booty will buy more later:** goods only pirates sell, such as the equipment mod parts vanilla only drops at random, and pilots and crew far better than a station's. Ideas for now, in the plan's "Ideas and maybe".
+  - **Booty will buy more later:** goods only pirates sell, such as the equipment mod parts vanilla only drops at random, and pilots and crew far better than a station's. Ideas for now, in [#268](https://github.com/ecarlste/x4-pirates-life-mod/issues/268).
   - **The group's stations** must be able to build what it unlocks, and the player must be able to reach them.
   - **Variants are gated by their unlock, not by licences.** Each unlock is a hidden research item the player is granted on reaching its level, which the vanilla menus already show and enforce per player ([research/booty.md](research/booty.md#unlocks-in-the-build-menus), proven in game); the menu skips the licence check for a ware that needs research. Vanilla's own wares are untouched and keep every licence gate, so the mod doesn't fight the reputation design of vanilla or of other mods: our ships and weapons are added on top and unlocked through our system.
   - **Rep still decides where the player can buy.** A group that sees the player as an enemy won't let them dock or trade, so its wharf and shipyard sell them nothing. Handovers raise rep with the station's owner where it isn't locked, so piracy is also how the player earns it.
