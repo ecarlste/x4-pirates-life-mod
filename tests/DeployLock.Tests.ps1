@@ -211,12 +211,37 @@ Describe "deploy.ps1 and the game lock's line" {
         $lock | Should -Not -Exist
     }
 
+    It 'a lock its caller hands down skips the line' {
+        Write-TestGameLock $s.X4
+        Write-TestGameTicket $s.X4 1
+        Set-GameLockEnv @{ X4_GAME_LOCK_WAIT = 0; X4_GAME_LOCK_TOKEN = 'other' }
+
+        (Invoke-Deploy $s @('-WorkingTree')).ExitCode | Should -Be 0
+        "$($s.Target)/content.xml" | Should -Exist
+        Get-TestGameTickets $s.X4 | Should -Be '000001'
+    }
+
+    It 'leaves the line when the deploy fails after taking the lock' {
+        Write-LfFile $s.Target 'not a folder'
+
+        (Invoke-Deploy $s @('-WorkingTree')).ExitCode | Should -Not -Be 0
+        Get-TestGameTickets $s.X4 | Should -Be ''
+        $lock | Should -Not -Exist
+    }
+}
+
+# The twin of deploy.bats's torn-ticket test, on game-lock.ps1 directly: deploy.ps1 can't slow its
+# writes, as the text is built before each one
+Describe "the game lock's rewrites" {
+    BeforeAll { . (Join-Path $script:RepoRoot 'tools/game-lock.ps1') }
+    BeforeEach { $dir = New-TestDir }
+    AfterEach { Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue }
+
     It "a waiter's ticket stays whole while it rewrites it, so others can read its name" {
-        # deploy.bats widens the gap with a slow git; here the text is built before the write, so a
-        # long branch name widens it instead, and a second runspace rewrites the ticket while this
-        # one reads it as the waiters behind do
-        . (Join-Path $script:RepoRoot 'tools/game-lock.ps1')
-        $ticket = Join-GameLockLine (Join-Path $s.X4 'game.queue')
+        # deploy.bats slows its writes with a slow git; here the text is built before the write, so a
+        # long branch name slows each write instead, enough that a torn read would show. A second
+        # runspace rewrites the ticket while this one reads it as the waiters behind do
+        $ticket = Join-GameLockLine (Join-Path $dir 'game.queue')
         $lock = [pscustomobject]@{
             Token = 't'; What = 'deploy'; Repo = 'repo'; Branch = 'b' * 4MB
             Host = 'linux'; Started = 'now'; Beat = 0
@@ -242,23 +267,5 @@ Describe "deploy.ps1 and the game lock's line" {
         # It read the ticket across rewrites, and every read was whole
         $beats.Count | Should -BeGreaterOrEqual 3
         $torn | Should -Be 0
-    }
-
-    It 'a lock its caller hands down skips the line' {
-        Write-TestGameLock $s.X4
-        Write-TestGameTicket $s.X4 1
-        Set-GameLockEnv @{ X4_GAME_LOCK_WAIT = 0; X4_GAME_LOCK_TOKEN = 'other' }
-
-        (Invoke-Deploy $s @('-WorkingTree')).ExitCode | Should -Be 0
-        "$($s.Target)/content.xml" | Should -Exist
-        Get-TestGameTickets $s.X4 | Should -Be '000001'
-    }
-
-    It 'leaves the line when the deploy fails after taking the lock' {
-        Write-LfFile $s.Target 'not a folder'
-
-        (Invoke-Deploy $s @('-WorkingTree')).ExitCode | Should -Not -Be 0
-        Get-TestGameTickets $s.X4 | Should -Be ''
-        $lock | Should -Not -Exist
     }
 }
