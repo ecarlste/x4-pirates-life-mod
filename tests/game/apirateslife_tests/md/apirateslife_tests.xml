@@ -153,6 +153,16 @@
           </conditions>
           <actions>
             <set_value name="$Index" operation="add"/>
+            <!-- A bail launches escape pods (vanilla's move.escapepod), which fly to a station and
+                 linger for minutes. Clear them so they're not in the next test's fight. -->
+            <find_ship name="$Pods" space="player.sector" shiptype="shiptype.escapepod" multiple="true"/>
+            <do_if value="$Pods.count">
+              <debug_text text="'[apirateslife-test] removing %s escape pods'.[$Pods.count]" filter="general"/>
+              <do_all exact="$Pods.count" counter="$i">
+                <destroy_object object="$Pods.{$i}"/>
+              </do_all>
+            </do_if>
+            <remove_value name="$Pods"/>
             <do_if value="$Index le $Tests.count">
               <!-- A test cue runs once, then stays complete. The runner's -Repeat lists a test more
                    than once, so put it back to waiting first (this also cancels its sub-cues) -->
@@ -2654,7 +2664,6 @@
       </cues>
     </cue>
 
-
     <!-- #216: one X-wing against a full-health TIE Phantom, with nothing forcing the bail. Its about
          5600 shields hold barely more than the room above the 75% line, so the wing's burst nearly
          fits and the finisher takes over in the break stage. Fails on a kill or the floor (the
@@ -2748,13 +2757,14 @@
                   <param name="Problems" value="event.param.$problems"/>
                   <param name="Started" value="$Started"/>
                 </run_actions>
-                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_bails_phantom', $ok = $Result.$ok, $outcome = $Bailed, $detail = (if $Bailed then 'bailed;' else 'no bail;') + $Result.$detail]"/>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_bails_phantom', $ok = $Result.$ok, $outcome = $Bailed, $detail = 'outcome %s;'.[if event.param.$outcome != '' then event.param.$outcome else 'none'] + $Result.$detail]"/>
               </actions>
             </cue>
           </cues>
         </cue>
       </cues>
     </cue>
+
     <!-- #184, turreted wingmen: one wingman 2 km out (SpawnWingAt2km), the hull checks of
          CaptureWingHoldsFire (CheckWingHold), and every shot of its guns and turrets counted by what
          the wing should be doing when it's fired (TurretShotStage). Turrets hold fire from the fine
