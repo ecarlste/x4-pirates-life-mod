@@ -108,6 +108,11 @@
     Only check the selection's hold (see -LongHold) and stop: make game-test runs it before it
     queues for the game lock. Needs no X4 settings.
 
+.PARAMETER HoldEstimateOnly
+    Only print the -Test tests' hold estimates (see -LongHold) as one line of JSON and stop:
+    {"budget": <s>, "gameStart": <s>, "tests": [{"name": <as given>, "seconds": <one run's worst
+    case>}]}. make game-proof sizes its chunks from it (tools/game-proof.ts). Needs no X4 settings.
+
 .PARAMETER RunsLabel
     Keep this batch's run traces in <report folder>\runs\<label>\ instead of runs\, so batches
     (an order variant each, say) sit side by side for node tools/summarize-game-runs.ts --totals.
@@ -177,7 +182,8 @@ param(
     [switch] $Release,
     [switch] $ReleaseTier,
     [switch] $LongHold,
-    [switch] $HoldCheckOnly
+    [switch] $HoldCheckOnly,
+    [switch] $HoldEstimateOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -623,6 +629,28 @@ function Get-TestCeiling([xml] $Harness, [string] $Name, [double] $Seta) {
     if ($combat) { $seconds } else { $seconds / $Seta }
 }
 
+# The SETA factor the harness's Begin cue sets, or 1x without one
+function Get-SetaFactor([xml] $Harness) {
+    $factor = $Harness.SelectSingleNode("//cue[@name='Begin']//set_timewarp_factor")
+    if ($factor) { ConvertFrom-Delay $factor.factor 'the SETA factor' } else { 1 }
+}
+
+# The hold estimates make game-proof sizes its chunks from (-HoldEstimateOnly): the budget, the
+# game's start and each named test's worst case for one run, by the name given ($Test, as -Test
+# takes it). A $FirstOnlyTests test is refused, since a run can't repeat it.
+function Get-HoldEstimates([string] $HarnessText, [string[]] $Test) {
+    $harness = [xml] $HarnessText
+    $seta = Get-SetaFactor $harness
+    $available = @(Get-GameTestNames $HarnessText)
+    $names = @($Test | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    $tests = @(foreach ($name in $names) {
+        $cue = @(Resolve-GameTestSelection $available @($name) 1)[0]
+        if ($FirstOnlyTests -contains $cue) { throw "$cue runs once, first, in any run, so a proof can't repeat it" }
+        [ordered]@{ name = $name; seconds = Get-TestCeiling $harness $cue $seta }
+    })
+    [ordered]@{ budget = $HoldBudgetSeconds; gameStart = $GameStartSeconds; tests = $tests }
+}
+
 # Why this selection ($TestList, the cue names in run order) can't hold the game lock, or nothing:
 # its worst case, the game's start and each run's ceiling, is over the hold budget (docs/testing.md,
 # Keep each hold short). A single test run (besides $FirstOnlyTests) passes, since it can't be
@@ -631,9 +659,7 @@ function Get-HoldRefusal([string] $HarnessText, [string[]] $TestList) {
     $harness = [xml] $HarnessText
     $runs = @($TestList | Where-Object { $FirstOnlyTests -notcontains $_ })
     if ($runs.Count -le 1) { return }
-    # The SETA factor the harness's Begin cue sets, or 1x without one
-    $factor = $harness.SelectSingleNode("//cue[@name='Begin']//set_timewarp_factor")
-    $seta = if ($factor) { ConvertFrom-Delay $factor.factor 'the SETA factor' } else { 1 }
+    $seta = Get-SetaFactor $harness
     $total = $GameStartSeconds
     $parts = @("$(Format-Seconds $GameStartSeconds) game start")
     foreach ($group in ($TestList | Group-Object -NoElement)) {
@@ -644,7 +670,7 @@ function Get-HoldRefusal([string] $HarnessText, [string[]] $TestList) {
     }
     if ($total -le $HoldBudgetSeconds) { return }
     "This selection could hold the game for up to $(Format-Seconds $total), over the $($HoldBudgetSeconds / 60)-minute hold budget ($($parts -join ', ')). " +
-    'Split the batch into smaller runs, each rejoining the back of the line, so others get the game between them (docs/testing.md, Keep each hold short), ' +
+    'Split the batch into smaller runs (make game-proof TEST=<tests> RUNS=<n> LABEL=<batch> does it for you), each rejoining the back of the line, so others get the game between them (docs/testing.md, Keep each hold short), ' +
     'with -RunsLabel <batch> on each and -RunsAppend on each after the first so their traces add up as one batch, or pass -LongHold if the long hold is meant.'
 }
 
@@ -991,6 +1017,12 @@ $tier = if ($isSelection -or $Release) { $null } elseif ($ReleaseTier) { 'releas
 $bars = if ($tier -eq 'release') { Get-ReleaseRuns $harnessText } else { @{} }
 $testList = $null
 if ($isSelection -or $skipped.Count -or $bars.Count) { $testList = @(Resolve-GameTestSelection $available $Test $Repeat $skipped $bars) }
+# make game-proof's estimates: each test's one run, whatever the selection adds up to
+if ($HoldEstimateOnly) {
+    if (-not $Test) { throw '-HoldEstimateOnly estimates the -Test tests, so it needs -Test' }
+    ConvertTo-Json -Compress -Depth 4 (Get-HoldEstimates $harnessText $Test)
+    exit 0
+}
 # A selection mustn't hold the game lock for long unless it says so (docs/testing.md, Keep each
 # hold short); a whole tier and the release sessions have their own budgets
 if ($isSelection -and -not $LongHold) {
