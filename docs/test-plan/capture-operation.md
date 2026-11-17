@@ -159,7 +159,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 ```gherkin
   Given the wing tests (capture_wing_holds_fire and the tests after it in this file)
-  When I run each one at least 40 times with make game-test and -Repeat
+  When I run each one at least 40 times with make game-test, split into holds within the 5-minute hold budget or with -LongHold
   Then at least 90% of each one's runs hold the hull between the 75% gate and the 35% floor
   And none kills the fighter
 ```

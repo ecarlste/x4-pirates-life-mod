@@ -79,8 +79,11 @@ doc-paths:
 doc-names:
 	@node tools/check-doc-names.ts
 
-# One game lock (tools/game-lock.sh) around both, so no other run deploys between them
+# One game lock (tools/game-lock.sh) around both, so no other run deploys between them. A
+# selection whose worst case would hold the lock too long is refused first, before it queues
+# (docs/testing.md, Keep each hold short)
 game-test:
+	@$(GAME_TEST_RUNNER) -HoldCheckOnly $(GAME_TEST_TIER) $(RUNNER_ARGS)
 	@tools/game-lock.sh --what game-test -- $(MAKE) --no-print-directory game-test-locked
 
 # The X4 settings in the environment reach the Windows runner: WSL passes Windows programs only the
