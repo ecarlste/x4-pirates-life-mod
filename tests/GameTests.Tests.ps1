@@ -460,6 +460,19 @@ Describe 'Split-GameTestRuns' {
     }
 }
 
+Describe 'Write-GameTestRunLogs' {
+    It 'writes no trace for a log with no runs, clearing the last ones' {
+        $dir = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid())
+        try {
+            New-Item -ItemType Directory -Path $dir | Out-Null
+            Set-Content (Join-Path $dir 'stale_test-1.log') 'from an earlier run'
+            Write-GameTestRunLogs @(Split-GameTestRuns @('[Scripts] 0.00 *** Context:x: [apirateslife] settings: config applied')) $dir | Should -Be 0
+            @(Get-ChildItem $dir).Count | Should -Be 0
+        }
+        finally { Remove-Item $dir -Recurse -Force }
+    }
+}
+
 Describe 'ConvertTo-JUnitXml' {
     It 'writes one case per test plus the run, with failures escaped' {
         $log = $script:PassingLog -replace 'PASS fixture_test_b: hull 100%', 'FAIL fixture_test_b: hull <72%> & "worse"'
