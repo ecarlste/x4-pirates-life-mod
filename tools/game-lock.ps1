@@ -107,6 +107,21 @@ function Write-GameLockFile($Lock, [string] $File = $Lock.File) {
     }
 }
 
+# Writes a newly taken lock's first lines. A waiter watching it may have it open right now
+# (Windows), so it retries for about a second; past that it throws, failing the run as game-lock.sh
+# does, and the empty lock goes stale for the next in line to take over
+function Write-GameLockFirst($Lock, $Stale) {
+    for ($try = 1; ; $try++) {
+        try { Write-GameLockFile $Lock; return }
+        catch {
+            if ($try -ge 50) {
+                throw "Took the game lock ($($Lock.File)) but couldn't write its first lines: $($_.Exception.Message). It's left empty, so the next in line takes it over $Stale s from now"
+            }
+            Start-Sleep -Milliseconds 20
+        }
+    }
+}
+
 # The tickets in the line $Queue, in line order (the zero-padded numbers sort)
 function Get-GameLockTickets([string] $Queue) {
     @(Get-ChildItem -LiteralPath $Queue -File -ErrorAction SilentlyContinue |
@@ -220,20 +235,24 @@ function Enter-GameLock([string] $File, [string] $What, [string] $Root) {
                 $seenAt = $clock.Elapsed.TotalSeconds
             }
             if ($ahead.Count -eq 0) {
+                $taken = $false
                 try {
                     # CreateNew is exclusive: an old taker that skips the line may beat us
                     [IO.File]::Open($File, 'CreateNew', 'Write', 'ReadWrite').Dispose()
+                    $taken = $true
+                }
+                catch [IO.IOException], [UnauthorizedAccessException] { }
+                if ($taken) {
                     $lock.Owned = $true
                     $lock.Beat = 0
                     $lock.Started = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
                     $lock.Clock.Restart()
-                    Write-GameLockFile $lock
+                    Write-GameLockFirst $lock $stale
                     Remove-Item -LiteralPath $ticket -Force -ErrorAction SilentlyContinue
                     $behind = @(Get-GameLockTickets $queue).Count
                     if ($behind -gt 0) { Write-Host "Took the game lock; $behind waiting behind you; keep this run short" }
                     return $lock
                 }
-                catch [IO.IOException], [UnauthorizedAccessException] { }
                 if ($null -ne $seen -and $clock.Elapsed.TotalSeconds - $seenAt -ge $stale -and
                     (Read-GameLockWatch $File) -eq $seen) {
                     # Only if it's still the same text: an old taker may have taken it over just now
