@@ -92,7 +92,7 @@ public static extern bool MoveFileEx(string from, string to, int flags);
 # Writes the lock's lines to $File (default: the lock itself; a waiter's ticket has the same lines):
 # to a file beside it first, then moved over it, so a waiter reading it sees the old or the new
 # lines, never an empty or half-written file. Throws if a reader holds it open (Windows); the
-# callers retry next time
+# callers retry: the first write at once (Write-GameLockFirst), the rest next time
 function Write-GameLockFile($Lock, [string] $File = $Lock.File) {
     $now = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
     $text = "token=$($Lock.Token)`nwhat=$($Lock.What)`nrepo=$($Lock.Repo)`nbranch=$($Lock.Branch)`npid=$PID`nhost=$($Lock.Host)`nstarted=$($Lock.Started)`nheartbeat=$($Lock.Beat) $now`n"
@@ -108,14 +108,14 @@ function Write-GameLockFile($Lock, [string] $File = $Lock.File) {
 }
 
 # Writes a newly taken lock's first lines. A waiter watching it may have it open right now
-# (Windows), so it retries for about a second; past that it throws, failing the run as game-lock.sh
-# does, and the empty lock goes stale for the next in line to take over
+# (Windows), so it retries for about a second; past that it throws, failing the run, and the empty
+# lock goes stale for the next in line to take over
 function Write-GameLockFirst($Lock, $Stale) {
     for ($try = 1; ; $try++) {
         try { Write-GameLockFile $Lock; return }
-        catch {
+        catch [IO.IOException], [UnauthorizedAccessException] {
             if ($try -ge 50) {
-                throw "Took the game lock ($($Lock.File)) but couldn't write its first lines: $($_.Exception.Message). It's left empty, so the next in line takes it over $Stale s from now"
+                throw "Took the game lock ($($Lock.File)) but couldn't write its first lines: $($_.Exception.Message). It's left empty, so the next in line takes it over once it has sat unchanged for $Stale s"
             }
             Start-Sleep -Milliseconds 20
         }

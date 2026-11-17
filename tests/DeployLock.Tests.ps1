@@ -297,19 +297,22 @@ Describe 'taking the game lock while a waiter reads it' {
         function Stop-TestLockReader($Reader) {
             $length = $Reader.PowerShell.EndInvoke($Reader.Run)
             $Reader.PowerShell.Dispose()
-            "$length"
+            [long] $length[0]
         }
     }
     BeforeEach { $dir = New-TestDir; $file = Join-Path $dir 'game.lock' }
     AfterEach { Clear-GameLockEnv; Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue }
 
-    It 'writes its first lines once the waiter lets go, not waiting on its own empty lock' {
+    It 'retries its first lines until the waiter lets go' {
         Set-GameLockEnv @{ X4_GAME_LOCK_WAIT = 2; X4_GAME_LOCK_POLL = 0.2 }
         $reader = Start-TestLockReader $file 300
 
         $lock = Enter-GameLock $file 'deploy' $script:RepoRoot
         try {
-            Stop-TestLockReader $reader | Should -Be '0'  # it held the lock open while still empty
+            $length = Stop-TestLockReader $reader
+            # On Windows it held the lock open while still empty. Elsewhere nothing blocks the rename,
+            # so the taker may finish before the reader gets in
+            if ($script:OnWindows) { $length | Should -Be 0 }
             $lock.Owned | Should -BeTrue
             Get-GameLockField (Read-GameLockText $file) 'token' | Should -Be $lock.Token
         }
@@ -321,7 +324,7 @@ Describe 'taking the game lock while a waiter reads it' {
         $reader = Start-TestLockReader $file 3000
 
         { Enter-GameLock $file 'deploy' $script:RepoRoot } | Should -Throw "*couldn't write its first lines*"
-        Stop-TestLockReader $reader | Should -Be '0'
+        Stop-TestLockReader $reader | Should -Be 0
         Get-TestFile $file | Should -Be ''
         Get-TestGameTickets $dir | Should -Be ''
     }
