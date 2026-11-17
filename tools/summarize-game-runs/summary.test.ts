@@ -34,11 +34,15 @@ test("a capture run's gate time, lowest hull, knock-downs, longest full-shield s
     knockDowns: 2,
     // Full (99% or more) from 1.01 until the 64% line at 9.85
     longestFullShieldsSeconds: 8.84,
+    // A pass hits when the shields or the hull go under where they started, before the next pass
+    // starts (bolts still in flight after the break-off count)
     passes: [
-      { startDistance: 390.438, shieldsBefore: 100, shieldsAfter: 11.1111 },
-      { startDistance: 443.062, shieldsBefore: 24.0901, shieldsAfter: 45.766 },
-      // Never broke off: the hit that took the shields down sent the order back to decide
-      { startDistance: 438.75, shieldsBefore: 70, shieldsAfter: undefined },
+      // Shields 100% -> 11.1% by the break-off
+      { startDistance: 390.438, shieldsBefore: 100, shieldsAfter: 11.1111, hullBefore: 100, hit: true, hullDrop: 0 },
+      // Shields only regrew from 24.1%: no hit seen
+      { startDistance: 443.062, shieldsBefore: 24.0901, shieldsAfter: 45.766, hullBefore: 100, hit: false, hullDrop: 0 },
+      // Never broke off: the hit that took the shields down sent the order back to decide, at hull 72.5%
+      { startDistance: 438.75, shieldsBefore: 70, shieldsAfter: undefined, hullBefore: 100, hit: true, hullDrop: 27.5 },
     ],
   });
 });
@@ -47,7 +51,8 @@ test("the summary line rounds each figure and names a pass that never broke off"
   assert.equal(
     formatSummary("capture_wing_breaks_full_shields-1", summarizeRun(WING_RUN)),
     "capture_wing_breaks_full_shields-1 PASS: gate 35.9 s, lowest hull 72.5%, 2 knock-downs, longest at full shields 8.8 s, " +
-      "3 passes (start, shields before -> after): 390 m 100 -> 11%, 443 m 24 -> 46%, 439 m 70% aborted",
+      "3 passes, 2 with a hit (start, shields before -> after, hit or miss, hull drop): " +
+      "390 m 100 -> 11% hit, 443 m 24 -> 46% miss, 439 m 70% aborted hit hull -27.5%",
   );
 });
 
@@ -93,4 +98,21 @@ test("a run with no capture operation has no gate, no hull and no passes", () =>
   ]);
 
   assert.equal(formatSummary("bail_raises_bailed-1", summary), "bail_raises_bailed-1 FAIL: no capture operation, no hull seen, 0 knock-downs, longest at full shields 0 s, 0 passes");
+});
+
+test("a pass's window closes once the finisher stops finishing, so the wing's later fire isn't counted", () => {
+  // Trimmed from a capture_wing_holds_fire run at 1x (#224): the pass takes the hull under the 75%
+  // hold, the order holds, and later fire on the regrown shields isn't the pass's
+  const summary = summarizeRun([
+    "[Scripts] 2.00 *** Context:md.APiratesLife_Capture.Operation<inst:9e3b>: [apirateslife] capture: started on IMP TIE/x1 (ABC-123), led by Fortitude-class (PTD-300) with 1 wingmen (hold 75%, floor 35%, fear 0)",
+    "[Scripts] 9.00 *** aicontext<apirateslife.capture.pass,0x9d3f>: [apirateslife] capture pass: starts at 410.5m, shields 0%, hull 80%",
+    "[General] 10.00 *** Context:md.APiratesLife_Tests: [apirateslife-test] trace: hull 77%, shields 0%, wingman 200m away",
+    "[Scripts] 10.40 *** aicontext<order.apirateslife.capture,0x9d3f>: [apirateslife] capture order: X-wing T65B holds on event_object_hull_damaged: hull 73.5%, shields 0% (0, stop at 180)",
+    "[General] 30.00 *** Context:md.APiratesLife_Tests: [apirateslife-test] trace: hull 70.25%, shields 0%, wingman 300m away",
+  ]);
+
+  assert.deepEqual(summary.passes, [
+    { startDistance: 410.5, shieldsBefore: 0, shieldsAfter: undefined, hullBefore: 80, hit: true, hullDrop: 6.5 },
+  ]);
+  assert.equal(summary.lowestHull, 70.25);
 });

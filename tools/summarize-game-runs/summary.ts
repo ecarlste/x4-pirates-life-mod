@@ -15,6 +15,15 @@ export interface Pass {
    * (the order aborted the pass, as on the hit that takes the shields down) leaves it undefined */
   shieldsBefore: number;
   shieldsAfter: number | undefined;
+  /** The target's hull when the pass started, in % */
+  hullBefore: number;
+  /** Whether damage landed: the shields or the hull went under where they started, seen on any line
+   * from the pass's start until the next pass starts or the finisher stops finishing (the order's
+   * "fires on" or "holds on", or the operation's end), so bolts still in flight after the break-off
+   * count. Shields regrowing between two samples can hide a small hit. */
+  hit: boolean;
+  /** The hull the pass took off, in points of %: its start less the lowest hull before the next pass */
+  hullDrop: number;
 }
 
 export interface RunSummary {
@@ -54,7 +63,11 @@ export function summarizeRun(lines: string[]): RunSummary {
   let longest = 0;
   let lastShieldsTime: number | undefined;
   const passes: Pass[] = [];
-  let open: Pass | undefined;
+  // The pass still waiting for its break-off line
+  let awaitingBreakOff: Pass | undefined;
+  // The pass that damage now counts for, from its start until the next pass starts or the
+  // finisher stops finishing
+  let counting: Pass | undefined;
 
   for (const line of lines) {
     const time = /^\[[^\]]*\]\s+([\d.]+)\s/.exec(line);
@@ -72,15 +85,23 @@ export function summarizeRun(lines: string[]): RunSummary {
     }
     const ours = start !== undefined || /\[apirateslife-test\] trace:/.test(line);
     if (!ours) continue;
-    const passStart = /\[apirateslife\] capture pass: starts at ([\d.]+)m, shields ([\d.]+)%/.exec(line);
+    const passStart = /\[apirateslife\] capture pass: starts at ([\d.]+)m, shields ([\d.]+)%, hull ([\d.]+)%/.exec(line);
     if (passStart) {
-      open = { startDistance: num(passStart[1]), shieldsBefore: num(passStart[2]), shieldsAfter: undefined };
-      passes.push(open);
+      awaitingBreakOff = {
+        startDistance: num(passStart[1]),
+        shieldsBefore: num(passStart[2]),
+        shieldsAfter: undefined,
+        hullBefore: num(passStart[3]),
+        hit: false,
+        hullDrop: 0,
+      };
+      passes.push(awaitingBreakOff);
+      counting = awaitingBreakOff;
     }
     const breakOff = /\[apirateslife\] capture pass: breaks off at [\d.]+m, shields ([\d.]+)%/.exec(line);
-    if (breakOff && open) {
-      open.shieldsAfter = num(breakOff[1]);
-      open = undefined;
+    if (breakOff && awaitingBreakOff) {
+      awaitingBreakOff.shieldsAfter = num(breakOff[1]);
+      awaitingBreakOff = undefined;
     }
 
     const hull = /\bhull ([\d.]+)%/.exec(line);
@@ -91,6 +112,18 @@ export function summarizeRun(lines: string[]): RunSummary {
     const shieldsLine = /\bshields (?:up )?([\d.]+)%/.exec(line);
     const shields = shieldsLine ? num(shieldsLine[1]) : /\bshields down\b/.test(line) ? 0 : undefined;
     if (shields !== undefined) lastShields = shields;
+    if (counting && !passStart) {
+      if (shields !== undefined && shields < counting.shieldsBefore) counting.hit = true;
+      const h = hull ? num(hull[1]) : undefined;
+      if (h !== undefined && h < counting.hullBefore) {
+        counting.hit = true;
+        // Rounded like the logged figures, without the float noise of the difference
+        counting.hullDrop = Math.max(counting.hullDrop, Math.round((counting.hullBefore - h) * 1e4) / 1e4);
+      }
+      // The finisher stops finishing: the whole wing fires, or it holds (as on the hit that takes
+      // the hull past the line), or the operation ends. This line's own figures still count.
+      if (/\[apirateslife\] capture order: .* (?:fires|holds) on |\[apirateslife\] capture: ended /.test(line)) counting = undefined;
+    }
     if (
       (hull || shields !== undefined) && start !== undefined && hold !== undefined && gateSeconds === undefined &&
       lastHull !== undefined && lastHull < hold && lastShields !== undefined && lastShields < SHIELDS_GATE
@@ -133,14 +166,17 @@ const round = (n: number, places = 0) => String(Math.round(n * 10 ** places) / 1
 export function formatSummary(label: string, s: RunSummary): string {
   const gate = s.gate === "reached" ? `gate ${round(s.gateSeconds!, 1)} s` : s.gate === "not reached" ? "gate not reached" : "no capture operation";
   const hull = s.lowestHull === undefined ? "no hull seen" : `lowest hull ${round(s.lowestHull, 1)}%`;
-  const passes = s.passes.map((p) =>
-    p.shieldsAfter === undefined
-      ? `${round(p.startDistance)} m ${round(p.shieldsBefore)}% aborted`
-      : `${round(p.startDistance)} m ${round(p.shieldsBefore)} -> ${round(p.shieldsAfter)}%`,
-  );
-  const passList = passes.length ? ` (start, shields before -> after): ${passes.join(", ")}` : "";
+  const passes = s.passes.map((p) => {
+    const shields =
+      p.shieldsAfter === undefined
+        ? `${round(p.startDistance)} m ${round(p.shieldsBefore)}% aborted`
+        : `${round(p.startDistance)} m ${round(p.shieldsBefore)} -> ${round(p.shieldsAfter)}%`;
+    return `${shields} ${p.hit ? "hit" : "miss"}${p.hullDrop > 0 ? ` hull -${round(p.hullDrop, 1)}%` : ""}`;
+  });
+  const hits = s.passes.length ? `, ${s.passes.filter((p) => p.hit).length} with a hit` : "";
+  const passList = passes.length ? ` (start, shields before -> after, hit or miss, hull drop): ${passes.join(", ")}` : "";
   return (
     `${label} ${s.result}: ${gate}, ${hull}, ${s.knockDowns} knock-downs, ` +
-    `longest at full shields ${round(s.longestFullShieldsSeconds, 1)} s, ${s.passes.length} passes${passList}`
+    `longest at full shields ${round(s.longestFullShieldsSeconds, 1)} s, ${s.passes.length} passes${hits}${passList}`
   );
 }
