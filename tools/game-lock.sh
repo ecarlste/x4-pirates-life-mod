@@ -33,6 +33,7 @@
 GAME_LOCK_FILE=''
 GAME_LOCK_HEARTBEAT_PID=''
 GAME_LOCK_TICKET=''
+GAME_LOCK_GONE=$'\x01gone'  # what a waiter has seen of a lock file that isn't there
 
 # Sets X4_PATH (a WSL path if it was a Windows one) from the environment, else deploy.config: the
 # checkout's own, else the main checkout's (tools/deploy-config.sh)
@@ -62,6 +63,15 @@ _game_lock_holder() {
     printf '%s (%s, %s), pid %s on %s, since %s' \
         "$(_game_lock_field "$f" what)" "$(_game_lock_field "$f" repo)" "$(_game_lock_field "$f" branch)" \
         "$(_game_lock_field "$f" pid)" "$(_game_lock_field "$f" host)" "$(_game_lock_field "$f" started)"
+}
+
+# Who holds the lock file $1, for messages; for one with no token in it (a crashed or interrupted
+# write), "an empty lock file" or "an unreadable lock file"
+_game_lock_who() {
+    if [ -n "$(_game_lock_field "$1" token)" ]; then _game_lock_holder "$1"
+    elif [ -s "$1" ]; then echo 'an unreadable lock file'
+    else echo 'an empty lock file'
+    fi
 }
 
 # Writes the lock file's lines, with heartbeat number $2
@@ -110,7 +120,7 @@ _game_lock_ordinal() {
 
 # Who holds the lock $1, or "free"
 _game_lock_held() {
-    if [ -e "$1" ]; then echo "held by $(_game_lock_holder "$1")"; else echo free; fi
+    if [ -e "$1" ]; then echo "held by $(_game_lock_who "$1")"; else echo free; fi
 }
 
 # The waiters named by ticket files $@, for messages: "A", "A and B", "A; B and C"
@@ -132,7 +142,7 @@ _game_lock_leave() {
 game_lock_acquire() {
     local file=$1 what=$2
     local wait=${X4_GAME_LOCK_WAIT:-} stale=${X4_GAME_LOCK_STALE:-60} poll=${X4_GAME_LOCK_POLL:-5}
-    local queue started seen='' seen_at=$SECONDS shown='' current msg t place beat=0 behind
+    local queue started seen=$GAME_LOCK_GONE seen_at=$SECONDS shown='' current msg t place beat=0 behind
     local -a ahead
     local -A ticket_seen=() ticket_at=()
     [[ ( -z "$wait" || "$wait" =~ ^[0-9]+$ ) && "$stale" =~ ^[0-9]+$ ]] || { echo "X4_GAME_LOCK_WAIT and X4_GAME_LOCK_STALE take whole seconds" >&2; return 1; }
@@ -171,8 +181,10 @@ game_lock_acquire() {
             ahead+=("$t")
         done < <(_game_lock_tickets "$queue")
 
-        # The lock: watched by every waiter, acted on only by the first in line
-        current=$(cat "$file" 2>/dev/null) || current=''
+        # The lock: watched by every waiter, acted on only by the first in line. An empty lock (a
+        # crashed or interrupted write) is text like any other, so it goes stale too; a missing one
+        # is marked apart, so a holder that has just created the file isn't taken for an empty lock
+        current=$(cat "$file" 2>/dev/null) || current=$GAME_LOCK_GONE
         if [ "$current" != "$seen" ]; then
             seen=$current seen_at=$SECONDS
         fi
@@ -199,9 +211,11 @@ game_lock_acquire() {
                 [ "$behind" -eq 0 ] || echo "Took the game lock; $behind waiting behind you; keep this run short" >&2
                 return 0
             fi
-            if [ -n "$seen" ] && [ $(( SECONDS - seen_at )) -ge "$stale" ] && [ "$(cat "$file" 2>/dev/null)" = "$seen" ]; then
-                # Only if it's still the same text: an old taker may have taken it over just now
-                echo "Taking over the game lock: $(_game_lock_holder "$file") hasn't updated it for ${stale} s, so it looks crashed" >&2
+            if [ "$seen" != "$GAME_LOCK_GONE" ] && [ $(( SECONDS - seen_at )) -ge "$stale" ] \
+                && current=$(cat "$file" 2>/dev/null) && [ "$current" = "$seen" ]; then
+                # Only if it's still the same text (a failed read isn't): an old taker may have taken
+                # it over just now
+                echo "Taking over the game lock: $(_game_lock_who "$file") hasn't updated it for ${stale} s, so it looks crashed" >&2
                 rm -f "$file"
                 continue
             fi
@@ -261,7 +275,9 @@ game_lock_show() {
         echo "The game lock ($file) is free, nobody waiting"
         return 0
     fi
-    if [ -e "$file" ]; then
+    if [ -e "$file" ] && [ -z "$(_game_lock_field "$file" token)" ]; then
+        echo "The game lock ($file) is $(_game_lock_who "$file"), unchanged for $(_game_lock_age "@$(stat -c %Y "$file")"): the first in line takes it over once it has been unchanged for ${X4_GAME_LOCK_STALE:-60} s"
+    elif [ -e "$file" ]; then
         beat=$(_game_lock_field "$file" heartbeat)
         echo "The game lock ($file) is held by $(_game_lock_holder "$file"): for $(_game_lock_age "$(_game_lock_field "$file" started)"), last heartbeat $(_game_lock_age "${beat#* }") ago"
     else

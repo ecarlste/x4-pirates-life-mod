@@ -31,6 +31,12 @@ function Read-GameLockText([string] $File) {
     try { [IO.File]::ReadAllText($File) } catch { '' }
 }
 
+# The lock file's text as a waiter watches it: $null if it's gone or can't be read right now, so
+# neither is taken for an empty lock
+function Read-GameLockWatch([string] $File) {
+    try { [IO.File]::ReadAllText($File) } catch { $null }
+}
+
 # One value from the lock file's KEY=value lines
 function Get-GameLockField([string] $Text, [string] $Key) {
     $m = [regex]::Match($Text, "(?m)^$Key=(.*?)\r?$")
@@ -42,6 +48,14 @@ function Get-GameLockHolder([string] $Text) {
     $f = @{}
     foreach ($k in 'what', 'repo', 'branch', 'pid', 'host', 'started') { $f[$k] = Get-GameLockField $Text $k }
     "$($f.what) ($($f.repo), $($f.branch)), pid $($f.pid) on $($f.host), since $($f.started)"
+}
+
+# Who holds the lock with text $Text, for messages; for one with no token in it (a crashed or
+# interrupted write), "an empty lock file" or "an unreadable lock file"
+function Get-GameLockWho([string] $Text) {
+    if (Get-GameLockField $Text 'token') { Get-GameLockHolder $Text }
+    elseif ($Text) { 'an unreadable lock file' }
+    else { 'an empty lock file' }
 }
 
 # Writes the lock's lines to $File (default: the lock itself; a waiter's ticket has the same lines)
@@ -80,7 +94,7 @@ function Get-GameLockOrdinal([int] $N) {
 
 # Who holds the lock, or "free", for messages
 function Get-GameLockHeld([string] $File) {
-    if (Test-Path $File) { "held by $(Get-GameLockHolder (Read-GameLockText $File))" } else { 'free' }
+    if (Test-Path $File) { "held by $(Get-GameLockWho (Read-GameLockText $File))" } else { 'free' }
 }
 
 # The waiters named by ticket files, for messages: "A", "A and B", "A; B and C"
@@ -154,8 +168,11 @@ function Enter-GameLock([string] $File, [string] $What, [string] $Root) {
                 if (Test-Path -LiteralPath $t) { $ahead += $t }
             }
 
-            # The lock: watched by every waiter, acted on only by the first in line
-            $text = Read-GameLockText $File
+            # The lock: watched by every waiter, acted on only by the first in line. An empty lock (a
+            # crashed or interrupted write) is text like any other, so it goes stale too; a missing
+            # or unreadable one is $null, so a holder that has just created the file isn't taken for an
+            # empty lock
+            $text = Read-GameLockWatch $File
             if ($text -ne $seen) {
                 $seen = $text
                 $seenAt = $clock.Elapsed.TotalSeconds
@@ -175,9 +192,10 @@ function Enter-GameLock([string] $File, [string] $What, [string] $Root) {
                     return $lock
                 }
                 catch [IO.IOException], [UnauthorizedAccessException] { }
-                if ($seen -and $clock.Elapsed.TotalSeconds - $seenAt -ge $stale -and (Read-GameLockText $File) -eq $seen) {
+                if ($null -ne $seen -and $clock.Elapsed.TotalSeconds - $seenAt -ge $stale -and
+                    (Read-GameLockWatch $File) -eq $seen) {
                     # Only if it's still the same text: an old taker may have taken it over just now
-                    Write-Host "Taking over the game lock: $(Get-GameLockHolder $seen) hasn't updated it for $stale s, so it looks crashed"
+                    Write-Host "Taking over the game lock: $(Get-GameLockWho $seen) hasn't updated it for $stale s, so it looks crashed"
                     Remove-Item -LiteralPath $File -Force -ErrorAction SilentlyContinue
                     continue
                 }
