@@ -12,7 +12,7 @@ All runs are on X4 8.00 with SWI 0.91 HF1, at 1× (`MarkCombatTest`), with the c
   - The loadouts are `apirateslife_test_ywing_turretonly` (the SW4 top turret only) and `apirateslife_test_yt1300_turretsonly` (2 × AG-2G only).
   - The turrets stay in the player's default mode, `defend`, and they fire on the Attack order's target.
 - **`capture_wing_turrets_hold` and `capture_wing_turrets_hold_m`** (#184's tests, unchanged apart from the trace).
-- **`capture_wing_turrets_break_m`** (on [`fix/turret-hold-overshoot`](https://github.com/ecarlste/x4-pirates-life-mod/tree/fix/turret-hold-overshoot), not on `main` yet: it lands with [#241](https://github.com/ecarlste/x4-pirates-life-mod/issues/241)'s fix): a capture op with one turret-only YT-1300 (2 × AG-2G), 2 km from a TIE Advanced at full hull and shields, not held down, so the turrets fire through the break. It fails on the hull under 75% (a turret-only wing never finishes), a turret shot more than 1 s after the break, a kill or the floor, and reports how far past the line (the margin under the wing's burst, 2215) the turrets took the target. It runs 120 s; the shields regrow while it holds, so it can cross the line more than once.
+- **`capture_wing_turrets_break_m`** (release tier only): a capture op with one turret-only YT-1300 (2 × AG-2G), 2 km from a TIE Advanced at full hull and shields, not held down, so the turrets fire through the break. It fails on the hull under 75% (a turret-only wing never finishes), a turret shot more than 1 s after the break, a kill or the floor, and reports how far past the line (the margin under the wing's burst, 2215) the turrets took the target. It runs 120 s; the shields regrow while it holds, so it can cross the line more than once.
 
 ## Results
 
@@ -67,9 +67,26 @@ An H9 quad volley would take a TIE/LN from 80% to about 26%, under the 35% floor
 
 - **Run 1:** that TIE Advanced had 8733 shields (run 2's about 4364; the loadout varies), and the two AG-2Gs never outpaced their regrowth.
 - **Run 2:** on the first crossing the turrets went 951 past the line before the order held them, as the order's 1 s loop predicted. While they held, the shields regrew past the burst and the order released them, as designed. On the second crossing the wingman was 250–500 m out, nearly every bolt hit, and the turrets fired for about 1.5 s before the order held them again: 924 shields and about 1760 hull, from 90.8% to 68.8%.
-- **Run 3:** the order released the turrets at 79 s and never held them again: the margin was inside the burst from 114 s, and the turrets kept firing until the run ended at about 121 s. The order logged nothing in that time, so while the wingman is firing, the turret check doesn't run every second as assumed. Why isn't known yet.
+- **Run 3:** the order released the turrets at 79 s and never held them again: the margin was inside the burst from 114 s, and the turrets kept firing until the run ended at about 121 s. The order logged nothing in that time, so while the wingman is firing, the turret check doesn't run every second as assumed. Why: see below.
 - **Run 4:** under 75% with no shot more than 1 s late, so even the 1 s the test allows lets the turrets through the gate at close range.
 - **So a turret-only wing breaks the gate on its own,** which the spec says it doesn't ([capture-operation.md](../specs/capture-operation.md), the finisher). None went under #184's 55% bar or the 35% floor, in 4 runs.
+
+## After #241's fix: 10 runs of 10 passed
+
+**Why run 3's hold never came back:** the order sets the turrets only in its `decide` pass, and while the attack script runs, only the hit handler brings it back there, once the margin is inside `$wingburst`. On the pass that released the turrets, `$wingburst` was worked out before the release, with the turrets still counted as held: 0 for a turret-only wing. So the handler never stopped it above 75%, and the turrets were never held again. Under 75% the suppress check stopped it on the first hit, as the shields were already down. That's likely runs 2 and 4 too: both big overshoots came on the second crossing, after a release, and run 4's turrets stopped at the gate with no late shot. The fix: while its turrets fire, the handler stops a wingman at the full burst, where `decide` holds them.
+
+| Run | Lowest hull | Furthest past the line | Left the break |
+| --- | --- | --- | --- |
+| 1, 3, 5, 7, 9 | 100% | never reached it | 0 times |
+| 2 | 93.3% | 752 | 6 times |
+| 4 | 84.5% | 1458 | 3 times |
+| 6 | 93.4% | 743 | 3 times |
+| 8 | 94.4% | 663 | 2 times |
+| 10 | 93.6% | 730 | 4 times |
+
+- Every crossing stopped inside the 2215 margin, the turrets now holding on the hit itself, not after up to 1 s, and the wing cycled between the break and the hold through the 120 s.
+- Close range is covered: in run 10 the turrets stopped 12 times, 4 of them from 173–356 m (the 250–500 m that broke the gate before), and the hull never went under 93.6%.
+- Only half the runs test the line: the first run of each batch of 2 never reached it. Run 1's TIE Advanced had 8733 shields, which the AG-2G pair never outpaces, as in the first batch's run 1 above. Why it's always the first run of a session isn't known.
 
 ## Caveats
 
@@ -78,5 +95,4 @@ An H9 quad volley would take a TIE/LN from 80% to about 26%, under the 35% floor
 
 ## Open
 
-- Why the order's turret check stops running while the wingman fires (run 3 above), and a fix for the overshoot: [#241](https://github.com/ecarlste/x4-pirates-life-mod/issues/241).
 - The SW4's shield damage at 1×, for the wing burst's shield side.

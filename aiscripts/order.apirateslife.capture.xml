@@ -75,10 +75,10 @@
           <event_object_shield_damaged object="$target"/>
         </check_any>
         <check_value value="$firing"/>
-        <check_value value="not $target.isoperational or ($target.hullpercentage ge $holdhull and $target.shield + $target.hull - $target.maxhull * $holdhull / 100.0 le $wingburst and (@global.$APiratesLife_CaptureOps.{$target}.$finisher != this.assignedcontrolled or not $finishing)) or ($target.hullpercentage lt $holdhull and (($target.hullpercentage le $floorhull) or (not $target.maxshield) or ($target.shield le $stopshield)))"/>
+        <check_value value="not $target.isoperational or ($target.hullpercentage ge $holdhull and $target.shield + $target.hull - $target.maxhull * $holdhull / 100.0 le $breakstop and (@global.$APiratesLife_CaptureOps.{$target}.$finisher != this.assignedcontrolled or not $finishing)) or ($target.hullpercentage lt $holdhull and (($target.hullpercentage le $floorhull) or (not $target.maxshield) or ($target.shield le $stopshield)))"/>
       </conditions>
       <actions>
-        <debug_text text="'[apirateslife] capture order: %s holds on %s: hull %s%%, shields %s%% (%s, stop at %s)'.[this.assignedcontrolled.knownname, event.name, @$target.hullpercentage, @$target.shieldpercentage, @$target.shield, if @$target.hullpercentage lt $holdhull then $stopshield else $wingburst]" chance="$debugchance"/>
+        <debug_text text="'[apirateslife] capture order: %s holds on %s: hull %s%%, shields %s%% (%s, stop at %s)'.[this.assignedcontrolled.knownname, event.name, @$target.hullpercentage, @$target.shieldpercentage, @$target.shield, if @$target.hullpercentage lt $holdhull then $stopshield else $breakstop]" chance="$debugchance"/>
         <set_value name="$firing" exact="false"/>
         <abort_called_scripts resume="decide"/>
       </actions>
@@ -214,6 +214,7 @@
     <set_value name="$fullburst" exact="0"/>
     <set_value name="$wingburst" exact="0"/>
     <set_value name="$wingfullburst" exact="0"/>
+    <set_value name="$breakstop" exact="0"/>
     <set_value name="$stopshield" exact="0"/>
     <!-- Finisher: the guns it keeps in $weapongroup (longest-kept first; not empty only in the fine
          stage), and the guns it took out -->
@@ -350,8 +351,15 @@
       <do_if value="$fire and $holdturrets and not $keptguns.count and this.assignedcontrolled.dps.lasers.all le 0">
         <set_value name="$fire" exact="false"/>
       </do_if>
+      <!-- Break: where the hit handler stops this wingman and comes back here. While our turrets
+           fire, that's where they'd be held, the full burst (with CaptureWingmenTurrets at 0 no
+           turret is held, so that's $wingburst anyway): the order checks them only here, and
+           the attack script runs until that handler stops it. $wingburst then still leaves out the
+           turrets just released, as it's worked out before they are (0 for a wing of turrets only),
+           and a turret-only YT-1300's turrets fired on past the line, never held again (#241). -->
+      <set_value name="$breakstop" exact="if $turretmodes == null then $wingfullburst else $wingburst"/>
 
-      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $closing then 'closes in' else if $finishing then 'finishes' else if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, if $target.hullpercentage lt $holdhull then $stopshield else $wingburst, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire or $finishing != @$lastfinishing or $closing != @$lastclosing then $debugchance else 0"/>
+      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $closing then 'closes in' else if $finishing then 'finishes' else if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, if $target.hullpercentage lt $holdhull then $stopshield else $breakstop, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire or $finishing != @$lastfinishing or $closing != @$lastclosing then $debugchance else 0"/>
       <set_value name="$lastfire" exact="$fire"/>
       <set_value name="$lastfinishing" exact="$finishing"/>
       <set_value name="$lastclosing" exact="$closing"/>

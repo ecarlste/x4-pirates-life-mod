@@ -70,6 +70,7 @@
           CaptureWingBailsPhantom,
           CaptureWingTurretsHold,
           CaptureWingTurretsHoldM,
+          CaptureWingTurretsBreakM,
           TurretDamageLandedS,
           TurretDamageLandedM,
           NoMissilesInSight,
@@ -93,6 +94,7 @@
              out of the installed copy's $Tests on a PR-tier run (docs/testing.md, Game test tiers) -->
         <set_value name="$ReleaseOnly" exact="[
           CaptureWingBailsPhantom,
+          CaptureWingTurretsBreakM,
           TurretDamageLandedS,
           TurretDamageLandedM
         ]"/>
@@ -2819,12 +2821,15 @@
          stage on, so a turret shot more than 1 s after the wing left the break fails it (the
          shots on the frame it leaves are already on their way). Once the order ends, each turret
          must be back in the mode it started in (TurretTestDone). The setup also reports the
-         ship's DPS with and without its turrets (BareLoadout: the same ship with no turrets). -->
+         ship's DPS with and without its turrets (BareLoadout: the same ship with no turrets; null
+         for none). Hull and ShieldsDown set the target's start, as in SpawnWingAt2km. -->
     <library name="TurretTestSetup" purpose="run_actions">
       <params>
         <param name="Macro"/>
         <param name="Loadout"/>
-        <param name="BareLoadout"/>
+        <param name="BareLoadout" default="null"/>
+        <param name="Hull" default="80"/>
+        <param name="ShieldsDown" default="true"/>
       </params>
       <actions>
         <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
@@ -2834,20 +2839,29 @@
           <param name="Count" value="1"/>
           <param name="Macro" value="$Macro"/>
           <param name="Loadout" value="$Loadout"/>
+          <param name="Hull" value="$Hull"/>
+          <param name="ShieldsDown" value="$ShieldsDown"/>
         </run_actions>
         <set_value name="$Wingman" exact="$Wing.$wingmen.{1}"/>
-        <create_ship name="$Bare" macro="$Macro" sector="player.sector">
-          <owner exact="faction.player" overridenpc="true"/>
-          <loadout ref="$BareLoadout"/>
-          <safepos object="player.occupiedship" z="-20km" allowyaxis="true"/>
-        </create_ship>
-        <set_value name="$Wing.$dps" exact="'dps.lasers.all %s with turrets, %s without; dps.turrets.all %s; turrets %s, defence npc %s'.[$Wingman.dps.lasers.all, $Bare.dps.lasers.all, $Wingman.dps.turrets.all, $Wing.$turrets.count, $Wingman.defencenpc.exists]"/>
+        <set_value name="$BareDps" exact="'none'"/>
+        <do_if value="$BareLoadout">
+          <create_ship name="$Bare" macro="$Macro" sector="player.sector">
+            <owner exact="faction.player" overridenpc="true"/>
+            <loadout ref="$BareLoadout"/>
+            <safepos object="player.occupiedship" z="-20km" allowyaxis="true"/>
+          </create_ship>
+          <set_value name="$BareDps" exact="$Bare.dps.lasers.all"/>
+          <destroy_object object="$Bare"/>
+        </do_if>
+        <set_value name="$Wing.$dps" exact="'dps.lasers.all %s with turrets, %s without; dps.turrets.all %s; turrets %s, defence npc %s'.[$Wingman.dps.lasers.all, $BareDps, $Wingman.dps.turrets.all, $Wing.$turrets.count, $Wingman.defencenpc.exists]"/>
         <debug_text text="'[apirateslife-test] turrets: ' + $Wing.$dps" filter="general"/>
-        <destroy_object object="$Bare"/>
         <set_value name="$Wing.$shots" exact="table[$gun = table[$break = 0, $fine = 0, $suppress = 0, $hold = 0], $turret = table[$break = 0, $fine = 0, $suppress = 0, $hold = 0]]"/>
         <set_value name="$Wing.$lateturret" exact="0"/>
         <set_value name="$Wing.$stage" exact="'$break'"/>
         <set_value name="$Wing.$heldsince" exact="null"/>
+        <set_value name="$Wing.$crossings" exact="0"/>
+        <set_value name="$Wing.$pastline" exact="null"/>
+        <set_value name="$Wing.$burst" exact="0"/>
         <!-- The turrets' modes as the player left them, to check they come back -->
         <set_value name="$Wing.$turretmodes" exact="table[]"/>
         <do_for_each name="$Turret" in="$Wing.$turrets">
@@ -2862,8 +2876,10 @@
            $fine:     hull at or above 75%, inside the burst: the finisher fires one gun
            $suppress: hull under 75%, shields over the wing's burst: fire at shields
            $hold:     hull under 75%, shields at or under the wing's burst: no fire
-         Keeps the stage in the wing, and when it last left $break ($heldsince, null in $break).
-         With Weapon (a shot fired), counts the shot. Run on every shot and every second. -->
+         Keeps the stage in the wing, and when it last left $break ($heldsince, null in $break),
+         how many times it left it ($crossings), and the furthest the margin (shields plus hull
+         above 75%) has been under the wing's burst ($pastline, hitpoints; null before the op has
+         its DPS). With Weapon (a shot fired), counts the shot. Run on every shot and every second. -->
     <library name="TurretShotStage" purpose="run_actions">
       <params>
         <param name="Wing"/>
@@ -2875,8 +2891,16 @@
           <return value="false"/>
         </do_if>
         <set_value name="$WingBurst" exact="@global.$APiratesLife_CaptureOps.{$T}.$wingdps.$full * 1.5"/>
+        <set_value name="$Margin" exact="$T.shield + $T.hull - $T.maxhull * 0.75"/>
+        <do_if value="$WingBurst gt 0">
+          <set_value name="$Wing.$burst" exact="$WingBurst"/>
+          <set_value name="$Past" exact="$WingBurst - $Margin"/>
+          <do_if value="$Wing.$pastline == null or $Past gt $Wing.$pastline">
+            <set_value name="$Wing.$pastline" exact="$Past"/>
+          </do_if>
+        </do_if>
         <do_if value="$T.hullpercentage ge 75">
-          <set_value name="$Stage" exact="if $T.shield + $T.hull - $T.maxhull * 0.75 gt $WingBurst then '$break' else '$fine'"/>
+          <set_value name="$Stage" exact="if $Margin gt $WingBurst then '$break' else '$fine'"/>
         </do_if>
         <do_else>
           <set_value name="$Stage" exact="if $T.shield gt $WingBurst then '$suppress' else '$hold'"/>
@@ -2886,6 +2910,7 @@
         </do_if>
         <do_elseif value="$Wing.$heldsince == null">
           <set_value name="$Wing.$heldsince" exact="player.age"/>
+          <set_value name="$Wing.$crossings" operation="add"/>
         </do_elseif>
         <set_value name="$Wing.$stage" exact="$Stage"/>
         <do_if value="$Weapon">
@@ -3135,6 +3160,121 @@
                       <param name="Started" value="$Started"/>
                     </run_actions>
                     <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_turrets_hold_m', $ok = $Result.$ok, $detail = $Result.$detail]"/>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- #225: a turret-only YT-1300 (two AG-2G turrets, TurretTestSetup) against a TIE Advanced
+         at full hull and shields, nothing holding them down, so the turrets fire through the break.
+         It measures how far past the line (the margin under the wing's burst) the turrets' bolts
+         in flight take it after they stop (#241). With no forward gun it never
+         finishes, so the hull under 75% fails it, as do a turret shot more than 1 s after the
+         break, a kill, the floor, and a turret not back in its mode. Runs 120 s: the shields
+         regrow while it holds, so it may cross the line more than once. -->
+    <cue name="CaptureWingTurretsBreakM">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="MarkCombatTest"/>
+        <run_actions ref="TurretTestSetup" result="$Wing">
+          <param name="Macro" value="macro.yt1300_01_a_macro"/>
+          <param name="Loadout" value="'apirateslife_test_yt1300_turretsonly'"/>
+          <param name="Hull" value="100"/>
+          <param name="ShieldsDown" value="false"/>
+        </run_actions>
+        <create_group groupname="$Guns"/>
+        <add_to_group groupname="$Guns" list="$Wing.$gunowner.keys.list"/>
+      </actions>
+      <cues>
+        <cue name="CaptureWingTurretsBreakM_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+            <set_object_capturable object="$Wing.$target" capturable="false"/>
+            <run_actions ref="CombatTraceStart">
+              <param name="Wingmen" value="$Wing.$wingmen"/>
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+          </actions>
+          <cues>
+            <cue name="CaptureWingTurretsBreakM_Fired" instantiate="true">
+              <conditions>
+                <event_weapon_fired group="$Guns"/>
+              </conditions>
+              <actions>
+                <run_actions ref="TurretShotStage">
+                  <param name="Wing" value="$Wing"/>
+                  <param name="Weapon" value="event.object"/>
+                </run_actions>
+              </actions>
+            </cue>
+            <cue name="CaptureWingTurretsBreakM_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="TurretShotStage">
+                  <param name="Wing" value="$Wing"/>
+                </run_actions>
+                <set_value name="$T" exact="$Wing.$target"/>
+                <set_value name="$Problems" exact="''"/>
+                <do_if value="not $T.exists or not $T.isoperational">
+                  <set_value name="$Problems" exact="' target destroyed;'"/>
+                </do_if>
+                <do_else>
+                  <set_value name="$Wing.$minhull" exact="[$Wing.$minhull, $T.hullpercentage].min"/>
+                  <debug_text text="'[apirateslife-test] trace: stage %s, hull %s%%, shields %s, wing burst %s, past the line %s'.[$Wing.$stage, $T.hullpercentage, $T.shield, $Wing.$burst, $Wing.$pastline]" filter="general"/>
+                  <do_if value="$T.hullpercentage lt 75">
+                    <set_value name="$Problems" exact="' hull %s%%, under 75%% with no finisher;'.[$T.hullpercentage]"/>
+                  </do_if>
+                </do_else>
+                <do_if value="$Problems != ''">
+                  <cancel_cue cue="CaptureWingTurretsBreakM_Timeout"/>
+                  <signal_cue_instantly cue="CaptureWingTurretsBreakM_Done" param="$Problems"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="CaptureWingTurretsBreakM_Timeout">
+              <delay exact="120s"/>
+              <actions>
+                <signal_cue_instantly cue="CaptureWingTurretsBreakM_Done" param="''"/>
+              </actions>
+            </cue>
+            <cue name="CaptureWingTurretsBreakM_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureWingTurretsBreakM_Fired"/>
+                <cancel_cue cue="CaptureWingTurretsBreakM_Watch"/>
+                <!-- The reported name again: tools/check_test_plan.py reads it from Report's literal -->
+                <run_actions ref="CombatTraceStop">
+                  <param name="Name" value="'capture_wing_turrets_break_m'"/>
+                </run_actions>
+                <set_value name="$Problems" exact="event.param"/>
+                <set_value name="$Line" exact="' left the break %s times; furthest past the line %s hull (%s%% of the hull), wing burst %s;'.[$Wing.$crossings, $Wing.$pastline, 100 * @$Wing.$pastline / ($Wing.$target.maxhull)f, $Wing.$burst]"/>
+                <!-- Cancelled, as the player would: its turrets go back to their own modes -->
+                <do_for_each name="$Ship" in="$Wing.$wingmen">
+                  <do_if value="$Ship.isoperational">
+                    <cancel_all_orders object="$Ship"/>
+                  </do_if>
+                </do_for_each>
+              </actions>
+              <cues>
+                <cue name="CaptureWingTurretsBreakM_Report">
+                  <delay exact="2s"/>
+                  <actions>
+                    <run_actions ref="TurretTestDone" result="$Result">
+                      <param name="Wing" value="$Wing"/>
+                      <param name="Problems" value="$Problems"/>
+                      <param name="Started" value="$Started"/>
+                    </run_actions>
+                    <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_turrets_break_m', $ok = $Result.$ok, $detail = $Result.$detail + $Line]"/>
                   </actions>
                 </cue>
               </cues>
