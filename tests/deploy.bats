@@ -514,6 +514,36 @@ STUB
     [ -e "$X4_PATH/game.lock" ]
 }
 
+@test "fails, leaving the empty lock to go stale, when it can't write the lock's first lines" {
+    # An mv that can't rename over the lock, as when a reader on Windows holds it open
+    mkdir -p "$SANDBOX/bin"
+    # shellcheck disable=SC2016  # the stub's own expansions, unexpanded here
+    printf '#!/usr/bin/env bash\n[[ "${!#}" == */game.lock ]] && exit 1\nexec %q "$@"\n' "$(command -v mv)" > "$SANDBOX/bin/mv"
+    chmod +x "$SANDBOX/bin/mv"
+
+    PATH="$SANDBOX/bin:$PATH" deploy --working-tree
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"couldn't write its first lines"* ]]
+    [ ! -e "$TARGET" ]
+    [ -z "$(game_tickets)" ]
+    [ -e "$X4_PATH/game.lock" ] && [ ! -s "$X4_PATH/game.lock" ]
+}
+
+@test "retries the lock's first lines until a reader lets go" {
+    # An mv that can't rename over the lock its first three tries, as while a reader holds it open
+    mkdir -p "$SANDBOX/bin"
+    # shellcheck disable=SC2016  # the stub's own expansions, unexpanded here
+    printf '#!/usr/bin/env bash\nif [[ "${!#}" == */game.lock ]]; then echo x >> %q; [ "$(wc -l < %q)" -gt 3 ] || exit 1; fi\nexec %q "$@"\n' \
+        "$SANDBOX/mv-tries" "$SANDBOX/mv-tries" "$(command -v mv)" > "$SANDBOX/bin/mv"
+    chmod +x "$SANDBOX/bin/mv"
+
+    PATH="$SANDBOX/bin:$PATH" deploy --working-tree
+    [ "$status" -eq 0 ]
+    [ -f "$TARGET/content.xml" ]
+    [ -z "$(game_tickets)" ]
+    [ ! -e "$X4_PATH/game.lock" ]
+}
+
 # --- The game lock's line -----------------------------------------------------
 
 @test "leaves no ticket in the line once it has the lock" {

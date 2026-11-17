@@ -88,12 +88,29 @@ _game_lock_write() {
 
 # Writes the lock's lines to $1 (the lock, or this waiter's ticket), with heartbeat number $2: to a
 # file beside it first, then moved over it, so a waiter reading it sees the old or the new lines,
-# never an empty or half-written file
+# never an empty or half-written file. Returns 1 if it can't; callers retry: the first write at once
+# (_game_lock_write_first), the rest next time
 _game_lock_replace() {
     local tmp="$1.$BASHPID.tmp"
     if _game_lock_write "$1" "$2" >| "$tmp" && mv -f "$tmp" "$1"; then return 0; fi
     rm -f "$tmp"
     return 1
+}
+
+# Writes newly taken lock $1's first lines. A waiter on Windows watching it may have it open right
+# now, and on drvfs that makes the rename fail, so it retries for about a second; past that it
+# returns 1, failing the run (callers run it left of ||, so set -e can't), and the empty lock goes
+# stale for the next in line to take over after $2 s, as with tools/game-lock.ps1
+_game_lock_write_first() {
+    local try err
+    for (( try = 1; ; try++ )); do
+        err=$(_game_lock_replace "$1" 0 2>&1) && return 0
+        if [ "$try" -ge 50 ]; then
+            echo "Took the game lock ($1) but couldn't write its first lines${err:+: $err}. It's left empty, so the next in line takes it over once it has sat unchanged for $2 s" >&2
+            return 1
+        fi
+        sleep 0.02
+    done
 }
 
 # The tickets in the line in $1, in line order (the zero-padded numbers sort)
@@ -202,7 +219,7 @@ game_lock_acquire() {
             # noclobber makes the create exclusive: an old taker that skips the line may beat us
             if (set -o noclobber; : > "$file") 2>/dev/null; then
                 GAME_LOCK_FILE=$file GAME_LOCK_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-                _game_lock_replace "$file" 0
+                _game_lock_write_first "$file" "$stale" || { _game_lock_leave; return 1; }
                 _game_lock_leave
                 # The heartbeat: rewrite the file while this script lives, so waiters can tell a
                 # crashed holder (its file stops changing) from a long run
