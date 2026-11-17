@@ -1,4 +1,4 @@
-.PHONY: setup deploy deploy-local deploy-dry-run test test-plan release doc-paths doc-names game-test game-test-locked game-test-report game-queue worktrees help
+.PHONY: setup deploy deploy-local deploy-dry-run test test-plan release doc-paths doc-names game-test game-test-locked game-test-report game-proof game-queue worktrees help
 
 # npm for make setup's install of the TypeScript tools' packages; override to use another
 NPM ?= npm
@@ -26,6 +26,9 @@ help:
 	@echo "  make game-test      - Deploy your working tree and run the in-game tests in the X4 8.00 copy (Windows),"
 	@echo "                       holding the game lock so no other run uses the game meanwhile: the PR tier,"
 	@echo "                       5 minutes or less (RELEASE=1: the release tier, every test, 30 minutes or less)"
+	@echo "  make game-proof     - Prove a rate: RUNS runs of each TEST (comma-separated) as make game-test calls"
+	@echo "                       within the hold budget, one trace set in tests/game/runs/LABEL"
+	@echo "                       (KEEP_GOING=1: run on past a failed run)"
 	@echo "  make game-queue     - Show who holds the game lock and who waits in line for it, with ages"
 	@echo "  make game-test-report - Post the last game-test report to this branch's PR (comment and check)"
 	@echo "  make worktrees      - List worktrees; flag uncommitted or unpushed work not yet on main"
@@ -96,6 +99,13 @@ game-test-locked:
 	@$(GAME_TEST_RUNNER) -PreflightOnly $(RUNNER_ARGS)
 	@./deploy.sh --working-tree $(ARGS)
 	@$(GAME_TEST_RUNNER) $(GAME_TEST_GIT) $(GAME_TEST_TIER) $(RUNNER_ARGS)
+
+# A proof of a rate (docs/testing.md, Rates, not single runs): RUNS runs of each TEST as make
+# game-test calls sized within the hold budget from the runner's own estimates, each rejoining the
+# back of the game lock's line, with one trace set (tools/game-proof.ts). The runner command goes in
+# single quotes so its $(wslpath ...) runs when the tool calls it.
+game-proof:
+	@GAME_TEST_RUNNER='$(GAME_TEST_RUNNER)' node tools/game-proof.ts --test '$(TEST)' --runs '$(RUNS)' --label '$(LABEL)' $(if $(KEEP_GOING),--keep-going)
 
 game-queue:
 	@tools/game-lock.sh --queue

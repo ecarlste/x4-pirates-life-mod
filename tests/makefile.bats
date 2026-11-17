@@ -17,7 +17,7 @@ teardown() { if [ -n "${SANDBOX:-}" ]; then teardown_sandbox; fi; }
 @test "make help lists every target" {
     run make -C "$REPO" help
     [ "$status" -eq 0 ]
-    for target in setup deploy deploy-local deploy-dry-run test test-plan release doc-paths doc-names game-test game-test-report game-queue worktrees; do
+    for target in setup deploy deploy-local deploy-dry-run test test-plan release doc-paths doc-names game-test game-test-report game-proof game-queue worktrees; do
         [[ "$output" == *"make $target "* ]] || { echo "missing: $target"; return 1; }
     done
 }
