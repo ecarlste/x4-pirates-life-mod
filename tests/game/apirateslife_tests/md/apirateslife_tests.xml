@@ -417,8 +417,8 @@
     <!-- The combat trace (#220): dev only, and off unless a test runs CombatTraceStart. Every
          second it puts each wingman in a band of nose angle to the target and distance, and counts
          the seconds it fired and the seconds damage landed (the target's shields plus hull
-         dropped). Damage landed is the target's, so with more than one wingman it counts for each
-         (#231). The bands and the summary's format: docs/testing.md, Game tests. -->
+         dropped). A second with damage goes to the one wingman an attack notice named in it, or is
+         unattributed (#231). The bands and the summary's format: docs/testing.md, Game tests. -->
     <cue name="CombatTrace">
       <conditions>
         <event_cue_signalled/>
@@ -452,6 +452,23 @@
             </do_if>
           </actions>
         </cue>
+        <!-- Who landed the damage: the player-owned attack notices on the target name the
+             attacker. They aren't one per bolt (#216), but in game runs they named a wingman in 13
+             of 17 seconds with damage (#231). No per-hit event names the shooter: the shield and
+             hull damage events don't, and the target's lastattacker changes only with these
+             notices. -->
+        <cue name="CombatTrace_Attacked" instantiate="true">
+          <conditions>
+            <event_player_owned_attacked_object/>
+            <check_value value="event.param2 == $R.$target"/>
+          </conditions>
+          <actions>
+            <set_value name="$Who" exact="if @$R.$per.{event.param} then event.param else @$R.$gunowner.{event.param}"/>
+            <do_if value="@$R.$per.{$Who}">
+              <set_value name="$R.$named.{$Who}" exact="true"/>
+            </do_if>
+          </actions>
+        </cue>
         <cue name="CombatTrace_Tick" checkinterval="1s" instantiate="true">
           <actions>
             <set_value name="$T" exact="$R.$target"/>
@@ -460,6 +477,27 @@
               <set_value name="$Landed" exact="$Now lt $R.$last"/>
               <set_value name="$R.$last" exact="$Now"/>
               <set_value name="$R.$seconds" operation="add"/>
+              <!-- The wingman this second's damage goes to: the one operational wingman named,
+                   else none and the second is unattributed -->
+              <set_value name="$Named" exact="[]"/>
+              <do_for_each name="$W" in="$R.$named.keys.list">
+                <do_if value="$W.isoperational">
+                  <append_to_list name="$Named" exact="$W"/>
+                </do_if>
+              </do_for_each>
+              <set_value name="$Credit" exact="null"/>
+              <do_if value="$Landed">
+                <set_value name="$R.$landed" operation="add"/>
+                <do_if value="$Named.count == 1">
+                  <set_value name="$Credit" exact="$Named.{1}"/>
+                </do_if>
+                <do_elseif value="$Named.count == 0">
+                  <set_value name="$R.$nonenamed" operation="add"/>
+                </do_elseif>
+                <do_else>
+                  <set_value name="$R.$manynamed" operation="add"/>
+                </do_else>
+              </do_if>
               <do_for_each name="$W" in="$R.$wingmen">
                 <do_if value="$W.isoperational">
                   <!-- The target in the wingman's frame: z is ahead. The nose is within an angle
@@ -480,13 +518,14 @@
                   <do_if value="@$R.$firing.{$W}">
                     <set_value name="$P.$firedsecs.{$Band}" operation="add"/>
                   </do_if>
-                  <do_if value="$Landed">
+                  <do_if value="$W == $Credit">
                     <set_value name="$P.$hitsecs.{$Band}" operation="add"/>
                   </do_if>
                 </do_if>
               </do_for_each>
             </do_if>
             <set_value name="$R.$firing" exact="table[]"/>
+            <set_value name="$R.$named" exact="table[]"/>
           </actions>
         </cue>
       </cues>
@@ -526,7 +565,7 @@
         <do_for_each name="$W" in="$Wingmen">
           <set_value name="$Per.{$W}" exact="table[$shots = 0, $overheats = 0, $secs = [0, 0, 0, 0, 0, 0, 0, 0, 0], $firedsecs = [0, 0, 0, 0, 0, 0, 0, 0, 0], $hitsecs = [0, 0, 0, 0, 0, 0, 0, 0, 0]]"/>
         </do_for_each>
-        <signal_cue_instantly cue="CombatTrace" param="table[$wingmen = $Wingmen, $target = $Target, $gunowner = $GunOwner, $last = $Target.shield + $Target.hull, $seconds = 0, $firing = table[], $bands = $Bands, $per = $Per]"/>
+        <signal_cue_instantly cue="CombatTrace" param="table[$wingmen = $Wingmen, $target = $Target, $gunowner = $GunOwner, $last = $Target.shield + $Target.hull, $seconds = 0, $firing = table[], $named = table[], $landed = 0, $nonenamed = 0, $manynamed = 0, $bands = $Bands, $per = $Per]"/>
       </actions>
     </library>
 
@@ -546,8 +585,9 @@
             <do_all exact="$R.$bands.count" counter="$b">
               <set_value name="$Bands" exact="$Bands + (if $Bands == '' then '' else ', ') + '%s %s/%s/%s'.[$R.$bands.{$b}, $P.$hitsecs.{$b}, $P.$firedsecs.{$b}, $P.$secs.{$b}]"/>
             </do_all>
-            <debug_text text="'[apirateslife-test] combat trace %s, wingman %s of %s: %s s, shots %s, overheats %s; seconds with damage/fired/in band, by nose angle and distance: %s'.[$Name, $i, $R.$wingmen.count, $R.$seconds, $P.$shots, $P.$overheats, $Bands]" filter="general"/>
+            <debug_text text="'[apirateslife-test] combat trace %s, wingman %s of %s: %s s, shots %s, overheats %s; seconds with its damage/fired/in band, by nose angle and distance: %s'.[$Name, $i, $R.$wingmen.count, $R.$seconds, $P.$shots, $P.$overheats, $Bands]" filter="general"/>
           </do_all>
+          <debug_text text="'[apirateslife-test] combat trace %s, damage: %s s with damage, %s credited to a wingman, %s unattributed (%s with no wingman named, %s with more than one)'.[$Name, $R.$landed, $R.$landed - $R.$nonenamed - $R.$manynamed, $R.$nonenamed + $R.$manynamed, $R.$nonenamed, $R.$manynamed]" filter="general"/>
           <reset_cue cue="CombatTrace"/>
         </do_if>
       </actions>
@@ -2332,6 +2372,11 @@
               <param name="Target" value="$Wing.$target"/>
             </run_actions>
             <set_object_capturable object="$Wing.$target" capturable="false"/>
+            <!-- The combat trace (#220), with each second's damage credited to one wingman (#231) -->
+            <run_actions ref="CombatTraceStart">
+              <param name="Wingmen" value="$Wing.$wingmen"/>
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
           </actions>
           <cues>
             <cue name="CaptureWingHoldsFireThreeWingmen_Fired" instantiate="true">
@@ -2371,6 +2416,10 @@
               <actions>
                 <cancel_cue cue="CaptureWingHoldsFireThreeWingmen_Fired"/>
                 <cancel_cue cue="CaptureWingHoldsFireThreeWingmen_Watch"/>
+                <!-- The reported name again: tools/check_test_plan.py reads it from Report's literal -->
+                <run_actions ref="CombatTraceStop">
+                  <param name="Name" value="'capture_wing_holds_fire_three_wingmen'"/>
+                </run_actions>
                 <remove_value name="global.$APiratesLife_CaptureDebug"/>
                 <set_value name="$Problems" exact="event.param"/>
                 <do_if value="not $Started">
