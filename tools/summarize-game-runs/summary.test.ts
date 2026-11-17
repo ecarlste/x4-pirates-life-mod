@@ -46,6 +46,11 @@ test("a capture run's gate time, lowest hull, knock-downs, longest full-shield s
     ],
     gunSwaps: [],
     combatTrace: [],
+    outcome: undefined,
+    bailChecks: [],
+    noBailChance: 1,
+    // Inside both gates from 38.90 to the run's last sample, 39.00
+    inGatesSeconds: 0.1,
   });
 });
 
@@ -53,7 +58,7 @@ test("the summary line rounds each figure and names a pass that never broke off"
   assert.equal(
     formatSummary("capture_wing_breaks_full_shields-1", summarizeRun(WING_RUN)),
     "capture_wing_breaks_full_shields-1 PASS: gate 35.9 s, lowest hull 72.5%, 2 knock-downs, longest at full shields 8.8 s, " +
-      "3 passes, 2 with a hit (start, shields before -> after, hit or miss, hull drop): " +
+      "0 bail checks, P(no bail) 100%, 0.1 s in the gates, 3 passes, 2 with a hit (start, shields before -> after, hit or miss, hull drop): " +
       "390 m 100 -> 11% hit, 443 m 24 -> 46% miss, 439 m 70% aborted hit hull -27.5%",
   );
 });
@@ -99,7 +104,7 @@ test("a run with no capture operation has no gate, no hull and no passes", () =>
     "[General] 5.00 *** Context:md.APiratesLife_Tests.Report: [apirateslife-test] FAIL bail_raises_bailed: hull 54%, expected 100%;",
   ]);
 
-  assert.equal(formatSummary("bail_raises_bailed-1", summary), "bail_raises_bailed-1 FAIL: no capture operation, no hull seen, 0 knock-downs, longest at full shields 0 s, 0 passes");
+  assert.equal(formatSummary("bail_raises_bailed-1", summary), "bail_raises_bailed-1 FAIL: no capture operation, no hull seen, 0 knock-downs, longest at full shields 0 s, 0 bail checks, P(no bail) 100%, 0 s in the gates, 0 passes");
 });
 
 test("a pass's window closes once the finisher stops finishing, so the wing's later fire isn't counted", () => {
@@ -155,4 +160,87 @@ test("a combat trace counts in a run with no capture operation, as in the turret
 
   assert.equal(summary.gate, "no operation");
   assert.deepEqual(summary.combatTrace.map((t) => t.shots), [12]);
+});
+
+// A Phantom bail run (#272's shape, trimmed): the pressure tick's checks while inside the gates, a
+// bail, the operation's end and the capture metrics line, whose own "outcome=" isn't the test's
+const BAILED_RUN = [
+  "[Scripts] 3.00 *** Context:md.APiratesLife_Capture.Operation<inst:1>: [apirateslife] capture: started on IMP TIE Phantom (PHA-001), led by X-wing T65B (XWG-001) with 1 wingmen (hold 75%, floor 35%, fear 0)",
+  "[General] 10.00 *** Context:md.APiratesLife_Tests: [apirateslife-test] trace: hull 70%, shields 50%",
+  "[General] 20.00 *** Context:md.APiratesLife_Tests: [apirateslife-test] trace: hull 70%, shields 10%",
+  "[Scripts] 25.00 *** Context:md.APiratesLife_Bail: [apirateslife] bail check: X-wing T65B (XWG-001) attacking IMP TIE Phantom (PHA-001): chance 10 -> 20 (pressure 10)",
+  "[General] 30.00 *** Context:md.APiratesLife_Tests: [apirateslife-test] trace: hull 68%, shields 40%",
+  "[General] 40.00 *** Context:md.APiratesLife_Tests: [apirateslife-test] trace: hull 66%, shields 5%",
+  "[Scripts] 45.00 *** Context:md.APiratesLife_Bail: [apirateslife] bail check: X-wing T65B (XWG-001) attacking IMP TIE Phantom (PHA-001): chance 10 -> 50 (pressure 40)",
+  "[Scripts] 50.00 *** Context:md.APiratesLife_Bail: [apirateslife] bail check: X-wing T65B (XWG-001) attacking IMP TIE Phantom (PHA-001): chance 10 -> 70 (pressure 60)",
+  "[Scripts] 50.00 *** Context:md.APiratesLife_Bail.Bailed: [apirateslife] bailed: 1 crew from IMP TIE Phantom (PHA-001) (attacker X-wing T65B (XWG-001)), pilot bailed: 1",
+  "[Scripts] 55.50 *** Context:md.APiratesLife_Capture.End<inst:1>: [apirateslife] capture: ended on IMP TIE Phantom (PHA-001): bailed (fear left 0)",
+  "[Scripts] 55.50 *** Context:md.APiratesLife_Metrics: [apirateslife] capture metrics: v=1 | mode=wing | outcome=destroyed | target=IMP TIE Phantom",
+  "[General] 56.00 *** Context:md.APiratesLife_Tests.Report: [apirateslife-test] PASS capture_wing_bails_phantom outcome=met: bailed after 47 s (expected outcome=missed never)",
+];
+
+test("a run's bail checks, their odds of no bail, its seconds inside the gates and its outcome", () => {
+  const summary = summarizeRun(BAILED_RUN);
+
+  // Each check's chance after pressure, in %
+  assert.deepEqual(summary.bailChecks, [20, 50, 70]);
+  // 0.8 x 0.5 x 0.3
+  assert.equal(summary.noBailChance, 0.12);
+  // Inside both gates from 20 to 30 (shields back over 20%), then from 40 to the operation's end at 55.5
+  assert.equal(summary.inGatesSeconds, 25.5);
+  // From the result line only: not the metrics line's "outcome=destroyed" or the detail's
+  assert.equal(summary.outcome, "met");
+  assert.equal(
+    formatSummary("capture_wing_bails_phantom-1", summary),
+    "capture_wing_bails_phantom-1 PASS outcome=met: gate 17 s, lowest hull 66%, 2 knock-downs, longest at full shields 0 s, " +
+      "3 bail checks (chance after pressure: 20%, 50%, 70%), P(no bail) 12%, 25.5 s in the gates, 0 passes",
+  );
+});
+
+test("a timed-out run's checks count until its result, and the gates close at its last line", () => {
+  const timedOut = [
+    ...BAILED_RUN.slice(0, 7),
+    "[General] 303.00 *** Context:md.APiratesLife_Tests: [apirateslife-test] trace: hull 60%, shields 2%",
+    "[General] 303.00 *** Context:md.APiratesLife_Tests.Report: [apirateslife-test] FAIL capture_wing_bails_phantom outcome=missed: no bail in 300 s",
+  ];
+  const summary = summarizeRun(timedOut);
+
+  assert.deepEqual(summary.bailChecks, [20, 50]);
+  assert.equal(summary.noBailChance, 0.4);
+  // 20 to 30, then 40 to the last sample at 303
+  assert.equal(summary.inGatesSeconds, 273);
+  assert.equal(summary.result, "FAIL");
+  assert.equal(summary.outcome, "missed");
+});
+
+test("a run with no bail checks is certain not to bail, and no outcome when the test reports none", () => {
+  const summary = summarizeRun(WING_RUN);
+
+  assert.deepEqual(summary.bailChecks, []);
+  assert.equal(summary.noBailChance, 1);
+  assert.equal(summary.outcome, undefined);
+  assert.match(formatSummary("x-1", summary), /, 0 bail checks, P\(no bail\) 100%, 0\.1 s in the gates, /);
+});
+
+test("the gates are the game's 75% hull, not the operation's hold", () => {
+  const summary = summarizeRun([
+    "[Scripts] 2.00 *** Context:md.APiratesLife_Capture.Operation<inst:1>: [apirateslife] capture: started on IMP TIE/LN (TGT-001), led by X-wing T65B (XWG-001) with 1 wingmen (hold 60%, floor 35%, fear 0)",
+    "[General] 10.00 *** Context:md.APiratesLife_Tests: [apirateslife-test] trace: hull 70%, shields 0%",
+    "[General] 20.00 *** Context:md.APiratesLife_Tests: [apirateslife-test] trace: hull 65%, shields 0%",
+  ]);
+
+  assert.equal(summary.gateSeconds, 8);
+  assert.equal(summary.inGatesSeconds, 10);
+});
+
+test("only the operation's own target's checks count, until the operation ends", () => {
+  const summary = summarizeRun([
+    "[Scripts] 2.00 *** Context:md.APiratesLife_Capture.Operation<inst:1>: [apirateslife] capture: started on IMP TIE/LN (TGT-001), led by X-wing T65B (XWG-001) with 1 wingmen (hold 75%, floor 35%, fear 0)",
+    "[Scripts] 5.00 *** Context:md.APiratesLife_Bail: [apirateslife] bail check: X-wing T65B (XWG-001) attacking IMP TIE/LN (TGT-001): chance 10 -> 30 (pressure 20)",
+    "[Scripts] 6.00 *** Context:md.APiratesLife_Bail: [apirateslife] bail check: X-wing T65B (XWG-001) attacking IMP TIE/LN (OTH-002): chance 10 -> 10 (pressure 0)",
+    "[Scripts] 7.00 *** Context:md.APiratesLife_Capture.End<inst:1>: [apirateslife] capture: ended on IMP TIE/LN (TGT-001): bailed (fear left 0)",
+    "[Scripts] 8.00 *** Context:md.APiratesLife_Bail: [apirateslife] bail check: X-wing T65B (XWG-001) attacking IMP TIE/LN (TGT-001): chance 10 -> 10 (pressure 0)",
+  ]);
+
+  assert.deepEqual(summary.bailChecks, [30]);
 });

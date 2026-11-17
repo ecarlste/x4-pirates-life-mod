@@ -258,11 +258,12 @@ function Read-GameTestLog([string[]] $Lines) {
     $run
 }
 
-# The mod's lines in a game test log ([apirateslife] and [apirateslife-test], whole), split into one
-# run per test result, for the per-run traces (Write-GameTestRunLogs). A run starts after RUN START
-# or the previous result and ends on its own PASS or FAIL line, so a line logged after a test's
-# result (its cleanup) goes with the next test. Name is the name the test reports, Number counts
-# its runs from 1. Lines after the last result, with no DONE, are a run named 'unfinished'.
+# The mod's lines in a game test log ([apirateslife], [apirateslife-test] and [DEBUG-*] probe lines,
+# whole), split into one run per test result, for the per-run traces (Write-GameTestRunLogs). A run
+# starts after RUN START or the previous result and ends on its own PASS or FAIL line, so a line
+# logged after a test's result (its cleanup) goes with the next test. Name is the name the test
+# reports, Number counts its runs from 1. Lines after the last result, with no DONE, are a run
+# named 'unfinished'.
 function Split-GameTestRuns([string[]] $Lines) {
     $runs = New-Object System.Collections.ArrayList
     $numbers = @{}
@@ -270,7 +271,7 @@ function Split-GameTestRuns([string[]] $Lines) {
     $started = $false
     $done = $false
     foreach ($line in $Lines) {
-        if ($line -like '`* *' -or $line -notmatch '\[apirateslife(-test)?\]') { continue }
+        if ($line -like '`* *' -or $line -notmatch '\[apirateslife(-test)?\]|\[DEBUG-') { continue }
         if ($line -match '\[apirateslife-test\] RUN START ') { $started = $true; continue }
         if (-not $started) { continue }
         if ($line -match '\[apirateslife-test\] DONE') { $done = $true; break }
