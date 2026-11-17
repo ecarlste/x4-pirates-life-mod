@@ -51,6 +51,17 @@ Describe 'deploy.ps1 and the game lock' {
         $lock | Should -Not -Exist
     }
 
+    It 'takes over an empty lock that stopped changing, as from an interrupted write' {
+        New-Item -ItemType File -Path $lock | Out-Null
+        Set-GameLockEnv @{ X4_GAME_LOCK_STALE = 1; X4_GAME_LOCK_POLL = 0.2 }
+
+        $r = Invoke-Deploy $s @('-WorkingTree')
+        $r.ExitCode | Should -Be 0
+        $r.Output | Should -BeLike '*Taking over the game lock: an empty lock file*looks crashed*'
+        "$($s.Target)/content.xml" | Should -Exist
+        $lock | Should -Not -Exist
+    }
+
     It "doesn't need the game lock for a dry run" {
         Write-TestGameLock $s.X4
         Set-GameLockEnv @{ X4_GAME_LOCK_WAIT = 0 }

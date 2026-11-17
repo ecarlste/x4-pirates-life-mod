@@ -495,6 +495,25 @@ STUB
     [ ! -e "$X4_PATH/game.lock" ]
 }
 
+@test "takes over an empty lock that stopped changing, as from an interrupted write" {
+    : > "$X4_PATH/game.lock"
+
+    X4_GAME_LOCK_STALE=1 X4_GAME_LOCK_POLL=0.2 deploy --working-tree
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Taking over the game lock: an empty lock file hasn't updated it"*"looks crashed"* ]]
+    [ -f "$TARGET/content.xml" ]
+    [ ! -e "$X4_PATH/game.lock" ]
+}
+
+@test "names an empty lock as such while waiting for it" {
+    : > "$X4_PATH/game.lock"
+
+    X4_GAME_LOCK_WAIT=0 deploy --working-tree
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"held by an empty lock file"* ]]
+    [ -e "$X4_PATH/game.lock" ]
+}
+
 # --- The game lock's line -----------------------------------------------------
 
 @test "leaves no ticket in the line once it has the lock" {

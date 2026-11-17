@@ -285,6 +285,16 @@ SCRIPT
     [[ "$(cat "$X4_PATH/game.lock")" == token=other* ]]
 }
 
+@test "make game-queue names an empty lock file and how long it has been unchanged" {
+    : > "$X4_PATH/game.lock"
+    touch -d '-200 minutes' "$X4_PATH/game.lock"
+    run make -C "$REPO" game-queue
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"is an empty lock file, unchanged for 3 h 20 min: the first in line takes it over"* ]]
+    [[ "$output" != *"pid  on"* ]]
+    [ -e "$X4_PATH/game.lock" ]
+}
+
 @test "make game-queue shows the holder and the line in order, with ages" {
     write_game_lock
     write_game_ticket 7
