@@ -455,6 +455,22 @@ Describe 'Split-GameTestRuns' {
         $runs[0].Lines.Count | Should -Be 1
     }
 
+    It 'keeps [DEBUG-*] probe lines inside a run, and drops them outside any run' {
+        $runs = @(Split-GameTestRuns @(
+            '[Scripts] 0.50 *** Context:x: [DEBUG-x] before the run'
+            '[General] 1.00 *** Context:x: [apirateslife-test] RUN START 1 tests'
+            '[Scripts] 1.50 *** Context:x: [DEBUG-x] probe: hull 80%'
+            '[General] 2.00 *** Context:x: [apirateslife-test] PASS fixture_test_a: ok'
+            '[General] 2.01 *** Context:x: [apirateslife-test] DONE passed=1 failed=0'
+            '[Scripts] 2.50 *** Context:x: [DEBUG-x] after the run'
+        ))
+        $runs.Count | Should -Be 1
+        $runs[0].Lines | Should -Be @(
+            '[Scripts] 1.50 *** Context:x: [DEBUG-x] probe: hull 80%'
+            '[General] 2.00 *** Context:x: [apirateslife-test] PASS fixture_test_a: ok'
+        )
+    }
+
     It 'returns no runs for a log where the tests never started' {
         @(Split-GameTestRuns @('[Scripts] 0.00 *** Context:x: [apirateslife] settings: config applied')).Count | Should -Be 0
     }
