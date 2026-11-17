@@ -20,8 +20,9 @@
        within -LaunchTimeoutSeconds, or the timeout passes (the game is then closed).
     5. Removes the test extension, prints a summary and writes a JUnit report plus a Markdown
        report (tests/game/report.md) that make game-test-report can post to the PR. Each test
-       run's mod lines go to <report folder>\runs\<test>-<n>.log, replacing the last run's .log
-       files there (not for -Release); node tools/summarize-game-runs.ts sums them up.
+       run's mod lines go to <report folder>\runs\<test>-<n>.log (runs\<label>\ with -RunsLabel),
+       replacing the last run's .log files there (not for -Release); node
+       tools/summarize-game-runs.ts sums them up.
 
     The previous debuglog.txt is kept as debuglog.previous.txt. Deploy the mod first (make
     deploy-local). Holds the game lock (<X4_PATH>\game.lock, tools/game-lock.ps1) from the process
@@ -94,6 +95,11 @@
     measuring a flaky test. Default 1. A run with -Test or -Repeat is marked as a selection in
     its report, and make game-test-report won't post it.
 
+.PARAMETER RunsLabel
+    Keep this batch's run traces in <report folder>\runs\<label>\ instead of runs\, so batches
+    (an order variant each, say) sit side by side for node tools/summarize-game-runs.ts --totals.
+    It replaces only that label's last traces. A folder name: letters, digits, '.', '_' and '-'.
+
 .PARAMETER Release
     Run the release sessions instead of the game tests: X4 starts once per session, with the
     mod switched on or off in the test profile, and the release test extension
@@ -146,6 +152,7 @@ param(
     [switch] $PreflightOnly,
     [string[]] $Test,
     [int] $Repeat = 1,
+    [string] $RunsLabel,
     [switch] $Release,
     [switch] $ReleaseTier
 )
@@ -869,8 +876,11 @@ if ($MyInvocation.InvocationName -eq '.') { return }
 
 . (Join-Path $PSScriptRoot 'game-lock.ps1')
 
-if ($Release -and ($Test -or $Repeat -ne 1 -or $KeepExtension -or $ReleaseTier)) {
-    throw '-Release runs its own sessions, so it takes no -Test, -Repeat, -KeepExtension or -ReleaseTier'
+if ($Release -and ($Test -or $Repeat -ne 1 -or $KeepExtension -or $ReleaseTier -or $RunsLabel)) {
+    throw '-Release runs its own sessions, so it takes no -Test, -Repeat, -KeepExtension, -ReleaseTier or -RunsLabel'
+}
+if ($RunsLabel -and ($RunsLabel -notmatch '^[A-Za-z0-9._-]+$' -or $RunsLabel -match '^\.+$')) {
+    throw "-RunsLabel must be a folder name: letters, digits, '.', '_' and '-' (got '$RunsLabel')"
 }
 # The release tier's budget is longer than the default timeout: allow it, and 10 minutes over it
 if ($ReleaseTier -and -not $PSBoundParameters.ContainsKey('TimeoutSeconds')) { $TimeoutSeconds = $Tiers.release.Seconds + 600 }
@@ -1081,6 +1091,7 @@ else {
     $phases = if ($seen.Count) { @(Get-RunPhases $seen $total) } else { @() }
     # Each test run's trace, next to the report (a release run keeps its sessions' whole logs instead)
     $runsDir = Join-Path (Split-Path $MarkdownPath -Parent) 'runs'
+    if ($RunsLabel) { $runsDir = Join-Path $runsDir $RunsLabel }
     $written = Write-GameTestRunLogs (Split-GameTestRuns (Read-SharedFile $LogPath)) $runsDir
 }
 foreach ($c in $checks) {
@@ -1101,7 +1112,7 @@ foreach ($t in (Get-RepeatTally $run.Results)) { Write-Host "Repeated: $($t.Name
 if ($run.Started -and $run.SetaDrops) { Write-Host "SETA dropped $($run.SetaDrops) times during the run" }
 $warning = Get-BudgetWarning $info
 if ($warning) { Write-Host "WARNING: $($warning -replace '\*\*', '')" }
-if (-not $Release) { Write-Host "Run traces: $written files in $runsDir (summary: node tools/summarize-game-runs.ts <folder>)" }
+if (-not $Release) { Write-Host "Run traces: $written files in $runsDir (summary: node tools/summarize-game-runs.ts [--totals] <folder>)" }
 if ($problems.Count) {
     Write-Host "GAME TESTS FAILED ($passed passed): $($problems -join '; ')"
     Write-Host "Report: $MarkdownPath"
