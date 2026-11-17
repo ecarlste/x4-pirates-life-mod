@@ -62,6 +62,16 @@ Describe 'deploy.ps1 and the game lock' {
         $lock | Should -Not -Exist
     }
 
+    It 'names an empty lock as such while waiting for it' {
+        New-Item -ItemType File -Path $lock | Out-Null
+        Set-GameLockEnv @{ X4_GAME_LOCK_WAIT = 0 }
+
+        $r = Invoke-Deploy $s @('-WorkingTree')
+        $r.ExitCode | Should -Not -Be 0
+        $r.Output | Should -BeLike '*held by an empty lock file*'
+        $lock | Should -Exist
+    }
+
     It "doesn't need the game lock for a dry run" {
         Write-TestGameLock $s.X4
         Set-GameLockEnv @{ X4_GAME_LOCK_WAIT = 0 }

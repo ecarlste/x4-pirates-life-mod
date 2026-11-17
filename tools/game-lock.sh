@@ -137,7 +137,6 @@ _game_lock_names() {
 _game_lock_leave() {
     [ -n "$GAME_LOCK_TICKET" ] && rm -f "$GAME_LOCK_TICKET"
     GAME_LOCK_TICKET=''
-GAME_LOCK_GONE=$'\x01gone'  # what a waiter has seen of a lock file that isn't there
 }
 
 game_lock_acquire() {
@@ -213,8 +212,9 @@ game_lock_acquire() {
                 return 0
             fi
             if [ "$seen" != "$GAME_LOCK_GONE" ] && [ $(( SECONDS - seen_at )) -ge "$stale" ] \
-                && [ -e "$file" ] && [ "$(cat "$file" 2>/dev/null)" = "$seen" ]; then
-                # Only if it's still the same text: an old taker may have taken it over just now
+                && current=$(cat "$file" 2>/dev/null) && [ "$current" = "$seen" ]; then
+                # Only if it's still the same text (a failed read isn't): an old taker may have taken
+                # it over just now
                 echo "Taking over the game lock: $(_game_lock_who "$file") hasn't updated it for ${stale} s, so it looks crashed" >&2
                 rm -f "$file"
                 continue

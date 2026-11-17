@@ -31,6 +31,12 @@ function Read-GameLockText([string] $File) {
     try { [IO.File]::ReadAllText($File) } catch { '' }
 }
 
+# The lock file's text as a waiter watches it: $null if it's gone or can't be read right now, so
+# neither is taken for an empty lock
+function Read-GameLockWatch([string] $File) {
+    try { [IO.File]::ReadAllText($File) } catch { $null }
+}
+
 # One value from the lock file's KEY=value lines
 function Get-GameLockField([string] $Text, [string] $Key) {
     $m = [regex]::Match($Text, "(?m)^$Key=(.*?)\r?$")
@@ -164,8 +170,9 @@ function Enter-GameLock([string] $File, [string] $What, [string] $Root) {
 
             # The lock: watched by every waiter, acted on only by the first in line. An empty lock (a
             # crashed or interrupted write) is text like any other, so it goes stale too; a missing
-            # one is $null, so a holder that has just created the file isn't taken for an empty lock
-            $text = if (Test-Path -LiteralPath $File) { Read-GameLockText $File } else { $null }
+            # or unreadable one is $null, so a holder that has just created the file isn't taken for an
+            # empty lock
+            $text = Read-GameLockWatch $File
             if ($text -ne $seen) {
                 $seen = $text
                 $seenAt = $clock.Elapsed.TotalSeconds
@@ -186,7 +193,7 @@ function Enter-GameLock([string] $File, [string] $What, [string] $Root) {
                 }
                 catch [IO.IOException], [UnauthorizedAccessException] { }
                 if ($null -ne $seen -and $clock.Elapsed.TotalSeconds - $seenAt -ge $stale -and
-                    (Test-Path -LiteralPath $File) -and (Read-GameLockText $File) -eq $seen) {
+                    (Read-GameLockWatch $File) -eq $seen) {
                     # Only if it's still the same text: an old taker may have taken it over just now
                     Write-Host "Taking over the game lock: $(Get-GameLockWho $seen) hasn't updated it for $stale s, so it looks crashed"
                     Remove-Item -LiteralPath $File -Force -ErrorAction SilentlyContinue
