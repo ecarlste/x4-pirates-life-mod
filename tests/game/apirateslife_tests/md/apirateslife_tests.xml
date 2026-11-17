@@ -2738,8 +2738,8 @@
          5600 shields hold barely more than the room above the 75% line, so the wing's burst nearly
          fits and the finisher takes over in the break stage. Fails on a kill or the floor (the
          break-stage overshoot this test caught at 1x). $outcome is whether the pilot bailed within
-         300 s (34 of 40 at 1x in #216's batch, with the wingman starting beside the player): a timeout is reported, not failed, as the finisher's
-         close-range pass sometimes can't keep the shields under the gate (#224). -->
+         300 s (32 of 40 at 1x from this 2 km start, #272): a timeout is reported, not failed, as the
+         finisher's close-range pass sometimes can't keep the shields under the gate (#224). -->
     <cue name="CaptureWingBailsPhantom">
       <conditions>
         <event_cue_signalled/>
