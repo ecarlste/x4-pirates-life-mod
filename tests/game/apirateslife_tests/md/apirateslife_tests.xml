@@ -165,7 +165,7 @@
           <actions>
             <set_value name="$SetaOffAt" exact="player.age"/>
             <toggle_timewarp/>
-            <debug_text text="'[apirateslife-test] SETA came on in a combat test; switched off (now active: %s)'.[player.timewarp.active]" filter="general"/>
+            <debug_text text="'[apirateslife-test] SETA came on in a combat test; switched off'" filter="general"/>
           </actions>
         </cue>
 
@@ -437,7 +437,8 @@
     <!-- Marks the running test as a combat test: its pass, fail or numbers depend on damage
          landing, and SETA at 6x cuts the hits that land (#216: nose-on fire at 600-1400 m landed in
          32% of seconds against 97-100% at 1x). Players fight at 1x, since the game stops SETA with
-         enemies nearby, so SETA goes off here and KeepSeta leaves it off until the test reports.
+         enemies nearby, so SETA goes off here, KeepSeta leaves it off and KeepSetaOff switches it
+         off again if it comes back on, until the test reports.
          A combat test's first action (tests/python/test_game_tests_list.py checks it). -->
     <library name="MarkCombatTest" purpose="run_actions">
       <actions>
