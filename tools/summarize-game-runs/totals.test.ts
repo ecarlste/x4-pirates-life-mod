@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { Pass, RunSummary } from "./summary.ts";
+import type { Pass, RunSummary, Stop } from "./summary.ts";
 import { formatTotals, totalRuns } from "./totals.ts";
 
 const pass = (shieldsBefore: number, hit: boolean): Pass => ({
@@ -26,7 +26,17 @@ const run = (over: Partial<RunSummary>): RunSummary => ({
   bailChecks: [],
   noBailChance: 1,
   inGatesSeconds: 0,
+  stops: [],
   ...over,
+});
+
+const stop = (stage: Stop["stage"], hullAt: number, shieldsAt: number, hullAfter?: number, shieldsAfter?: number): Stop => ({
+  stage,
+  seconds: 10,
+  hullAt,
+  shieldsAt,
+  hullAfter,
+  shieldsAfter,
 });
 
 const bands = (a: number[], b: number[]) => [
@@ -70,6 +80,11 @@ test("a batch's totals: runs, passes, finisher hits by shields, lowest hull, gat
     bail: { runs: 4, checks: 0, meanChecks: 0, meanInGatesSeconds: 0 },
     // No run reported an outcome
     byOutcome: {},
+    stops: {
+      burst: { total: 0, withSample: 0, hullDrop: undefined, shieldsDrop: undefined, hullAfterMin: undefined },
+      line: { total: 0, withSample: 0, hullDrop: undefined, shieldsDrop: undefined, hullAfterMin: undefined },
+      suppress: { total: 0, withSample: 0, hullDrop: undefined, shieldsDrop: undefined, hullAfterMin: undefined },
+    },
   });
 });
 
@@ -90,6 +105,9 @@ test("the totals block: a line per figure, under the test's name", () => {
       "  gun swaps: 3, in 2 of 4 runs",
       "  combat trace, wingman 1 of 1 (2 runs): 100 s, shots 40, overheats 1; seconds with damage/fired/in band: " +
         "0-3 deg under 600 m 3/5/7, over 20 deg 1400 m+ 1/1/93",
+      "  stops, burst: none",
+      "  stops, line: none",
+      "  stops, suppress: none",
       "  bail checks: none",
     ].join("\n"),
   );
@@ -106,6 +124,9 @@ test("a batch with no capture operation says what it didn't see", () => {
       "  lowest hull: none seen",
       "  gate: reached in 0 of 1 runs",
       "  gun swaps: none",
+      "  stops, burst: none",
+      "  stops, line: none",
+      "  stops, suppress: none",
       "  bail checks: none",
     ].join("\n"),
   );
@@ -136,5 +157,23 @@ test("a split verdict's totals: bail checks and time in the gates by outcome, an
       "  outcome met in 2 of 5 runs: mean 2 bail checks, 15 s in the gates",
       "  outcome missed in 3 of 5 runs: mean 1.3 bail checks, 109.3 s in the gates; P(no bail) each: 0.3%, 40%, 100%",
     ].join("\n"),
+  );
+});
+
+test("stops by stage: how far the hull and shields fell in the 3 s after, and the lowest hull then", () => {
+  const totals = totalRuns([
+    run({ stops: [stop("line", 73.5, 0, 70.25, 0), stop("suppress", 70, 20, 64, 0)] }),
+    // Shields regrowing after the stop count as no drop; a stop with no sample after it counts only in the total
+    run({ stops: [stop("line", 74, 10, 67.5, 12), stop("line", 73.5, 0)] }),
+  ]);
+
+  assert.deepEqual(totals.stops, {
+    burst: { total: 0, withSample: 0, hullDrop: undefined, shieldsDrop: undefined, hullAfterMin: undefined },
+    line: { total: 3, withSample: 2, hullDrop: { p50: 3.25, max: 6.5 }, shieldsDrop: { p50: 0, max: 0 }, hullAfterMin: 67.5 },
+    suppress: { total: 1, withSample: 1, hullDrop: { p50: 6, max: 6 }, shieldsDrop: { p50: 20, max: 20 }, hullAfterMin: 64 },
+  });
+  assert.match(
+    formatTotals("t", totals),
+    /\n  stops, burst: none\n  stops, line: 3 \(2 with a sample 3 s later\): hull fell p50 3\.3, max 6\.5 points; shields fell p50 0, max 0 points; lowest hull after 67\.5%\n  stops, suppress: 1 \(1 with a sample 3 s later\): hull fell p50 6, max 6 points; shields fell p50 20, max 20 points; lowest hull after 64%/,
   );
 });

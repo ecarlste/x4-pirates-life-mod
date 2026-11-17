@@ -1,6 +1,17 @@
 // A batch of one test's runs summed up (summarize-game-runs --totals): the figures each run's
 // summary (summary.ts) already holds, added or ranked across the runs. It reads no new log lines.
-import type { Outcome, RunSummary, WingmanTrace } from "./summary.ts";
+/** One stage's stops: all of them, and those with a sample 3 s later, which the rest are over */
+export interface StageStops {
+  total: number;
+  withSample: number;
+  /** How far the hull and the shields fell from the stop to 3 s later, in points of %; shields
+   * that regrew count as 0 */
+  hullDrop: { p50: number; max: number } | undefined;
+  shieldsDrop: { p50: number; max: number } | undefined;
+  hullAfterMin: number | undefined;
+}
+
+import { AFTER_STOP_SECONDS, STAGES, type Outcome, type RunSummary, type Stage, type Stop, type WingmanTrace } from "./summary.ts";
 
 /** Bail checks per run and seconds inside the bail gates per run, as means */
 interface BailMeans {
@@ -34,6 +45,8 @@ export interface Totals {
   /** The runs by their split verdict, for a test that reports one; each miss's odds that none of
    * its checks bailed, lowest first, show whether it lost its rolls or had too few */
   byOutcome: { met?: BailMeans; missed?: BailMeans & { noBailChances: number[] } };
+  /** The wing's stops by stage, over every run */
+  stops: Record<Stage, StageStops>;
 }
 
 // Shields under this show as 0% on a run's line, so a pass starting there starts at shields down
@@ -52,6 +65,21 @@ const bailMeans = (runs: RunSummary[]): BailMeans => ({
   meanChecks: mean(runs.map((r) => r.bailChecks.length)),
   meanInGatesSeconds: mean(runs.map((r) => r.inGatesSeconds)),
 });
+
+// Rounded like the logged figures, without the float noise of a difference
+const drop = (from: number, to: number) => Math.max(0, Math.round((from - to) * 1e4) / 1e4);
+const spread = (values: number[]) => (values.length ? { p50: percentile(values, 50), max: Math.max(...values) } : undefined);
+
+const stageStops = (stops: Stop[]): StageStops => {
+  const after = stops.filter((s) => s.hullAfter !== undefined && s.shieldsAfter !== undefined);
+  return {
+    total: stops.length,
+    withSample: after.length,
+    hullDrop: spread(after.map((s) => drop(s.hullAt, s.hullAfter!))),
+    shieldsDrop: spread(after.map((s) => drop(s.shieldsAt, s.shieldsAfter!))),
+    hullAfterMin: after.length ? Math.min(...after.map((s) => s.hullAfter!)) : undefined,
+  };
+};
 
 const hits = (passes: { hit: boolean }[]): HitCount => ({ total: passes.length, hit: passes.filter((p) => p.hit).length });
 
@@ -103,6 +131,7 @@ export function totalRuns(runs: RunSummary[]): Totals {
     combatTrace: [...traces.values()],
     bail: { ...bailMeans(runs), checks: runs.reduce((n, r) => n + r.bailChecks.length, 0) },
     byOutcome,
+    stops: Object.fromEntries(STAGES.map((stage) => [stage, stageStops(runs.flatMap((r) => r.stops.filter((s) => s.stage === stage)))])) as Record<Stage, StageStops>,
   };
 }
 
@@ -128,6 +157,16 @@ export function formatTotals(test: string, t: Totals): string {
         `  combat trace, wingman ${w.wingman} (${w.runs} runs): ${round(w.seconds)} s, shots ${w.shots}, overheats ${w.overheats}; ` +
         `seconds with damage/fired/in band: ${w.bands.map((b) => `${b.band} ${b.damage}/${b.fired}/${b.inBand}`).join(", ")}`,
     ),
+    ...STAGES.map((stage) => {
+      const s = t.stops[stage];
+      if (!s.total) return `  stops, ${stage}: none`;
+      if (!s.withSample) return `  stops, ${stage}: ${s.total} (none with a sample ${AFTER_STOP_SECONDS} s later)`;
+      return (
+        `  stops, ${stage}: ${s.total} (${s.withSample} with a sample ${AFTER_STOP_SECONDS} s later): ` +
+        `hull fell p50 ${round(s.hullDrop!.p50)}, max ${round(s.hullDrop!.max)} points; ` +
+        `shields fell p50 ${round(s.shieldsDrop!.p50)}, max ${round(s.shieldsDrop!.max)} points; lowest hull after ${round(s.hullAfterMin!)}%`
+      );
+    }),
     t.bail.checks || t.bail.meanInGatesSeconds
       ? `  bail checks: ${t.bail.checks}, mean ${round(t.bail.meanChecks)} per run; in the gates: mean ${round(t.bail.meanInGatesSeconds)} s per run`
       : "  bail checks: none",
