@@ -68,6 +68,8 @@
           CaptureWingBreaksFullShields,
           CaptureWingTurretsHold,
           CaptureWingTurretsHoldM,
+          TurretDamageLandedS,
+          TurretDamageLandedM,
           NoMissilesInSight,
           NoMissilesOutOfSight,
           CaptureMarkedAsHostile,
@@ -87,7 +89,10 @@
         <!-- The tests too slow for the PR tier, one per line like $Tests, each listed there too: only
              make game-test RELEASE=1 runs them. Only the runner reads it, not MD: it leaves them
              out of the installed copy's $Tests on a PR-tier run (docs/testing.md, Game test tiers) -->
-        <set_value name="$ReleaseOnly" exact="[]"/>
+        <set_value name="$ReleaseOnly" exact="[
+          TurretDamageLandedS,
+          TurretDamageLandedM
+        ]"/>
         <!-- The tests the release tier runs more than once, against a pass bar, one per line as
              [<test>, <runs>, <passes needed>]: [CaptureWingHoldsFire, 10, 8] is the bar for a
              90% outcome. A plain run (the PR tier) runs them once. Only the runner reads it, not
@@ -2798,6 +2803,11 @@
               <param name="Target" value="$Wing.$target"/>
             </run_actions>
             <set_object_capturable object="$Wing.$target" capturable="false"/>
+            <!-- The combat trace, for the 1x recheck of the turrets' damage (#225) -->
+            <run_actions ref="CombatTraceStart">
+              <param name="Wingmen" value="$Wing.$wingmen"/>
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
           </actions>
           <cues>
             <cue name="CaptureWingTurretsHold_Fired" instantiate="true">
@@ -2838,6 +2848,10 @@
               <actions>
                 <cancel_cue cue="CaptureWingTurretsHold_Fired"/>
                 <cancel_cue cue="CaptureWingTurretsHold_Watch"/>
+                <!-- The reported name again: tools/check_test_plan.py reads it from Report's literal -->
+                <run_actions ref="CombatTraceStop">
+                  <param name="Name" value="'capture_wing_turrets_hold'"/>
+                </run_actions>
                 <set_value name="$Problems" exact="event.param"/>
                 <!-- Cancelled, as the player would: its turrets go back to their own modes -->
                 <do_for_each name="$Ship" in="$Wing.$wingmen">
@@ -2890,6 +2904,11 @@
               <param name="Target" value="$Wing.$target"/>
             </run_actions>
             <set_object_capturable object="$Wing.$target" capturable="false"/>
+            <!-- The combat trace, for the 1x recheck of the turrets' damage (#225) -->
+            <run_actions ref="CombatTraceStart">
+              <param name="Wingmen" value="$Wing.$wingmen"/>
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
           </actions>
           <cues>
             <cue name="CaptureWingTurretsHoldM_Fired" instantiate="true">
@@ -2933,6 +2952,10 @@
               <actions>
                 <cancel_cue cue="CaptureWingTurretsHoldM_Fired"/>
                 <cancel_cue cue="CaptureWingTurretsHoldM_Watch"/>
+                <!-- The reported name again: tools/check_test_plan.py reads it from Report's literal -->
+                <run_actions ref="CombatTraceStop">
+                  <param name="Name" value="'capture_wing_turrets_hold_m'"/>
+                </run_actions>
                 <set_value name="$Problems" exact="event.param"/>
                 <!-- Cancelled, as the player would: its turrets go back to their own modes -->
                 <do_for_each name="$Ship" in="$Wing.$wingmen">
@@ -2956,6 +2979,201 @@
               </cues>
             </cue>
           </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- #225: how much damage a turret-only wingman lands at 1x (#184, #193, #196). One wingman
+         2 km out (SpawnWingAt2km) with a turret-only loadout, on vanilla's Attack order against a
+         TIE Advanced that waits and doesn't fight back, with the combat trace on. Every second
+         (TurretDamageTick) it adds up the target's shield and hull drops and keeps its shields
+         at 0; under 40% hull the hull goes back to 100%, so the fight goes on. It stops 60 s after
+         the first damage, or after 120 s with none. A measurement: it fails only when the target
+         dies or no damage lands. Returns the wing, as SpawnWingAt2km's plus the counts. -->
+    <library name="TurretDamageSetup" purpose="run_actions">
+      <params>
+        <param name="Macro"/>
+        <param name="Loadout"/>
+      </params>
+      <actions>
+        <run_actions ref="SpawnWingAt2km" result="$Wing">
+          <param name="Count" value="1"/>
+          <param name="Macro" value="$Macro"/>
+          <param name="Loadout" value="$Loadout"/>
+          <param name="Hull" value="100"/>
+        </run_actions>
+        <set_value name="$Wingman" exact="$Wing.$wingmen.{1}"/>
+        <set_value name="$Target" exact="$Wing.$target"/>
+        <set_object_capturable object="$Target" capturable="false"/>
+        <create_order id="'Attack'" object="$Wingman" immediate="true">
+          <param name="primarytarget" value="$Target"/>
+        </create_order>
+        <set_value name="$Modes" exact="[]"/>
+        <do_for_each name="$Turret" in="$Wing.$turrets">
+          <append_to_list name="$Modes" exact="$Turret.mode"/>
+        </do_for_each>
+        <set_value name="$Wing.$about" exact="'dps.turrets.all %s, dps.lasers.all %s, turrets %s in modes %s, target hull %s'.[$Wingman.dps.turrets.all, $Wingman.dps.lasers.all, $Wing.$turrets.count, $Modes, $Target.maxhull]"/>
+        <set_value name="$Wing.$listed" exact="$Wingman.dps.turrets.all"/>
+        <set_value name="$Wing.$last" exact="$Target.shield + $Target.hull"/>
+        <set_value name="$Wing.$secs" exact="0"/>
+        <set_value name="$Wing.$landed" exact="0"/>
+        <set_value name="$Wing.$hitsecs" exact="0"/>
+        <set_value name="$Wing.$biggest" exact="0"/>
+        <set_value name="$Wing.$firsthit" exact="null"/>
+        <set_value name="$Wing.$resets" exact="0"/>
+        <run_actions ref="CombatTraceStart">
+          <param name="Wingmen" value="$Wing.$wingmen"/>
+          <param name="Target" value="$Target"/>
+        </run_actions>
+        <return value="$Wing"/>
+      </actions>
+    </library>
+
+    <!-- One second of a TurretDamageSetup test. Returns true when it's over: the target is gone,
+         60 s since the first damage, or 120 s with none. -->
+    <library name="TurretDamageTick" purpose="run_actions">
+      <params>
+        <param name="Wing"/>
+      </params>
+      <actions>
+        <set_value name="$T" exact="$Wing.$target"/>
+        <do_if value="not $T.exists or not $T.isoperational">
+          <set_value name="$Wing.$dead" exact="true"/>
+          <return value="true"/>
+        </do_if>
+        <set_value name="$Wing.$secs" operation="add"/>
+        <set_value name="$Drop" exact="$Wing.$last - ($T.shield + $T.hull)"/>
+        <do_if value="$Drop gt 0">
+          <set_value name="$Wing.$landed" operation="add" exact="$Drop"/>
+          <set_value name="$Wing.$hitsecs" operation="add"/>
+          <set_value name="$Wing.$biggest" exact="[$Wing.$biggest, $Drop].max"/>
+          <do_if value="$Wing.$firsthit == null">
+            <set_value name="$Wing.$firsthit" exact="$Wing.$secs"/>
+          </do_if>
+        </do_if>
+        <do_if value="$T.shield gt 0">
+          <set_object_shield object="$T" exact="0"/>
+        </do_if>
+        <do_if value="$T.hullpercentage lt 40">
+          <set_object_hull object="$T" exact="100"/>
+          <set_value name="$Wing.$resets" operation="add"/>
+        </do_if>
+        <set_value name="$Wing.$last" exact="$T.shield + $T.hull"/>
+        <return value="if $Wing.$firsthit == null then $Wing.$secs ge 120 else $Wing.$secs - $Wing.$firsthit ge 60"/>
+      </actions>
+    </library>
+
+    <!-- The end of a TurretDamageSetup test: its detail, and the ships gone. Returns table[$ok,
+         $detail]. Applied DPS counts from the first second with damage, so the approach is left
+         out. -->
+    <library name="TurretDamageDone" purpose="run_actions">
+      <params>
+        <param name="Wing"/>
+      </params>
+      <actions>
+        <set_value name="$Problems" exact="''"/>
+        <do_if value="@$Wing.$dead">
+          <set_value name="$Problems" exact="' target destroyed;'"/>
+        </do_if>
+        <do_if value="$Wing.$firsthit == null">
+          <set_value name="$Problems" exact="$Problems + ' no damage landed in %s s;'.[$Wing.$secs]"/>
+          <set_value name="$Detail" exact="''"/>
+        </do_if>
+        <do_else>
+          <set_value name="$Secs" exact="$Wing.$secs - $Wing.$firsthit + 1"/>
+          <set_value name="$Applied" exact="$Wing.$landed / ($Secs)f"/>
+          <set_value name="$Detail" exact="' first damage at %s s, then %s s: damage landed %s, %s per s, %s%% of dps.turrets.all; seconds with damage %s; biggest second %s, %s%% of the target hull; hull reset %s times;'.[$Wing.$firsthit, $Secs, $Wing.$landed, $Applied, 100 * $Applied / ($Wing.$listed)f, $Wing.$hitsecs, $Wing.$biggest, 100 * $Wing.$biggest / ($Wing.$target.maxhull)f, $Wing.$resets]"/>
+        </do_else>
+        <do_for_each name="$Ship" in="$Wing.$wingmen">
+          <do_if value="$Ship.exists">
+            <destroy_object object="$Ship"/>
+          </do_if>
+        </do_for_each>
+        <do_if value="$Wing.$target.exists">
+          <destroy_object object="$Wing.$target"/>
+        </do_if>
+        <return value="table[$ok = ($Problems == ''), $detail = $Problems + $Detail + ' ' + $Wing.$about]"/>
+      </actions>
+    </library>
+
+    <!-- #225: a Y-wing with its SW4 top turret only (TurretDamageSetup) -->
+    <cue name="TurretDamageLandedS">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="MarkCombatTest"/>
+        <run_actions ref="TurretDamageSetup" result="$Wing">
+          <param name="Macro" value="macro.ywing_btla4_macro"/>
+          <param name="Loadout" value="'apirateslife_test_ywing_turretonly'"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="TurretDamageLandedS_Watch" checkinterval="1s" instantiate="true">
+          <actions>
+            <run_actions ref="TurretDamageTick" result="$Over">
+              <param name="Wing" value="$Wing"/>
+            </run_actions>
+            <do_if value="$Over">
+              <signal_cue_instantly cue="TurretDamageLandedS_Done"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="TurretDamageLandedS_Done">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="TurretDamageLandedS_Watch"/>
+            <run_actions ref="CombatTraceStop">
+              <param name="Name" value="'turret_damage_landed_s'"/>
+            </run_actions>
+            <run_actions ref="TurretDamageDone" result="$Result">
+              <param name="Wing" value="$Wing"/>
+            </run_actions>
+            <signal_cue_instantly cue="Report" param="table[$name = 'turret_damage_landed_s', $ok = $Result.$ok, $detail = $Result.$detail]"/>
+          </actions>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- #225: a YT-1300 with its two AG-2G turrets only (TurretDamageSetup) -->
+    <cue name="TurretDamageLandedM">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="MarkCombatTest"/>
+        <run_actions ref="TurretDamageSetup" result="$Wing">
+          <param name="Macro" value="macro.yt1300_01_a_macro"/>
+          <param name="Loadout" value="'apirateslife_test_yt1300_turretsonly'"/>
+        </run_actions>
+      </actions>
+      <cues>
+        <cue name="TurretDamageLandedM_Watch" checkinterval="1s" instantiate="true">
+          <actions>
+            <run_actions ref="TurretDamageTick" result="$Over">
+              <param name="Wing" value="$Wing"/>
+            </run_actions>
+            <do_if value="$Over">
+              <signal_cue_instantly cue="TurretDamageLandedM_Done"/>
+            </do_if>
+          </actions>
+        </cue>
+        <cue name="TurretDamageLandedM_Done">
+          <conditions>
+            <event_cue_signalled/>
+          </conditions>
+          <actions>
+            <cancel_cue cue="TurretDamageLandedM_Watch"/>
+            <run_actions ref="CombatTraceStop">
+              <param name="Name" value="'turret_damage_landed_m'"/>
+            </run_actions>
+            <run_actions ref="TurretDamageDone" result="$Result">
+              <param name="Wing" value="$Wing"/>
+            </run_actions>
+            <signal_cue_instantly cue="Report" param="table[$name = 'turret_damage_landed_m', $ok = $Result.$ok, $detail = $Result.$detail]"/>
+          </actions>
         </cue>
       </cues>
     </cue>

@@ -79,7 +79,9 @@ Describe 'run-game-tests.ps1' {
         Set-Content $env:FAKE_SOURCE_LOG $script:PassingLog
         $r = Invoke-Script $script:Runner $runArgs
         $r.ExitCode | Should -Be 0
-        (Get-Content $markdown) | Should -Contain 'PR tier (`make game-test`), budget 5 minutes.'
+        # The line goes on to name the skipped tests when the repo's $ReleaseOnly lists any
+        (Get-Content $markdown) | Where-Object { $_.StartsWith('PR tier (`make game-test`), budget 5 minutes.') } |
+            Should -Not -BeNullOrEmpty
         $r = Invoke-Script $script:Runner ($runArgs + @('-ReleaseTier', '-KeepExtension'))
         $r.ExitCode | Should -Be 0
         (Get-Content $markdown) | Should -Contain 'Release tier (`make game-test RELEASE=1`): every test, budget 30 minutes.'

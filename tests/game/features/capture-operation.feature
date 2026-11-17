@@ -90,6 +90,21 @@ Feature: Capture operations
       | Y-wing   | two KX7 lasers      | an SW4 top turret |
       | YT-1300  | one KX20 laser      | two AG-2G turrets |
 
+  # A measurement for the turrets' applied damage (#193, #196, #225), release tier only: it
+  # reports the damage landed and fails only when nothing lands or the target dies.
+  @turret_damage_landed_s @turret_damage_landed_m
+  Scenario Outline: A turret-only wingman's damage landed is measured at 1x
+    Given a capturable fighter that waits and doesn't fight back, its shields kept at 0
+    And my wingman flies a <ship> with <turrets> and no forward guns, on an Attack order, starting 2 km away
+    When the turrets fire for 60 seconds after the first damage lands, the hull reset to 100% whenever it's under 40%
+    Then the report gives the damage landed per second against the listed turret DPS, and the biggest one-second drop
+    And the fighter is never destroyed
+
+    Examples:
+      | ship     | turrets           |
+      | Y-wing   | an SW4 top turret |
+      | YT-1300  | two AG-2G turrets |
+
   @manual
   Scenario: Before a release, each wing setup captures in at least 9 runs out of 10
     Given the wing tests (capture_wing_holds_fire and the tests after it in this file)
