@@ -122,6 +122,8 @@ Describe 'Get-HoldRefusal' {
         $refusal | Should -BeLike '*55 s game start, Fight 2 x 2 min 0 s, Travel 2 x 10 s*'
         $refusal | Should -Not -BeLike '*Instant*'
         $refusal | Should -BeLike '*Split the batch into smaller runs*'
+        # So the split runs' traces add up as one batch
+        $refusal | Should -BeLike '*-RunsLabel <batch> on each and -RunsAppend on each after the first*'
         $refusal | Should -BeLike '*or pass -LongHold*'
     }
 }

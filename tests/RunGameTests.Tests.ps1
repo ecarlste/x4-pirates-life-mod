@@ -182,6 +182,37 @@ Describe 'run-game-tests.ps1' {
         Get-Content (Join-Path $runs 'base-a/capture_wing_holds_fire-1.log') | Should -Be 'another label''s batch'
     }
 
+    It 'adds a labelled batch''s traces to the label''s with -RunsAppend, numbering each test''s runs on' {
+        $runs = Join-Path $root 'runs/base-b'
+        Write-LfFile (Join-Path $runs 'capture_wing_holds_fire-1.log') 'split 1, run 1'
+        Write-LfFile (Join-Path $runs 'capture_wing_holds_fire-9.log') 'split 1, run 9'
+        Write-LfFile (Join-Path $runs 'capture_wing_holds_fire-10.log') 'split 1, run 10'
+        # Another test whose name starts the same doesn't count towards its numbers
+        Write-LfFile (Join-Path $runs 'capture_wing_holds_fire_three-20.log') 'another test''s run'
+        Set-Content $env:FAKE_SOURCE_LOG @(
+            '[Scripts] 1.00 *** Context:x: [apirateslife-test] RUN START 3 tests'
+            '[Scripts] 2.00 *** Context:x: [apirateslife-test] PASS config_applied_on_start: ok'
+            '[Scripts] 3.00 *** Context:x: [apirateslife-test] PASS capture_wing_holds_fire: lowest hull 70%'
+            '[Scripts] 4.00 *** Context:x: [apirateslife-test] FAIL capture_wing_holds_fire: lowest hull 54%'
+            '[Scripts] 5.00 *** Context:x: [apirateslife-test] DONE passed=2 failed=1'
+        )
+        $r = Invoke-Script $script:Runner ($runArgs + @('-Test', 'capture_wing_holds_fire', '-Repeat', '2', '-LongHold', '-RunsLabel', 'base-b', '-RunsAppend'))
+        $r.Output | Should -BeLike "*Run traces: 3 files added to $runs*"
+        @(Get-ChildItem $runs | ForEach-Object { $_.Name } | Sort-Object) | Should -Be @(@(
+            'capture_wing_holds_fire-1.log', 'capture_wing_holds_fire-9.log', 'capture_wing_holds_fire-10.log',
+            'capture_wing_holds_fire-11.log', 'capture_wing_holds_fire-12.log', 'capture_wing_holds_fire_three-20.log',
+            'config_applied_on_start-1.log') | Sort-Object)
+        Get-Content (Join-Path $runs 'capture_wing_holds_fire-1.log') | Should -Be 'split 1, run 1'
+        Get-Content (Join-Path $runs 'capture_wing_holds_fire-12.log') | Should -Be '[Scripts] 4.00 *** Context:x: [apirateslife-test] FAIL capture_wing_holds_fire: lowest hull 54%'
+    }
+
+    It 'refuses -RunsAppend without -RunsLabel, before anything changes' {
+        $r = Invoke-Script $script:Runner ($runArgs + @('-RunsAppend'))
+        $r.Output | Should -BeLike '*-RunsAppend adds to a labelled batch, so it needs -RunsLabel*'
+        $r.ExitCode | Should -Not -Be 0
+        Test-Path $env:FAKE_ARGS | Should -BeFalse
+    }
+
     It 'refuses a -RunsLabel that isn''t a plain folder name, before anything changes' {
         foreach ($label in @('../elsewhere', 'a/b', 'a\b', '..', '.')) {
             $r = Invoke-Script $script:Runner ($runArgs + @('-RunsLabel', $label))

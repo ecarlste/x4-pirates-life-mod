@@ -111,7 +111,14 @@
 .PARAMETER RunsLabel
     Keep this batch's run traces in <report folder>\runs\<label>\ instead of runs\, so batches
     (an order variant each, say) sit side by side for node tools/summarize-game-runs.ts --totals.
-    It replaces only that label's last traces. A folder name: letters, digits, '.', '_' and '-'.
+    It replaces only that label's last traces (see -RunsAppend). A folder name: letters, digits,
+    '.', '_' and '-'.
+
+.PARAMETER RunsAppend
+    Add this run's traces to the -RunsLabel folder's instead of replacing them, numbering each
+    test's runs on from its highest there, so a batch split into runs within the hold budget adds
+    up as one batch. Needs -RunsLabel; the batch's first run goes without it, to clear the
+    label's last traces.
 
 .PARAMETER Release
     Run the release sessions instead of the game tests: X4 starts once per session, with the
@@ -166,6 +173,7 @@ param(
     [string[]] $Test,
     [int] $Repeat = 1,
     [string] $RunsLabel,
+    [switch] $RunsAppend,
     [switch] $Release,
     [switch] $ReleaseTier,
     [switch] $LongHold,
@@ -273,15 +281,25 @@ function Split-GameTestRuns([string[]] $Lines) {
 }
 
 # Writes each run's lines to <Dir>/<name>-<number>.log, after removing the .log files already
-# there, so it holds only the last run's traces (tools/summarize-game-runs.ts reads them); returns
-# how many files it wrote
-function Write-GameTestRunLogs($Runs, [string] $Dir) {
+# there, so it holds only the last run's traces (tools/summarize-game-runs.ts reads them). With
+# -Append it keeps them and numbers each test's runs on from its highest there instead, so a batch
+# split into several runs adds up as one. Returns how many files it wrote.
+function Write-GameTestRunLogs($Runs, [string] $Dir, [switch] $Append) {
+    # A log with no runs comes in as $null
+    $Runs = @($Runs | Where-Object { $_ })
     New-Item -ItemType Directory -Force -Path $Dir | Out-Null
-    Remove-Item (Join-Path $Dir '*.log') -Force
-    foreach ($run in @($Runs)) {
-        [IO.File]::WriteAllText((Join-Path $Dir "$($run.Name)-$($run.Number).log"), (@($run.Lines) -join "`n") + "`n")
+    $highest = @{}
+    if ($Append) {
+        foreach ($file in @(Get-ChildItem (Join-Path $Dir '*.log'))) {
+            if ($file.Name -match '^(.+)-(\d+)\.log$' -and [int] $Matches[2] -gt [int] $highest[$Matches[1]]) { $highest[$Matches[1]] = [int] $Matches[2] }
+        }
     }
-    @($Runs).Count
+    else { Remove-Item (Join-Path $Dir '*.log') -Force }
+    foreach ($run in $Runs) {
+        $number = [int] $highest[$run.Name] + $run.Number
+        [IO.File]::WriteAllText((Join-Path $Dir "$($run.Name)-$number.log"), (@($run.Lines) -join "`n") + "`n")
+    }
+    $Runs.Count
 }
 
 # The $Tests list in the harness (the Run cue of the test extension's md file): "[", one cue name
@@ -626,7 +644,8 @@ function Get-HoldRefusal([string] $HarnessText, [string[]] $TestList) {
     }
     if ($total -le $HoldBudgetSeconds) { return }
     "This selection could hold the game for up to $(Format-Seconds $total), over the $($HoldBudgetSeconds / 60)-minute hold budget ($($parts -join ', ')). " +
-    'Split the batch into smaller runs, each rejoining the back of the line, so others get the game between them (docs/testing.md, Keep each hold short), or pass -LongHold if the long hold is meant.'
+    'Split the batch into smaller runs, each rejoining the back of the line, so others get the game between them (docs/testing.md, Keep each hold short), ' +
+    'with -RunsLabel <batch> on each and -RunsAppend on each after the first so their traces add up as one batch, or pass -LongHold if the long hold is meant.'
 }
 
 # The Markdown report for a PR comment. Its first line is a hidden marker that
@@ -948,6 +967,9 @@ if ($MyInvocation.InvocationName -eq '.') { return }
 if ($Release -and ($Test -or $Repeat -ne 1 -or $KeepExtension -or $ReleaseTier -or $RunsLabel)) {
     throw '-Release runs its own sessions, so it takes no -Test, -Repeat, -KeepExtension, -ReleaseTier or -RunsLabel'
 }
+if ($RunsAppend -and -not $RunsLabel) {
+    throw '-RunsAppend adds to a labelled batch, so it needs -RunsLabel'
+}
 if ($RunsLabel -and ($RunsLabel -notmatch '^[A-Za-z0-9._-]+$' -or $RunsLabel -match '^\.+$')) {
     throw "-RunsLabel must be a folder name: letters, digits, '.', '_' and '-' (got '$RunsLabel')"
 }
@@ -1169,7 +1191,7 @@ else {
     # Each test run's trace, next to the report (a release run keeps its sessions' whole logs instead)
     $runsDir = Join-Path (Split-Path $MarkdownPath -Parent) 'runs'
     if ($RunsLabel) { $runsDir = Join-Path $runsDir $RunsLabel }
-    $written = Write-GameTestRunLogs (Split-GameTestRuns (Read-SharedFile $LogPath)) $runsDir
+    $written = Write-GameTestRunLogs (Split-GameTestRuns (Read-SharedFile $LogPath)) $runsDir -Append:$RunsAppend
 }
 foreach ($c in $checks) {
     Write-Host ("  {0} {1}: {2}" -f $(if ($c.Passed) { 'PASS' } else { 'FAIL' }), $c.Name, $c.Detail)
@@ -1189,7 +1211,7 @@ foreach ($t in (Get-RepeatTally $run.Results)) { Write-Host "Repeated: $($t.Name
 if ($run.Started -and $run.SetaDrops) { Write-Host "SETA dropped $($run.SetaDrops) times during the run" }
 $warning = Get-BudgetWarning $info
 if ($warning) { Write-Host "WARNING: $($warning -replace '\*\*', '')" }
-if (-not $Release) { Write-Host "Run traces: $written files in $runsDir (summary: node tools/summarize-game-runs.ts [--totals] <folder>)" }
+if (-not $Release) { Write-Host "Run traces: $written files $(if ($RunsAppend) { 'added to' } else { 'in' }) $runsDir (summary: node tools/summarize-game-runs.ts [--totals] <folder>)" }
 if ($problems.Count) {
     Write-Host "GAME TESTS FAILED ($passed passed): $($problems -join '; ')"
     Write-Host "Report: $MarkdownPath"
