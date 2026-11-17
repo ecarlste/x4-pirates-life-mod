@@ -22,6 +22,10 @@ const run = (over: Partial<RunSummary>): RunSummary => ({
   passes: [],
   gunSwaps: [],
   combatTrace: [],
+  outcome: undefined,
+  bailChecks: [],
+  noBailChance: 1,
+  inGatesSeconds: 0,
   ...over,
 });
 
@@ -63,6 +67,9 @@ test("a batch's totals: runs, passes, finisher hits by shields, lowest hull, gat
     combatTrace: [
       { wingman: "1 of 1", runs: 2, seconds: 100, shots: 40, overheats: 1, bands: bands([3, 5, 7], [1, 1, 93]) },
     ],
+    bail: { runs: 4, checks: 0, meanChecks: 0, meanInGatesSeconds: 0 },
+    // No run reported an outcome
+    byOutcome: {},
   });
 });
 
@@ -83,6 +90,7 @@ test("the totals block: a line per figure, under the test's name", () => {
       "  gun swaps: 3, in 2 of 4 runs",
       "  combat trace, wingman 1 of 1 (2 runs): 100 s, shots 40, overheats 1; seconds with damage/fired/in band: " +
         "0-3 deg under 600 m 3/5/7, over 20 deg 1400 m+ 1/1/93",
+      "  bail checks: none",
     ].join("\n"),
   );
 });
@@ -98,6 +106,35 @@ test("a batch with no capture operation says what it didn't see", () => {
       "  lowest hull: none seen",
       "  gate: reached in 0 of 1 runs",
       "  gun swaps: none",
+      "  bail checks: none",
+    ].join("\n"),
+  );
+});
+
+// Five runs of a test with a split verdict: two bailed, three timed out
+const SPLIT = [
+  run({ outcome: "met", bailChecks: [20, 50, 70], noBailChance: 0.12, inGatesSeconds: 25.5 }),
+  run({ outcome: "met", bailChecks: [90], noBailChance: 0.1, inGatesSeconds: 4.5 }),
+  run({ result: "FAIL", outcome: "missed", bailChecks: [20, 50], noBailChance: 0.4, inGatesSeconds: 273 }),
+  // Lost its rolls: too likely to bail to round to 0%
+  run({ result: "FAIL", outcome: "missed", bailChecks: [95, 94], noBailChance: 0.003, inGatesSeconds: 30 }),
+  run({ result: "FAIL", outcome: "missed", bailChecks: [], noBailChance: 1, inGatesSeconds: 25 }),
+];
+
+test("a split verdict's totals: bail checks and time in the gates by outcome, and the misses' odds of no bail", () => {
+  const totals = totalRuns(SPLIT);
+
+  assert.deepEqual(totals.bail, { runs: 5, checks: 8, meanChecks: 1.6, meanInGatesSeconds: 71.6 });
+  assert.deepEqual(totals.byOutcome, {
+    met: { runs: 2, meanChecks: 2, meanInGatesSeconds: 15 },
+    missed: { runs: 3, meanChecks: 1.33, meanInGatesSeconds: 109.33, noBailChances: [0.003, 0.4, 1] },
+  });
+  assert.equal(
+    formatTotals("capture_wing_bails_phantom", totals).split("\n").slice(-3).join("\n"),
+    [
+      "  bail checks: 8, mean 1.6 per run; in the gates: mean 71.6 s per run",
+      "  outcome met in 2 of 5 runs: mean 2 bail checks, 15 s in the gates",
+      "  outcome missed in 3 of 5 runs: mean 1.3 bail checks, 109.3 s in the gates; P(no bail) each: 0.3%, 40%, 100%",
     ].join("\n"),
   );
 });
