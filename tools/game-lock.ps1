@@ -26,15 +26,28 @@ function Get-GameLockSetting([string] $Name, $Default) {
     if ($value) { [double] $value } else { $Default }
 }
 
-# The lock file's text, or '' if it's gone or being rewritten right now
+# The text of the lock or a ticket. Throws if it's gone, or still can't be opened after a few tries:
+# on Windows, a writer renaming a rewrite over it holds it for a moment
+function Read-GameLockFile([string] $File) {
+    for ($try = 1; ; $try++) {
+        try { return [IO.File]::ReadAllText($File) }
+        catch [IO.FileNotFoundException], [IO.DirectoryNotFoundException] { throw }
+        catch [IO.IOException], [UnauthorizedAccessException] {
+            if ($try -ge 5) { throw }
+            Start-Sleep -Milliseconds 20
+        }
+    }
+}
+
+# The lock file's text, or '' if it's gone or can't be read right now
 function Read-GameLockText([string] $File) {
-    try { [IO.File]::ReadAllText($File) } catch { '' }
+    try { Read-GameLockFile $File } catch { '' }
 }
 
 # The lock file's text as a waiter watches it: $null if it's gone or can't be read right now, so
 # neither is taken for an empty lock
 function Read-GameLockWatch([string] $File) {
-    try { [IO.File]::ReadAllText($File) } catch { $null }
+    try { Read-GameLockFile $File } catch { $null }
 }
 
 # One value from the lock file's KEY=value lines
@@ -58,11 +71,40 @@ function Get-GameLockWho([string] $Text) {
     else { 'an empty lock file' }
 }
 
-# Writes the lock's lines to $File (default: the lock itself; a waiter's ticket has the same lines)
+# Moves $From over $To in one rename, so a reader finds the old file or the new one, never none.
+# Throws an IOException if it can't, as on Windows while a reader holds $To open
+function Move-GameLockFileOver([string] $From, [string] $To) {
+    if ($PSVersionTable.PSEdition -eq 'Core') { [IO.File]::Move($From, $To, $true); return }
+    # Windows PowerShell 5.1: .NET Framework has no File.Move that overwrites, and File.Replace
+    # leaves a moment with no file, where a waiter could take the lock
+    if (-not ('X4GameLock.Native' -as [type])) {
+        Add-Type -Namespace X4GameLock -Name Native -MemberDefinition @'
+[DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+public static extern bool MoveFileEx(string from, string to, int flags);
+'@
+    }
+    if (-not [X4GameLock.Native]::MoveFileEx($From, $To, 1)) {  # 1: MOVEFILE_REPLACE_EXISTING
+        $code = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+        throw [IO.IOException]::new("Can't move $From over ${To}: $((New-Object ComponentModel.Win32Exception $code).Message)")
+    }
+}
+
+# Writes the lock's lines to $File (default: the lock itself; a waiter's ticket has the same lines):
+# to a file beside it first, then moved over it, so a waiter reading it sees the old or the new
+# lines, never an empty or half-written file. Throws if a reader holds it open (Windows); the
+# callers retry next time
 function Write-GameLockFile($Lock, [string] $File = $Lock.File) {
     $now = [DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ')
     $text = "token=$($Lock.Token)`nwhat=$($Lock.What)`nrepo=$($Lock.Repo)`nbranch=$($Lock.Branch)`npid=$PID`nhost=$($Lock.Host)`nstarted=$($Lock.Started)`nheartbeat=$($Lock.Beat) $now`n"
-    [IO.File]::WriteAllText($File, $text)
+    $tmp = "$File.$PID.tmp"
+    try {
+        [IO.File]::WriteAllText($tmp, $text)
+        Move-GameLockFileOver $tmp $File
+    }
+    catch {
+        Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+        throw
+    }
 }
 
 # The tickets in the line $Queue, in line order (the zero-padded numbers sort)

@@ -211,6 +211,39 @@ Describe "deploy.ps1 and the game lock's line" {
         $lock | Should -Not -Exist
     }
 
+    It "a waiter's ticket stays whole while it rewrites it, so others can read its name" {
+        # deploy.bats widens the gap with a slow git; here the text is built before the write, so a
+        # long branch name widens it instead, and a second runspace rewrites the ticket while this
+        # one reads it as the waiters behind do
+        . (Join-Path $script:RepoRoot 'tools/game-lock.ps1')
+        $ticket = Join-GameLockLine (Join-Path $s.X4 'game.queue')
+        $lock = [pscustomobject]@{
+            Token = 't'; What = 'deploy'; Repo = 'repo'; Branch = 'b' * 4MB
+            Host = 'linux'; Started = 'now'; Beat = 0
+        }
+        Write-GameLockFile $lock $ticket
+        $writer = [powershell]::Create().AddScript({
+            param($Script, $Lock, $Ticket)
+            . $Script
+            for ($i = 1; $i -le 60; $i++) {
+                $Lock.Beat = $i
+                try { Write-GameLockFile $Lock $Ticket } catch { }  # a reader holding it open (Windows): as its callers do
+            }
+        }).AddArgument((Join-Path $script:RepoRoot 'tools/game-lock.ps1')).AddArgument($lock).AddArgument($ticket)
+        $run = $writer.BeginInvoke()
+
+        $torn = 0; $beats = @{}
+        while (-not $run.IsCompleted) {
+            $text = Read-GameLockText $ticket
+            if ($text -match '(?m)^heartbeat=(\d+) \S+\n\z') { $beats[$Matches[1]] = $true } else { $torn++ }
+        }
+        $writer.EndInvoke($run); $writer.Dispose()
+
+        # It read the ticket across rewrites, and every read was whole
+        $beats.Count | Should -BeGreaterOrEqual 3
+        $torn | Should -Be 0
+    }
+
     It 'a lock its caller hands down skips the line' {
         Write-TestGameLock $s.X4
         Write-TestGameTicket $s.X4 1
