@@ -141,7 +141,8 @@
       </actions>
     </library>
 
-    <!-- The Members still attacking Target: operational and running a capture order on it -->
+    <!-- The Members still attacking Target: operational, running a capture order on it, and in
+         its sector (one following it through a gate drops out of the groups until it's back) -->
     <library name="Attacking" purpose="run_actions">
       <params>
         <param name="Target"/>
@@ -150,7 +151,7 @@
       <actions>
         <set_value name="$Attacking" exact="[]"/>
         <do_for_each name="$Ship" in="$Members">
-          <do_if value="@$Ship.isoperational and @$Ship.order.id == 'APiratesLife_Capture' and $Ship.order.$target == $Target">
+          <do_if value="@$Ship.isoperational and @$Ship.order.id == 'APiratesLife_Capture' and $Ship.order.$target == $Target and $Ship.sector == $Target.sector">
             <append_to_list name="$Attacking" exact="$Ship"/>
           </do_if>
         </do_for_each>
@@ -167,7 +168,7 @@
         <param name="Ship"/>
       </params>
       <actions>
-        <do_if value="@$Ship.pilot.$APiratesLife_Dps != null">
+        <do_if value="@$Ship.pilot.exists and $Ship.pilot.$APiratesLife_Dps?">
           <return value="table[$all = $Ship.pilot.$APiratesLife_Dps, $gun = @$Ship.pilot.$APiratesLife_GunDps]"/>
         </do_if>
         <set_value name="$Guns" exact="0"/>

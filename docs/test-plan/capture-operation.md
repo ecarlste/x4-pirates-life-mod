@@ -139,7 +139,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   Given a capture operation on a capturable fighter with 80% hull and its shields kept down until the hull is below 75%
   And my wingman flies a <ship> with <guns> and <turrets>, starting 2 km from the fighter and facing it
   When the wingman stops firing with vanilla's attack
-  Then its turrets stop firing within a second, through the finish, suppress and hold
+  Then its turrets stop firing within a second, while it flies its passes, in the band and while it holds
   And for 30 seconds the hull stays below 75%, and the fighter is never destroyed
   And the hull never drops below the 35% floor
   And once I cancel its order, each turret is back in the mode it started in
@@ -185,7 +185,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   And my only wingman flies a YT-1300 with two AG-2G turrets and no forward guns, starting 2 km from it and facing it
   When its turrets break the fighter's shields, and its hull if it's a hull breaker
   Then its turrets stop firing within a second of it stopping
-  And for 120 seconds the hull never goes below 55%, and the fighter is never destroyed
+  And for 120 seconds the hull never goes below 55% (75% while it isn't a hull breaker), and the fighter is never destroyed
   And the report gives the lowest hull
   And once I cancel its order, each turret is back in the mode it started in
 ```

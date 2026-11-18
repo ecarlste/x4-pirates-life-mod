@@ -2407,9 +2407,9 @@
     </library>
 
     <!-- Three wingmen starting around the target, 2 km out (SpawnWingAt2km): the hull checks of
-         CaptureWingHoldsFire (CheckWingHold), with three times the guns. The wing's burst covers
-         all their shots in flight, so from 80% hull and no shields the whole break is inside its margin,
-         and until the hull is under 75% only one wingman (the finisher) may fire. -->
+         CaptureWingHoldsFire (CheckWingHold), with three times the guns. With no shields the hull
+         breakers fire, and only the finisher fits them (Groups, #296), so until the hull is under
+         75% only one wingman (the finisher) may fire. -->
     <cue name="CaptureWingHoldsFireThreeWingmen">
       <conditions>
         <event_cue_signalled/>
@@ -2513,8 +2513,9 @@
     </cue>
 
     <!-- #205: one X-wing 2 km from a TIE/LN with full shields (SpawnWingAt2km), nothing holding the
-         shields down. A TIE/LN's 900 shields and the 25% of hull above the gate are less than the
-         X-wing's burst, the case the tests above never reach. One check of either test below, run
+         shields down. The X-wing is alone in every group (the finisher), and one of its guns' bursts
+         is too big for a TIE/LN's 900 shields' band (small shields), the case the tests above never
+         reach. One check of either test below, run
          every second: fails on a kill or the floor, counts knock-downs (shields from 20% or more
          to under 20%, as in the release checklist) and the seconds in a row the shields have been
          full. Returns the problems so far ('' for none). -->
@@ -2681,9 +2682,8 @@
       </cues>
     </cue>
 
-    <!-- #205: the wing breaks a full-health TIE/LN's hull to under 75%. Its 900 shields and the 25%
-         of hull above the gate fit inside the X-wing's burst, so the finisher starts in the fine
-         stage from full shields. Fails on a kill or the floor; a run that doesn't get the hull
+    <!-- #205: the wing breaks a full-health TIE/LN's hull to under 75%. The X-wing is alone in every
+         group, so it flies its own passes from full shields. Fails on a kill or the floor; a run that doesn't get the hull
          under 75% in 60 s is reported, not failed. -->
     <cue name="CaptureWingBreaksFullShields">
       <conditions>
@@ -2765,9 +2765,8 @@
     </cue>
 
     <!-- #216: one X-wing against a full-health TIE Phantom, with nothing forcing the bail. Its about
-         5600 shields hold barely more than the room above the 75% line, so the wing's burst nearly
-         fits and the finisher takes over in the break stage. Fails on a kill or the floor (the
-         break-stage overshoot this test caught at 1x). $outcome is whether the pilot bailed within
+         5600 shields take the X-wing, alone in every group, its own passes to break. Fails on a
+         kill or the floor (the break overshoot this test caught at 1x). $outcome is whether the pilot bailed within
          300 s (32 of 40 at 1x from this 2 km start, #272): a timeout is reported, not failed, as the
          finisher's close-range pass sometimes can't keep the shields under the gate (#224). Its bar
          is 80%, 6 of 10 in the release tier: one fighter needn't beat every target (#272). -->
@@ -2879,12 +2878,11 @@
          player, 2 km from a full-health Valarian G9 Rigger (an M transporter), all in the fits of
          his playthrough save (libraries/loadouts.xml). The G9 reacts to the attack as its own AI
          would, as his did; one that only waits reached the gates in 171 s in a first run, with
-         level loadouts. Six ships' burst is more than the G9's shields plus its hull above the
-         75% line, so the operation opens with only the finisher firing. Fails unless the G9 is
-         inside both bail gates (hull under 75%, shields under 20%) within 180 s, and on a kill or
-         the floor. Logs the numbers behind the stage: the G9's shields, hull and shield
-         generators, each wingman's DPS, and the wing's margin and burst as the order works them
-         out. -->
+         level loadouts. Before the groups (#296), six ships' burst was more than the G9's shields
+         plus its hull above the 75% line, so the operation opened with only the finisher firing.
+         Fails unless the G9 is inside both bail gates (hull under 75%, shields under 20%) within
+         180 s, and on a kill or the floor. Logs the numbers behind the groups: the G9's shields,
+         hull and shield generators, and each wingman's DPS; the operation logs the groups. -->
     <cue name="CaptureWingBreaksFreighter">
       <conditions>
         <event_cue_signalled/>
@@ -2916,7 +2914,7 @@
         <do_for_each name="$S" in="$T.shields.operational.list">
           <set_value name="$Shields" exact="$Shields + ' ' + $S.macro.id"/>
         </do_for_each>
-        <debug_text text="'[apirateslife-test] freighter: %s, maxshield %s, maxhull %s, margin %s, shield generators:%s'.[$T.macro.id, $T.maxshield, $T.maxhull, $T.maxshield + $T.maxhull * 0.25, $Shields]" filter="general"/>
+        <debug_text text="'[apirateslife-test] freighter: %s, maxshield %s, maxhull %s, shield generators:%s'.[$T.macro.id, $T.maxshield, $T.maxhull, $Shields]" filter="general"/>
         <do_for_each name="$W" in="$Wing.$wingmen">
           <set_value name="$Guns" exact="''"/>
           <do_for_each name="$G" in="$W.weapons.operational.list">
@@ -3347,7 +3345,7 @@
          at full hull and shields, nothing holding them down, so the turrets fire through the break.
          It reports the lowest hull, how far the turrets' bolts in flight took it (#241). With no
          forward gun it's never the finisher; it breaks the hull only as a hull breaker, whose
-         overshoot leaves 55% or more (#296). So the hull under 55% fails it, as do a turret shot
+         overshoot leaves 55% or more (#296). So the hull under 55% fails it (75% while it isn't a hull breaker), as do a turret shot
          more than 1 s after it stops firing with vanilla's attack, a kill, the floor, and a turret
          not back in its mode. Runs 120 s: the shields regrow while it holds, so it may stop more
          than once. -->
@@ -3404,8 +3402,11 @@
                 <do_else>
                   <set_value name="$Wing.$minhull" exact="[$Wing.$minhull, $T.hullpercentage].min"/>
                   <debug_text text="'[apirateslife-test] trace: stage %s, hull %s%%, shields %s, lowest hull %s%%'.[$Wing.$stage, $T.hullpercentage, $T.shield, $Wing.$minhull]" filter="general"/>
-                  <do_if value="$T.hullpercentage lt 55">
-                    <set_value name="$Problems" exact="' hull %s%%, under the hull breakers 55%% line;'.[$T.hullpercentage]"/>
+                  <!-- Not a hull breaker, it never breaks the hold line; one, its overshoot
+                       stops at 55% -->
+                  <set_value name="$HullFloor" exact="if @global.$APiratesLife_CaptureOps.{$T}.$hullbreakers.indexof.{$Wing.$wingmen.{1}} then 55 else 75"/>
+                  <do_if value="$T.hullpercentage lt $HullFloor">
+                    <set_value name="$Problems" exact="' hull %s%%, under %s%%;'.[$T.hullpercentage, $HullFloor]"/>
                   </do_if>
                 </do_else>
                 <do_if value="$Problems != ''">

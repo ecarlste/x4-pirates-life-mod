@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One pass of a capture operation's finisher (order.apirateslife.capture.xml runs it in the fine
-     stage, in place of vanilla's attack): a nose-on run at the target, firing every gun in its
-     weapon group, a break-off inside $breakoff, then on past the target without firing, until it is
-     $turnback away. The order then starts the next pass. Flying on through instead of turning away
+<!-- One pass of a capture operation's wingman (order.apirateslife.capture.xml runs it for the
+     finisher alone in its group, and for band breakers, in place of vanilla's attack): a nose-on
+     run at the target, firing every gun in its weapon group, a break-off inside $breakoff, then on
+     past the target without firing, until it is $turnback away. The order then starts the next pass. Flying on through instead of turning away
      brings the nose back round sooner, so the shields have less time to regrow (#205). -->
 <aiscript name="apirateslife.capture.pass" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="1">
   <params>

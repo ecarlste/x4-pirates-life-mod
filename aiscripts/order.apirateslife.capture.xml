@@ -208,8 +208,8 @@
     <set_value name="$ended" exact="false"/>
     <set_value name="$breaking" exact="false"/>
     <set_value name="$stopshield" exact="-1"/>
-    <!-- Finisher: the guns it keeps in $weapongroup (longest-kept first; not empty only in the fine
-         stage), and the guns it took out -->
+    <!-- Flying passes: the guns it keeps in $weapongroup (longest-kept first; not empty only while
+         it flies them), and the guns it took out -->
     <set_value name="$keptguns" exact="[]"/>
     <set_value name="$removedguns" exact="[]"/>
     <set_value name="$weapongroup" exact="0"/>
@@ -273,7 +273,7 @@
 
       <!-- Who fires is set by the groups the operation picked (md/apirateslife_capture.xml,
            Groups), and the target's shields and hull. For this ship, decide works out: $fire;
-           $pass, whether it flies its own pass (only ever the finisher); $keepcount, the guns it
+           $pass, whether it flies its own pass (the finisher alone in its group, or a band breaker); $keepcount, the guns it
            keeps in its weapon group on a pass (999: every gun); $stopshield, the shields it stops
            at (-1: none); and $breaking, whether it fires above the hold line, where it stops once
            the hull is under it. -->
@@ -364,7 +364,7 @@
         <set_value name="$closing" exact="false"/>
       </do_if>
 
-      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $closing then 'closes in' else if $pass then 'finishes' else if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, $stopshield, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire or $pass != @$lastpass or $closing != @$lastclosing then $debugchance else 0"/>
+      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $closing then 'closes in' else if $pass then 'passes' else if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, $stopshield, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire or $pass != @$lastpass or $closing != @$lastclosing then $debugchance else 0"/>
       <set_value name="$lastfire" exact="$fire"/>
       <set_value name="$lastpass" exact="$pass"/>
       <set_value name="$lastclosing" exact="$closing"/>
