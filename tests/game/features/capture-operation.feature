@@ -50,6 +50,23 @@ Feature: Capture operations
     And for 30 seconds the hull stays below 75%, and the fighter is never destroyed
     And the hull never drops below the 35% floor
 
+  @capture_wing_travels_in
+  Scenario: Far wingmen close in with the travel drive
+    Given a capture operation on a capturable fighter with 80% hull and no shields
+    And three wingmen fly X-wings, starting 20 km from the fighter in its sector
+    When the operation starts
+    Then every wingman is within 2 km of the fighter within 45 seconds
+    And the fighter is never destroyed, and the hull never drops below the 35% floor
+
+  @capture_wing_chases
+  Scenario: The wing chases a target that flies off with its travel drive
+    Given a capture operation on a capturable fighter with full hull and shields
+    And three wingmen fly X-wings, starting 2 km from the fighter around it
+    When the fighter flies 20 km away with its travel drive, 5 seconds into the operation
+    Then the fighter uses its travel drive
+    And every wingman is back within 2 km of the fighter within 60 seconds of it leaving
+    And the operation is still running
+
   # A TIE/LN's shields are smaller than one X-wing's burst, so only the finisher fires on them.
   # Its two guns sometimes miss while the shields regrow, so this test reports a run that's
   # firing but doesn't knock them down twice in time instead of failing it (#205).
