@@ -85,6 +85,16 @@ Feature: Capture operations
     Then the pilot bails within 300 seconds, or the run is reported as timed out
     And the hull never drops below the 35% floor, and the fighter is never destroyed
 
+  # #296: a wing whose burst is bigger than an M freighter's whole margin opens with only the
+  # finisher firing, and its passes didn't outpace the shields' regen in Erik's 1.00 check.
+  @capture_wing_breaks_freighter
+  Scenario: A large wing breaks an M freighter's shields and hull into the bail gates
+    Given a capture operation on a capturable G9 Rigger at full hull and shields, reacting as its own AI would, nothing holding them down
+    And my wing of four R41s and two HWK-290s, fitted as in my playthrough, without me, starts 2 km from it and facing it
+    When the wing's burst is more than its shields and hull above the gate from the start
+    Then the G9 is inside both bail gates within 180 seconds
+    And the hull never drops below the 35% floor, and the G9 is never destroyed
+
   # The YT-1300's one forward gun finishes slowly with its turrets on hold, so its test reports a
   # run that doesn't hold 30 s under 75% within 180 s instead of failing it (#196).
   @capture_wing_turrets_hold @capture_wing_turrets_hold_m

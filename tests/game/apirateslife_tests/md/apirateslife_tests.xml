@@ -68,6 +68,7 @@
           CaptureWingKnocksShieldsAgain,
           CaptureWingBreaksFullShields,
           CaptureWingBailsPhantom,
+          CaptureWingBreaksFreighter,
           CaptureWingTurretsHold,
           CaptureWingTurretsHoldM,
           CaptureWingTurretsBreakM,
@@ -2287,6 +2288,11 @@
          runs differ less than in CaptureWingHoldsFire, where the wingman starts beside the player.
          Macro and Loadout swap the X-wing for another ship (#184's turreted wingmen).
          TargetMacro swaps the target, and Hull and ShieldsDown (false: full shields) its start (#205).
+         TargetOwner and TargetLoadout (a loadout id; null: a level loadout) swap the target's owner
+         and fit, and TargetResponds lets it react to the attack as its own AI would (a trader
+         flees) instead of waiting. Macros and Loadouts (lists, one per wingman, up to 6; Count is
+         then their length) give each wingman its own ship and fit (#296's mixed wing). Wingmen 4
+         to 6 sit between the first three.
          Returns table[$target, $wingmen, $gunowner, $turrets, $minhull, $heldfor]: $gunowner maps
          each wingman's lasers and turrets to the wingman, $turrets lists the turrets, and
          CheckWingHold keeps the last two. -->
@@ -2298,34 +2304,54 @@
         <param name="TargetMacro" default="macro.tie_advanced_macro"/>
         <param name="Hull" default="80"/>
         <param name="ShieldsDown" default="true"/>
+        <param name="TargetOwner" default="faction.galempire"/>
+        <param name="Macros" default="null"/>
+        <param name="Loadouts" default="null"/>
+        <param name="TargetLoadout" default="null"/>
+        <param name="TargetResponds" default="false"/>
       </params>
       <actions>
-        <create_ship name="$Target" macro="$TargetMacro" sector="player.sector" capturable="true">
-          <owner exact="faction.galempire" overridenpc="true"/>
-          <loadout>
-            <level exact="1.0"/>
-          </loadout>
-          <pilot>
-            <select faction="faction.galempire" tags="tag.aipilot"/>
-          </pilot>
-          <safepos object="player.occupiedship" z="3km" allowyaxis="true"/>
-        </create_ship>
+        <do_if value="$Macros">
+          <set_value name="$Count" exact="$Macros.count"/>
+        </do_if>
+        <do_if value="$TargetLoadout">
+          <create_ship name="$Target" macro="$TargetMacro" sector="player.sector" capturable="true">
+            <owner exact="$TargetOwner" overridenpc="true"/>
+            <loadout ref="$TargetLoadout"/>
+            <pilot>
+              <select faction="faction.galempire" tags="tag.aipilot"/>
+            </pilot>
+            <safepos object="player.occupiedship" z="3km" allowyaxis="true"/>
+          </create_ship>
+        </do_if>
+        <do_else>
+          <create_ship name="$Target" macro="$TargetMacro" sector="player.sector" capturable="true">
+            <owner exact="$TargetOwner" overridenpc="true"/>
+            <loadout>
+              <level exact="1.0"/>
+            </loadout>
+            <pilot>
+              <select faction="faction.galempire" tags="tag.aipilot"/>
+            </pilot>
+            <safepos object="player.occupiedship" z="3km" allowyaxis="true"/>
+          </create_ship>
+        </do_else>
         <create_order id="'Wait'" object="$Target" default="true">
-          <param name="noattackresponse" value="true"/>
+          <param name="noattackresponse" value="not $TargetResponds"/>
         </create_order>
         <do_if value="$ShieldsDown">
           <set_object_shield object="$Target" exact="0"/>
         </do_if>
         <set_object_hull object="$Target" exact="$Hull"/>
-        <set_value name="$X" exact="[2km, -1km, -1km]"/>
-        <set_value name="$Z" exact="[0m, 1.732km, -1.732km]"/>
+        <set_value name="$X" exact="[2km, -1km, -1km, 1km, -2km, 1km]"/>
+        <set_value name="$Z" exact="[0m, 1.732km, -1.732km, 1.732km, 0m, -1.732km]"/>
         <set_value name="$Wingmen" exact="[]"/>
         <set_value name="$GunOwner" exact="table[]"/>
         <set_value name="$Turrets" exact="[]"/>
         <do_all exact="$Count" counter="$i">
-          <create_ship name="$Wingman" macro="$Macro" sector="player.sector">
+          <create_ship name="$Wingman" macro="if $Macros then $Macros.{$i} else $Macro" sector="player.sector">
             <owner exact="faction.player" overridenpc="true"/>
-            <loadout ref="$Loadout"/>
+            <loadout ref="if $Macros then $Loadouts.{$i} else $Loadout"/>
             <pilot>
               <select faction="faction.galempire" tags="tag.aipilot"/>
               <skills>
@@ -2841,6 +2867,125 @@
                   <param name="Started" value="$Started"/>
                 </run_actions>
                 <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_bails_phantom', $ok = $Result.$ok, $outcome = $Bailed, $detail = 'outcome %s;'.[if event.param.$outcome != '' then event.param.$outcome else 'none'] + $Result.$detail]"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- #296: Erik's 1.00 check, as a test. A wing of four R41s and two HWK-290s, without the
+         player, 2 km from a full-health Valarian G9 Rigger (an M transporter), all in the fits of
+         his playthrough save (libraries/loadouts.xml). The G9 reacts to the attack as its own AI
+         would, as his did; one that only waits reached the gates in 171 s in a first run, with
+         level loadouts. Six ships' burst is more than the G9's shields plus its hull above the
+         75% line, so the operation opens with only the finisher firing. Fails unless the G9 is
+         inside both bail gates (hull under 75%, shields under 20%) within 180 s, and on a kill or
+         the floor. Logs the numbers behind the stage: the G9's shields, hull and shield
+         generators, each wingman's DPS, and the wing's margin and burst as the order works them
+         out. -->
+    <cue name="CaptureWingBreaksFreighter">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="MarkCombatTest"/>
+        <run_actions ref="PressureDefaults"/>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
+        <run_actions ref="SpawnWingAt2km" result="$Wing">
+          <param name="Count" value="6"/>
+          <param name="Macros" value="[macro.r41_macro, macro.r41_macro, macro.r41_macro, macro.r41_macro, macro.hwk_290_01_macro, macro.hwk_290_01_macro]"/>
+          <param name="Loadouts" value="['apirateslife_test_r41', 'apirateslife_test_r41', 'apirateslife_test_r41', 'apirateslife_test_r41', 'apirateslife_test_hwk290', 'apirateslife_test_hwk290']"/>
+          <param name="TargetLoadout" value="'apirateslife_test_g9'"/>
+          <param name="TargetResponds" value="true"/>
+          <param name="TargetMacro" value="macro.g9_macro"/>
+          <param name="TargetOwner" value="faction.valarian"/>
+          <param name="Hull" value="100"/>
+          <param name="ShieldsDown" value="false"/>
+        </run_actions>
+        <set_value name="$Wing.$secs" exact="0"/>
+        <set_value name="$Wing.$knocks" exact="0"/>
+        <set_value name="$Wing.$up" exact="true"/>
+        <set_value name="$Wing.$fullfor" exact="0"/>
+        <set_value name="$Wing.$maxfullfor" exact="0"/>
+        <set_value name="$T" exact="$Wing.$target"/>
+        <set_value name="$Shields" exact="''"/>
+        <do_for_each name="$S" in="$T.shields.operational.list">
+          <set_value name="$Shields" exact="$Shields + ' ' + $S.macro.id"/>
+        </do_for_each>
+        <debug_text text="'[apirateslife-test] freighter: %s, maxshield %s, maxhull %s, margin %s, shield generators:%s'.[$T.macro.id, $T.maxshield, $T.maxhull, $T.maxshield + $T.maxhull * 0.25, $Shields]" filter="general"/>
+        <do_for_each name="$W" in="$Wing.$wingmen">
+          <set_value name="$Guns" exact="''"/>
+          <do_for_each name="$G" in="$W.weapons.operational.list">
+            <set_value name="$Guns" exact="$Guns + ' ' + $G.macro.id"/>
+          </do_for_each>
+          <do_for_each name="$G" in="$W.turrets.operational.list">
+            <set_value name="$Guns" exact="$Guns + ' turret:' + $G.macro.id"/>
+          </do_for_each>
+          <debug_text text="'[apirateslife-test] freighter wingman: %s, dps.lasers.all %s, dps.turrets.all %s, engines %s, speed max %s, guns:%s'.[$W.macro.id, $W.dps.lasers.all, $W.dps.turrets.all, $W.engines.operational.count, $W.maxspeed, $Guns]" filter="general"/>
+        </do_for_each>
+      </actions>
+      <cues>
+        <cue name="CaptureWingBreaksFreighter_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+            <do_if value="not $Started">
+              <cancel_cue cue="CaptureWingBreaksFreighter_Timeout"/>
+              <signal_cue_instantly cue="CaptureWingBreaksFreighter_Done" param="''"/>
+            </do_if>
+            <do_else>
+              <!-- The bail itself isn't this test's: it checks the wing gets the G9 into the gates -->
+              <set_object_capturable object="$Wing.$target" capturable="false"/>
+              <set_value name="$T" exact="$Wing.$target"/>
+              <set_value name="$WingDps" exact="@global.$APiratesLife_CaptureOps.{$T}.$wingdps"/>
+              <debug_text text="'[apirateslife-test] freighter op: wing dps full %s, now %s; burst (1.5 s) %s; margin %s; finisher %s'.[@$WingDps.$full, @$WingDps.$now, @$WingDps.$full * 1.5, $T.shield + $T.hull - $T.maxhull * 0.75, @global.$APiratesLife_CaptureOps.{$T}.$finisher.knownname]" filter="general"/>
+              <run_actions ref="CombatTraceStart">
+                <param name="Wingmen" value="$Wing.$wingmen"/>
+                <param name="Target" value="$Wing.$target"/>
+              </run_actions>
+            </do_else>
+          </actions>
+          <cues>
+            <cue name="CaptureWingBreaksFreighter_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <run_actions ref="CheckWingCycle" result="$Problems">
+                  <param name="Wing" value="$Wing"/>
+                </run_actions>
+                <set_value name="$T" exact="$Wing.$target"/>
+                <do_if value="$Problems != '' or ($T.hullpercentage lt 75 and $T.shieldpercentage lt 20)">
+                  <cancel_cue cue="CaptureWingBreaksFreighter_Timeout"/>
+                  <signal_cue_instantly cue="CaptureWingBreaksFreighter_Done" param="$Problems"/>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="CaptureWingBreaksFreighter_Timeout">
+              <delay exact="180s"/>
+              <actions>
+                <set_value name="$Wing.$timedout" exact="true"/>
+                <signal_cue_instantly cue="CaptureWingBreaksFreighter_Done" param="' not inside the bail gates within 180 s;'"/>
+              </actions>
+            </cue>
+            <cue name="CaptureWingBreaksFreighter_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureWingBreaksFreighter_Watch"/>
+                <!-- The reported name again: tools/check_test_plan.py reads it from Report's literal -->
+                <run_actions ref="CombatTraceStop">
+                  <param name="Name" value="'capture_wing_breaks_freighter'"/>
+                </run_actions>
+                <run_actions ref="WingCycleDone" result="$Result">
+                  <param name="Wing" value="$Wing"/>
+                  <param name="Problems" value="event.param"/>
+                  <param name="Started" value="$Started"/>
+                </run_actions>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_breaks_freighter', $ok = $Result.$ok, $detail = $Result.$detail]"/>
               </actions>
             </cue>
           </cues>

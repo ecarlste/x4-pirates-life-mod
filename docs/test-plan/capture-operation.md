@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 21 | 2 | 3 | **5** |
+| 0 | 22 | 2 | 3 | **5** |
 
 ## Scenarios
 
@@ -117,6 +117,18 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   When the wing's burst breaks the shields and the finisher takes over in the break stage
   Then the pilot bails within 300 seconds, or the run is reported as timed out
   And the hull never drops below the 35% floor, and the fighter is never destroyed
+```
+
+### A large wing breaks an M freighter's shields and hull into the bail gates
+
+**Automated:** in game `capture_wing_breaks_freighter`
+
+```gherkin
+  Given a capture operation on a capturable G9 Rigger at full hull and shields, reacting as its own AI would, nothing holding them down
+  And my wing of four R41s and two HWK-290s, fitted as in my playthrough, without me, starts 2 km from it and facing it
+  When the wing's burst is more than its shields and hull above the gate from the start
+  Then the G9 is inside both bail gates within 180 seconds
+  And the hull never drops below the 35% floor, and the G9 is never destroyed
 ```
 
 ### A turreted wingman's turrets hold fire once the wing is near the bail gate

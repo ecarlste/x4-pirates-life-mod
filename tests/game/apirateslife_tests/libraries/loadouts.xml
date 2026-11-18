@@ -5,7 +5,12 @@
      X-wing loadout (sw_xwing_mc80start, SWI libraries/loadouts.xml), made fixed:
        - apirateslife_test_xwing_lasers: its four KX7 lasers, without the two proton torpedo
          launchers and their ammunition;
-       - apirateslife_test_xwing_torpedoes: all of it, for the no-missiles tests. -->
+       - apirateslife_test_xwing_torpedoes: all of it, for the no-missiles tests.
+     #296's wing and target are the fits in Erik's 8.00 playthrough save (2026-11-17), so the test
+     fights what he did: apirateslife_test_r41 and apirateslife_test_hwk290 as his own ships
+     (the R41's two HM6 launchers without missiles, which the capture order blocks anyway), and
+     apirateslife_test_g9 as the commonest Valarian G9 there: six Quintad Q2 shields (stronger in
+     capacity and recharge than the Novaldex 40 some carry) and four MS2 lasers, with the Brightstar engine G9s carry there. -->
 <diff>
   <add sel="/loadouts">
     <loadout id="apirateslife_test_xwing_lasers" macro="t65b_xwing_macro">
@@ -218,6 +223,76 @@
         <software ware="software_scannerobjectmk2"/>
         <software ware="software_targetmk1"/>
       </software>
+      <virtualmacros>
+        <thruster macro="thruster_gen_m_allround_01_mk2_macro"/>
+      </virtualmacros>
+    </loadout>
+    <loadout id="apirateslife_test_r41" macro="r41_macro">
+      <macros>
+        <engine macro="engine_incom_macro" path="../con_engine_01"/>
+        <engine macro="engine_incom_macro" path="../con_engine_02"/>
+        <engine macro="engine_incom_macro" path="../con_engine_03"/>
+        <engine macro="engine_incom_macro" path="../con_engine_04"/>
+        <weapon macro="weapon_ix4_s_laser_macro" path="../con_weapon_01"/>
+        <weapon macro="weapon_ix4_s_laser_macro" path="../con_weapon_02"/>
+        <weapon macro="weapon_kx5_s_laser_macro" path="../con_weapon_03"/>
+        <weapon macro="weapon_kx5_s_laser_macro" path="../con_weapon_04"/>
+        <weapon macro="weapon_hm6launcher_macro" path="../con_weapon_05"/>
+        <weapon macro="weapon_hm6launcher_macro" path="../con_weapon_06"/>
+        <shield macro="shield_s_cec1077_macro" path="../con_shield_01"/>
+        <shield macro="shield_s_cec1077_macro" path="../con_shield_02"/>
+      </macros>
+      <software>
+        <software ware="software_dockmk1"/>
+        <software ware="software_flightassistmk1"/>
+        <software ware="software_scannerlongrangemk2"/>
+        <software ware="software_scannerobjectmk2"/>
+        <software ware="software_targetmk1"/>
+      </software>
+      <virtualmacros>
+        <thruster macro="thruster_gen_s_allround_01_mk3_macro"/>
+      </virtualmacros>
+    </loadout>
+    <loadout id="apirateslife_test_hwk290" macro="hwk_290_01_macro">
+      <macros>
+        <engine macro="engine_hwk_macro" path="../con_engine_01"/>
+        <weapon macro="weapon_hs10_m_laser_macro" path="../con_weapon_01"/>
+        <weapon macro="weapon_hs10_m_laser_macro" path="../con_weapon_02"/>
+        <weapon macro="weapon_a2_s_laser_macro" path="../con_weapon_03"/>
+        <weapon macro="weapon_a2_s_laser_macro" path="../con_weapon_04"/>
+        <weapon macro="weapon_a2_s_laser_macro" path="../con_weapon_05"/>
+        <weapon macro="weapon_a2_s_laser_macro" path="../con_weapon_06"/>
+        <shield macro="shield_s_cec1077_macro" path="../con_shield_01"/>
+        <shield macro="shield_s_cec1077_macro" path="../con_shield_02"/>
+        <shield macro="shield_s_cec1077_macro" path="../con_shield_03"/>
+        <shield macro="shield_s_cec1077_macro" path="../con_shield_04"/>
+        <shield macro="shield_s_cec1077_macro" path="../con_shield_05"/>
+      </macros>
+      <software>
+        <software ware="software_dockmk1"/>
+        <software ware="software_flightassistmk1"/>
+        <software ware="software_scannerlongrangemk2"/>
+        <software ware="software_scannerobjectmk2"/>
+        <software ware="software_targetmk1"/>
+      </software>
+      <virtualmacros>
+        <thruster macro="thruster_gen_s_allround_01_mk3_macro"/>
+      </virtualmacros>
+    </loadout>
+    <loadout id="apirateslife_test_g9" macro="g9_macro">
+      <macros>
+        <engine macro="engine_s_brightstar_macro" path="../con_engine_01"/>
+        <weapon macro="weapon_ms2_s_laser_macro" path="../con_weapon_01"/>
+        <weapon macro="weapon_ms2_s_laser_macro" path="../con_weapon_02"/>
+        <weapon macro="weapon_ms2_s_laser_macro" path="../con_weapon_03"/>
+        <weapon macro="weapon_ms2_s_laser_macro" path="../con_weapon_04"/>
+        <shield macro="shield_s_quintadq2_macro" path="../con_shield_01"/>
+        <shield macro="shield_s_quintadq2_macro" path="../con_shield_02"/>
+        <shield macro="shield_s_quintadq2_macro" path="../con_shield_03"/>
+        <shield macro="shield_s_quintadq2_macro" path="../con_shield_04"/>
+        <shield macro="shield_s_quintadq2_macro" path="../con_shield_05"/>
+        <shield macro="shield_s_quintadq2_macro" path="../con_shield_06"/>
+      </macros>
       <virtualmacros>
         <thruster macro="thruster_gen_m_allround_01_mk2_macro"/>
       </virtualmacros>
