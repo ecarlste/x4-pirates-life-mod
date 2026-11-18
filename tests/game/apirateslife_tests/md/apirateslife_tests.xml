@@ -104,7 +104,8 @@
              90% outcome. A plain run (the PR tier) runs them once. Only the runner reads it, not
              MD (docs/testing.md, Game test tiers) -->
         <set_value name="$ReleaseRuns" exact="[
-          [CaptureWingBailsPhantom, 10, 6]
+          [CaptureWingBailsPhantom, 10, 6],
+          [CaptureWingBreaksFreighter, 10, 8]
         ]"/>
         <set_value name="$Index" exact="0"/>
         <!-- True while a combat test runs (MarkCombatTest): SETA stays off until it reports -->
