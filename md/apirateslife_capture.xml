@@ -7,19 +7,17 @@
 
      While an operation runs, it is listed by target in
        global.$APiratesLife_CaptureOps.{$target}
-         = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince, $fear, $ranks,
-                 $wingdps, $finisher]
+         = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince, $fear, $wingdps,
+                 $finisher]
      which the wingman order and the bail hook (md/apirateslife_bail.xml) read. $gatestime is the
      time the target has spent inside the bail gates so far, not counting the stretch since
      $gatessince (null while it is outside them); $fear is the pilot's fear when the operation
-     started. Pressure turns them into bail pressure. $ranks is the order the wingmen still
-     attacking the target stop in, the finisher first (Ranks); $wingdps is their summed laser and
-     turret damage per second (WingDps: $full, and $now without turrets holding fire), with
-     $lines, the same summed over each wingman and those ranked ahead of it. Each wingman's order
-     turns its line into its burst, what may still land after it and those ahead of it stop, so
-     the closer the target gets to the hold line, the fewer wingmen fire (#296).
-     $finisher is the one wingman that fires single shots inside its own burst's margin
-     (Finisher); null when no wingman has a forward gun. Tick keeps all three current.
+     started. Pressure turns them into bail pressure. $wingdps is the summed laser and turret
+     damage per second of the wingmen still attacking the target (WingDps: $full, and $now without
+     turrets holding fire), kept current by Tick; each wingman's order turns it into the wing's
+     burst, what may still land after the wing stops.
+     $finisher is the one wingman that fires single shots inside that burst's margin (Finisher),
+     also kept by Tick; null when no wingman has a forward gun.
      A global table, because X4 can't store script variables on a ship (only on NPCs), and AI
      scripts can read globals.
 
@@ -144,77 +142,27 @@
       </actions>
     </library>
 
-    <!-- The order the wing stops in (#296), as a list of the Members still running a capture order
-         on Target: Finisher first, then the ships of Current (the last ranking) in their order,
-         then any ship not yet ranked, closest to Target first (a ship in another sector last).
-         A ship keeps its place until it dies or leaves the operation; one that starts its order
-         later goes to the end. -->
-    <library name="Ranks" purpose="run_actions">
+    <!-- The summed laser and turret damage per second (dps.lasers.all + dps.turrets.all) of the
+         Members still running a capture order on Target, as table[$full, $now]: $now leaves out
+         turrets their order holds, so it's what the whole wing may still land after it stops
+         firing. Not dps.all, which adds missiles: the order blocks them. -->
+    <library name="WingDps" purpose="run_actions">
       <params>
         <param name="Target"/>
         <param name="Members"/>
-        <param name="Current"/>
-        <param name="Finisher"/>
-      </params>
-      <actions>
-        <set_value name="$Attacking" exact="[]"/>
-        <do_for_each name="$Ship" in="$Members">
-          <do_if value="@$Ship.isoperational and @$Ship.order.id == 'APiratesLife_Capture' and $Ship.order.$target == $Target">
-            <append_to_list name="$Attacking" exact="$Ship"/>
-          </do_if>
-        </do_for_each>
-        <set_value name="$Ranks" exact="[]"/>
-        <do_if value="$Finisher and $Attacking.indexof.{$Finisher}">
-          <append_to_list name="$Ranks" exact="$Finisher"/>
-        </do_if>
-        <do_if value="$Current">
-          <do_for_each name="$Ship" in="$Current">
-            <do_if value="$Attacking.indexof.{$Ship} and not $Ranks.indexof.{$Ship}">
-              <append_to_list name="$Ranks" exact="$Ship"/>
-            </do_if>
-          </do_for_each>
-        </do_if>
-        <!-- The rest, closest first: a few ships at most, so pick the closest each time -->
-        <do_while value="$Ranks.count lt $Attacking.count">
-          <set_value name="$Next" exact="null"/>
-          <do_for_each name="$Ship" in="$Attacking">
-            <do_if value="not $Ranks.indexof.{$Ship}">
-              <set_value name="$Distance" exact="if $Ship.sector == $Target.sector then $Ship.distanceto.{$Target} else 1000000km"/>
-              <do_if value="not $Next or $Distance lt $NextDistance">
-                <set_value name="$Next" exact="$Ship"/>
-                <set_value name="$NextDistance" exact="$Distance"/>
-              </do_if>
-            </do_if>
-          </do_for_each>
-          <append_to_list name="$Ranks" exact="$Next"/>
-        </do_while>
-        <return value="$Ranks"/>
-      </actions>
-    </library>
-
-    <!-- The summed laser and turret damage per second (dps.lasers.all + dps.turrets.all) of the
-         wing attacking Target, Ranks (see Ranks), as table[$full, $now, $lines]: $now leaves out
-         turrets their order holds, so it's what the whole wing may still land after it stops
-         firing. $lines has the same pair for each ship, summed over it and every ship ranked
-         ahead of it: what may still land after that ship and those ahead of it stop, so each
-         order turns it into that ship's stop line (#296). Not dps.all, which adds missiles: the
-         order blocks them. -->
-    <library name="WingDps" purpose="run_actions">
-      <params>
-        <param name="Ranks"/>
       </params>
       <actions>
         <set_value name="$Full" exact="0"/>
         <set_value name="$Held" exact="0"/>
-        <set_value name="$Lines" exact="table[]"/>
-        <do_for_each name="$Ship" in="$Ranks">
-          <!-- The order keeps it on the pilot, from before it took guns out of the weapon group
-               or held its turrets' fire, with the part held; until it has, the ship's own -->
-          <set_value name="$Full" exact="$Full + (if @$Ship.pilot.$APiratesLife_Dps then $Ship.pilot.$APiratesLife_Dps else $Ship.dps.lasers.all + $Ship.dps.turrets.all)"/>
-          <set_value name="$Held" exact="$Held + @$Ship.pilot.$APiratesLife_HeldDps"/>
-          <set_value name="$Lines.{$Ship}" exact="table[$full = $Full, $now = [$Full - $Held, 0].max]"/>
+        <do_for_each name="$Ship" in="$Members">
+          <do_if value="@$Ship.isoperational and @$Ship.order.id == 'APiratesLife_Capture' and $Ship.order.$target == $Target">
+            <!-- The order keeps it on the pilot, from before it took guns out of the weapon group
+                 or held its turrets' fire, with the part held; until it has, the ship's own -->
+            <set_value name="$Full" exact="$Full + (if @$Ship.pilot.$APiratesLife_Dps then $Ship.pilot.$APiratesLife_Dps else $Ship.dps.lasers.all + $Ship.dps.turrets.all)"/>
+            <set_value name="$Held" exact="$Held + @$Ship.pilot.$APiratesLife_HeldDps"/>
+          </do_if>
         </do_for_each>
-        <return value="table[$full = $Full, $now = [$Full - $Held, 0].max, $lines = $Lines]"/>
+        <return value="table[$full = $Full, $now = [$Full - $Held, 0].max]"/>
       </actions>
     </library>
 
@@ -308,16 +256,11 @@
           <param name="Pilot" value="$Target.pilot"/>
         </run_actions>
         <remove_value name="$Target.pilot.$APiratesLife_Fear"/>
-        <run_actions ref="Ranks" result="$Ranks">
+        <run_actions ref="WingDps" result="$WingDps">
           <param name="Target" value="$Target"/>
           <param name="Members" value="$Members"/>
-          <param name="Current" value="null"/>
-          <param name="Finisher" value="null"/>
         </run_actions>
-        <run_actions ref="WingDps" result="$WingDps">
-          <param name="Ranks" value="$Ranks"/>
-        </run_actions>
-        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null, $gatestime = 0s, $gatessince = (if $InGates then player.age else null), $fear = $Fear, $ranks = $Ranks, $wingdps = $WingDps, $finisher = null]"/>
+        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null, $gatestime = 0s, $gatessince = (if $InGates then player.age else null), $fear = $Fear, $wingdps = $WingDps, $finisher = null]"/>
         <set_value name="global.$APiratesLife_CaptureOps.{$Target}" exact="$Op"/>
 
         <!-- Starting a capture is the act of piracy: this one ship turns hostile to the player, as
@@ -406,8 +349,12 @@
               <signal_cue_instantly cue="End" param="$Outcome"/>
             </do_if>
             <do_else>
-              <!-- The finisher, the order the wing stops in, and the wing's damage, as wingmen
-                   die, leave the operation or hold their turrets -->
+              <!-- The wing's damage, as wingmen die, leave the operation or hold their turrets -->
+              <run_actions ref="WingDps" result="$WingDps">
+                <param name="Target" value="$Target"/>
+                <param name="Members" value="$Members"/>
+              </run_actions>
+              <set_value name="$Op.$wingdps" exact="$WingDps"/>
               <run_actions ref="Finisher" result="$Finisher">
                 <param name="Target" value="$Target"/>
                 <param name="Members" value="$Members"/>
@@ -415,17 +362,6 @@
               </run_actions>
               <debug_text text="'[apirateslife] capture: finisher on %s is now %s (was %s)'.[$Target.knownname, @$Finisher.knownname, @$Op.$finisher.knownname]" chance="if $Finisher != $Op.$finisher and global.$APiratesLife_CaptureDebug? then global.$APiratesLife_CaptureDebug else 0"/>
               <set_value name="$Op.$finisher" exact="$Finisher"/>
-              <run_actions ref="Ranks" result="$Ranks">
-                <param name="Target" value="$Target"/>
-                <param name="Members" value="$Members"/>
-                <param name="Current" value="$Op.$ranks"/>
-                <param name="Finisher" value="$Finisher"/>
-              </run_actions>
-              <set_value name="$Op.$ranks" exact="$Ranks"/>
-              <run_actions ref="WingDps" result="$WingDps">
-                <param name="Ranks" value="$Ranks"/>
-              </run_actions>
-              <set_value name="$Op.$wingdps" exact="$WingDps"/>
               <!-- Bail pressure: count the time inside the bail gates -->
               <run_actions ref="InGates" result="$InGates">
                 <param name="Target" value="$Target"/>
