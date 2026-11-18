@@ -63,8 +63,9 @@ Feature: Capture operations
     Given a capture operation on a capturable fighter with full hull and shields
     And three wingmen fly X-wings, starting 2 km from the fighter around it
     When the fighter flies 20 km away with its travel drive, 5 seconds into the operation
-    Then every wingman is back within 2 km of the fighter within 60 seconds of it leaving
-    And the operation doesn't end as escaped
+    Then the fighter uses its travel drive
+    And every wingman is back within 2 km of the fighter within 60 seconds of it leaving
+    And the operation is still running
 
   # A TIE/LN's shields are smaller than one X-wing's burst, so only the finisher fires on them.
   # Its two guns sometimes miss while the shields regrow, so this test reports a run that's
