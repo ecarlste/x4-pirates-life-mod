@@ -8,7 +8,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 
 | Unit tests | Game tests | Manual | Pending | By hand |
 | --- | --- | --- | --- | --- |
-| 0 | 21 | 2 | 3 | **5** |
+| 0 | 23 | 2 | 3 | **5** |
 
 ## Scenarios
 
@@ -80,6 +80,30 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   Then only one wingman fires until the hull is below 75%, as the whole break from 80% is inside the wing's margin
   And for 30 seconds the hull stays below 75%, and the fighter is never destroyed
   And the hull never drops below the 35% floor
+```
+
+### Far wingmen close in with the travel drive
+
+**Automated:** in game `capture_wing_travels_in`
+
+```gherkin
+  Given a capture operation on a capturable fighter with 80% hull and no shields
+  And three wingmen fly X-wings, starting 20 km from the fighter in its sector
+  When the operation starts
+  Then every wingman is within 2 km of the fighter within 45 seconds
+  And the fighter is never destroyed, and the hull never drops below the 35% floor
+```
+
+### The wing chases a target that flies off with its travel drive
+
+**Automated:** in game `capture_wing_chases`
+
+```gherkin
+  Given a capture operation on a capturable fighter with full hull and shields
+  And three wingmen fly X-wings, starting 2 km from the fighter around it
+  When the fighter flies 20 km away with its travel drive, 5 seconds into the operation
+  Then every wingman is back within 2 km of the fighter within 60 seconds of it leaving
+  And the operation doesn't end as escaped
 ```
 
 ### The wing keeps knocking the shields down as they regrow

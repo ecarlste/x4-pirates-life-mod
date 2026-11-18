@@ -42,6 +42,8 @@
      carries $APiratesLife_NoMissiles while this order runs, which our patch on
      aiscripts/fight.attack.object.fighter.xml reads. (Setting the missile ammo aside instead
      didn't work: vanilla still chose missile passes, with the lasers off.)
+     Travel drive: further than $traveldistance from the target, a wingman holds fire and travels
+     in, whatever it would do once there (#297).
      See docs/specs/capture-operation.md. -->
 <aiscript name="order.apirateslife.capture" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="aiscripts.xsd" version="1">
   <order id="APiratesLife_Capture" name="{1774100, 101}" description="{1774100, 102}" category="internal" allowinloop="false">
@@ -58,6 +60,7 @@
       <param name="finishrange" default="600m" type="internal" comment="Break, fine stage (and suppress below the burst): the finisher fires only within this distance of the target, and closes in without firing from further out"/>
       <param name="shieldgate" default="20" type="internal" comment="While suppressing, the finisher stops once the target's shields are under this percentage (vanilla's bail gate for shields)"/>
       <param name="shieldresume" default="10" type="internal" comment="While suppressing, fire again once shields are this many percent above the stop point"/>
+      <param name="traveldistance" default="5km" type="internal" comment="Further than this from the target (well past gun range), a wingman closes in with its travel drive, whatever it's doing, and drops out of it nearer in (#297)"/>
       <param name="debugchance" type="internal" default="0" comment="Print debug output: 0 or 100"/>
     </params>
     <requires>
@@ -193,6 +196,28 @@
         </do_else>
       </actions>
     </handler>
+    <!-- Firing (vanilla's attack or the finisher's pass): every 1 s, check the distance to the
+         target. Once it's past $traveldistance (it fled, or the attack run carried us out), the
+         attack ends and decide travels back in. Vanilla's attack chases in travel mode only past
+         about 40 s at combat speed (12 km and more for a fighter), and stays on a fleeing target
+         until then (#297). The check signals itself again after 1 s; one left from an earlier
+         attack ($travelcheck) is ignored. -->
+    <handler>
+      <conditions>
+        <event_object_signalled object="this.assignedcontrolled" param="'apirateslife_capture_travelcheck'"/>
+        <check_value value="event.param2 == $travelcheck and $firing"/>
+      </conditions>
+      <actions>
+        <do_if value="this.assignedcontrolled.distanceto.{$target} gt $traveldistance">
+          <debug_text text="'[apirateslife] capture order: %s stops firing to travel in, %sm out'.[this.assignedcontrolled.knownname, this.assignedcontrolled.distanceto.{$target}]" chance="$debugchance"/>
+          <set_value name="$firing" exact="false"/>
+          <abort_called_scripts resume="decide"/>
+        </do_if>
+        <do_else>
+          <signal_objects object="this.assignedcontrolled" param="'apirateslife_capture_travelcheck'" param2="$travelcheck" delay="1s"/>
+        </do_else>
+      </actions>
+    </handler>
     <!-- The operation ended (abandoned, called off...): stop at once, even mid-attack -->
     <handler>
       <conditions>
@@ -229,8 +254,9 @@
     <set_value name="$missstart" exact="null"/>
     <set_value name="$misslast" exact="null"/>
     <set_value name="$missbanked" exact="0"/>
-    <!-- The finisher's current attack, for its range check -->
+    <!-- The finisher's current attack, for its range check, and any wingman's, for its travel check -->
     <set_value name="$rangecheck" exact="0"/>
+    <set_value name="$travelcheck" exact="0"/>
     <!-- Every gun, for the finisher's shot handler -->
     <create_group groupname="$guns"/>
     <add_to_group groupname="$guns" list="this.assignedcontrolled.weapons.operational.list"/>
@@ -324,6 +350,8 @@
       <!-- Where this wingman stops on the shields in suppress (the hit handler): the gate while
            finishing, $wingstop otherwise -->
       <set_value name="$stopshield" exact="if $finishing then $gateshield else $wingstop"/>
+      <!-- Far out: travel in first, whatever this wingman would do once there (below) -->
+      <set_value name="$travelling" exact="this.assignedcontrolled.distanceto.{$target} gt $traveldistance"/>
 
       <!-- Turrets hold fire from the fine stage on (see the top of this file), unless the
            CaptureWingmenTurrets setting is 0 -->
@@ -359,8 +387,9 @@
            and a turret-only YT-1300's turrets fired on past the line, never held again (#241). -->
       <set_value name="$breakstop" exact="if $turretmodes == null then $wingfullburst else $wingburst"/>
 
-      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $closing then 'closes in' else if $finishing then 'finishes' else if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, if $target.hullpercentage lt $holdhull then $stopshield else $breakstop, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire or $finishing != @$lastfinishing or $closing != @$lastclosing then $debugchance else 0"/>
+      <debug_text text="'[apirateslife] capture order: %s %s on %s: hull %s%%, shields %s%% (%s, stop at %s), distance %sm'.[this.assignedcontrolled.knownname, if $travelling then 'travels in' else if $closing then 'closes in' else if $finishing then 'finishes' else if $fire then 'fires' else 'holds', $target.knownname, $target.hullpercentage, $target.shieldpercentage, $target.shield, if $target.hullpercentage lt $holdhull then $stopshield else $breakstop, this.assignedcontrolled.distanceto.{$target}]" chance="if $fire != @$lastfire or $finishing != @$lastfinishing or $closing != @$lastclosing or $travelling != @$lasttravelling then $debugchance else 0"/>
       <set_value name="$lastfire" exact="$fire"/>
+      <set_value name="$lasttravelling" exact="$travelling"/>
       <set_value name="$lastfinishing" exact="$finishing"/>
       <set_value name="$lastclosing" exact="$closing"/>
 
@@ -435,6 +464,28 @@
         <debug_text text="'[apirateslife] capture order: %s shields up %s%%, back to %s guns'.[this.assignedcontrolled.knownname, $target.shieldpercentage, $keptguns.count]" chance="$debugchance"/>
       </do_elseif>
 
+      <!-- Past $traveldistance: no fire, and travel in, as vanilla's attack chases (its
+           move_to with travel, 1 s at a time, which keeps the travel drive on between them). Back
+           to decide every second, so from $traveldistance in, the moves below run without
+           travel and the ship drops out of it before it reaches the target. -->
+      <do_if value="$travelling">
+        <do_if value="$missstart">
+          <set_value name="$missbanked" exact="$missbanked + $misslast - $missstart"/>
+          <set_value name="$missstart" exact="null"/>
+        </do_if>
+        <remove_value name="$holding"/>
+        <stop_shooting object="this.assignedcontrolled"/>
+        <cease_fire object="this.assignedcontrolled"/>
+        <do_if value="this.assignedcontrolled.defencenpc.exists">
+          <signal_objects object="this.assignedcontrolled.defencenpc" param="'attack'" comment="no target means stop attacking"/>
+        </do_if>
+        <move_to object="this.assignedcontrolled" destination="$target" finishonapproach="true" travel="true">
+          <interrupt_after_time time="1s"/>
+        </move_to>
+        <wait min="5ms" max="15ms" profile="flat" comment="no endless loop if the move returns at once"/>
+        <resume label="decide"/>
+      </do_if>
+
       <!-- Finisher out of range: no fire, and fly straight at the target, checking every second.
            Not the hold below: its evasive moves keep a wingman where it is, so a finisher between
            $finishrange and 1.5 km would rarely get back in range. Its pass starts again in range. -->
@@ -456,6 +507,8 @@
       <do_if value="$fire">
         <remove_value name="$holding"/>
         <set_value name="$firing" exact="true"/>
+        <set_value name="$travelcheck" exact="$travelcheck + 1"/>
+        <signal_objects object="this.assignedcontrolled" param="'apirateslife_capture_travelcheck'" param2="$travelcheck" delay="1s"/>
         <do_if value="$finishing">
           <set_value name="$rangecheck" exact="$rangecheck + 1"/>
           <signal_objects object="this.assignedcontrolled" param="'apirateslife_capture_rangecheck'" param2="$rangecheck" delay="1s"/>

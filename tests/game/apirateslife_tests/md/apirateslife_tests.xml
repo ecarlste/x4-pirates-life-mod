@@ -65,6 +65,8 @@
           CaptureEscaped,
           CaptureWingHoldsFire,
           CaptureWingHoldsFireThreeWingmen,
+          CaptureWingTravelsIn,
+          CaptureWingChases,
           CaptureWingKnocksShieldsAgain,
           CaptureWingBreaksFullShields,
           CaptureWingBailsPhantom,
@@ -2287,6 +2289,7 @@
          runs differ less than in CaptureWingHoldsFire, where the wingman starts beside the player.
          Macro and Loadout swap the X-wing for another ship (#184's turreted wingmen).
          TargetMacro swaps the target, and Hull and ShieldsDown (false: full shields) its start (#205).
+         Distance moves the wingmen further out (#297's 20 km start).
          Returns table[$target, $wingmen, $gunowner, $turrets, $minhull, $heldfor]: $gunowner maps
          each wingman's lasers and turrets to the wingman, $turrets lists the turrets, and
          CheckWingHold keeps the last two. -->
@@ -2298,6 +2301,7 @@
         <param name="TargetMacro" default="macro.tie_advanced_macro"/>
         <param name="Hull" default="80"/>
         <param name="ShieldsDown" default="true"/>
+        <param name="Distance" default="2km"/>
       </params>
       <actions>
         <create_ship name="$Target" macro="$TargetMacro" sector="player.sector" capturable="true">
@@ -2317,8 +2321,8 @@
           <set_object_shield object="$Target" exact="0"/>
         </do_if>
         <set_object_hull object="$Target" exact="$Hull"/>
-        <set_value name="$X" exact="[2km, -1km, -1km]"/>
-        <set_value name="$Z" exact="[0m, 1.732km, -1.732km]"/>
+        <set_value name="$X" exact="[$Distance, -0.5 * $Distance, -0.5 * $Distance]"/>
+        <set_value name="$Z" exact="[0m, 0.866 * $Distance, -0.866 * $Distance]"/>
         <set_value name="$Wingmen" exact="[]"/>
         <set_value name="$GunOwner" exact="table[]"/>
         <set_value name="$Turrets" exact="[]"/>
@@ -2478,6 +2482,273 @@
                 <do_if value="$Wing.$target.exists">
                   <destroy_object object="$Wing.$target"/>
                 </do_if>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- #297: one check of the travel tests below, run every second. Counts, for each wingman, the
+         seconds from $Wing.$from until it's first within 2 km of the target (gun range), and the
+         closest it has been since (a ship arriving in travel mode on top of the prize shows here).
+         Done once every wingman has arrived, or at the first problem (the target or a wingman
+         lost, the hull under the floor). Returns table[$done, $problems]. -->
+    <library name="CheckWingInRange" purpose="run_actions">
+      <params>
+        <param name="Wing"/>
+      </params>
+      <actions>
+        <set_value name="$Target" exact="$Wing.$target"/>
+        <do_if value="not $Target.exists or not $Target.isoperational">
+          <return value="table[$done = true, $problems = ' target destroyed;']"/>
+        </do_if>
+        <do_if value="$Target.hullpercentage lt 35">
+          <return value="table[$done = true, $problems = ' hull %s%%, below the 35%% floor;'.[$Target.hullpercentage]]"/>
+        </do_if>
+        <set_value name="$Wing.$travelled" exact="$Wing.$travelled or $Target.travel.active"/>
+        <set_value name="$Trace" exact="''"/>
+        <do_for_each name="$Ship" in="$Wing.$wingmen">
+          <do_if value="not $Ship.exists or not $Ship.isoperational">
+            <return value="table[$done = true, $problems = ' a wingman was destroyed;']"/>
+          </do_if>
+          <set_value name="$Distance" exact="$Ship.distanceto.{$Target}"/>
+          <set_value name="$Trace" exact="$Trace + ' %sm%s'.[$Distance, if $Ship.travel.active then ' (travel)' else '']"/>
+          <do_if value="$Wing.$arrived.{$Ship}?">
+            <set_value name="$Wing.$closest.{$Ship}" exact="[$Wing.$closest.{$Ship}, $Distance].min"/>
+          </do_if>
+          <do_elseif value="$Distance le 2km">
+            <set_value name="$Wing.$arrived.{$Ship}" exact="player.age - $Wing.$from"/>
+            <set_value name="$Wing.$closest.{$Ship}" exact="$Distance"/>
+          </do_elseif>
+        </do_for_each>
+        <debug_text text="'[apirateslife-test] trace: hull %s%%, shields %s%%, target %s, wingmen%s'.[$Target.hullpercentage, $Target.shieldpercentage, if $Target.travel.active then 'in travel' else '%s m/s'.[$Target.speed], $Trace]" filter="general"/>
+        <return value="table[$done = ($Wing.$arrived.keys.count == $Wing.$wingmen.count), $problems = '']"/>
+      </actions>
+    </library>
+
+    <!-- #297: the report of a travel test: each wingman's seconds to gun range and closest approach
+         after, or how far it still was. Returns table[$ok, $detail]. -->
+    <library name="WingInRangeDone" purpose="run_actions">
+      <params>
+        <param name="Wing"/>
+        <param name="Problems"/>
+        <param name="Started"/>
+      </params>
+      <actions>
+        <set_value name="$Problems" exact="$Problems"/>
+        <do_if value="not $Started">
+          <set_value name="$Problems" exact="$Problems + ' operation did not start;'"/>
+        </do_if>
+        <set_value name="$Detail" exact="''"/>
+        <do_for_each name="$Ship" in="$Wing.$wingmen">
+          <do_if value="$Wing.$arrived.{$Ship}?">
+            <set_value name="$Detail" exact="$Detail + ' %ss (closest %sm)'.[$Wing.$arrived.{$Ship}, $Wing.$closest.{$Ship}]"/>
+          </do_if>
+          <do_elseif value="$Ship.exists and $Wing.$target.exists">
+            <set_value name="$Detail" exact="$Detail + ' not in range, %sm'.[$Ship.distanceto.{$Wing.$target}]"/>
+          </do_elseif>
+        </do_for_each>
+        <do_for_each name="$Ship" in="$Wing.$wingmen">
+          <do_if value="$Ship.exists">
+            <destroy_object object="$Ship"/>
+          </do_if>
+        </do_for_each>
+        <do_if value="$Wing.$target.exists">
+          <destroy_object object="$Wing.$target"/>
+        </do_if>
+        <return value="table[$ok = ($Problems == ''), $detail = $Problems + ' in gun range (2 km) by wingman:' + $Detail]"/>
+      </actions>
+    </library>
+
+    <!-- #297: three wingmen start 20 km from the target in its sector (SpawnWingAt2km with
+         Distance), the target at 80% hull with no shields, so only the finisher fires and the rest
+         hold. Each must close in with the travel drive: every wingman within 2 km within 45 s of
+         the hail. Without it they flew in at combat speed, and in Erik's game none fired in 106 s. -->
+    <cue name="CaptureWingTravelsIn">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="MarkCombatTest"/>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
+        <run_actions ref="SpawnWingAt2km" result="$Wing">
+          <param name="Count" value="3"/>
+          <param name="Distance" value="20km"/>
+        </run_actions>
+        <set_value name="$Wing.$arrived" exact="table[]"/>
+        <set_value name="$Wing.$closest" exact="table[]"/>
+        <set_value name="$Wing.$travelled" exact="false"/>
+        <!-- Set when the clock starts: the watch below starts with its parent's conditions, before
+             that cue's delay is up -->
+        <set_value name="$Wing.$from" exact="null"/>
+      </actions>
+      <cues>
+        <cue name="CaptureWingTravelsIn_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+            <set_object_capturable object="$Wing.$target" capturable="false"/>
+            <set_value name="$Wing.$from" exact="player.age"/>
+          </actions>
+          <cues>
+            <cue name="CaptureWingTravelsIn_Watch" checkinterval="1s" instantiate="true">
+              <actions>
+                <do_if value="$Wing.$from">
+                  <run_actions ref="CheckWingInRange" result="$Check">
+                    <param name="Wing" value="$Wing"/>
+                  </run_actions>
+                  <do_if value="not $Check.$done and player.age - $Wing.$from gt 45s">
+                    <set_value name="$Check" exact="table[$done = true, $problems = ' not every wingman in gun range within 45 s;']"/>
+                  </do_if>
+                  <do_if value="$Check.$done">
+                    <cancel_cue cue="CaptureWingTravelsIn_Timeout"/>
+                    <signal_cue_instantly cue="CaptureWingTravelsIn_Done" param="$Check.$problems"/>
+                  </do_if>
+                </do_if>
+              </actions>
+            </cue>
+            <cue name="CaptureWingTravelsIn_Timeout">
+              <!-- A backstop: the watch checks the 45 s from the hail -->
+              <delay exact="60s"/>
+              <actions>
+                <signal_cue_instantly cue="CaptureWingTravelsIn_Done" param="' not every wingman in gun range within 45 s;'"/>
+              </actions>
+            </cue>
+            <cue name="CaptureWingTravelsIn_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureWingTravelsIn_Watch"/>
+                <remove_value name="global.$APiratesLife_CaptureDebug"/>
+                <run_actions ref="WingInRangeDone" result="$Result">
+                  <param name="Wing" value="$Wing"/>
+                  <param name="Problems" value="event.param"/>
+                  <param name="Started" value="$Started"/>
+                </run_actions>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_travels_in', $ok = $Result.$ok, $detail = $Result.$detail]"/>
+              </actions>
+            </cue>
+          </cues>
+        </cue>
+      </cues>
+    </cue>
+
+    <!-- #297: three wingmen start 2 km from a full-health target (SpawnWingAt2km). 5 s into the
+         operation the target flies 20 km away with its travel drive (vanilla's MoveWait). Every
+         wingman must be back within 2 km within 60 s of that order, and the target must have used
+         its travel drive, or the test proves nothing. The wing is holding by the time the drive
+         starts: a target under steady fire never got into travel mode (one X-wing kept it at
+         combat speed, 2.2 km ahead, for 50 s), so this covers holding wingmen, not ones on
+         vanilla's attack. -->
+    <cue name="CaptureWingChases">
+      <conditions>
+        <event_cue_signalled/>
+      </conditions>
+      <actions>
+        <run_actions ref="MarkCombatTest"/>
+        <set_value name="global.$APiratesLife_CaptureHoldHull" exact="75"/>
+        <set_value name="global.$APiratesLife_CaptureFloorHull" exact="35"/>
+        <set_value name="global.$APiratesLife_CaptureDebug" exact="100"/>
+        <run_actions ref="SpawnWingAt2km" result="$Wing">
+          <param name="Count" value="3"/>
+          <param name="Hull" value="100"/>
+          <param name="ShieldsDown" value="false"/>
+        </run_actions>
+        <set_value name="$Wing.$arrived" exact="table[]"/>
+        <set_value name="$Wing.$closest" exact="table[]"/>
+        <set_value name="$Wing.$travelled" exact="false"/>
+        <!-- Set when the clock starts: the watch below starts with its parent's conditions, before
+             that cue's delay is up -->
+        <set_value name="$Wing.$from" exact="null"/>
+      </actions>
+      <cues>
+        <cue name="CaptureWingChases_Start">
+          <delay exact="2s"/>
+          <actions>
+            <run_actions ref="md.APiratesLife_Capture.Start" result="$Started">
+              <param name="Target" value="$Wing.$target"/>
+            </run_actions>
+            <set_object_capturable object="$Wing.$target" capturable="false"/>
+          </actions>
+          <cues>
+            <cue name="CaptureWingChases_Flee">
+              <delay exact="5s"/>
+              <actions>
+                <set_value name="$Target" exact="$Wing.$target"/>
+                <!-- Straight away from the player, who is 3 km behind it, so the escape rule's
+                     15 km counts only the wing -->
+                <create_position name="$Pos" object="player.occupiedship" z="23km" space="$Target.sector"/>
+                <create_order object="$Target" id="'MoveWait'" immediate="true">
+                  <param name="destination" value="[$Target.sector, $Pos]"/>
+                  <param name="noattackresponse" value="true"/>
+                </create_order>
+                <set_value name="$Wing.$from" exact="player.age"/>
+              </actions>
+              <cues>
+                <cue name="CaptureWingChases_Watch" checkinterval="1s" instantiate="true">
+                  <actions>
+                    <do_if value="$Wing.$from">
+                      <run_actions ref="CheckWingInRange" result="$Check">
+                        <param name="Wing" value="$Wing"/>
+                      </run_actions>
+                      <!-- Count arrivals only once the target is out of everyone's range: the first
+                           seconds of its flight start next to the wing -->
+                      <do_if value="not $Wing.$fled? and $Check.$problems == ''">
+                        <set_value name="$Wing.$fled" exact="true"/>
+                        <do_for_each name="$Ship" in="$Wing.$wingmen">
+                          <do_if value="$Ship.distanceto.{$Wing.$target} le 2km">
+                            <remove_value name="$Wing.$fled"/>
+                          </do_if>
+                        </do_for_each>
+                        <set_value name="$Wing.$arrived" exact="table[]"/>
+                        <set_value name="$Wing.$closest" exact="table[]"/>
+                      </do_if>
+                      <do_elseif value="not $Check.$done and player.age - $Wing.$from gt 60s">
+                        <cancel_cue cue="CaptureWingChases_Timeout"/>
+                        <signal_cue_instantly cue="CaptureWingChases_Done" param="' not every wingman back in gun range within 60 s;'"/>
+                      </do_elseif>
+                      <do_elseif value="$Check.$done">
+                        <cancel_cue cue="CaptureWingChases_Timeout"/>
+                        <signal_cue_instantly cue="CaptureWingChases_Done" param="$Check.$problems"/>
+                      </do_elseif>
+                    </do_if>
+                  </actions>
+                </cue>
+                <cue name="CaptureWingChases_Timeout">
+                  <!-- A backstop: the watch checks the 60 s from the flee order -->
+                  <delay exact="80s"/>
+                  <actions>
+                    <signal_cue_instantly cue="CaptureWingChases_Done" param="' not every wingman back in gun range within 60 s;'"/>
+                  </actions>
+                </cue>
+              </cues>
+            </cue>
+            <cue name="CaptureWingChases_Done">
+              <conditions>
+                <event_cue_signalled/>
+              </conditions>
+              <actions>
+                <cancel_cue cue="CaptureWingChases_Flee"/>
+                <remove_value name="global.$APiratesLife_CaptureDebug"/>
+                <set_value name="$Problems" exact="event.param"/>
+                <do_if value="not $Wing.$travelled">
+                  <set_value name="$Problems" exact="$Problems + ' the target never used its travel drive;'"/>
+                </do_if>
+                <do_if value="not @global.$APiratesLife_CaptureOps.{$Wing.$target}">
+                  <set_value name="$Problems" exact="$Problems + ' the operation ended;'"/>
+                </do_if>
+                <run_actions ref="WingInRangeDone" result="$Result">
+                  <param name="Wing" value="$Wing"/>
+                  <param name="Problems" value="$Problems"/>
+                  <param name="Started" value="$Started"/>
+                </run_actions>
+                <signal_cue_instantly cue="Report" param="table[$name = 'capture_wing_chases', $ok = $Result.$ok, $detail = $Result.$detail]"/>
               </actions>
             </cue>
           </cues>
