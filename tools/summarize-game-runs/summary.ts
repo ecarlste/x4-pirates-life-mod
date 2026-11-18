@@ -55,10 +55,10 @@ export type Stage = (typeof STAGES)[number];
 
 /** The wing stopping on the target: the capture order's hold handler ("holds on event_…") */
 export interface Stop {
-  /** "burst": the wing's stop with the hull still at or over the operation's hold, its burst
-   * (burstseconds of its fire) left above the line; "line": the finisher's stop on the hit that took
-   * the hull under the hold, last seen at or over it before the stop's frame; "suppress": a stop on
-   * the shields with the hull already under the hold */
+  /** "burst": a stop with the hull still at or over the operation's hold (since #296, the shield
+   * breakers' stop at 0 shields; before, the wing's burst left above the line); "line": the stop on
+   * the hit that took the hull under the hold, last seen at or over it before the stop's frame;
+   * "suppress": a stop on the shields with the hull already under the hold (the band) */
   stage: Stage;
   /** When, from the operation's start */
   seconds: number;

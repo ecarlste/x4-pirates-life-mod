@@ -77,7 +77,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   Given a capture operation on a capturable fighter with 80% hull and its shields kept down until the hull is below 75%
   And three wingmen fly X-wings with four lasers and no missiles, starting 2 km from the fighter around it
   When the wing breaks the fighter's hull below 75%
-  Then only one wingman fires until the hull is below 75%, as the whole break from 80% is inside the wing's margin
+  Then only one wingman fires until the hull is below 75%, as the hull breakers are the finisher alone
   And for 30 seconds the hull stays below 75%, and the fighter is never destroyed
   And the hull never drops below the 35% floor
 ```
@@ -95,14 +95,14 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   And the hull never drops below the 35% floor, and the fighter is never destroyed
 ```
 
-### The wing breaks a fighter whose shields and hull above the gate fit inside its burst
+### One wingman breaks a fighter from full shields with its own passes
 
 **Automated:** in game `capture_wing_breaks_full_shields`
 
 ```gherkin
   Given a capture operation on a capturable TIE/LN at full hull and shields, nothing holding them down
   And my wingman flies an X-wing with four lasers and no missiles, starting 2 km from the fighter and facing it
-  When the finisher fights it from the start, as all of it is inside the wing's margin
+  When the finisher, alone in every group, fights it from the start
   Then the hull is below 75% within 60 seconds, or the run is reported as timed out
   And the hull never drops below the 35% floor, and the fighter is never destroyed
 ```
@@ -114,7 +114,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 ```gherkin
   Given a capture operation on a capturable TIE Phantom at full hull and shields, nothing holding them down
   And my wingman flies an X-wing with four lasers and no missiles, starting 2 km from the fighter and facing it
-  When the wing's burst breaks the shields and the finisher takes over in the break stage
+  When the finisher, alone in every group, breaks the shields and then the hull
   Then the pilot bails within 300 seconds, or the run is reported as timed out
   And the hull never drops below the 35% floor, and the fighter is never destroyed
 ```
@@ -126,7 +126,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 ```gherkin
   Given a capture operation on a capturable G9 Rigger at full hull and shields, reacting as its own AI would, nothing holding them down
   And my wing of four R41s and two HWK-290s, fitted as in my playthrough, without me, starts 2 km from it and facing it
-  When the wing's burst is more than its shields and hull above the gate from the start
+  When the shield breakers knock its shields down and the hull breakers take the hull under 75%
   Then the G9 is inside both bail gates within 180 seconds
   And the hull never drops below the 35% floor, and the G9 is never destroyed
 ```
@@ -138,7 +138,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 ```gherkin
   Given a capture operation on a capturable fighter with 80% hull and its shields kept down until the hull is below 75%
   And my wingman flies a <ship> with <guns> and <turrets>, starting 2 km from the fighter and facing it
-  When the wing's margin above the gate is used up
+  When the wingman stops firing with vanilla's attack
   Then its turrets stop firing within a second, through the finish, suppress and hold
   And for 30 seconds the hull stays below 75%, and the fighter is never destroyed
   And the hull never drops below the 35% floor
@@ -176,17 +176,17 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
   And none kills the fighter
 ```
 
-### A wing of turret-only ships stops at the margin and leaves the finish to me
+### A turret-only wingman holds its turrets once it stops firing with vanilla's attack
 
 **Automated:** in game `capture_wing_turrets_break_m`
 
 ```gherkin
   Given a capture operation on a capturable TIE Advanced at full hull and shields, nothing holding them down
   And my only wingman flies a YT-1300 with two AG-2G turrets and no forward guns, starting 2 km from it and facing it
-  When its turrets break the fighter's shields and hull down to the wing's margin
-  Then its turrets stop firing within a second
-  And for 120 seconds the hull never goes below 75%, and the fighter is never destroyed
-  And the report gives how far past the line the turrets took it
+  When its turrets break the fighter's shields, and its hull if it's a hull breaker
+  Then its turrets stop firing within a second of it stopping
+  And for 120 seconds the hull never goes below 55%, and the fighter is never destroyed
+  And the report gives the lowest hull
   And once I cancel its order, each turret is back in the mode it started in
 ```
 
@@ -197,7 +197,7 @@ Source: [`tests/game/features/capture-operation.feature`](../../tests/game/featu
 ```gherkin
   Given CaptureWingmenTurrets is 0
   And a capture operation with a turreted wingman
-  When the wing's margin above the gate is used up
+  When the wingman stops firing with vanilla's attack
   Then the wingman's turrets keep their own modes
 ```
 

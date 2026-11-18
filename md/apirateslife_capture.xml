@@ -7,17 +7,16 @@
 
      While an operation runs, it is listed by target in
        global.$APiratesLife_CaptureOps.{$target}
-         = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince, $fear, $wingdps,
-                 $finisher]
+         = table[$leader, $members, $op, $lastchance, $gatestime, $gatessince, $fear, $attacking,
+                 $finisher, $shieldbreakers, $hullbreakers, $bandbreakers, $bandstop]
      which the wingman order and the bail hook (md/apirateslife_bail.xml) read. $gatestime is the
      time the target has spent inside the bail gates so far, not counting the stretch since
      $gatessince (null while it is outside them); $fear is the pilot's fear when the operation
-     started. Pressure turns them into bail pressure. $wingdps is the summed laser and turret
-     damage per second of the wingmen still attacking the target (WingDps: $full, and $now without
-     turrets holding fire), kept current by Tick; each wingman's order turns it into the wing's
-     burst, what may still land after the wing stops.
-     $finisher is the one wingman that fires single shots inside that burst's margin (Finisher),
-     also kept by Tick; null when no wingman has a forward gun.
+     started. Pressure turns them into bail pressure. $attacking is the wingmen still attacking the
+     target (Attacking), and $finisher the one that flies its own passes (Finisher), null when no
+     wingman has a forward gun. The rest are the groups the wing fires in, and where the band
+     breakers stop (Groups), picked again by Tick whenever $attacking or $finisher changes; each
+     wingman's order reads which group it's in.
      A global table, because X4 can't store script variables on a ship (only on NPCs), and AI
      scripts can read globals.
 
@@ -142,34 +141,151 @@
       </actions>
     </library>
 
-    <!-- The summed laser and turret damage per second (dps.lasers.all + dps.turrets.all) of the
-         Members still running a capture order on Target, as table[$full, $now]: $now leaves out
-         turrets their order holds, so it's what the whole wing may still land after it stops
-         firing. Not dps.all, which adds missiles: the order blocks them. -->
-    <library name="WingDps" purpose="run_actions">
+    <!-- The Members still attacking Target: operational and running a capture order on it -->
+    <library name="Attacking" purpose="run_actions">
       <params>
         <param name="Target"/>
         <param name="Members"/>
       </params>
       <actions>
-        <set_value name="$Full" exact="0"/>
-        <set_value name="$Held" exact="0"/>
+        <set_value name="$Attacking" exact="[]"/>
         <do_for_each name="$Ship" in="$Members">
           <do_if value="@$Ship.isoperational and @$Ship.order.id == 'APiratesLife_Capture' and $Ship.order.$target == $Target">
-            <!-- The order keeps it on the pilot, from before it took guns out of the weapon group
-                 or held its turrets' fire, with the part held; until it has, the ship's own -->
-            <set_value name="$Full" exact="$Full + (if @$Ship.pilot.$APiratesLife_Dps then $Ship.pilot.$APiratesLife_Dps else $Ship.dps.lasers.all + $Ship.dps.turrets.all)"/>
-            <set_value name="$Held" exact="$Held + @$Ship.pilot.$APiratesLife_HeldDps"/>
+            <append_to_list name="$Attacking" exact="$Ship"/>
           </do_if>
         </do_for_each>
-        <return value="table[$full = $Full, $now = [$Full - $Held, 0].max]"/>
+        <return value="$Attacking"/>
       </actions>
     </library>
 
-    <!-- The wingman that finishes the break inside the wing's burst margin, one shot at a time:
-         Current while it is still running a capture order on Target, else the closest Member that
-         is and has a forward gun (dps.lasers.all counts no turrets). Null if there is none: a wing
-         of turrets only stops at the margin, and the player finishes. -->
+    <!-- A wingman's laser and turret damage per second, and one forward gun's, as
+         table[$all, $gun]. The order keeps both on the pilot from before it took guns out of the
+         weapon group or held its turrets' fire; until it has, the ship's own. Not dps.all, which
+         adds missiles: the order blocks them. $gun is 0 for a ship with no forward gun. -->
+    <library name="ShipDps" purpose="run_actions">
+      <params>
+        <param name="Ship"/>
+      </params>
+      <actions>
+        <do_if value="@$Ship.pilot.$APiratesLife_Dps != null">
+          <return value="table[$all = $Ship.pilot.$APiratesLife_Dps, $gun = @$Ship.pilot.$APiratesLife_GunDps]"/>
+        </do_if>
+        <set_value name="$Guns" exact="0"/>
+        <do_for_each name="$Gun" in="$Ship.weapons.operational.list">
+          <do_if value="not $Gun.isclass.turret">
+            <set_value name="$Guns" operation="add"/>
+          </do_if>
+        </do_for_each>
+        <return value="table[$all = $Ship.dps.lasers.all + $Ship.dps.turrets.all, $gun = if $Guns then $Ship.dps.lasers.all / $Guns else 0]"/>
+      </actions>
+    </library>
+
+    <!-- The groups the wingmen on Target fire in (#296), from Attacking (the wingmen still
+         attacking it) and its Finisher, as table[$shieldbreakers, $hullbreakers, $bandbreakers,
+         $bandstop]. Ships are taken in order: the finisher first, then the rest, closest to the
+         target first.
+           $shieldbreakers: the smallest group whose laser and turret damage takes full shields to 0
+                            in CaptureShieldSeconds (2 s); the whole wing if it can't.
+           $hullbreakers:   from the shield breakers in the same order, while their 1.5 s of
+                            damage stays at most CaptureHullShare (20%) of the max hull, so their
+                            overshoot past the 75% line leaves 55% or more. The finisher is always in.
+           $bandbreakers:   the finisher, then the next shield breakers with a forward gun, while
+                            their summed 0.6 s bursts of one gun stay at most 10% of max shields.
+                            That sum is $bandstop, where they stop on the shields below the hold
+                            line. -1 when even the finisher's one-gun burst is over 10% (small
+                            shields: it fires alone down to the 20% gate), or there's no finisher
+                            or no shields.
+         Ships in no group hold fire. The order reads which group it's in. -->
+    <library name="Groups" purpose="run_actions">
+      <params>
+        <param name="Target"/>
+        <param name="Attacking"/>
+        <param name="Finisher"/>
+      </params>
+      <actions>
+        <set_value name="$ShieldSeconds" exact="if global.$APiratesLife_CaptureShieldSeconds? then global.$APiratesLife_CaptureShieldSeconds else 2"/>
+        <set_value name="$HullShare" exact="if global.$APiratesLife_CaptureHullShare? then global.$APiratesLife_CaptureHullShare else 20"/>
+        <!-- What may still land after a ship stops: on the hull in the break, on the shields in the
+             band (bolts in flight from 1-1.5 km carry about 0.6 s at 1x, #216) -->
+        <set_value name="$HullSeconds" exact="1.5"/>
+        <set_value name="$BandSeconds" exact="0.6"/>
+        <set_value name="$BandShare" exact="10"/>
+
+        <set_value name="$Rest" exact="[]"/>
+        <do_for_each name="$Ship" in="$Attacking">
+          <do_if value="$Ship != $Finisher">
+            <append_to_list name="$Rest" exact="$Ship"/>
+          </do_if>
+        </do_for_each>
+        <sort_list list="$Rest" sortbyvalue="loop.element.distanceto.{$Target}"/>
+        <set_value name="$Ordered" exact="if $Finisher and $Attacking.indexof.{$Finisher} then [$Finisher] else []"/>
+        <do_for_each name="$Ship" in="$Rest">
+          <append_to_list name="$Ordered" exact="$Ship"/>
+        </do_for_each>
+
+        <set_value name="$ShieldBreakers" exact="[]"/>
+        <set_value name="$Sum" exact="0"/>
+        <do_for_each name="$Ship" in="$Ordered">
+          <do_if value="not $ShieldBreakers.count or $Sum * $ShieldSeconds lt $Target.maxshield">
+            <run_actions ref="ShipDps" result="$Dps">
+              <param name="Ship" value="$Ship"/>
+            </run_actions>
+            <append_to_list name="$ShieldBreakers" exact="$Ship"/>
+            <set_value name="$Sum" exact="$Sum + $Dps.$all"/>
+          </do_if>
+        </do_for_each>
+
+        <set_value name="$HullBreakers" exact="[]"/>
+        <set_value name="$Sum" exact="0"/>
+        <set_value name="$Open" exact="true"/>
+        <do_for_each name="$Ship" in="$ShieldBreakers">
+          <run_actions ref="ShipDps" result="$Dps">
+            <param name="Ship" value="$Ship"/>
+          </run_actions>
+          <do_if value="$Ship == $Finisher or ($Open and ($Sum + $Dps.$all) * $HullSeconds le $Target.maxhull * $HullShare / 100.0)">
+            <append_to_list name="$HullBreakers" exact="$Ship"/>
+            <set_value name="$Sum" exact="$Sum + $Dps.$all"/>
+          </do_if>
+          <do_else>
+            <set_value name="$Open" exact="false"/>
+          </do_else>
+        </do_for_each>
+
+        <set_value name="$BandBreakers" exact="[]"/>
+        <set_value name="$BandStop" exact="-1"/>
+        <do_if value="$Ordered.count and $Ordered.{1} == $Finisher and $Target.maxshield">
+          <set_value name="$Sum" exact="0"/>
+          <set_value name="$Open" exact="true"/>
+          <do_for_each name="$Ship" in="$ShieldBreakers">
+            <run_actions ref="ShipDps" result="$Dps">
+              <param name="Ship" value="$Ship"/>
+            </run_actions>
+            <set_value name="$Burst" exact="$Dps.$gun * $BandSeconds"/>
+            <do_if value="$Ship == $Finisher and $Burst gt $Target.maxshield * $BandShare / 100.0">
+              <!-- Small shields -->
+              <append_to_list name="$BandBreakers" exact="$Ship"/>
+              <set_value name="$Open" exact="false"/>
+            </do_if>
+            <do_elseif value="$Open and $Burst gt 0 and $Sum + $Burst le $Target.maxshield * $BandShare / 100.0">
+              <append_to_list name="$BandBreakers" exact="$Ship"/>
+              <set_value name="$Sum" exact="$Sum + $Burst"/>
+            </do_elseif>
+            <do_elseif value="$Burst gt 0">
+              <set_value name="$Open" exact="false"/>
+            </do_elseif>
+          </do_for_each>
+          <do_if value="$Sum gt 0">
+            <set_value name="$BandStop" exact="$Sum"/>
+          </do_if>
+        </do_if>
+        <return value="table[$shieldbreakers = $ShieldBreakers, $hullbreakers = $HullBreakers, $bandbreakers = $BandBreakers, $bandstop = $BandStop]"/>
+      </actions>
+    </library>
+
+    <!-- The wingman that flies its own passes and is first in every group (Groups): Current while
+         it is still running a capture order on Target, else the closest Member that is and has a
+         forward gun (dps.lasers.all counts no turrets). Null if there is none: a wing of turrets
+         only breaks the shields, and the hull too if it fits the hull breakers' share. -->
     <library name="Finisher" purpose="run_actions">
       <params>
         <param name="Target"/>
@@ -256,11 +372,7 @@
           <param name="Pilot" value="$Target.pilot"/>
         </run_actions>
         <remove_value name="$Target.pilot.$APiratesLife_Fear"/>
-        <run_actions ref="WingDps" result="$WingDps">
-          <param name="Target" value="$Target"/>
-          <param name="Members" value="$Members"/>
-        </run_actions>
-        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null, $gatestime = 0s, $gatessince = (if $InGates then player.age else null), $fear = $Fear, $wingdps = $WingDps, $finisher = null]"/>
+        <set_value name="$Op" exact="table[$leader = $Leader, $members = $Members, $op = this, $lastchance = null, $gatestime = 0s, $gatessince = (if $InGates then player.age else null), $fear = $Fear, $attacking = [], $finisher = null, $shieldbreakers = [], $hullbreakers = [], $bandbreakers = [], $bandstop = -1]"/>
         <set_value name="global.$APiratesLife_CaptureOps.{$Target}" exact="$Op"/>
 
         <!-- Starting a capture is the act of piracy: this one ship turns hostile to the player, as
@@ -349,19 +461,38 @@
               <signal_cue_instantly cue="End" param="$Outcome"/>
             </do_if>
             <do_else>
-              <!-- The wing's damage, as wingmen die, leave the operation or hold their turrets -->
-              <run_actions ref="WingDps" result="$WingDps">
+              <!-- The groups: picked again only when a wingman is destroyed or leaves the
+                   operation, or the finisher changes, so a ship's group holds otherwise -->
+              <run_actions ref="Attacking" result="$Attacking">
                 <param name="Target" value="$Target"/>
                 <param name="Members" value="$Members"/>
               </run_actions>
-              <set_value name="$Op.$wingdps" exact="$WingDps"/>
               <run_actions ref="Finisher" result="$Finisher">
                 <param name="Target" value="$Target"/>
                 <param name="Members" value="$Members"/>
                 <param name="Current" value="$Op.$finisher"/>
               </run_actions>
               <debug_text text="'[apirateslife] capture: finisher on %s is now %s (was %s)'.[$Target.knownname, @$Finisher.knownname, @$Op.$finisher.knownname]" chance="if $Finisher != $Op.$finisher and global.$APiratesLife_CaptureDebug? then global.$APiratesLife_CaptureDebug else 0"/>
+              <set_value name="$Regroup" exact="$Finisher != $Op.$finisher or $Attacking.count != $Op.$attacking.count"/>
+              <do_for_each name="$Ship" in="$Attacking">
+                <do_if value="not $Op.$attacking.indexof.{$Ship}">
+                  <set_value name="$Regroup" exact="true"/>
+                </do_if>
+              </do_for_each>
               <set_value name="$Op.$finisher" exact="$Finisher"/>
+              <do_if value="$Regroup">
+                <run_actions ref="Groups" result="$Groups">
+                  <param name="Target" value="$Target"/>
+                  <param name="Attacking" value="$Attacking"/>
+                  <param name="Finisher" value="$Finisher"/>
+                </run_actions>
+                <set_value name="$Op.$attacking" exact="$Attacking"/>
+                <set_value name="$Op.$shieldbreakers" exact="$Groups.$shieldbreakers"/>
+                <set_value name="$Op.$hullbreakers" exact="$Groups.$hullbreakers"/>
+                <set_value name="$Op.$bandbreakers" exact="$Groups.$bandbreakers"/>
+                <set_value name="$Op.$bandstop" exact="$Groups.$bandstop"/>
+                <debug_text text="'[apirateslife] capture: groups on %s: %s attacking, finisher %s; shield breakers %s, hull breakers %s, band breakers %s, band stop %s'.[$Target.knownname, $Attacking.count, @$Finisher.knownname, $Groups.$shieldbreakers.count, $Groups.$hullbreakers.count, $Groups.$bandbreakers.count, $Groups.$bandstop]" chance="if global.$APiratesLife_CaptureDebug? then global.$APiratesLife_CaptureDebug else 0"/>
+              </do_if>
               <!-- Bail pressure: count the time inside the bail gates -->
               <run_actions ref="InGates" result="$InGates">
                 <param name="Target" value="$Target"/>
